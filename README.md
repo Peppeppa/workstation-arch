@@ -52,10 +52,10 @@ repository.
 ## Status
 
 Ansible is now the primary provisioner. The `base` role (Arch base
-packages) is implemented. The rest of the desktop - graphics/Wayland
-foundation, Hyprland, Quickshell, audio, Bluetooth, session, hardware
-specifics - is **not yet implemented**; those will be added as further
-roles under `roles/`.
+packages) and `graphics` role (Wayland/Mesa/XWayland foundation) are
+implemented. The rest of the desktop - Hyprland, Quickshell, audio,
+Bluetooth, session, hardware specifics - is **not yet implemented**;
+those will be added as further roles under `roles/`.
 
 ## Requirements
 
@@ -113,6 +113,7 @@ Only run a specific part, by tag:
 
 ```sh
 ./bootstrap.sh --tags base
+./bootstrap.sh --tags graphics
 ```
 
 `bootstrap.sh` forwards any extra arguments straight to
@@ -120,11 +121,12 @@ Only run a specific part, by tag:
 
 ## Roles
 
-| Role   | Tag    | What it does                                    |
-|--------|--------|--------------------------------------------------|
-| `base` | `base` | Minimal Arch base packages (git, openssh, curl, rsync) |
+| Role       | Tag        | What it does                                              |
+|------------|------------|------------------------------------------------------------|
+| `base`     | `base`     | Minimal Arch base packages (git, openssh, curl, rsync)     |
+| `graphics` | `graphics` | Wayland/Mesa/XWayland foundation - no compositor yet       |
 
-Further roles (`graphics`, `hyprland`, `quickshell`, `network`, `audio`,
+Further roles (`hyprland`, `quickshell`, `network`, `audio`,
 `bluetooth`, `session`, `hardware`, ...) will be added the same way as
 the desktop is built out - see `docs/ARCHITECTURE.md` for the intended
 stack.
@@ -132,14 +134,17 @@ stack.
 ## Pacman / update policy
 
 Arch Linux is a rolling release; syncing the package database without
-upgrading the rest of the system risks a partial upgrade. The `base`
-role's `community.general.pacman` task therefore always runs with
-`update_cache: true` and `upgrade: true` together with installing the
-package list - a full sync-and-upgrade together with the install, the
-Ansible equivalent of `pacman -Syu --needed`, never a bare sync. Package
-modules run non-interactively already; no manual `--noconfirm` is
-needed, but errors (conflicts, bad signatures, corrupted packages) still
-fail the play instead of being silently worked around.
+upgrading the rest of the system risks a partial upgrade. `local.yml`
+therefore syncs and fully upgrades the system exactly **once** per
+provisioning run, in a `pre_task` tagged `always` (so it runs regardless
+of which `--tags` you select) - the Ansible equivalent of `pacman -Syu`,
+never a bare sync. Individual roles (`base`, `graphics`, and future
+ones) only ever install their own package list (`state: present`); none
+of them repeats the sync/upgrade, so a run never does more than one full
+system upgrade no matter how many package-installing roles it touches.
+Package modules run non-interactively already; no manual `--noconfirm`
+is needed, but errors (conflicts, bad signatures, corrupted packages)
+still fail the play instead of being silently worked around.
 
 Ansible is not a replacement for routine system maintenance; running
 `sudo pacman -Syu` yourself between provisioning runs remains your
@@ -150,10 +155,20 @@ responsibility.
 Two real target machines, `laptop` and `workstation`, share almost
 everything. `group_vars/all.yml` holds shared defaults; `host_vars/`
 holds only genuine per-host deviations, added when they actually arise
-- not invented ahead of time. `local.yml` runs against the implicit
-`localhost` (this project never manages a machine over SSH) and loads
-`host_vars/<real hostname>.yml` explicitly, keyed by the machine's actual
-hostname - no automatic hardware-detection engine.
+- not invented ahead of time.
+
+`local.yml` runs against the implicit `localhost` (this project never
+manages a machine over SSH) and loads `host_vars/<real hostname>.yml`
+explicitly, keyed by the machine's actual hostname - no automatic
+hardware-detection engine. This means the common roles (`base`,
+`graphics`, ...) apply unconditionally to **any** upstream Arch host,
+including a throwaway test VM that isn't named `laptop` or
+`workstation`: an unrecognized hostname simply has no `host_vars` file
+to load, which is expected and not an error. `inventory/localhost.yml`
+intentionally does *not* declare `laptop`/`workstation` as separate
+inventory hosts - `local.yml` never targets them by name, so doing that
+would be decorative at best and misleading at worst (e.g. `--limit
+laptop` would silently match nothing).
 
 ## Arch guard
 
@@ -182,7 +197,8 @@ exist and are not skippable via tags.
 │   ├── laptop.yml         # real per-host overrides (empty until needed)
 │   └── workstation.yml
 ├── roles/
-│   └── base/              # Arch base packages
+│   ├── base/              # Arch base packages
+│   └── graphics/          # Wayland/Mesa/XWayland foundation
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DESIGN_SYSTEM.md

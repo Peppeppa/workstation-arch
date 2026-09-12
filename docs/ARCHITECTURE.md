@@ -25,14 +25,26 @@ Arch system state
 ```
 Arch Linux
     ↓
-systemd
+Linux kernel
     ↓
-NetworkManager / PipeWire / BlueZ
+DRM / KMS
+    ↓
+Mesa
+    ↓
+Wayland
     ↓
 Hyprland
     ↓
 Quickshell
 ```
+
+XWayland sits alongside Wayland as a compatibility layer for X11-only
+applications - it is not the primary display stack, native Wayland is.
+
+`systemd` supervises everything above the kernel (services,
+`NetworkManager`, `PipeWire`/`WirePlumber`, `BlueZ`, ...); it isn't a
+step in the graphics stack itself but the process supervisor underneath
+all of it.
 
 Ansible is provisioning only. It is not a runtime service: it is not
 installed as a daemon, does not run continuously, and leaves no

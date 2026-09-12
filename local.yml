@@ -1,10 +1,14 @@
 ---
 # Entry point: provisions whichever machine this is run on.
 #
-# Runs entirely locally (no SSH, no remote hosts). Host-specific
-# overrides for the two target machines (host_vars/) are loaded
-# explicitly below, keyed by the machine's real hostname - not by any
-# automatic hardware detection.
+# Runs entirely locally (no SSH, no remote hosts). This project only
+# targets two real machines (laptop, workstation) long-term, but the
+# common roles below apply to any upstream Arch host unconditionally -
+# an unregistered test VM is provisioned exactly like the two real
+# machines. host_vars/<real hostname>.yml (loaded explicitly below) is
+# entirely optional: an unknown hostname just skips it and gets the
+# common roles with no overrides. See inventory/localhost.yml for why
+# this isn't modeled as separate inventory hosts.
 - name: Provision this workstation
   hosts: localhost
   connection: local
@@ -42,6 +46,22 @@
           skip: true
       tags: always
 
+    # Sync + full upgrade happens exactly once here, regardless of which
+    # --tags a run selects (tags: always). Roles below only ever install
+    # their own package lists (state: present) - they never repeat this
+    # step, so a provisioning run never does more than one full system
+    # upgrade, and package-installing roles never risk a partial upgrade
+    # by installing against a stale, unsynced database.
+    - name: Sync package database and upgrade the system
+      become: true
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+      tags: always
+
   roles:
     - role: base
       tags: [base]
+
+    - role: graphics
+      tags: [graphics]

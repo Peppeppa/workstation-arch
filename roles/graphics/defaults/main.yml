@@ -1,0 +1,32 @@
+---
+# Graphics/Wayland foundation (phase 2) - the layer between the kernel's
+# DRM/KMS and the future compositor (Hyprland, a later phase). No
+# compositor, no shell, no display manager here - see
+# docs/ARCHITECTURE.md for the full stack.
+#
+# Every package below is also a direct runtime dependency of the
+# official `hyprland` Arch package (verified against the current
+# `hyprland` package's Depends On), so declaring them now makes that
+# dependency explicit and intentional instead of incidental.
+#
+# Deliberately NOT included, and not a "just in case" oversight:
+#   - Vulkan packages (vulkan-intel, vulkan-radeon, ...) - not required
+#     for Mesa/EGL-based Wayland rendering; add only once a concrete
+#     workload needs Vulkan.
+#   - lib32-*/multilib packages - multilib is not enabled, no 32-bit
+#     compatibility is needed.
+#   - xf86-video-intel or any other legacy Xorg DDX driver - this is a
+#     Wayland-primary desktop; modesetting goes through the kernel/Mesa,
+#     not a classic Xorg driver, even for XWayland.
+#   - NVIDIA packages/config - hardware-specific, deferred to a
+#     workstation-specific role/vars if and when actually needed.
+#   - VirtualBox Guest Additions (virtualbox-guest-utils, VBoxClient,
+#     vboxservice, ...) - this role describes the target bare-metal
+#     system; VM guest integration is a separate development-environment
+#     concern, not part of the generic package list.
+graphics_packages:
+  - wayland            # core Wayland display server protocol
+  - wayland-protocols  # extended Wayland protocol specifications
+  - mesa               # OpenGL/DRM-KMS graphics userspace
+  - xorg-xwayland      # XWayland compatibility layer for X11-only apps;
+                       # native Wayland stays primary, this is fallback only

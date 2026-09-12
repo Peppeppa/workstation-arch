@@ -1,25 +1,11 @@
 ---
 # Phase 1 equivalent: minimal base packages.
 #
-# Pacman policy: sync + full upgrade first (the Ansible equivalent of
-# `pacman -Syu`), package install as a separate step. The pacman module
-# rejects `name` combined with `upgrade` in one task, so this is two
-# tasks rather than one - not two independent decisions. On a
-# rolling-release system, syncing the package database without
-# upgrading the rest of the system risks a partial upgrade; running the
-# full upgrade first means the later install never has to do that sync
-# on its own. Both tasks run non-interactively already (no manual
-# --noconfirm needed) and report "ok" with no changes once the system is
-# up to date and every package below is installed - this is not a
-# substitute for routine `pacman -Syu` maintenance between provisioning
-# runs.
-- name: Sync package database and upgrade the system
-  become: true
-  community.general.pacman:
-    update_cache: true
-    upgrade: true
-  tags: base
-
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages are present, so a full upgrade never runs
+# more than once per provisioning run no matter which --tags are
+# selected.
 - name: Install base packages
   become: true
   community.general.pacman:

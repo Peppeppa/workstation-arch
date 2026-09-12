@@ -1,14 +1,17 @@
-# Every host here is provisioned locally (connection: local) - this
-# project never manages a machine over SSH, only the machine it runs on.
+# This project only ever provisions the machine it runs on
+# (connection: local) - see local.yml, which targets the implicit
+# `localhost` regardless of the real machine's hostname.
 #
-# The two entries below are documentation of the two real target
-# machines. local.yml itself targets the implicit `localhost` and loads
-# host_vars/<real hostname>.yml explicitly (see local.yml), so this
-# inventory does not need to be kept in sync with which machine you are
-# currently on.
+# host_vars/<hostname>.yml (loaded explicitly in local.yml, keyed by the
+# real hostname fact) is what distinguishes laptop/workstation/anything
+# else - not this inventory file. Earlier this file also declared
+# "laptop" and "workstation" as inventory hosts, but local.yml never
+# targets them (it targets "localhost"), so they were purely decorative
+# and could mislead someone into trying `--limit laptop` (which would
+# just match nothing, since the play's only real target is localhost).
+# A plain, unregistered Arch test VM runs the exact same common roles;
+# it simply has no host_vars file to load, which is fine and expected.
 all:
   hosts:
-    laptop:
-      ansible_connection: local
-    workstation:
+    localhost:
       ansible_connection: local

@@ -1,0 +1,12 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages are present. No services are installed or
+# enabled by this role: Mesa/Wayland/XWayland are libraries and a
+# compatibility binary, not daemons.
+- name: Install graphics/Wayland foundation packages
+  become: true
+  community.general.pacman:
+    name: "{{ graphics_packages }}"
+    state: present
+  tags: graphics
