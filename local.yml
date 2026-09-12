@@ -65,3 +65,6 @@
 
     - role: graphics
       tags: [graphics]
+
+    - role: hyprland
+      tags: [hyprland]

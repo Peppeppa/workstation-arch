@@ -1,0 +1,22 @@
+---
+# Phase 3: minimal Hyprland session foundation. No bar, launcher,
+# notifications, lock/idle daemon, wallpaper, or Quickshell yet - those
+# are later phases. See docs/ARCHITECTURE.md for the intended stack.
+hyprland_packages:
+  # compositor/window manager/Wayland session owner. Pulls its own
+  # dependencies (wayland, mesa, xorg-xwayland, ... already declared
+  # explicitly by the graphics role) automatically via pacman - no
+  # "starter pack" of bar/launcher/notifications/lock/idle/screenshot/
+  # clipboard tools declared here, those are separate later decisions.
+  - hyprland
+
+  # the one terminal emulator needed to test the session. foot is
+  # native Wayland, has by far the smallest dependency footprint of the
+  # common choices (fcft/fontconfig/libutf8proc/libxkbcommon/ncurses/
+  # pixman/wayland - no GPU/X11/python deps, unlike alacritty/kitty),
+  # and starts fast - a good fit for a minimalist, responsive desktop.
+  - foot
+
+# Command the terminal keybind runs. Kept separate from the package
+# name so a later terminal swap only needs to change this one value.
+hyprland_terminal: foot

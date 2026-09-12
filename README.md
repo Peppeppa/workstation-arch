@@ -51,11 +51,12 @@ repository.
 
 ## Status
 
-Ansible is now the primary provisioner. The `base` role (Arch base
-packages) and `graphics` role (Wayland/Mesa/XWayland foundation) are
-implemented. The rest of the desktop - Hyprland, Quickshell, audio,
-Bluetooth, session, hardware specifics - is **not yet implemented**;
-those will be added as further roles under `roles/`.
+Ansible is now the primary provisioner. `base` (Arch base packages),
+`graphics` (Wayland/Mesa/XWayland foundation), and `hyprland` (a
+minimal, manually-started Hyprland session) are implemented. There is
+still no shell (Quickshell), no audio/Bluetooth stack, no display
+manager, no lock/idle, and no theming - those will be added as further
+roles under `roles/`.
 
 ## Requirements
 
@@ -129,6 +130,7 @@ Only run a specific part, by tag:
 ```sh
 ./bootstrap.sh --tags base
 ./bootstrap.sh --tags graphics
+./bootstrap.sh --tags hyprland
 ```
 
 `bootstrap.sh` forwards any extra arguments straight to
@@ -140,11 +142,39 @@ Only run a specific part, by tag:
 |------------|------------|------------------------------------------------------------|
 | `base`     | `base`     | Minimal Arch base packages (git, openssh, curl, rsync)     |
 | `graphics` | `graphics` | Wayland/Mesa/XWayland foundation - no compositor yet       |
+| `hyprland` | `hyprland` | Minimal, manually-started Hyprland session (no shell yet)  |
 
-Further roles (`hyprland`, `quickshell`, `network`, `audio`,
-`bluetooth`, `session`, `hardware`, ...) will be added the same way as
-the desktop is built out - see `docs/ARCHITECTURE.md` for the intended
-stack.
+Further roles (`quickshell`, `network`, `audio`, `bluetooth`, `session`,
+`hardware`, ...) will be added the same way as the desktop is built out
+- see `docs/ARCHITECTURE.md` for the intended stack.
+
+## Hyprland session (manual start, no display manager)
+
+Phase 3 sets up Hyprland just enough to start and stop it by hand - it
+deliberately does **not** install a display manager, does not add any
+`.bash_profile`/`exec Hyprland` autostart hack, and does not install a
+shell (Quickshell), bar, launcher, notification daemon, lock/idle
+daemon, or wallpaper tool yet. After provisioning and a reboot:
+
+```sh
+reboot
+# then, after logging in on a plain TTY:
+Hyprland
+```
+
+The deployed config (`~/.config/hypr/hyprland.lua` - current Hyprland
+reads Lua, not the older `hyprland.conf` format) only defines a monitor
+fallback, disables animations/blur/shadow (this project prioritizes
+responsiveness over decoration - see `docs/ARCHITECTURE.md`), and three
+temporary development keybinds:
+
+| Keybind            | Action                     |
+|---------------------|----------------------------|
+| `Super + Return`     | open a terminal (`foot`)   |
+| `Super + Q`          | close the focused window   |
+| `Super + Shift + E`  | exit Hyprland (back to TTY)|
+
+These are not the final UX - just enough to confirm the session works.
 
 ## Pacman / update policy
 
@@ -213,7 +243,8 @@ exist and are not skippable via tags.
 │   └── workstation.yml
 ├── roles/
 │   ├── base/              # Arch base packages
-│   └── graphics/          # Wayland/Mesa/XWayland foundation
+│   ├── graphics/          # Wayland/Mesa/XWayland foundation
+│   └── hyprland/          # minimal, manually-started Hyprland session
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DESIGN_SYSTEM.md

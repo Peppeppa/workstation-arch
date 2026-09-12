@@ -1,0 +1,50 @@
+---
+# Phase 3: minimal Hyprland session. Hyprland must be fully startable
+# and closeable entirely on its own here - no Quickshell dependency
+# (that is a separate, later presentation layer), no display manager,
+# no autostart-on-login hook. Login on a TTY and run `Hyprland`
+# manually - see README.md.
+#
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages/config are present. No services are
+# installed or enabled by this role.
+
+- name: Install Hyprland session packages
+  become: true
+  community.general.pacman:
+    name: "{{ hyprland_packages }}"
+    state: present
+  tags: hyprland
+
+# Everything below is user-level configuration and intentionally has no
+# `become`: it must be owned by the normal user who ran bootstrap.sh,
+# never root. ansible_facts.user_* reflect that invoking user, gathered
+# once at the start of the play before any become escalation happens.
+
+- name: Ensure ~/.config exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Ensure ~/.config/hypr exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/hypr"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy minimal Hyprland session config
+  ansible.builtin.template:
+    src: hyprland.lua.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/hypr/hyprland.lua"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: hyprland

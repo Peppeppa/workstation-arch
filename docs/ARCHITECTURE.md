@@ -41,6 +41,13 @@ Quickshell
 XWayland sits alongside Wayland as a compatibility layer for X11-only
 applications - it is not the primary display stack, native Wayland is.
 
+Phase 3 (current) implements Hyprland itself: the compositor, window
+manager, and Wayland session owner, started manually from a TTY (no
+display manager, no autostart hook, no systemd unit). Quickshell is a
+later, separate presentation layer on top of Hyprland - Hyprland has no
+dependency on it and must be fully usable (start, open a terminal,
+close windows, exit cleanly) without it.
+
 `systemd` supervises everything above the kernel (services,
 `NetworkManager`, `PipeWire`/`WirePlumber`, `BlueZ`, ...); it isn't a
 step in the graphics stack itself but the process supervisor underneath

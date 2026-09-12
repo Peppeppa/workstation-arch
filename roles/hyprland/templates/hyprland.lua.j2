@@ -1,0 +1,39 @@
+-- Minimal Hyprland session config (phase 3) - managed by Ansible.
+-- Do not edit by hand: see roles/hyprland in workstation-arch.
+--
+-- No bar, launcher, notifications, lock/idle, wallpaper, or Quickshell
+-- yet - Hyprland must be fully usable on its own first. See
+-- docs/ARCHITECTURE.md for the intended stack.
+--
+-- Current Hyprland (0.55+) reads ~/.config/hypr/hyprland.lua, not the
+-- older hyprlang hyprland.conf format - verified against Hyprland's own
+-- config path resolution and the official example config, not an old
+-- blog post.
+
+hl.monitor({
+    output   = "",
+    mode     = "preferred",
+    position = "auto",
+    scale    = "auto",
+})
+
+local terminal = "{{ hyprland_terminal }}"
+
+-- Performance defaults: this project targets instant interaction over
+-- decorative effects (see docs/ARCHITECTURE.md), so animations and
+-- blur/shadow are off from the start rather than tuned down later.
+hl.config({
+    animations = {
+        enabled = false,
+    },
+
+    decoration = {
+        shadow = { enabled = false },
+        blur   = { enabled = false },
+    },
+})
+
+-- Minimal development keybinds - not the final UX, see README.md.
+hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
+hl.bind("SUPER + Q", hl.dsp.window.close())
+hl.bind("SUPER + SHIFT + E", hl.dsp.exit())
