@@ -1,4 +1,4 @@
-# Phase 1: base package installation.
+# Package manifest installation.
 # Meant to be sourced by bootstrap.sh, not executed directly.
 # Depends on: scripts/helpers/log.sh, REPO_ROOT being set.
 #
@@ -8,14 +8,24 @@
 # the rest of the system risks partial upgrades. If every wanted package is
 # already installed, pacman is not invoked at all — this bootstrap does not
 # take over routine system updates, that remains a manual `pacman -Syu`.
+#
+# `--noconfirm` is added on top of that so a validated bootstrap run does
+# not stop for a per-transaction "Proceed with installation?" prompt. It
+# only skips that confirmation — it does not relax signature checking,
+# does not ignore conflicts, and does not touch pacman.conf. Real failures
+# (conflicts, bad signatures, corrupted packages, failed downloads) still
+# make pacman exit non-zero, which `set -euo pipefail` turns into a clean
+# bootstrap abort.
 
 read_package_manifest() {
     local manifest="$1"
     grep -vE '^[[:space:]]*(#|$)' "${manifest}"
 }
 
-install_base_packages() {
-    local manifest="${REPO_ROOT}/packages/base.txt"
+install_package_manifest() {
+    local manifest="$1"
+    local manifest_name
+    manifest_name="$(basename "${manifest}")"
 
     if [[ ! -f "${manifest}" ]]; then
         log_error "package manifest not found: ${manifest}"
@@ -28,7 +38,7 @@ install_base_packages() {
     done < <(read_package_manifest "${manifest}")
 
     if [[ "${#wanted[@]}" -eq 0 ]]; then
-        log_info "packages/base.txt has no packages listed; nothing to do"
+        log_info "${manifest_name} has no packages listed; nothing to do"
         return
     fi
 
@@ -48,7 +58,7 @@ install_base_packages() {
     done
 
     if [[ "${#missing[@]}" -eq 0 ]]; then
-        log_ok "base packages already installed"
+        log_ok "${manifest_name}: packages already installed"
         return
     fi
 
@@ -56,7 +66,7 @@ install_base_packages() {
         log_install "${pkg}"
     done
 
-    sudo pacman -Syu --needed "${missing[@]}"
+    sudo pacman -Syu --needed --noconfirm "${missing[@]}"
 
-    log_ok "base packages installed"
+    log_ok "${manifest_name}: packages installed"
 }

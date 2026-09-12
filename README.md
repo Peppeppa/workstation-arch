@@ -34,12 +34,12 @@ repository**, used only after a credential provider (for example a
 Bitwarden SSH agent) has been set up. That is not part of phase 1 and not
 a precondition for using this repository.
 
-## Status: Phase 1 - bootstrap framework
+## Status: Phase 2 - graphics/Wayland foundation
 
-Only the bootstrap framework and a minimal set of base packages are
-implemented so far. The desktop itself (Hyprland, Quickshell, audio/
-Bluetooth stack, themes, ...) is **not yet installed or configured** by
-this repository.
+Phase 1 (bootstrap framework + base packages) is done. Phase 2 adds the
+graphics/Wayland foundation packages (Mesa, Wayland, XWayland). The
+compositor and shell (Hyprland, Quickshell), audio/Bluetooth stack, and
+themes are **not yet installed or configured** by this repository.
 
 ## Requirements
 
@@ -67,7 +67,13 @@ packages) are actually needed.
 `./bootstrap.sh` is safe to run again. It checks the current state before
 changing anything and skips whatever is already in place.
 
-## What phase 1 currently does
+You will be asked for your sudo password **at most once** per run (via
+`sudo -v` at the start); the bootstrap keeps those credentials alive in
+the background for the rest of the run and cleans that up on exit, so
+nothing prompts for it again mid-run. See "Sudo and unattended installs"
+below.
+
+## What the bootstrap currently does
 
 1. Validates the environment:
    - not running as root
@@ -77,21 +83,66 @@ changing anything and skips whatever is already in place.
      `scripts/install/`) are present
 2. Installs the packages listed in `packages/base.txt`, skipping any that
    are already installed.
+3. Installs the packages listed in `packages/graphics.txt` (the Wayland
+   foundation), the same way.
 
-Nothing else. No desktop components, no services are enabled, no configs
-are deployed yet.
+Nothing else. No compositor, no shell, no services are enabled, no
+configs are deployed yet.
+
+## Sudo and unattended installs
+
+`bootstrap.sh` validates sudo once (`sudo -v`) and then keeps that
+credential cache warm for the duration of the run instead of prompting
+again - see `start_sudo_keepalive`/`stop_sudo_keepalive` in
+`scripts/install/00-environment.sh`. It never touches `/etc/sudoers` and
+never configures `NOPASSWD`; it only relies on sudo's normal, existing
+credential cache, refreshed in the background and torn down on exit
+(including on Ctrl+C or a failure) via a trap in `bootstrap.sh`.
+
+Package installs use `pacman -Syu --needed --noconfirm <packages>` so a
+validated run does not stop for a per-package "Proceed with
+installation?" prompt. `--noconfirm` only skips that confirmation - it
+does not relax signature checking, does not ignore package conflicts,
+and does not touch `pacman.conf`. Any real pacman failure (conflicts, bad
+signatures, corrupted packages, failed downloads) still aborts the
+bootstrap with a non-zero exit code.
 
 ## Pacman / update policy
 
 Arch Linux is a rolling release; syncing the package database without
 upgrading the rest of the system (`pacman -Sy` without `-u`) risks a
-partial upgrade. When `bootstrap.sh` needs to install missing base
-packages, it does so with `pacman -Syu --needed <packages>` - a full
-sync-and-upgrade together with the install - never a bare `-Sy`.
+partial upgrade. When `bootstrap.sh` needs to install missing packages
+from a manifest, it does so with `pacman -Syu --needed --noconfirm
+<packages>` - a full sync-and-upgrade together with the install - never a
+bare `-Sy`.
 
-If every base package is already installed, `bootstrap.sh` does not touch
-pacman at all. It is not a replacement for routine system maintenance;
-running `sudo pacman -Syu` yourself remains your responsibility.
+If every package in a manifest is already installed, `bootstrap.sh` does
+not touch pacman at all for that manifest. It is not a replacement for
+routine system maintenance; running `sudo pacman -Syu` yourself remains
+your responsibility.
+
+## Graphics / Wayland foundation (phase 2)
+
+`packages/graphics.txt` installs the layer between the kernel's DRM/KMS
+and the future compositor: Mesa, the Wayland core protocol, and
+XWayland. See `docs/ARCHITECTURE.md` for the full intended stack.
+
+Deliberately out of scope for this phase:
+
+- no compositor (Hyprland) or shell (Quickshell) yet
+- no Wayland-related environment variables (`QT_QPA_PLATFORM`,
+  `MOZ_ENABLE_WAYLAND`, `SDL_VIDEODRIVER`, `WLR_*`, ...) are set globally
+  - only add one once it is concretely required, not by default
+- no display manager (SDDM/GDM/LightDM) - login/session start is a
+  later decision
+- XWayland is installed as a compatibility fallback for X11-only
+  applications; native Wayland stays the preferred path
+- no Vulkan, lib32/multilib, or GPU-vendor-specific packages
+  (`xf86-video-intel`, proprietary NVIDIA, ...) - driver choice is a
+  hardware-specific decision, not part of the generic package list
+- the current development VM is VirtualBox; VirtualBox Guest
+  Additions/integration are a separate dev-VM concern and are not part
+  of this repository's generic package list
 
 ## Repository structure
 
@@ -102,7 +153,8 @@ running `sudo pacman -Syu` yourself remains your responsibility.
 ├── bootstrap.sh
 ├── docs/
 ├── packages/
-│   └── base.txt        # phase 1 base packages
+│   ├── base.txt         # phase 1 base packages
+│   └── graphics.txt     # phase 2 graphics/Wayland foundation packages
 ├── config/
 ├── systemd/
 ├── scripts/
