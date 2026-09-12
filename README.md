@@ -61,9 +61,10 @@ those will be added as further roles under `roles/`.
 
 - a clean, upstream Arch Linux installation (`ID=arch` in
   `/etc/os-release` - Arch derivatives are not supported targets)
-- `pacman` and `sudo` available
 - a normal user account that can use `sudo`
 - working network access (NetworkManager)
+- `git` and `ansible` already installed (`sudo pacman -Syu --needed git
+  ansible`) - `bootstrap.sh` checks for both but does not install them
 
 ## Quickstart (fresh Arch)
 
@@ -75,30 +76,44 @@ cd workstation-arch
 ```
 
 No SSH key or credential provider is required - the repository is public
-and cloned over HTTPS. `bootstrap.sh` also installs `git`/`ansible`
-itself if they are missing, so the `pacman` line above is optional but
-recommended for a first, explicit run.
+and cloned over HTTPS. The first line (installing `git` and `ansible`)
+is a one-time prerequisite you run yourself; `bootstrap.sh` checks that
+both are present but does not install them.
 
-Run it as your normal user - **not** `sudo ./bootstrap.sh`. You will be
-asked for your sudo password **at most once**; `bootstrap.sh` validates
-it up front and keeps the credential cache alive in the background for
-the rest of the run (cleaned up on exit, including Ctrl+C or a failure),
-so nothing prompts for it again mid-run. Ansible itself escalates
-per-task with `become: true` only where actually needed - the play does
-not run entirely as root.
+Run it as your normal user - **not** `sudo ./bootstrap.sh`. Ansible will
+prompt once for `BECOME password:` (your normal sudo password) and use
+it for whichever tasks in the run actually need root - the play itself
+does not run entirely as root, and `bootstrap.sh` never sees or stores
+that password itself.
 
 `./bootstrap.sh` is safe to run again; so is `ansible-playbook local.yml`
 directly. Both are idempotent - already-satisfied state is reported as
 unchanged, nothing is reinstalled or reconfigured unnecessarily.
 
+## Privilege escalation
+
+Ansible owns privilege escalation, not `bootstrap.sh`. Individual tasks
+that genuinely need root (installing packages, editing `/etc`, managing
+system services) are marked `become: true`; the play itself runs
+`become: false`, and later user-level configuration (`~/.config`, user
+systemd services, ...) is never run as root just because some other task
+in the same play needed `become`.
+
+`bootstrap.sh` calls `ansible-playbook --ask-become-pass`, so Ansible
+asks for the become password once, up front, and manages it for the
+rest of that run itself. `bootstrap.sh` does not run `sudo -v`, does not
+cache or refresh any credential itself, and does not write a password
+anywhere - there is exactly one privilege-escalation mechanism
+(Ansible's `become`), not two competing ones.
+
 ## Provisioning commands
 
-Normal run (via the bootstrap wrapper, or directly):
+Normal run (via the bootstrap launcher, or directly):
 
 ```sh
 ./bootstrap.sh
-# equivalent to, once git/ansible are installed:
-ansible-playbook local.yml
+# equivalent to:
+ansible-playbook --ask-become-pass local.yml
 ```
 
 Dry run (no changes made, just what *would* change):
@@ -106,7 +121,7 @@ Dry run (no changes made, just what *would* change):
 ```sh
 ./bootstrap.sh --check --diff
 # or directly:
-ansible-playbook local.yml --check --diff
+ansible-playbook --ask-become-pass local.yml --check --diff
 ```
 
 Only run a specific part, by tag:
@@ -186,7 +201,7 @@ exist and are not skippable via tags.
 .
 ├── README.md
 ├── BOOTSTRAPPER.md
-├── bootstrap.sh          # thin wrapper: validate env, install git+ansible, run Ansible
+├── bootstrap.sh          # launcher: validate env, check prerequisites, run Ansible
 ├── ansible.cfg
 ├── local.yml             # Ansible entry point
 ├── inventory/

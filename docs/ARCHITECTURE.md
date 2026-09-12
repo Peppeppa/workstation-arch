@@ -49,8 +49,19 @@ all of it.
 Ansible is provisioning only. It is not a runtime service: it is not
 installed as a daemon, does not run continuously, and leaves no
 permanent resource usage behind once a run finishes. `bootstrap.sh` is a
-thin wrapper around it - see `BOOTSTRAPPER.md` and `README.md` for how it
-is invoked and what it does.
+thin launcher around it - see `BOOTSTRAPPER.md` and `README.md` for how
+it is invoked and what it does.
+
+Responsibility split within the provisioning layer:
+
+- `bootstrap.sh` = prerequisite/environment validation (upstream Arch,
+  not root, `git`/`ansible` present) and launching Ansible. It holds no
+  system state and manages no credentials of its own.
+- Ansible (`local.yml` + roles) = provisioning / desired state.
+- Ansible `become` = privilege escalation for the individual system
+  tasks that need it (`--ask-become-pass` prompts for it once per run).
+  There is no separate sudo credential lifecycle (no keepalive, no
+  cached timestamp management) outside of Ansible's own `become`.
 
 ## One owner per responsibility
 

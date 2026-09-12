@@ -51,7 +51,7 @@ working workstation
 
 Ansible is the primary provisioner and the source of truth for the desired system state - packages, files, services, configuration.
 
-`bootstrap.sh` is a thin wrapper, not a second configuration-management system: it validates the environment, installs `git` and `ansible`, and hands off to `ansible-playbook local.yml`. It does not itself install packages, write files, or manage services - that belongs to Ansible roles under `roles/`.
+`bootstrap.sh` is a launcher, not a second configuration-management system: it validates the environment (upstream Arch, not root, `git`/`ansible` already installed) and hands off to `ansible-playbook --ask-become-pass local.yml`. It does not itself install packages, write files, or manage services - that belongs to Ansible roles under `roles/`. It also does not manage privilege escalation itself: Ansible's own `become` mechanism, prompted for once via `--ask-become-pass`, is the only privilege-escalation path - `bootstrap.sh` has no sudo credential lifecycle of its own.
 
 Two eventual target machines, `laptop` and `workstation`, share the same roles; real per-host differences (hardware, power policy, ...) live in `host_vars/`, not as invented branches ahead of time.
 
