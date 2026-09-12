@@ -1,17 +1,31 @@
 # workstation-arch
 
-A reproducible, minimal Arch Linux desktop, built as a Git repository
-instead of a custom distribution. See `BOOTSTRAPPER.md` for the project's
-architecture and workflow rules.
+A reproducible Arch Linux workstation, provisioned with Ansible instead
+of hand-configured - built as a Git repository, not a custom
+distribution. See `BOOTSTRAPPER.md` for the project's architecture and
+workflow rules, and `docs/ARCHITECTURE.md` for the full system
+architecture.
+
+This project targets exactly two personal machines - `laptop` and
+`workstation` - which share the same base system and eventually the same
+Arch/Hyprland/Quickshell desktop, with real per-host differences (not
+invented ones) isolated in `host_vars/`. It is not intended as a general
+"install this on anyone's machine" community project.
 
 ```
-Clean Arch
+Fresh Arch
     │
     ▼
-git clone
+working network (NetworkManager)
+    │
+    ▼
+git clone (HTTPS)
     │
     ▼
 ./bootstrap.sh
+    │
+    ▼
+Ansible provisions localhost
     │
     ▼
 reboot
@@ -22,127 +36,134 @@ working workstation
 
 ## Public repository, no secrets
 
-This repository is the public source of truth for the desktop bootstrap.
-It intentionally contains **no secrets**: no private SSH keys, no tokens,
-no Wi-Fi/VPN credentials, no Bitwarden data. A freshly installed Arch
-machine has no credential provider configured yet, so the base bootstrap
-is designed to be cloned over plain HTTPS - no SSH key required.
+This repository is the public source of truth for the desired system
+state. It intentionally contains **no secrets**: no private SSH keys, no
+tokens, no Wi-Fi/VPN credentials, no Bitwarden data. A freshly installed
+Arch machine has no credential provider configured yet, so this
+repository is designed to be cloned over plain HTTPS - no SSH key
+required.
 
 Private, machine- or user-specific configuration (credentials, private
 repositories, ...) is expected to come later from a **separate private
 repository**, used only after a credential provider (for example a
-Bitwarden SSH agent) has been set up. That is not part of phase 1 and not
-a precondition for using this repository.
+Bitwarden SSH agent) has been set up. That is not part of this
+repository.
 
-## Status: Phase 2 - graphics/Wayland foundation
+## Status
 
-Phase 1 (bootstrap framework + base packages) is done. Phase 2 adds the
-graphics/Wayland foundation packages (Mesa, Wayland, XWayland). The
-compositor and shell (Hyprland, Quickshell), audio/Bluetooth stack, and
-themes are **not yet installed or configured** by this repository.
+Ansible is now the primary provisioner. The `base` role (Arch base
+packages) is implemented. The rest of the desktop - graphics/Wayland
+foundation, Hyprland, Quickshell, audio, Bluetooth, session, hardware
+specifics - is **not yet implemented**; those will be added as further
+roles under `roles/`.
 
 ## Requirements
 
-- a clean Arch Linux installation (`ID=arch` in `/etc/os-release`)
+- a clean, upstream Arch Linux installation (`ID=arch` in
+  `/etc/os-release` - Arch derivatives are not supported targets)
 - `pacman` and `sudo` available
 - a normal user account that can use `sudo`
-- this repository cloned onto that machine
+- working network access (NetworkManager)
 
-## Usage
+## Quickstart (fresh Arch)
 
 ```sh
-sudo pacman -S --needed git
+sudo pacman -Syu --needed git ansible
 git clone https://github.com/Peppeppa/workstation-arch.git
 cd workstation-arch
 ./bootstrap.sh
 ```
 
-No SSH key or credential provider is required for this step - the
-repository is public and cloned over HTTPS.
+No SSH key or credential provider is required - the repository is public
+and cloned over HTTPS. `bootstrap.sh` also installs `git`/`ansible`
+itself if they are missing, so the `pacman` line above is optional but
+recommended for a first, explicit run.
 
-Run it as your normal user - **not** `sudo ./bootstrap.sh`. Individual
-steps request `sudo` themselves only where privileged actions (installing
-packages) are actually needed.
+Run it as your normal user - **not** `sudo ./bootstrap.sh`. You will be
+asked for your sudo password **at most once**; `bootstrap.sh` validates
+it up front and keeps the credential cache alive in the background for
+the rest of the run (cleaned up on exit, including Ctrl+C or a failure),
+so nothing prompts for it again mid-run. Ansible itself escalates
+per-task with `become: true` only where actually needed - the play does
+not run entirely as root.
 
-`./bootstrap.sh` is safe to run again. It checks the current state before
-changing anything and skips whatever is already in place.
+`./bootstrap.sh` is safe to run again; so is `ansible-playbook local.yml`
+directly. Both are idempotent - already-satisfied state is reported as
+unchanged, nothing is reinstalled or reconfigured unnecessarily.
 
-You will be asked for your sudo password **at most once** per run (via
-`sudo -v` at the start); the bootstrap keeps those credentials alive in
-the background for the rest of the run and cleans that up on exit, so
-nothing prompts for it again mid-run. See "Sudo and unattended installs"
-below.
+## Provisioning commands
 
-## What the bootstrap currently does
+Normal run (via the bootstrap wrapper, or directly):
 
-1. Validates the environment:
-   - not running as root
-   - running on Arch Linux with `pacman` available
-   - `sudo` is installed and the current user can authenticate with it
-   - the expected repository files (`packages/base.txt`,
-     `scripts/install/`) are present
-2. Installs the packages listed in `packages/base.txt`, skipping any that
-   are already installed.
-3. Installs the packages listed in `packages/graphics.txt` (the Wayland
-   foundation), the same way.
+```sh
+./bootstrap.sh
+# equivalent to, once git/ansible are installed:
+ansible-playbook local.yml
+```
 
-Nothing else. No compositor, no shell, no services are enabled, no
-configs are deployed yet.
+Dry run (no changes made, just what *would* change):
 
-## Sudo and unattended installs
+```sh
+./bootstrap.sh --check --diff
+# or directly:
+ansible-playbook local.yml --check --diff
+```
 
-`bootstrap.sh` validates sudo once (`sudo -v`) and then keeps that
-credential cache warm for the duration of the run instead of prompting
-again - see `start_sudo_keepalive`/`stop_sudo_keepalive` in
-`scripts/install/00-environment.sh`. It never touches `/etc/sudoers` and
-never configures `NOPASSWD`; it only relies on sudo's normal, existing
-credential cache, refreshed in the background and torn down on exit
-(including on Ctrl+C or a failure) via a trap in `bootstrap.sh`.
+Only run a specific part, by tag:
 
-Package installs use `pacman -Syu --needed --noconfirm <packages>` so a
-validated run does not stop for a per-package "Proceed with
-installation?" prompt. `--noconfirm` only skips that confirmation - it
-does not relax signature checking, does not ignore package conflicts,
-and does not touch `pacman.conf`. Any real pacman failure (conflicts, bad
-signatures, corrupted packages, failed downloads) still aborts the
-bootstrap with a non-zero exit code.
+```sh
+./bootstrap.sh --tags base
+```
+
+`bootstrap.sh` forwards any extra arguments straight to
+`ansible-playbook`, so both forms work the same way.
+
+## Roles
+
+| Role   | Tag    | What it does                                    |
+|--------|--------|--------------------------------------------------|
+| `base` | `base` | Minimal Arch base packages (git, openssh, curl, rsync) |
+
+Further roles (`graphics`, `hyprland`, `quickshell`, `network`, `audio`,
+`bluetooth`, `session`, `hardware`, ...) will be added the same way as
+the desktop is built out - see `docs/ARCHITECTURE.md` for the intended
+stack.
 
 ## Pacman / update policy
 
 Arch Linux is a rolling release; syncing the package database without
-upgrading the rest of the system (`pacman -Sy` without `-u`) risks a
-partial upgrade. When `bootstrap.sh` needs to install missing packages
-from a manifest, it does so with `pacman -Syu --needed --noconfirm
-<packages>` - a full sync-and-upgrade together with the install - never a
-bare `-Sy`.
+upgrading the rest of the system risks a partial upgrade. The `base`
+role's `community.general.pacman` task therefore always runs with
+`update_cache: true` and `upgrade: true` together with installing the
+package list - a full sync-and-upgrade together with the install, the
+Ansible equivalent of `pacman -Syu --needed`, never a bare sync. Package
+modules run non-interactively already; no manual `--noconfirm` is
+needed, but errors (conflicts, bad signatures, corrupted packages) still
+fail the play instead of being silently worked around.
 
-If every package in a manifest is already installed, `bootstrap.sh` does
-not touch pacman at all for that manifest. It is not a replacement for
-routine system maintenance; running `sudo pacman -Syu` yourself remains
-your responsibility.
+Ansible is not a replacement for routine system maintenance; running
+`sudo pacman -Syu` yourself between provisioning runs remains your
+responsibility.
 
-## Graphics / Wayland foundation (phase 2)
+## Host model
 
-`packages/graphics.txt` installs the layer between the kernel's DRM/KMS
-and the future compositor: Mesa, the Wayland core protocol, and
-XWayland. See `docs/ARCHITECTURE.md` for the full intended stack.
+Two real target machines, `laptop` and `workstation`, share almost
+everything. `group_vars/all.yml` holds shared defaults; `host_vars/`
+holds only genuine per-host deviations, added when they actually arise
+- not invented ahead of time. `local.yml` runs against the implicit
+`localhost` (this project never manages a machine over SSH) and loads
+`host_vars/<real hostname>.yml` explicitly, keyed by the machine's actual
+hostname - no automatic hardware-detection engine.
 
-Deliberately out of scope for this phase:
+## Arch guard
 
-- no compositor (Hyprland) or shell (Quickshell) yet
-- no Wayland-related environment variables (`QT_QPA_PLATFORM`,
-  `MOZ_ENABLE_WAYLAND`, `SDL_VIDEODRIVER`, `WLR_*`, ...) are set globally
-  - only add one once it is concretely required, not by default
-- no display manager (SDDM/GDM/LightDM) - login/session start is a
-  later decision
-- XWayland is installed as a compatibility fallback for X11-only
-  applications; native Wayland stays the preferred path
-- no Vulkan, lib32/multilib, or GPU-vendor-specific packages
-  (`xf86-video-intel`, proprietary NVIDIA, ...) - driver choice is a
-  hardware-specific decision, not part of the generic package list
-- the current development VM is VirtualBox; VirtualBox Guest
-  Additions/integration are a separate dev-VM concern and are not part
-  of this repository's generic package list
+Both `bootstrap.sh` and `local.yml` independently verify `ID=arch` in
+`/etc/os-release` before doing anything else (`local.yml` also checks
+Ansible's own `ansible_distribution` fact). Arch derivatives that report
+themselves as Arch-like (e.g. Omarchy, CachyOS) are deliberately not
+accepted as provisioning targets - this project's development machine
+happens to run one such derivative, which is exactly why both guards
+exist and are not skippable via tags.
 
 ## Repository structure
 
@@ -150,15 +171,25 @@ Deliberately out of scope for this phase:
 .
 ├── README.md
 ├── BOOTSTRAPPER.md
-├── bootstrap.sh
+├── bootstrap.sh          # thin wrapper: validate env, install git+ansible, run Ansible
+├── ansible.cfg
+├── local.yml             # Ansible entry point
+├── inventory/
+│   └── localhost.yml
+├── group_vars/
+│   └── all.yml           # shared defaults (empty until needed)
+├── host_vars/
+│   ├── laptop.yml         # real per-host overrides (empty until needed)
+│   └── workstation.yml
+├── roles/
+│   └── base/              # Arch base packages
 ├── docs/
-├── packages/
-│   ├── base.txt         # phase 1 base packages
-│   └── graphics.txt     # phase 2 graphics/Wayland foundation packages
+│   ├── ARCHITECTURE.md
+│   ├── DESIGN_SYSTEM.md
+│   └── system_architecture.md
 ├── config/
 ├── systemd/
 ├── scripts/
-│   ├── install/         # bootstrap modules, sourced by bootstrap.sh
-│   └── helpers/         # shared shell helpers (logging, ...)
+│   └── helpers/           # log.sh, used by bootstrap.sh
 └── hardware/
 ```

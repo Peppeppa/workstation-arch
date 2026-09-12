@@ -1,0 +1,3 @@
+---
+# Shared defaults for every host. Empty for now - variables genuinely
+# common to more than one role land here as those roles are added.

@@ -1,0 +1,6 @@
+---
+# Host-specific overrides for the desktop workstation.
+# Empty for now - real deviations (different GPU, different power
+# policy, ...) land here once they are actually needed, not invented
+# ahead of time.
+{}

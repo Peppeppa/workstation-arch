@@ -1,0 +1,9 @@
+---
+# Migrated from the old packages/base.txt (phase 1). Only packages with a
+# clear, current purpose belong here. No desktop packages, no "nice to
+# have" additions.
+base_packages:
+  - git      # manage this repository directly on the target machine
+  - openssh  # reliable remote access/administration of the workstation
+  - curl     # standard tool for fetching resources and checking connectivity
+  - rsync    # general-purpose file copy/sync tool for later roles and admin

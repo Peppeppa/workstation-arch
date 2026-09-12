@@ -1,0 +1,14 @@
+# Every host here is provisioned locally (connection: local) - this
+# project never manages a machine over SSH, only the machine it runs on.
+#
+# The two entries below are documentation of the two real target
+# machines. local.yml itself targets the implicit `localhost` and loads
+# host_vars/<real hostname>.yml explicitly (see local.yml), so this
+# inventory does not need to be kept in sync with which machine you are
+# currently on.
+all:
+  hosts:
+    laptop:
+      ansible_connection: local
+    workstation:
+      ansible_connection: local

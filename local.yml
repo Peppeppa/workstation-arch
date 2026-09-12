@@ -1,0 +1,47 @@
+---
+# Entry point: provisions whichever machine this is run on.
+#
+# Runs entirely locally (no SSH, no remote hosts). Host-specific
+# overrides for the two target machines (host_vars/) are loaded
+# explicitly below, keyed by the machine's real hostname - not by any
+# automatic hardware detection.
+- name: Provision this workstation
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+
+  pre_tasks:
+    - name: Read the distro ID from /etc/os-release
+      ansible.builtin.command:
+        cmd: grep -Po '^ID=\K.*' /etc/os-release
+      register: _os_release_id
+      changed_when: false
+      check_mode: false
+      tags: always
+
+    - name: Verify this is upstream Arch Linux, not a derivative
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == "Archlinux"
+          - (_os_release_id.stdout | trim('"')) == "arch"
+        fail_msg: >-
+          workstation-arch targets upstream Arch Linux only. Detected
+          ansible_distribution={{ ansible_facts.distribution }},
+          /etc/os-release ID={{ _os_release_id.stdout }}. Derivatives
+          such as Omarchy or CachyOS are not supported provisioning
+          targets.
+        success_msg: "Arch Linux confirmed (ID=arch)"
+      tags: always
+
+    - name: Load host-specific variable overrides, if any
+      ansible.builtin.include_vars: "{{ item }}"
+      with_first_found:
+        - files:
+            - "host_vars/{{ ansible_facts.nodename }}.yml"
+          skip: true
+      tags: always
+
+  roles:
+    - role: base
+      tags: [base]

@@ -1,0 +1,6 @@
+---
+# Host-specific overrides for the ThinkPad laptop.
+# Empty for now - real deviations (battery/power, ThinkPad-specific
+# hardware, Intel mobile graphics quirks, ...) land here once they are
+# actually needed, not invented ahead of time.
+{}

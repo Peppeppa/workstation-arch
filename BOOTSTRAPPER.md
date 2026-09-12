@@ -47,6 +47,16 @@ working workstation
 
 ---
 
+# Provisioner
+
+Ansible is the primary provisioner and the source of truth for the desired system state - packages, files, services, configuration.
+
+`bootstrap.sh` is a thin wrapper, not a second configuration-management system: it validates the environment, installs `git` and `ansible`, and hands off to `ansible-playbook local.yml`. It does not itself install packages, write files, or manage services - that belongs to Ansible roles under `roles/`.
+
+Two eventual target machines, `laptop` and `workstation`, share the same roles; real per-host differences (hardware, power policy, ...) live in `host_vars/`, not as invented branches ahead of time.
+
+---
+
 # Public bootstrap, private secrets
 
 workstation-arch is a public repository and stays that way.
