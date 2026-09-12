@@ -1,0 +1,8 @@
+# Editor / OS noise
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local scratch files, never intended for commit
+*.local

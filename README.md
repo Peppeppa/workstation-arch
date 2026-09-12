@@ -20,6 +20,20 @@ reboot
 working workstation
 ```
 
+## Public repository, no secrets
+
+This repository is the public source of truth for the desktop bootstrap.
+It intentionally contains **no secrets**: no private SSH keys, no tokens,
+no Wi-Fi/VPN credentials, no Bitwarden data. A freshly installed Arch
+machine has no credential provider configured yet, so the base bootstrap
+is designed to be cloned over plain HTTPS - no SSH key required.
+
+Private, machine- or user-specific configuration (credentials, private
+repositories, ...) is expected to come later from a **separate private
+repository**, used only after a credential provider (for example a
+Bitwarden SSH agent) has been set up. That is not part of phase 1 and not
+a precondition for using this repository.
+
 ## Status: Phase 1 - bootstrap framework
 
 Only the bootstrap framework and a minimal set of base packages are
@@ -37,10 +51,14 @@ this repository.
 ## Usage
 
 ```sh
-git clone <this-repo-url> workstation-arch
+sudo pacman -S --needed git
+git clone https://github.com/Peppeppa/workstation-arch.git
 cd workstation-arch
 ./bootstrap.sh
 ```
+
+No SSH key or credential provider is required for this step - the
+repository is public and cloned over HTTPS.
 
 Run it as your normal user - **not** `sudo ./bootstrap.sh`. Individual
 steps request `sudo` themselves only where privileged actions (installing

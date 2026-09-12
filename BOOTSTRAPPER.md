@@ -43,3 +43,18 @@ reboot
     |
     v
 working workstation
+```
+
+---
+
+# Public bootstrap, private secrets
+
+workstation-arch is a public repository and stays that way.
+
+Bootstrap and desktop configuration must never depend on private credentials.
+
+Secrets - private SSH keys, tokens, Wi-Fi/VPN credentials, Bitwarden data, and similar - stay out of this repository, in their upstream credential provider.
+
+Private, machine- or user-specific configuration can later come from a separate private repository.
+
+That private repository is only needed after a credential provider (for example a Bitwarden SSH agent) has been set up - never as a precondition for the base bootstrap.
