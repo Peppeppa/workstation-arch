@@ -1,14 +1,25 @@
 ---
 # Shared defaults for every host.
 
-# Required by roles/gaming (Steam depends on a concrete Vulkan driver).
+# Gaming is an OPT-IN host capability, not a common-role concern (see
+# AGENTS.md VM / Hardware Separation): the shared daily-driver stack
+# (base/graphics/hyprland/desktop/audio/network/apps/virtualization)
+# must provision cleanly on any upstream Arch host, including a
+# throwaway test VM, without that host being configured for gaming.
+# false is the safe default every host inherits unless a real host's
+# own host_vars/<hostname>.yml explicitly sets gaming_enabled: true.
+gaming_enabled: false
+
+# Required by roles/gaming, and only meaningful once gaming_enabled is
+# true for the host (Steam depends on a concrete Vulkan driver).
 # Deliberately empty here: the real GPU (Intel/AMD/NVIDIA) differs per
 # host and must never be guessed (see AGENTS.md "no automatic
 # hardware-detection engine") - set the real value in the relevant
-# host_vars/<hostname>.yml, e.g.:
+# host_vars/<hostname>.yml alongside gaming_enabled: true, e.g.:
+#   gaming_enabled: true
 #   gaming_gpu_vulkan_packages: [vulkan-intel, lib32-vulkan-intel]
 #   gaming_gpu_vulkan_packages: [vulkan-radeon, lib32-vulkan-radeon]
 #   gaming_gpu_vulkan_packages: [nvidia-utils, lib32-nvidia-utils]
-# roles/gaming refuses to run (ansible.builtin.assert) until this is
-# non-empty for the host being provisioned.
+# roles/gaming refuses to run (ansible.builtin.assert) if gaming_enabled
+# is true but this is still empty for the host being provisioned.
 gaming_gpu_vulkan_packages: []

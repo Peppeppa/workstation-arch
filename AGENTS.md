@@ -308,6 +308,15 @@ in that host's `host_vars/`, added when the need is real, documented as
 such — never invented preemptively, and never left as a permanent
 manual fix applied by hand on the VM instead of in the repository.
 
+This distinguishes *common roles* (must provision cleanly on any
+upstream Arch host, including a disposable test VM) from *opt-in host
+capabilities* like gaming (`gaming_enabled`, default `false` — see
+`roles/gaming`): a capability that genuinely requires host-specific
+hardware facts (a real GPU, in that case) must default to disabled and
+be turned on explicitly per real host, never assumed present on a test
+VM. Do not create a permanent `host_vars/arch-dev.yml` just to carry a
+capability flag a VM should simply inherit as disabled by default.
+
 ## Testing
 
 Before considering any Ansible/shell change done, run all of:
@@ -443,12 +452,20 @@ real-VM-tested):
 - `virtualization` role (new): `linux-headers`, `virtualbox`,
   `virtualbox-host-dkms`; adds the invoking user to `vboxusers`.
 - `gaming` role (new): `steam`, `lutris`, `gamemode`, `lib32-gamemode`.
-  Refuses to run (`ansible.builtin.assert`) until
-  `gaming_gpu_vulkan_packages` is set for the host — see Package Source
-  Policy note in `roles/gaming` and the Networking-adjacent multilib
-  pre_task in `local.yml` (tagged `gaming`, runs before the one central
-  `pacman -Syu`). **Not yet set for either real host** — see Next
-  Milestone / open points.
+  **Opt-in host capability** (`gaming_enabled`, default `false` in
+  `group_vars/all.yml`) — a host that hasn't opted in gets a clean,
+  self-explaining skip (`ansible.builtin.debug` reports status, the
+  remaining tasks are `when: gaming_enabled`), not a crash, whether or
+  not `--tags gaming` is explicitly requested. Once `gaming_enabled` is
+  `true` for a host, it still refuses to install anything
+  (`ansible.builtin.assert`) until `gaming_gpu_vulkan_packages` is also
+  set — see Package Source Policy note in `roles/gaming` and the
+  gaming-gated multilib pre_task in `local.yml` (tagged `gaming`, runs
+  before the one central `pacman -Syu`). **Not yet enabled for either
+  real host** — see Next Milestone / open points. This was a real,
+  arch-dev-discovered bug: the role originally ran unconditionally on
+  every host and crashed on arch-dev's empty GPU driver list instead of
+  skipping a VM that never asked for gaming.
 - `apps` role (new), ensure-present list in
   `roles/apps/defaults/main.yml`: `chromium`, `thunderbird`, `thunar` (+
   `thunar-archive-plugin`, `xarchiver`, `gvfs`, `zip`, `unzip`, `7zip`),
@@ -477,9 +494,11 @@ session/lock/idle, hardware-specific optimization.
   updatable" bar); the AUR package would require installing an AUR
   helper, which the Package Source Policy forbids by default. Use
   Discord's web app via Chromium until this is resolved.
-- **`gaming_gpu_vulkan_packages`**: not set for `laptop` or
-  `workstation` — real GPU hardware was not provided and must not be
-  guessed. `--tags gaming` will fail its own assertion until set (see
+- **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: neither is set
+  for `laptop` or `workstation` — real GPU hardware was not provided
+  and must not be guessed. Gaming stays disabled on both real hosts
+  until their real GPU is documented and both variables are set
+  together in the relevant `host_vars/<hostname>.yml` (see
   `group_vars/all.yml` and the comments in both `host_vars/*.yml`).
 - **Uni-VPN**: protocol not confirmed — see Networking Rules.
 - **Webapp management** (GeForce NOW, WhatsApp, Overleaf, draw.io): all
@@ -505,13 +524,15 @@ session/lock/idle, hardware-specific optimization.
 work on `arch-dev`, THEN Quickshell foundation.** Per this file's own
 Definition of Done, none of the roles added/changed in this session
 (`hyprland` changes, `desktop`, `audio`, `network`, `virtualization`,
-`apps`, and `gaming` once its GPU driver var is set) count as done until
-a real `ansible-playbook local.yml` run completes successfully against
-clean upstream Arch and the manual checks in the exact `arch-dev` test
-commands (see the report accompanying this change, or ask for them
-again) all pass — TTY login → `Hyprland` → Ghostty/fuzzel/Chromium/
-Thunar/audio/clipboard/region-screenshot/notifications/workspaces/clean
-exit.
+`apps`, and `gaming` once a real host opts in via `gaming_enabled`)
+count as done until a real `ansible-playbook local.yml` run completes
+successfully against clean upstream Arch and the manual checks in the
+exact `arch-dev` test commands (see the report accompanying this
+change, or ask for them again) all pass — TTY login → `Hyprland` →
+Ghostty/fuzzel/Chromium/Thunar/audio/clipboard/region-screenshot/
+notifications/workspaces/clean exit. `gaming` stays disabled
+(`gaming_enabled: false`) on `arch-dev` for this validation - that is
+the correct, expected outcome, not a gap to fix there.
 
 Once that passes: start Quickshell foundation by writing
 `docs/DESIGN_SYSTEM.md` (colors, spacing, typography, motion rules

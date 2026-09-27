@@ -1,23 +1,44 @@
 ---
+# Gaming is an opt-in host capability (gaming_enabled, default false in
+# group_vars/all.yml) - see AGENTS.md VM / Hardware Separation. This
+# task always runs (even with gaming_enabled: false) so a `--tags
+# gaming` run explains itself instead of silently skipping or, as
+# before this was added, crashing on an empty GPU driver list on a host
+# that never opted into gaming at all.
+- name: Report whether gaming is enabled for this host
+  ansible.builtin.debug:
+    msg: >-
+      gaming_enabled={{ gaming_enabled }} for
+      {{ ansible_facts.nodename }}.
+      {{ "Gaming is enabled - continuing." if gaming_enabled else
+         "Gaming is an opt-in host capability - skipping Steam/Lutris/"
+         ~ "gamemode. Set gaming_enabled: true and a real "
+         ~ "gaming_gpu_vulkan_packages in host_vars/"
+         ~ ansible_facts.nodename ~ ".yml to enable it on this host." }}
+  tags: gaming
+
 # multilib itself is enabled (idempotently) and synced in local.yml's
 # pre_tasks, before this role runs - see local.yml for why that step
-# lives there instead of here. This role only installs its own
-# packages, exactly once, against an already-multilib-synced database.
+# lives there instead of here, and why it is also gated on
+# gaming_enabled. Both remaining tasks below only run when
+# gaming_enabled is true for this host.
 - name: Require a host-specific GPU Vulkan driver before installing gaming packages
+  when: gaming_enabled
   ansible.builtin.assert:
     that:
       - gaming_gpu_vulkan_packages | length > 0
     fail_msg: >-
-      gaming_gpu_vulkan_packages is empty. Steam depends on a concrete
-      Vulkan driver (vulkan-intel/vulkan-radeon/nvidia-utils, plus its
-      lib32- counterpart) that this project will not guess per
-      AGENTS.md. Set gaming_gpu_vulkan_packages in
-      host_vars/{{ ansible_facts.nodename }}.yml to the real GPU driver
-      for this host, then re-run with --tags gaming.
+      gaming_enabled is true but gaming_gpu_vulkan_packages is empty.
+      Steam depends on a concrete Vulkan driver (vulkan-intel/
+      vulkan-radeon/nvidia-utils, plus its lib32- counterpart) that this
+      project will not guess per AGENTS.md. Set gaming_gpu_vulkan_packages
+      in host_vars/{{ ansible_facts.nodename }}.yml to the real GPU
+      driver for this host, then re-run with --tags gaming.
     success_msg: "gaming_gpu_vulkan_packages is set for this host"
   tags: gaming
 
 - name: Install gaming packages and this host's GPU Vulkan driver
+  when: gaming_enabled
   become: true
   community.general.pacman:
     name: "{{ gaming_packages + gaming_gpu_vulkan_packages }}"

@@ -4,7 +4,10 @@
 # hardware, Intel mobile graphics quirks, ...) land here once they are
 # actually needed, not invented ahead of time.
 #
-# Before running `--tags gaming` on this real host, set the real GPU
-# driver here (not invented - see group_vars/all.yml), e.g.:
+# Gaming is opt-in (gaming_enabled: false by default - see
+# group_vars/all.yml and AGENTS.md). This host's real GPU is not yet
+# documented here, so gaming stays disabled rather than guessed. Once
+# the real GPU is known, enable both together, e.g.:
+#   gaming_enabled: true
 #   gaming_gpu_vulkan_packages: [vulkan-intel, lib32-vulkan-intel]
 {}

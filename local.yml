@@ -55,9 +55,14 @@
     # already covers the newly enabled repository too, with no second
     # sync/upgrade anywhere. Tagged `gaming` (not `always`) so a run
     # that never touches gaming leaves pacman.conf untouched - no
-    # invented deltas for hosts that don't need Steam/Lutris.
+    # invented deltas for hosts that don't need Steam/Lutris. Also
+    # gated on gaming_enabled (opt-in host capability, default false -
+    # see group_vars/all.yml and roles/gaming): a host that hasn't
+    # opted into gaming leaves pacman.conf untouched even when
+    # `--tags gaming` is explicitly requested.
     - name: Enable the multilib repository (required by roles/gaming)
       become: true
+      when: gaming_enabled
       ansible.builtin.replace:
         path: /etc/pacman.conf
         regexp: '#\[multilib\]\n#Include = /etc/pacman.d/mirrorlist'
