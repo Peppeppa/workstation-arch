@@ -34,11 +34,18 @@ hyprland_launcher: fuzzel
 # Main modifier for every keybind below. SUPER on real target hosts
 # (laptop/workstation) - only overridden where a host has a genuine,
 # real reason to differ (see host_vars/arch-dev.yml), never invented
-# ahead of time. Any Hyprland-recognized modifier name works here,
-# including the newer left/right-specific keysym syntax (e.g. Alt_R,
-# Super_L) added in https://github.com/hyprwm/Hyprland/pull/15568 - see
-# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only
-# ("Binding modkeys only"). Plain modifier names (SUPER, ALT, SHIFT,
-# CTRL, ...) and keysym names both work the same way when joined with
-# " + " in a bind string, so the template needs no special-casing.
+# ahead of time. Use one of Hyprland's classic modifier names here
+# (SUPER, ALT, SHIFT, CTRL/CONTROL, ...) - they all combine freely with
+# " + " in a bind string, exactly like SUPER does throughout
+# hyprland.lua.j2, so the template needs no special-casing.
+#
+# Do NOT use a left/right-specific keysym name (e.g. Alt_R, Super_L,
+# see https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only)
+# as this value: real runtime testing showed Hyprland rejects combining
+# that syntax with this project's combined binds (mainMod + SHIFT +
+# <key>, mainMod + <workspace number>) with "Modifiers must come first
+# in the list" / "Cannot combine special syms" - it is only valid for a
+# standalone bind or for combining two keysyms with each other, not for
+# combining a keysym with a classic modifier the way every bind here
+# does.
 hyprland_main_modifier: SUPER

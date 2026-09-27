@@ -320,11 +320,12 @@ capability flag a VM should simply inherit as disabled by default.
 That is not a blanket ban on `host_vars/arch-dev.yml` itself, though: a
 disposable VM is still a host like any other, and can get a `host_vars`
 file for a *genuine, real* deviation the same way `laptop`/`workstation`
-would — e.g. `hyprland_main_modifier: Alt_R` (see
+would — e.g. `hyprland_main_modifier: ALT` (see
 `host_vars/arch-dev.yml`), needed only because testing arch-dev's guest
 Hyprland session happens under a host machine that also runs a
-SUPER-based Hyprland session, so SUPER keybinds never reach the guest.
-The rule is "no invented deltas", not "no VM host_vars file at all".
+SUPER-based Hyprland session, so SUPER keybinds never reach the guest,
+and the host has no normal Alt-based keybindings of its own. The rule
+is "no invented deltas", not "no VM host_vars file at all".
 
 ## Testing
 
@@ -450,9 +451,14 @@ passed in this session):
   Acceleration was off — not this repository's config; no
   graphics/Hyprland workaround was added for it). `hyprland_main_modifier`
   is configurable per host precisely because `arch-dev`'s nested guest
-  session needs `Alt_R` instead of `SUPER` (host input capture, not a
+  session needs `ALT` instead of `SUPER` (host input capture, not a
   graphics issue) — see `host_vars/arch-dev.yml` and VM / Hardware
-  Separation. Not yet confirmed: every item on the full daily-driver
+  Separation. A left/right-specific keysym (`Alt_R`) was tried first and
+  real testing showed Hyprland rejects it in this project's combined
+  binds ("Modifiers must come first in the list" / "Cannot combine
+  special syms") - `hyprland_main_modifier` must be one of Hyprland's
+  classic modifier names (SUPER, ALT, SHIFT, CTRL/CONTROL, ...), never a
+  keysym name. Not yet confirmed: every item on the full daily-driver
   manual checklist (audio/clipboard/notifications/etc.) individually.
 - `desktop` role (new): `hyprpolkitagent`, the
   `xdg-desktop-portal`/`-hyprland`/`-gtk` trio, `wl-clipboard`, `grim`+

@@ -3,19 +3,25 @@
 # validation VM (see AGENTS.md VM / Hardware Separation - arch-dev is
 # not a long-term product host and gets no invented deltas). This file
 # exists for exactly one real, persistent reason, not a guess ahead of
-# need: real-hardware confirmed that arch-dev's guest Hyprland session
-# shares input with a host machine that also runs a SUPER-based
+# need: real-hardware testing confirmed that arch-dev's guest Hyprland
+# session shares input with a host machine that also runs a SUPER-based
 # Hyprland session, so SUPER-modifier keybinds inside the guest are
 # consumed by the host before VirtualBox delivers them to the VM. This
 # is specific to testing inside this VM, not a host_vars-worthy real
 # deviation of laptop/workstation (they run standalone, not nested under
 # another Hyprland session).
 #
-# Alt_R (Right Alt) is not the generic ALT modifier bit: Hyprland cannot
-# yet distinguish Alt_L from Alt_R as a modifier bit
-# (https://github.com/hyprwm/Hyprland/issues/5517, open), so this uses
-# the newer left/right-specific keysym modkey syntax instead, added in
-# https://github.com/hyprwm/Hyprland/pull/15568 and documented at
-# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only
-# - confirmed against that source, not guessed between ALT/ALT_R/RALT.
-hyprland_main_modifier: Alt_R
+# ALT (the classic Hyprland modifier, same kind as SUPER/SHIFT/CTRL) is
+# used here, not a left/right-specific keysym like Alt_R: an earlier
+# version of this file used Alt_R, but real runtime testing showed
+# Hyprland's keysym-based modkey syntax (see
+# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only)
+# rejects this project's combined binds (mainMod + SHIFT + <key>, mainMod
+# + <workspace number>) with "Modifiers must come first in the list" /
+# "Cannot combine special syms" - that syntax is only for standalone or
+# keysym-plus-keysym binds, not for combining with classic modifiers.
+# ALT is a classic modifier bit, so it combines exactly like SUPER does
+# everywhere in hyprland.lua.j2, with no special-casing. The host's own
+# session has no normal Alt-based keybindings, so ALT (triggered by
+# Left Alt) is free to use here.
+hyprland_main_modifier: ALT
