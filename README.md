@@ -2,9 +2,8 @@
 
 A reproducible Arch Linux workstation, provisioned with Ansible instead
 of hand-configured - built as a Git repository, not a custom
-distribution. See `BOOTSTRAPPER.md` for the project's architecture and
-workflow rules, and `docs/ARCHITECTURE.md` for the full system
-architecture.
+distribution. See `AGENTS.md` for agent/contributor workflow rules, and
+`docs/ARCHITECTURE.md` for the full system architecture.
 
 This project targets exactly two personal machines - `laptop` and
 `workstation` - which share the same base system and eventually the same
@@ -230,7 +229,7 @@ exist and are not skippable via tags.
 ```
 .
 ├── README.md
-├── BOOTSTRAPPER.md
+├── AGENTS.md
 ├── bootstrap.sh          # launcher: validate env, check prerequisites, run Ansible
 ├── ansible.cfg
 ├── local.yml             # Ansible entry point

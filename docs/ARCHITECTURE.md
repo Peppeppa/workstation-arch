@@ -56,8 +56,8 @@ all of it.
 Ansible is provisioning only. It is not a runtime service: it is not
 installed as a daemon, does not run continuously, and leaves no
 permanent resource usage behind once a run finishes. `bootstrap.sh` is a
-thin launcher around it - see `BOOTSTRAPPER.md` and `README.md` for how
-it is invoked and what it does.
+thin launcher around it - see `AGENTS.md` and `README.md` for how it is
+invoked and what it does.
 
 Responsibility split within the provisioning layer:
 
@@ -126,6 +126,6 @@ for the full trade-off ordering.
 
 ## Public bootstrap, private secrets
 
-See `BOOTSTRAPPER.md`. This repository is public and contains no
-secrets; private, machine-specific credentials come from a separate
-private repository, only once a credential provider is configured.
+See `AGENTS.md`. This repository is public and contains no secrets;
+private, machine-specific credentials come from a separate private
+repository, only once a credential provider is configured.
