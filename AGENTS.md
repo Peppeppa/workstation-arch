@@ -317,6 +317,15 @@ be turned on explicitly per real host, never assumed present on a test
 VM. Do not create a permanent `host_vars/arch-dev.yml` just to carry a
 capability flag a VM should simply inherit as disabled by default.
 
+That is not a blanket ban on `host_vars/arch-dev.yml` itself, though: a
+disposable VM is still a host like any other, and can get a `host_vars`
+file for a *genuine, real* deviation the same way `laptop`/`workstation`
+would — e.g. `hyprland_main_modifier: Alt_R` (see
+`host_vars/arch-dev.yml`), needed only because testing arch-dev's guest
+Hyprland session happens under a host machine that also runs a
+SUPER-based Hyprland session, so SUPER keybinds never reach the guest.
+The rule is "no invented deltas", not "no VM host_vars file at all".
+
 ## Testing
 
 Before considering any Ansible/shell change done, run all of:
@@ -419,24 +428,32 @@ upstream Arch, ended `failed=0`):
 - `base` role: `git`, `openssh`, `curl`, `rsync`
 - `graphics` role: `wayland`, `wayland-protocols`, `mesa`, `xorg-xwayland` (Wayland/Mesa/XWayland foundation, no compositor)
 
-**Implemented, structurally tested only** (syntax-check, `--list-tasks`,
-standalone Jinja2/Lua render+`luac -p` check, and a standalone
-`ansible.builtin.replace` idempotency test all passed in this session;
-no evidence yet of a real provisioning run including any of this —
-the minimal-usable-daily-driver milestone as a whole is NOT yet
-real-VM-tested):
+**Implemented, structurally tested only** unless noted otherwise
+(syntax-check, `--list-tasks`, standalone Jinja2/Lua render+`luac -p`
+check, and a standalone `ansible.builtin.replace` idempotency test all
+passed in this session):
 - `hyprland` role: installs `hyprland`, `ghostty` (replaces the earlier
   `foot` placeholder as the default terminal), and `fuzzel` (temporary
   launcher, see Runtime Ownership). Deploys `~/.config/hypr/hyprland.lua`
   with animations/blur/shadow disabled, autostarts `hyprpolkitagent` +
-  `mako` once via `hl.on("hyprland.start", ...)`, and binds:
-  `Super+Return` (terminal), `Super+Q` (close), `Super+Space`
-  (launcher), `Super+[1-9]` / `Super+Shift+[1-9]` (workspace
-  switch/move), `Super`+arrows (focus), `Super`+LMB/RMB drag (move/
-  resize floating windows), `Super+Shift+S` (region screenshot →
+  `mako` once via `hl.on("hyprland.start", ...)`, and binds (on
+  `hyprland_main_modifier`, default `SUPER` — see below):
+  `mainMod+Return` (terminal), `mainMod+Q` (close), `mainMod+Space`
+  (launcher), `mainMod+[1-9]` / `mainMod+Shift+[1-9]` (workspace
+  switch/move), `mainMod`+arrows (focus), `mainMod`+LMB/RMB drag (move/
+  resize floating windows), `mainMod+Shift+S` (region screenshot →
   clipboard), `Print` (fullscreen screenshot → clipboard),
-  `Super+Shift+E` (exit). Still no bar, lock/idle, wallpaper, or display
-  manager — Hyprland remains manually started from a TTY.
+  `mainMod+Shift+E` (exit). Still no bar, lock/idle, wallpaper, or
+  display manager — Hyprland remains manually started from a TTY.
+  **Real-VM-tested**: Hyprland now starts successfully on `arch-dev`
+  (root cause of the earlier crash was a VirtualBox setting — 3D
+  Acceleration was off — not this repository's config; no
+  graphics/Hyprland workaround was added for it). `hyprland_main_modifier`
+  is configurable per host precisely because `arch-dev`'s nested guest
+  session needs `Alt_R` instead of `SUPER` (host input capture, not a
+  graphics issue) — see `host_vars/arch-dev.yml` and VM / Hardware
+  Separation. Not yet confirmed: every item on the full daily-driver
+  manual checklist (audio/clipboard/notifications/etc.) individually.
 - `desktop` role (new): `hyprpolkitagent`, the
   `xdg-desktop-portal`/`-hyprland`/`-gtk` trio, `wl-clipboard`, `grim`+
   `slurp`, `mako`, `brightnessctl`; adds the invoking user to the

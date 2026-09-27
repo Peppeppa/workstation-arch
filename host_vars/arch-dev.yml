@@ -1,0 +1,21 @@
+---
+# Host-specific overrides for arch-dev, the disposable VirtualBox
+# validation VM (see AGENTS.md VM / Hardware Separation - arch-dev is
+# not a long-term product host and gets no invented deltas). This file
+# exists for exactly one real, persistent reason, not a guess ahead of
+# need: real-hardware confirmed that arch-dev's guest Hyprland session
+# shares input with a host machine that also runs a SUPER-based
+# Hyprland session, so SUPER-modifier keybinds inside the guest are
+# consumed by the host before VirtualBox delivers them to the VM. This
+# is specific to testing inside this VM, not a host_vars-worthy real
+# deviation of laptop/workstation (they run standalone, not nested under
+# another Hyprland session).
+#
+# Alt_R (Right Alt) is not the generic ALT modifier bit: Hyprland cannot
+# yet distinguish Alt_L from Alt_R as a modifier bit
+# (https://github.com/hyprwm/Hyprland/issues/5517, open), so this uses
+# the newer left/right-specific keysym modkey syntax instead, added in
+# https://github.com/hyprwm/Hyprland/pull/15568 and documented at
+# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only
+# - confirmed against that source, not guessed between ALT/ALT_R/RALT.
+hyprland_main_modifier: Alt_R

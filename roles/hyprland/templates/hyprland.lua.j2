@@ -19,6 +19,12 @@ hl.monitor({
 local terminal = "{{ hyprland_terminal }}"
 local launcher = "{{ hyprland_launcher }}"
 
+-- Main modifier for every keybind below - configurable per host (see
+-- hyprland_main_modifier in roles/hyprland/defaults/main.yml), SUPER on
+-- real target hosts. Kept as one local, like Hyprland's own official
+-- example config does, so a host override changes exactly one value.
+local mainMod = "{{ hyprland_main_modifier }}"
+
 -- Performance defaults: this project targets instant interaction over
 -- decorative effects (see docs/ARCHITECTURE.md), so animations and
 -- blur/shadow are off from the start rather than tuned down later.
@@ -56,34 +62,37 @@ end)
 ---------------------
 
 -- Minimal but genuinely usable keybind set - not final Quickshell/UX
--- polish, see README.md.
-hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
-hl.bind("SUPER + Q", hl.dsp.window.close())
-hl.bind("SUPER + SHIFT + E", hl.dsp.exit())
+-- polish, see README.md. All bound on mainMod, not a hardcoded
+-- modifier, so a host override (see hyprland_main_modifier) changes
+-- every bind below, not just some of them.
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
+hl.bind(mainMod .. " + Q", hl.dsp.window.close())
+hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 
 -- Temporary launcher (see hyprland_packages / TEMPORARY note above).
-hl.bind("SUPER + Space", hl.dsp.exec_cmd(launcher))
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd(launcher))
 
 -- Move keyboard focus between windows.
-hl.bind("SUPER + left",  hl.dsp.focus({ direction = "left" }))
-hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
-hl.bind("SUPER + up",    hl.dsp.focus({ direction = "up" }))
-hl.bind("SUPER + down",  hl.dsp.focus({ direction = "down" }))
+hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
+hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
+hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
+hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
 -- Move/resize floating windows with the mouse.
-hl.bind("SUPER + mouse:272", hl.dsp.window.drag(),   { mouse = true })
-hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
+hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
+hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Switch workspaces with SUPER + [1-9]; move the active window to a
--- workspace with SUPER + SHIFT + [1-9].
+-- Switch workspaces with mainMod + [1-9]; move the active window to a
+-- workspace with mainMod + SHIFT + [1-9].
 for i = 1, 9 do
-    hl.bind("SUPER + " .. i,         hl.dsp.focus({ workspace = i }))
-    hl.bind("SUPER + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
+    hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = i }))
+    hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
 end
 
 -- Region screenshot -> clipboard (select a region, then paste directly
 -- into a browser/chat). grim/slurp/wl-clipboard come from roles/desktop.
-hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
 
--- Full-screen screenshot -> clipboard.
+-- Full-screen screenshot -> clipboard. Not on mainMod - a physical key,
+-- unaffected by the main-modifier override.
 hl.bind("Print", hl.dsp.exec_cmd("grim - | wl-copy"))

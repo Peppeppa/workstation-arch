@@ -30,3 +30,15 @@ hyprland_terminal: ghostty
 
 # Command the launcher keybind runs. See the TEMPORARY note above.
 hyprland_launcher: fuzzel
+
+# Main modifier for every keybind below. SUPER on real target hosts
+# (laptop/workstation) - only overridden where a host has a genuine,
+# real reason to differ (see host_vars/arch-dev.yml), never invented
+# ahead of time. Any Hyprland-recognized modifier name works here,
+# including the newer left/right-specific keysym syntax (e.g. Alt_R,
+# Super_L) added in https://github.com/hyprwm/Hyprland/pull/15568 - see
+# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only
+# ("Binding modkeys only"). Plain modifier names (SUPER, ALT, SHIFT,
+# CTRL, ...) and keysym names both work the same way when joined with
+# " + " in a bind string, so the template needs no special-casing.
+hyprland_main_modifier: SUPER
