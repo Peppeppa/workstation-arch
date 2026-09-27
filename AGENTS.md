@@ -86,9 +86,21 @@ direct upstream dependency.
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ |
 | Compositor / window manager | Hyprland |
+| App launcher | fuzzel (**temporary until Quickshell replacement**) |
+| Notifications | mako (**temporary until Quickshell replacement**) |
+| Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
+| Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
+| File chooser / settings portal | xdg-desktop-portal-gtk |
 | Shell presentation / integration | Quickshell |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
+
+The portal packages above are D-Bus-activated systemd `--user` services
+shipped by their own packages - no exec-once, no manual enable. The
+polkit agent and notification daemon are not D-Bus-activatable and are
+started exactly once by Hyprland's own session lifecycle (`hl.on
+("hyprland.start", ...)` in `roles/hyprland`'s template) - never also as
+a systemd user service, per the rule below.
 
 Quickshell displays and controls the above; it is never a second
 source of truth for network/audio/bluetooth state. Never introduce a
@@ -170,6 +182,44 @@ Roles run after, gated by matching tags.
   genuinely need root set it. Never set `become: true` at the play
   level "for convenience".
 
+## Package Source Policy
+
+Binding priority order for where any application/package comes from:
+
+1. **Official Arch Linux repositories** (`core`/`extra`/`multilib`). Try
+   this first for everything, including system-near components.
+2. **Official upstream distribution channel** - only if it is clean,
+   updatable, and reproducibly manageable by Ansible (a plain package
+   repo/registry, not a self-updating installer). A vendor's own
+   "toolbox"/self-update-in-place app (e.g. JetBrains Toolbox) does not
+   qualify - it manages itself outside package-manager and Ansible
+   control, which breaks reproducibility and idempotency.
+3. **Flatpak (Flathub)** - only once 1 and 2 are genuinely unsuitable,
+   and only for isolated desktop applications. If Flatpak itself isn't
+   installed yet, add it and configure the Flathub remote exactly once,
+   declaratively (`community.general.flatpak_remote`); manage apps with
+   `community.general.flatpak`, ensure-present, same as pacman lists.
+   Do not add Flatpak at all while every desired app is cleanly solvable
+   without it.
+4. **AUR** - last resort only, and never by default. No AUR helper is
+   installed as part of this repository's normal provisioning. Do not
+   reach for the AUR just because a package happens to exist there -
+   check 1-3 first and document why they don't work before considering
+   it. If the AUR is ever genuinely necessary, that is a deliberate,
+   documented exception, not a default path.
+
+Rules that apply regardless of source:
+- No arbitrary `curl | sh` installers.
+- Before using a non-Arch source for something, state in the role/PR
+  why the higher-priority sources are unsuitable (see `roles/apps` and
+  `roles/gaming` for the pattern).
+- Keep the install source explicit in Ansible (which module, which
+  remote/repo) - never hide it behind a generic wrapper.
+- Never silently change an existing app's install source; if a source
+  changes, say so explicitly (commit message + doc update).
+- No credentials, licenses, or account data of any kind in this
+  repository (see Secrets and Public Repository).
+
 ## Package Management
 
 - One full `pacman -Syu` per provisioning run, done centrally (see
@@ -218,6 +268,18 @@ dependency on it, live ping/traffic only while that view is open) is
 fully specified in `docs/wifi_applet.md` (42 sections). Read it in full
 before touching any network-UI work; do not re-derive these
 requirements from scratch or narrow them without calling it out.
+
+**VPN foundation** (`roles/network`, no UI yet): `wireguard-tools` is
+installed so NetworkManager can import/manage a WireGuard profile
+(`nmcli connection import type wireguard file ...`) once one exists.
+No actual profile is created or committed here - a real profile has a
+real endpoint and keys, which are secrets and belong only in the
+separate private-config repository. **Uni-VPN is an open point**: the
+institution's actual VPN protocol (possibly Fortinet/FortiGate/
+FortiClient, possibly OpenConnect-compatible) is not yet confirmed - do
+not guess it or install a proprietary client speculatively. If
+NetworkManager/OpenConnect can natively speak the real protocol once
+confirmed, prefer that over proprietary FortiClient.
 
 ## Secrets and Public Repository
 
@@ -348,27 +410,84 @@ upstream Arch, ended `failed=0`):
 - `base` role: `git`, `openssh`, `curl`, `rsync`
 - `graphics` role: `wayland`, `wayland-protocols`, `mesa`, `xorg-xwayland` (Wayland/Mesa/XWayland foundation, no compositor)
 
-**Implemented, structurally tested only** (syntax-check/YAML-valid in
-this session; no evidence yet of a real provisioning run including this
-role):
-- `hyprland` role: installs `hyprland` + `foot`; deploys
-  `~/.config/hypr/hyprland.lua` (current Hyprland reads Lua, not
-  `hyprland.conf`) as the invoking user, with a monitor fallback,
-  animations/blur/shadow disabled, and three temporary dev keybinds
-  (`Super+Return` → terminal, `Super+Q` → close window,
-  `Super+Shift+E` → exit). No bar, launcher, notifications, lock/idle,
-  wallpaper, display manager, or Quickshell yet — Hyprland must remain
-  fully usable standalone.
+**Implemented, structurally tested only** (syntax-check, `--list-tasks`,
+standalone Jinja2/Lua render+`luac -p` check, and a standalone
+`ansible.builtin.replace` idempotency test all passed in this session;
+no evidence yet of a real provisioning run including any of this —
+the minimal-usable-daily-driver milestone as a whole is NOT yet
+real-VM-tested):
+- `hyprland` role: installs `hyprland`, `ghostty` (replaces the earlier
+  `foot` placeholder as the default terminal), and `fuzzel` (temporary
+  launcher, see Runtime Ownership). Deploys `~/.config/hypr/hyprland.lua`
+  with animations/blur/shadow disabled, autostarts `hyprpolkitagent` +
+  `mako` once via `hl.on("hyprland.start", ...)`, and binds:
+  `Super+Return` (terminal), `Super+Q` (close), `Super+Space`
+  (launcher), `Super+[1-9]` / `Super+Shift+[1-9]` (workspace
+  switch/move), `Super`+arrows (focus), `Super`+LMB/RMB drag (move/
+  resize floating windows), `Super+Shift+S` (region screenshot →
+  clipboard), `Print` (fullscreen screenshot → clipboard),
+  `Super+Shift+E` (exit). Still no bar, lock/idle, wallpaper, or display
+  manager — Hyprland remains manually started from a TTY.
+- `desktop` role (new): `hyprpolkitagent`, the
+  `xdg-desktop-portal`/`-hyprland`/`-gtk` trio, `wl-clipboard`, `grim`+
+  `slurp`, `mako`, `brightnessctl`; adds the invoking user to the
+  `video` group for brightness control.
+- `audio` role (new): `pipewire`, `wireplumber`, `pipewire-audio`,
+  `pipewire-pulse`, `pipewire-alsa` — no PulseAudio in parallel
+  (`pipewire-pulse` conflicts with `pulseaudio` at the pacman level).
+  No service-enable tasks: these ship socket-/D-Bus-activated systemd
+  `--user` units by default.
+- `network` role (new): `networkmanager` (enabled+started as a system
+  service) + `wireguard-tools` (VPN foundation only, no profile/UI —
+  see Networking Rules).
+- `virtualization` role (new): `linux-headers`, `virtualbox`,
+  `virtualbox-host-dkms`; adds the invoking user to `vboxusers`.
+- `gaming` role (new): `steam`, `lutris`, `gamemode`, `lib32-gamemode`.
+  Refuses to run (`ansible.builtin.assert`) until
+  `gaming_gpu_vulkan_packages` is set for the host — see Package Source
+  Policy note in `roles/gaming` and the Networking-adjacent multilib
+  pre_task in `local.yml` (tagged `gaming`, runs before the one central
+  `pacman -Syu`). **Not yet set for either real host** — see Next
+  Milestone / open points.
+- `apps` role (new), ensure-present list in
+  `roles/apps/defaults/main.yml`: `chromium`, `thunderbird`, `thunar` (+
+  `thunar-archive-plugin`, `xarchiver`, `gvfs`, `zip`, `unzip`, `7zip`),
+  `yazi`, `neovim` (+ `ripgrep`, `fd`, `ttf-jetbrains-mono-nerd` for
+  LazyVim's own requirements — LazyVim itself is not bootstrapped, see
+  below), `obsidian`, `bitwarden`, `zathura`+`zathura-pdf-mupdf`,
+  `qpdf`, `imv`, `mpv`, `github-cli`; plus Flatpak/Flathub infrastructure
+  and `com.jetbrains.IntelliJ-IDEA-Ultimate` (IntelliJ IDEA *Ultimate* -
+  Community is available in official Arch but is a different product).
 
-**Not started (no code yet):**
-- Quickshell foundation and every later phase (shell UX, audio,
-  network UI, Bluetooth, session/power/lock, hardware integration)
-- `roles/network`, `roles/audio`, `roles/bluetooth`, `roles/quickshell`,
-  `roles/session` don't exist yet — NetworkManager/PipeWire+WirePlumber/
-  BlueZ are documented as future owners, not yet provisioned by this
-  repository.
+**Not started (no code yet):** Quickshell foundation, Bluetooth,
+session/lock/idle, hardware-specific optimization.
 
-**Documentation gaps found during this audit:**
+**Deliberately deferred this run — open points, not oversights:**
+- **LazyVim bootstrap**: Neovim is installed; LazyVim itself is user
+  *configuration*, not a package, and was not auto-bootstrapped into
+  `~/.config/nvim`. This machine's own Hyprland config already sources
+  personal settings (`bindings.lua`, `input.lua`, `monitors.lua`) from a
+  separate `dotfiles-stow`-managed repository rather than this one —
+  before writing `~/.config/nvim` here, decide whether Neovim config
+  should live in this repo or follow that same dotfiles-stow pattern,
+  to avoid silently conflicting with however the real hosts already
+  handle it.
+- **WebCord**: not in official Arch repos; its own Flathub packaging
+  was marked EOL/archived by WebCord's maintainer (fails the "clean,
+  updatable" bar); the AUR package would require installing an AUR
+  helper, which the Package Source Policy forbids by default. Use
+  Discord's web app via Chromium until this is resolved.
+- **`gaming_gpu_vulkan_packages`**: not set for `laptop` or
+  `workstation` — real GPU hardware was not provided and must not be
+  guessed. `--tags gaming` will fail its own assertion until set (see
+  `group_vars/all.yml` and the comments in both `host_vars/*.yml`).
+- **Uni-VPN**: protocol not confirmed — see Networking Rules.
+- **Webapp management** (GeForce NOW, WhatsApp, Overleaf, draw.io): all
+  via Chromium as plain web pages for now. A declarative webapp list
+  generating `.desktop` entries (so Quickshell's launcher can later show
+  them like native apps) is a documented future idea, not built.
+
+**Documentation gaps found during the prior audit, still open:**
 - `docs/DESIGN_SYSTEM.md` exists but is **empty (0 bytes)**.
   `docs/system_architecture.md` §18/§33 and `docs/wifi_applet.md` §33
   both require a shared design system before shell UI work — this is a
@@ -379,23 +498,26 @@ role):
   have them. Don't assume they exist; create them with real content
   when the corresponding role is actually built, or fix the README
   diagram if they turn out unnecessary.
-- `group_vars/all.yml` and both `host_vars/*.yml` are intentionally
-  empty stubs (`{}`) — correct per the "no invented deltas" rule, but
-  expect to give them real content the moment `laptop` and
-  `workstation` actually diverge (e.g. GPU driver, power policy).
-- `BOOTSTRAPPER.md` has been removed: its entire content (provisioner
-  model, become rules, public-bootstrap/no-secrets policy) is now
-  covered by this file and `docs/ARCHITECTURE.md`, and it had drifted
-  into being a second, overlapping source of truth for agent behavior.
 
 ## Next Milestone
 
-**Quickshell foundation (phase 04)** — but start by writing
+**Real (VM) validation of this session's minimal-usable-daily-driver
+work on `arch-dev`, THEN Quickshell foundation.** Per this file's own
+Definition of Done, none of the roles added/changed in this session
+(`hyprland` changes, `desktop`, `audio`, `network`, `virtualization`,
+`apps`, and `gaming` once its GPU driver var is set) count as done until
+a real `ansible-playbook local.yml` run completes successfully against
+clean upstream Arch and the manual checks in the exact `arch-dev` test
+commands (see the report accompanying this change, or ask for them
+again) all pass — TTY login → `Hyprland` → Ghostty/fuzzel/Chromium/
+Thunar/audio/clipboard/region-screenshot/notifications/workspaces/clean
+exit.
+
+Once that passes: start Quickshell foundation by writing
 `docs/DESIGN_SYSTEM.md` (colors, spacing, typography, motion rules
 consistent with the "responsiveness over decoration" stance already set
 in the `hyprland` role), then add a minimal `roles/quickshell` that only
 installs the package and gets an empty/near-empty config loading under
-Hyprland — no widgets, no bar content, no launcher yet. Do not start
-audio, network UI, or Bluetooth before this lands; they all assume a
-working shell foundation and, for network UI specifically, an existing
-design system per `docs/wifi_applet.md` §33.
+Hyprland — no widgets, no bar content yet, and no need to keep fuzzel/
+mako once Quickshell can replace them (see Runtime Ownership). Do not
+start Bluetooth or session/lock/idle before this lands.

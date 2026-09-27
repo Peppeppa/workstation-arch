@@ -1,0 +1,24 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages/service are present. NetworkManager is a
+# machine-wide daemon (AGENTS.md service-ownership defaults), so unlike
+# the session-lifecycle tools in roles/desktop, it is a system systemd
+# service, enabled and started here - this documents and enforces the
+# "working network" precondition README.md already assumes before
+# bootstrap.sh can even be cloned, rather than leaving it as an
+# unenforced manual step.
+- name: Install networking/VPN foundation packages
+  become: true
+  community.general.pacman:
+    name: "{{ network_packages }}"
+    state: present
+  tags: network
+
+- name: Ensure NetworkManager is enabled and running
+  become: true
+  ansible.builtin.systemd_service:
+    name: NetworkManager.service
+    enabled: true
+    state: started
+  tags: network

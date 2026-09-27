@@ -3,4 +3,8 @@
 # Empty for now - real deviations (different GPU, different power
 # policy, ...) land here once they are actually needed, not invented
 # ahead of time.
+#
+# Before running `--tags gaming` on this real host, set the real GPU
+# driver here (not invented - see group_vars/all.yml), e.g.:
+#   gaming_gpu_vulkan_packages: [vulkan-radeon, lib32-vulkan-radeon]
 {}

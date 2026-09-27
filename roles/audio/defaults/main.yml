@@ -1,0 +1,19 @@
+---
+# Audio (minimal-usable-daily-driver milestone). PipeWire + WirePlumber
+# are the sole audio owner (see AGENTS.md "one owner per
+# responsibility") - no PulseAudio in parallel; pipewire-pulse
+# (installed below) conflicts with the `pulseaudio` package at the
+# pacman level, so pacman itself refuses to leave both installed.
+audio_packages:
+  - pipewire        # low-latency audio/video router - the core daemon
+  - wireplumber      # session/policy manager; also provides `wpctl`,
+                     # the required CLI (see AGENTS.md networking/CLI
+                     # first-class rule, applied here to audio)
+  - pipewire-audio   # core audio support module for pipewire
+  - pipewire-pulse   # PulseAudio-compatible server socket, so
+                     # PulseAudio-only client apps keep working
+  - pipewire-alsa    # ALSA client compatibility (apps using ALSA
+                     # directly get routed through PipeWire)
+
+  # Deliberately NOT included: pipewire-jack (JACK compatibility) - no
+  # concrete pro-audio/JACK workload exists yet; add it if one does.

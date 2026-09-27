@@ -1,0 +1,25 @@
+---
+# Gaming (minimal-usable-daily-driver milestone). Steam and Lutris need
+# the multilib repository (enabled idempotently in local.yml's
+# pre_tasks, tagged `gaming`, so it is synced by the same single
+# pre_tasks pacman -Syu - see local.yml) and a concrete, hardware-
+# specific 32-/64-bit Vulkan driver.
+#
+# gaming_gpu_vulkan_packages is NOT set here: it depends on real GPU
+# hardware (Intel/AMD/NVIDIA) that differs per host and must never be
+# guessed (see AGENTS.md "no automatic hardware-detection engine"). It
+# defaults to an empty list in group_vars/all.yml; set the real value in
+# the relevant host_vars/<hostname>.yml before running `--tags gaming`
+# on that host - see the assertion below for the exact variable name.
+gaming_packages:
+  - steam          # depends on the vulkan-driver/lib32-vulkan-driver
+                   # virtual packages - resolved by installing a
+                   # concrete provider (gaming_gpu_vulkan_packages) in
+                   # the same pacman transaction, see tasks/main.yml
+  - lutris
+
+  # Proven, purpose-built, and directly serves this project's own
+  # Responsiveness priority (AGENTS.md Goals #1) applied to gaming -
+  # not a "gaming suite", just one small, well-known daemon.
+  - gamemode
+  - lib32-gamemode

@@ -1,9 +1,10 @@
 ---
-# Phase 3: minimal Hyprland session. Hyprland must be fully startable
-# and closeable entirely on its own here - no Quickshell dependency
-# (that is a separate, later presentation layer), no display manager,
-# no autostart-on-login hook. Login on a TTY and run `Hyprland`
-# manually - see README.md.
+# Hyprland session: compositor, default terminal (Ghostty), and a
+# temporary launcher (fuzzel, until Quickshell replaces it) - see
+# roles/desktop for the polkit agent/portals/notifications/screenshot/
+# clipboard/brightness tools that make this a practically usable
+# desktop. No display manager, no autostart-on-login hook. Login on a
+# TTY and run `Hyprland` manually - see README.md.
 #
 # The once-per-run package database sync + full system upgrade lives in
 # local.yml's pre_tasks (tags: always), not here - this role only

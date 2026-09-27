@@ -1,0 +1,22 @@
+---
+# Virtualization (minimal-usable-daily-driver milestone). A dedicated
+# role rather than a few lines in roles/apps because it genuinely needs
+# kernel module/DKMS handling and a group membership change, unlike a
+# normal end-user application.
+virtualization_packages:
+  - linux-headers          # required to build the DKMS kernel module
+                           # against the currently running kernel
+  - virtualbox              # host virtualization; depends on a
+                           # provider of VIRTUALBOX-HOST-MODULES, which
+                           # virtualbox-host-dkms (below) satisfies -
+                           # the older virtualbox-host-modules-arch
+                           # precompiled-module package no longer exists
+  - virtualbox-host-dkms    # builds/loads the vboxdrv/vboxnetadp/
+                           # vboxnetflt kernel modules via DKMS; ships
+                           # its own modules-load.d entry, so the
+                           # modules load automatically on boot with no
+                           # manual modprobe step
+
+# The virtualbox package itself creates the `vboxusers` group via
+# systemd-sysusers on install - this role only adds the invoking user
+# to it (see tasks/main.yml).

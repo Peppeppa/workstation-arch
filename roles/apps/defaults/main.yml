@@ -1,0 +1,94 @@
+---
+# End-user applications (minimal-usable-daily-driver milestone). This
+# is deliberately ONE role for normal applications, not one role per
+# app - see AGENTS.md Package Source Policy. apps_packages is an
+# ensure-present list: adding a line installs that app on the next
+# `./bootstrap.sh --tags apps`; removing a line does NOT uninstall it
+# (no automatic pruning - see AGENTS.md).
+#
+# git is intentionally NOT listed here - it already belongs to the
+# base role (roles/base/defaults/main.yml) and is not duplicated.
+#
+# Every package below was checked against the current official Arch
+# package database before being added here (see AGENTS.md Package
+# Source Policy, priority 1: official Arch repositories).
+apps_packages:
+  # Browser
+  - chromium
+
+  # Mail
+  - thunderbird
+
+  # File manager (GUI) + practical archive/mount support, kept small:
+  # thunar-archive-plugin + xarchiver add the "create/extract archive"
+  # context-menu actions, 7zip/zip/unzip cover common archive formats,
+  # gvfs adds Trash/removable-media/MTP support - no full desktop-
+  # environment dependency chain pulled in for any of this.
+  - thunar
+  - thunar-archive-plugin
+  - xarchiver
+  - gvfs
+  - zip
+  - unzip
+  - 7zip
+
+  # File manager (TUI)
+  - yazi
+
+  # Editor: Neovim is a normal package. LazyVim is user *configuration*,
+  # not a package, and is deliberately NOT bootstrapped by this role -
+  # see AGENTS.md Current Status for why. ripgrep/fd/a Nerd Font are
+  # installed anyway: they are LazyVim's own documented hard
+  # requirements (fuzzy-finding, icons) and are harmless, generically
+  # useful regardless of how/when LazyVim itself gets bootstrapped.
+  - neovim
+  - ripgrep
+  - fd
+  - ttf-jetbrains-mono-nerd
+
+  # Notes
+  - obsidian
+
+  # Password manager (desktop app only - see AGENTS.md: no vault
+  # configuration, no SSH agent setup, no credentials in this repo)
+  - bitwarden
+
+  # PDF: Zathura as a lean reader (mupdf backend - lighter than the
+  # poppler backend) + qpdf for CLI manipulation (extract/merge/split).
+  - zathura
+  - zathura-pdf-mupdf
+  - qpdf
+
+  # Images
+  - imv
+
+  # Video
+  - mpv
+
+  # Git tooling beyond plain git (already in roles/base): GitHub CLI.
+  - github-cli
+
+# Applications available only via Flatpak (Flathub) per the Package
+# Source Policy (official Arch has no clean match; see AGENTS.md for
+# the per-app reasoning): reverse-DNS app IDs, same ensure-present
+# semantics as apps_packages above.
+apps_flatpak_packages:
+  # IntelliJ IDEA *Ultimate* specifically (not Community, which IS in
+  # the official Arch repos as intellij-idea-community-edition, but
+  # that is a different product). No clean, Ansible-reproducible
+  # official JetBrains repo/package exists (JetBrains' own Toolbox App
+  # is a self-updating curl-style installer, excluded by policy); the
+  # Flathub package is actively maintained.
+  - com.jetbrains.IntelliJ-IDEA-Ultimate
+
+# Deliberately NOT automated this run - see AGENTS.md Current Status:
+#
+# - WebCord (Discord desktop client): not in official Arch repos; its
+#   own Flathub packaging was marked EOL/archived by WebCord's
+#   maintainer (fails the "sauber, updatefähig" bar); an AUR package
+#   exists but using it would mean installing an AUR helper, which the
+#   Package Source Policy forbids by default. Use Discord's web app via
+#   Chromium in the meantime.
+# - GeForce NOW, WhatsApp, Overleaf, draw.io/diagrams.net: web apps via
+#   Chromium for now - no declarative webapp/.desktop-entry system is
+#   built in this run (documented as a future idea only).

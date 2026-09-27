@@ -1,0 +1,25 @@
+---
+# multilib itself is enabled (idempotently) and synced in local.yml's
+# pre_tasks, before this role runs - see local.yml for why that step
+# lives there instead of here. This role only installs its own
+# packages, exactly once, against an already-multilib-synced database.
+- name: Require a host-specific GPU Vulkan driver before installing gaming packages
+  ansible.builtin.assert:
+    that:
+      - gaming_gpu_vulkan_packages | length > 0
+    fail_msg: >-
+      gaming_gpu_vulkan_packages is empty. Steam depends on a concrete
+      Vulkan driver (vulkan-intel/vulkan-radeon/nvidia-utils, plus its
+      lib32- counterpart) that this project will not guess per
+      AGENTS.md. Set gaming_gpu_vulkan_packages in
+      host_vars/{{ ansible_facts.nodename }}.yml to the real GPU driver
+      for this host, then re-run with --tags gaming.
+    success_msg: "gaming_gpu_vulkan_packages is set for this host"
+  tags: gaming
+
+- name: Install gaming packages and this host's GPU Vulkan driver
+  become: true
+  community.general.pacman:
+    name: "{{ gaming_packages + gaming_gpu_vulkan_packages }}"
+    state: present
+  tags: gaming

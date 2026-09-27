@@ -1,0 +1,22 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages/group membership are present. No manual
+# modprobe/reboot workaround here: virtualbox-host-dkms ships a
+# modules-load.d entry, so the kernel modules load automatically on the
+# next boot (this project already reboots after provisioning - see
+# README.md).
+- name: Install VirtualBox host packages
+  become: true
+  community.general.pacman:
+    name: "{{ virtualization_packages }}"
+    state: present
+  tags: virtualization
+
+- name: Add the invoking user to the vboxusers group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_facts.user_id }}"
+    groups: vboxusers
+    append: true
+  tags: virtualization

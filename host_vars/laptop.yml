@@ -3,4 +3,8 @@
 # Empty for now - real deviations (battery/power, ThinkPad-specific
 # hardware, Intel mobile graphics quirks, ...) land here once they are
 # actually needed, not invented ahead of time.
+#
+# Before running `--tags gaming` on this real host, set the real GPU
+# driver here (not invented - see group_vars/all.yml), e.g.:
+#   gaming_gpu_vulkan_packages: [vulkan-intel, lib32-vulkan-intel]
 {}

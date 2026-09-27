@@ -1,0 +1,42 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages are present, ensure-present (see
+# defaults/main.yml) - removing a line from the list never uninstalls
+# anything automatically.
+- name: Install end-user applications
+  become: true
+  community.general.pacman:
+    name: "{{ apps_packages }}"
+    state: present
+  tags: apps
+
+# Flatpak is only installed/configured because at least one desired app
+# (IntelliJ IDEA Ultimate) has no clean official-Arch or upstream path -
+# see defaults/main.yml and AGENTS.md Package Source Policy. Flathub is
+# configured exactly once, declaratively; app installs are ensure-
+# present, same as the pacman list above.
+- name: Install Flatpak
+  become: true
+  community.general.pacman:
+    name: flatpak
+    state: present
+  tags: apps
+
+- name: Add the Flathub remote
+  become: true
+  community.general.flatpak_remote:
+    name: flathub
+    flatpakrepo_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+    method: system
+    state: present
+  tags: apps
+
+- name: Install Flatpak applications
+  become: true
+  community.general.flatpak:
+    name: "{{ apps_flatpak_packages }}"
+    remote: flathub
+    method: system
+    state: present
+  tags: apps

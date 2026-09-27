@@ -1,0 +1,28 @@
+---
+# Networking/VPN foundation (minimal-usable-daily-driver milestone).
+# NetworkManager remains the sole networking owner (see AGENTS.md) - no
+# systemd-networkd in parallel. This role does not build any network UI
+# yet (that is fully specified for a later Quickshell applet in
+# docs/wifi_applet.md) and does not create any VPN connection profile -
+# a real profile has real endpoint/key data, which is a secret and
+# cannot live in this public repository.
+network_packages:
+  - networkmanager   # sole networking owner; CLI stays first-class via
+                     # nmcli/nmtui (already installed as part of this
+                     # package), independent of any future Quickshell UI
+  - wireguard-tools  # WireGuard userspace tools. The kernel WireGuard
+                     # module has been in-tree since Linux 5.6, so no
+                     # separate kernel package is needed. This package
+                     # is the whole "VPN foundation" for now: it lets
+                     # NetworkManager import/manage a WireGuard profile
+                     # (`nmcli connection import type wireguard file
+                     # ...`) once a real, private profile exists (from
+                     # the separate private-config repository, never
+                     # this one) - see AGENTS.md Networking Rules.
+
+# Uni-VPN (eduroam-adjacent institutional VPN) is a deliberately open
+# point: the actual protocol (possibly Fortinet/FortiGate/FortiClient,
+# possibly something OpenConnect-compatible) is not yet confirmed, so no
+# package is guessed here. If NetworkManager/OpenConnect can natively
+# speak the real protocol once confirmed, prefer that over installing
+# proprietary FortiClient. See AGENTS.md.

@@ -1,9 +1,8 @@
--- Minimal Hyprland session config (phase 3) - managed by Ansible.
--- Do not edit by hand: see roles/hyprland in workstation-arch.
+-- Minimal-usable-daily-driver Hyprland session config - managed by
+-- Ansible. Do not edit by hand: see roles/hyprland in workstation-arch.
 --
--- No bar, launcher, notifications, lock/idle, wallpaper, or Quickshell
--- yet - Hyprland must be fully usable on its own first. See
--- docs/ARCHITECTURE.md for the intended stack.
+-- No bar or wallpaper yet - Quickshell is a later, separate
+-- presentation layer. See docs/ARCHITECTURE.md for the intended stack.
 --
 -- Current Hyprland (0.55+) reads ~/.config/hypr/hyprland.lua, not the
 -- older hyprlang hyprland.conf format - verified against Hyprland's own
@@ -18,6 +17,7 @@ hl.monitor({
 })
 
 local terminal = "{{ hyprland_terminal }}"
+local launcher = "{{ hyprland_launcher }}"
 
 -- Performance defaults: this project targets instant interaction over
 -- decorative effects (see docs/ARCHITECTURE.md), so animations and
@@ -33,7 +33,57 @@ hl.config({
     },
 })
 
--- Minimal development keybinds - not the final UX, see README.md.
+-------------------
+---- AUTOSTART ----
+-------------------
+
+-- Session-lifecycle helpers that Hyprland itself must start exactly
+-- once (see docs/ARCHITECTURE.md "one owner per responsibility" - not
+-- also a systemd user service or shell-startup hook for the same
+-- process). Their packages come from roles/desktop, not this role.
+-- xdg-desktop-portal* is NOT started here: those are D-Bus-activated
+-- systemd --user services shipped by their own packages and need no
+-- autostart entry.
+--
+-- mako (notifications) is TEMPORARY UNTIL QUICKSHELL REPLACEMENT.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("hyprpolkitagent")
+    hl.exec_cmd("mako")
+end)
+
+---------------------
+---- KEYBINDINGS ----
+---------------------
+
+-- Minimal but genuinely usable keybind set - not final Quickshell/UX
+-- polish, see README.md.
 hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + Q", hl.dsp.window.close())
 hl.bind("SUPER + SHIFT + E", hl.dsp.exit())
+
+-- Temporary launcher (see hyprland_packages / TEMPORARY note above).
+hl.bind("SUPER + Space", hl.dsp.exec_cmd(launcher))
+
+-- Move keyboard focus between windows.
+hl.bind("SUPER + left",  hl.dsp.focus({ direction = "left" }))
+hl.bind("SUPER + right", hl.dsp.focus({ direction = "right" }))
+hl.bind("SUPER + up",    hl.dsp.focus({ direction = "up" }))
+hl.bind("SUPER + down",  hl.dsp.focus({ direction = "down" }))
+
+-- Move/resize floating windows with the mouse.
+hl.bind("SUPER + mouse:272", hl.dsp.window.drag(),   { mouse = true })
+hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
+
+-- Switch workspaces with SUPER + [1-9]; move the active window to a
+-- workspace with SUPER + SHIFT + [1-9].
+for i = 1, 9 do
+    hl.bind("SUPER + " .. i,         hl.dsp.focus({ workspace = i }))
+    hl.bind("SUPER + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
+end
+
+-- Region screenshot -> clipboard (select a region, then paste directly
+-- into a browser/chat). grim/slurp/wl-clipboard come from roles/desktop.
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
+
+-- Full-screen screenshot -> clipboard.
+hl.bind("Print", hl.dsp.exec_cmd("grim - | wl-copy"))

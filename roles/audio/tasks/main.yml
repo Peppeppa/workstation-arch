@@ -1,0 +1,15 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages are present. No service enable/start tasks:
+# the pipewire/wireplumber/pipewire-pulse packages ship their own
+# systemd --user units, socket- and D-Bus-activated automatically on
+# first use (Arch's own packaging default) - exactly the event-driven,
+# no-unnecessary-permanent-process model this project already commits
+# to, with zero extra Ansible work required.
+- name: Install audio packages (PipeWire + WirePlumber)
+  become: true
+  community.general.pacman:
+    name: "{{ audio_packages }}"
+    state: present
+  tags: audio

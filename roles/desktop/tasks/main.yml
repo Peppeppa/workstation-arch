@@ -1,0 +1,28 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own packages/group membership are present. No services
+# are installed or enabled by this role: the portals are D-Bus-activated
+# systemd --user services shipped by their own packages, and
+# hyprpolkitagent/mako are started by Hyprland's session lifecycle (see
+# roles/hyprland's autostart block), not by systemd.
+- name: Install desktop integration packages
+  become: true
+  community.general.pacman:
+    name: "{{ desktop_packages }}"
+    state: present
+  tags: desktop
+
+# brightnessctl's own udev rule (shipped with the package) grants
+# read/write access to backlight devices to members of the `video`
+# group, so brightness control works without root or setuid. System-
+# level group membership change - become is correct here even though
+# it affects the invoking user, unlike the user-config tasks in
+# roles/hyprland.
+- name: Add the invoking user to the video group (brightnessctl access)
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_facts.user_id }}"
+    groups: video
+    append: true
+  tags: desktop

@@ -1,0 +1,51 @@
+---
+# Desktop integration (minimal-usable-daily-driver milestone): the
+# small session-level glue utilities a compositor alone doesn't provide
+# - polkit authentication, XDG desktop portals, clipboard, screenshots,
+# notifications, and brightness control. No bar, launcher, or lock/idle
+# - those are separate concerns (roles/hyprland, later Quickshell).
+desktop_packages:
+  # Polkit agent. hyprpolkitagent is Hyprland-org's own agent (not
+  # polkit-gnome/mate-polkit) - avoids pulling in GNOME/MATE deps for a
+  # single authentication dialog, and stays in the Hyprland ecosystem
+  # already used elsewhere in this project. Must be started exactly
+  # once per session (see roles/hyprland's autostart block) - it is not
+  # D-Bus-activatable like the portals below.
+  - hyprpolkitagent
+
+  # XDG desktop portal stack: exactly one screen-sharing/file-chooser
+  # backend combination, not a collection of competing ones.
+  #   xdg-desktop-portal          - the portal frontend/dispatcher
+  #   xdg-desktop-portal-hyprland - Hyprland's own backend (screen
+  #                                 sharing, screenshot interfaces) -
+  #                                 the Hyprland-recommended choice over
+  #                                 the generic xdg-desktop-portal-wlr
+  #   xdg-desktop-portal-gtk      - file chooser / settings backend
+  #                                 (xdg-desktop-portal-hyprland does
+  #                                 not implement FileChooser itself)
+  # All three ship their own systemd --user services, D-Bus-activated -
+  # no exec-once, no manual enable needed.
+  - xdg-desktop-portal
+  - xdg-desktop-portal-hyprland
+  - xdg-desktop-portal-gtk
+
+  # Clipboard - CLI tools only (wl-copy/wl-paste), no history/manager
+  # daemon yet (not needed at this milestone).
+  - wl-clipboard
+
+  # Region/fullscreen screenshots -> clipboard (bound in
+  # roles/hyprland's hyprland.lua.j2): grim captures, slurp selects a
+  # region, wl-clipboard pipes the result to the clipboard.
+  - grim
+  - slurp
+
+  # Notification daemon. TEMPORARY UNTIL QUICKSHELL REPLACEMENT -
+  # mako is the standard minimal wlroots/Hyprland-ecosystem notification
+  # daemon; started once via roles/hyprland's autostart block, not a
+  # systemd service (avoids a duplicate autostart path for one process).
+  - mako
+
+  # Brightness control CLI, bound to the laptop's brightness keys in
+  # roles/hyprland's hyprland.lua.j2 (also harmless/inert on the
+  # workstation if it has no controllable backlight).
+  - brightnessctl
