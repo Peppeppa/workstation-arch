@@ -460,6 +460,36 @@ passed in this session):
   classic modifier names (SUPER, ALT, SHIFT, CTRL/CONTROL, ...), never a
   keysym name. Not yet confirmed: every item on the full daily-driver
   manual checklist (audio/clipboard/notifications/etc.) individually.
+  **Real-VM-tested (follow-up session on `arch-dev`)**: two further
+  genuine VM-only deviations found and fixed, both via `host_vars/
+  arch-dev.yml`, neither touching `laptop`/`workstation` defaults.
+  (1) `hyprctl monitors -j` showed `physicalWidth`/`physicalHeight: 0`
+  for VirtualBox's virtual display, which made the default
+  `scale = "auto"` mis-detect scale 2 for a 1280x800 output instead of
+  1 — the whole session (incl. Thunar windows) rendered far too large
+  for the visible VM area. Fixed via the new `hyprland_monitor_scale`
+  variable (default `"auto"`), overridden to `1` for `arch-dev`.
+  (2) Ghostty failed to start (`Gdk: Error flushing display: Broken
+  pipe`); `GSK_RENDERER=cairo ghostty` isolated the cause as
+  `OpenGL version is too old. Ghostty requires OpenGL 4.3` against
+  VirtualBox's 3D-accelerated OpenGL 4.1. `LIBGL_ALWAYS_SOFTWARE=1`
+  (Mesa software rasterizer, OpenGL 4.6) fixed it — `hyprland_terminal`
+  is overridden to `env LIBGL_ALWAYS_SOFTWARE=1 ghostty` for `arch-dev`
+  only (`laptop`/`workstation` have real GPUs meeting the 4.3
+  requirement and keep the plain `ghostty` default). Confirmed working
+  via the real `mainMod+Return` keybind after a VM restart, not just
+  manually. Known accepted gap: fuzzel still launches Ghostty via its
+  own unmodified `.desktop` entry, so fuzzel→Ghostty still fails the
+  same way on `arch-dev` — not fixed, since `hyprland_terminal` only
+  covers the `mainMod+Return` keybind path. The "only `mainMod+Space`
+  responds, other `mainMod` binds seem dead" symptom that triggered
+  this investigation was *not* a binds/config bug (`hyprctl binds`
+  showed every bind correctly registered as an ALT combo throughout):
+  after a VM restart, `mainMod+Return`, `mainMod+Q`, and
+  `mainMod+[1-9]` workspace switching were all confirmed working
+  normally — the earlier failures were a transient host-side keyboard-
+  capture issue (VirtualBox running under a Wayland host compositor),
+  not this repository's config, and needed no repository change.
 - `desktop` role (new): `hyprpolkitagent`, the
   `xdg-desktop-portal`/`-hyprland`/`-gtk` trio, `wl-clipboard`, `grim`+
   `slurp`, `mako`, `brightnessctl`; adds the invoking user to the
