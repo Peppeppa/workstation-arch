@@ -1,0 +1,13 @@
+# Managed by Ansible - see roles/apps in workstation-arch. Do not edit
+# by hand.
+#
+# Real-VM finding on arch-dev (2026-09-29): with no explicit default,
+# xdg-mime resolved both application/pdf and image/png to
+# chromium.desktop (Chromium self-registers for both), not the readers
+# this project actually installs zathura/imv for (see
+# roles/apps/defaults/main.yml). Only the two confirmed-wrong,
+# confirmed-tested associations are set here - not a speculative full
+# image/* mapping.
+[Default Applications]
+application/pdf=org.pwmt.zathura.desktop;
+image/png=imv.desktop;

@@ -12,3 +12,61 @@
     name: "{{ base_packages }}"
     state: present
   tags: base
+
+# sshd is a machine-wide daemon (Runtime Ownership defaults: "machine-
+# wide daemon -> systemd system service"), same category as
+# NetworkManager in roles/network. Real-VM-discovered bug: openssh above
+# only installs the package: it does not enable the service, so
+# host -> arch-dev SSH needed a manual `systemctl enable --now sshd`
+# before this fix - not the declarative, reproducible state this project
+# requires. Wanted on laptop and workstation too (see base_packages'
+# openssh comment: "reliable remote access/administration of the
+# workstation") - not an arch-dev-only accommodation, so this task is
+# unconditional here, not in host_vars.
+- name: Ensure sshd is enabled and running
+  become: true
+  ansible.builtin.systemd_service:
+    name: sshd.service
+    enabled: true
+    state: started
+  tags: base
+
+# Locale generation is a system-wide (not Hyprland-specific) concern, so
+# it lives here rather than in roles/hyprland. Conservative choice, not a
+# full locale framework: generate en_US.UTF-8 (already relied upon -
+# real testing showed it already active as the system LANG) and
+# de_DE.UTF-8 (needed for German-keyboard-adjacent correctness, e.g.
+# collation/sorting of German filenames) declaratively, but do NOT
+# change /etc/locale.conf's LANG - this project's interface language
+# stays whatever it already is; picking a German keyboard layout must
+# not silently also force German UI/date/number formats (see
+# roles/hyprland's hyprland_keyboard_layout for the actual Wayland
+# keyboard layout setting).
+- name: Ensure required locales are generated
+  become: true
+  community.general.locale_gen:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - en_US.UTF-8
+    - de_DE.UTF-8
+  tags: base
+
+# Virtual console (TTY, pre-Hyprland) keymap - separate from Hyprland's
+# own Wayland input.kb_layout (roles/hyprland), which only applies once
+# a graphical session is running. de-latin1 is the Arch-documented
+# German console keymap (preferred over plain "de" for its Latin-1
+# dead-key support) - this machine is primarily used with a German
+# keyboard (see roles/hyprland/defaults/main.yml
+# hyprland_keyboard_layout).
+- name: Configure German virtual console keymap
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^KEYMAP='
+    line: 'KEYMAP=de-latin1'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  tags: base

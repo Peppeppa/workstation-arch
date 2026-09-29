@@ -41,6 +41,18 @@ hyprland_launcher: fuzzel
 # of a real, VM/hardware-confirmed need.
 hyprland_monitor_scale: auto
 
+# Wayland session keyboard layout (hl.config({ input = { kb_layout = ...
+# } }) in hyprland.lua.j2). This project's machines are primarily used
+# with a German keyboard - "de" is the correct default for every current
+# host (laptop, workstation, arch-dev alike), not a per-host deviation.
+# Kept as a variable (not hardcoded in the template) purely for the same
+# override flexibility already established for hyprland_terminal/
+# hyprland_launcher, should a genuine future need arise - not because a
+# deviation exists today. Does not affect the pre-login virtual console
+# keymap (see roles/base) or the system locale (see roles/base) - kept
+# deliberately separate.
+hyprland_keyboard_layout: de
+
 # Main modifier for every keybind below. SUPER on real target hosts
 # (laptop/workstation) - only overridden where a host has a genuine,
 # real reason to differ (see host_vars/arch-dev.yml), never invented

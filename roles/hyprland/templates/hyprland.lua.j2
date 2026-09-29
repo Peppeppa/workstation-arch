@@ -40,6 +40,16 @@ local mainMod = "{{ hyprland_main_modifier }}"
 -- Performance defaults: this project targets instant interaction over
 -- decorative effects (see docs/ARCHITECTURE.md), so animations and
 -- blur/shadow are off from the start rather than tuned down later.
+--
+-- input.kb_layout: this machine is primarily used with a German
+-- keyboard - configurable per host (see hyprland_keyboard_layout in
+-- roles/hyprland/defaults/main.yml) the same way hyprland_main_modifier
+-- is, though every current host wants "de". This only sets the Wayland
+-- session's own keyboard layout, not the pre-login virtual console
+-- keymap (see roles/base's vconsole.conf task) or the system locale
+-- (see roles/base's locale_gen task) - deliberately not coupled
+-- together, so picking a German layout never silently changes UI
+-- language or date/number formats.
 hl.config({
     animations = {
         enabled = false,
@@ -48,6 +58,10 @@ hl.config({
     decoration = {
         shadow = { enabled = false },
         blur   = { enabled = false },
+    },
+
+    input = {
+        kb_layout = "{{ hyprland_keyboard_layout }}",
     },
 })
 
@@ -64,8 +78,19 @@ hl.config({
 -- autostart entry.
 --
 -- mako (notifications) is TEMPORARY UNTIL QUICKSHELL REPLACEMENT.
+--
+-- hyprpolkitagent uses its absolute path, not a bare PATH lookup like
+-- mako: real package inspection on arch-dev (`pacman -Ql
+-- hyprpolkitagent`) confirmed its binary lives at
+-- /usr/lib/hyprpolkitagent/hyprpolkitagent, not on $PATH (unlike mako) -
+-- `hl.exec_cmd("hyprpolkitagent")` silently never started anything
+-- (`pgrep -af hyprpolkitagent` found no process, no crash, no log). The
+-- package also ships a D-Bus service activation file
+-- (org.hyprland.hyprpolkitagent.service) and a systemd --user unit -
+-- deliberately not used, to keep exactly one owner (Hyprland session
+-- lifecycle, per the rule above), not a second autostart path.
 hl.on("hyprland.start", function()
-    hl.exec_cmd("hyprpolkitagent")
+    hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
     hl.exec_cmd("mako")
 end)
 

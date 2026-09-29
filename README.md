@@ -61,6 +61,11 @@ lock/idle, and no theming - those will be added as further roles under
 `roles/`. See `AGENTS.md` for exactly what is real-VM-tested versus only
 structurally verified so far.
 
+Note: `base` enables and starts `sshd` by default (needed for remote
+access/administration on `laptop`/`workstation`, see `AGENTS.md` Runtime
+Ownership) - every machine provisioned by this repository listens for
+SSH after `./bootstrap.sh`, not just an opt-in subset.
+
 ## Requirements
 
 - a clean, upstream Arch Linux installation (`ID=arch` in
@@ -151,13 +156,13 @@ first - see the `gaming` row below.
 
 | Role             | Tag             | What it does                                                          |
 |------------------|-----------------|------------------------------------------------------------------------|
-| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync)                |
+| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); enables/starts `sshd`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated |
 | `graphics`       | `graphics`      | Wayland/Mesa/XWayland foundation - no compositor yet                   |
 | `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal), fuzzel (temporary launcher) |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation)  |
-| `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...) |
+| `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...); default PDF/PNG handlers set to zathura/imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 
@@ -183,7 +188,9 @@ Hyprland
 The deployed config (`~/.config/hypr/hyprland.lua` - current Hyprland
 reads Lua, not the older `hyprland.conf` format) disables animations/
 blur/shadow (this project prioritizes responsiveness over decoration -
-see `docs/ARCHITECTURE.md`) and binds:
+see `docs/ARCHITECTURE.md`), sets a German (`de`) keyboard layout for
+the Wayland session (separate from the virtual console keymap and
+system locale set by `base` - see `AGENTS.md`), and binds:
 
 | Keybind                | Action                                      |
 |-------------------------|---------------------------------------------|

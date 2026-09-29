@@ -83,6 +83,7 @@ direct upstream dependency.
 | Responsibility | Owner |
 |---|---|
 | Networking | NetworkManager |
+| Remote access (SSH) | sshd (system service, `roles/base`) |
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ |
 | Compositor / window manager | Hyprland |
@@ -426,7 +427,9 @@ upstream Arch, ended `failed=0`):
 - Arch guard (`local.yml` pre_tasks + `bootstrap.sh`)
 - Ansible startup via `bootstrap.sh` → `ansible-playbook --ask-become-pass local.yml`
 - centralized `pacman -Syu` (once per run)
-- `base` role: `git`, `openssh`, `curl`, `rsync`
+- `base` role (package install only — see "Structurally tested only"
+  below for this session's sshd/locale/vconsole additions to this same
+  role): `git`, `openssh`, `curl`, `rsync`
 - `graphics` role: `wayland`, `wayland-protocols`, `mesa`, `xorg-xwayland` (Wayland/Mesa/XWayland foundation, no compositor)
 
 **Implemented, structurally tested only** unless noted otherwise
@@ -493,15 +496,38 @@ passed in this session):
 - `desktop` role (new): `hyprpolkitagent`, the
   `xdg-desktop-portal`/`-hyprland`/`-gtk` trio, `wl-clipboard`, `grim`+
   `slurp`, `mako`, `brightnessctl`; adds the invoking user to the
-  `video` group for brightness control.
+  `video` group for brightness control. **Real-VM-tested (this
+  session)**: region screenshot (`mainMod+Shift+S`) confirmed working
+  end-to-end on `arch-dev` — `slurp` selection appears, `wl-paste
+  --list-types` confirms `image/png` actually lands in the clipboard;
+  `mako` confirmed running and delivering notifications; all three
+  portal units confirmed `active (running)` with `-hyprland`'s own log
+  showing successful PipeWire/screencopy init (see the portal-warnings
+  entry above for the one, confirmed-harmless, non-fatal warning from
+  `xdg-desktop-portal` itself). `hyprpolkitagent` was confirmed **not**
+  running before this session's path fix (see above) — not yet
+  re-confirmed running after the fix.
 - `audio` role (new): `pipewire`, `wireplumber`, `pipewire-audio`,
   `pipewire-pulse`, `pipewire-alsa` — no PulseAudio in parallel
   (`pipewire-pulse` conflicts with `pulseaudio` at the pacman level).
   No service-enable tasks: these ship socket-/D-Bus-activated systemd
-  `--user` units by default.
+  `--user` units by default. **Real-VM-tested (this session)**: `wpctl
+  status` on `arch-dev` confirms PipeWire 1.6.9 + WirePlumber running,
+  with VirtualBox's `Built-in Audio [alsa]` correctly detected as both
+  sink and source ("Built-in Audio Analog Stereo"). This confirms
+  PipeWire/WirePlumber + basic VirtualBox device detection specifically
+  — **not** bare-metal `laptop`/`workstation` audio hardware, which
+  remains unconfirmed.
 - `network` role (new): `networkmanager` (enabled+started as a system
   service) + `wireguard-tools` (VPN foundation only, no profile/UI —
-  see Networking Rules).
+  see Networking Rules). **Real-VM-tested (this session)**:
+  `systemctl` confirms `NetworkManager.service` `enabled`+`active
+  (running)` on `arch-dev`; `nmcli general status` reports `connected`/
+  `connectivity full`, with `enp0s3` (VirtualBox NAT Ethernet) connected.
+  Confirms NetworkManager as the working network owner on this VM's
+  virtual NIC — not yet confirmed against `laptop`/`workstation`'s real
+  Wi-Fi hardware (WPA Enterprise/eduroam, captive portals — see
+  Networking Rules — remain untested).
 - `virtualization` role (new): `linux-headers`, `virtualbox`,
   `virtualbox-host-dkms`; adds the invoking user to `vboxusers`.
 - `gaming` role (new): `steam`, `lutris`, `gamemode`, `lib32-gamemode`.
@@ -528,6 +554,93 @@ passed in this session):
   `qpdf`, `imv`, `mpv`, `github-cli`; plus Flatpak/Flathub infrastructure
   and `com.jetbrains.IntelliJ-IDEA-Ultimate` (IntelliJ IDEA *Ultimate* -
   Community is available in official Arch but is a different product).
+  **Real-VM-tested (this session)**: `yazi`, `qpdf`, `7z` present and
+  runnable on `arch-dev`; versions confirmed (`neovim` 0.12.5, `gh`
+  2.101.0, `git` 2.55.0, `ghostty` 1.3.1-arch2); IntelliJ IDEA Ultimate
+  confirmed installed as a system Flatpak (`com.jetbrains.IntelliJ-IDEA-
+  Ultimate` 2026.2.3). `zathura`/`imv`/`mpv` real-file-open results are
+  documented separately below (structurally tested / open points), not
+  blanket "real-VM-tested" — see that entry for the exact, non-uniform
+  outcome per app.
+
+**Structurally tested only, pending real-VM re-test on `arch-dev`**
+(daily-driver foundation stabilization session, `bash -n`/
+`--syntax-check`/`ansible-inventory --list`/`--list-tasks`/YAML-parse/
+Jinja2-render all passed; every fix below is grounded in real command
+output from `arch-dev` via SSH, not guessed):
+- **`base` role additions**: (1) `sshd.service` enabled+started
+  (`ansible.builtin.systemd_service`) — real bug: `openssh` was already
+  installed, but the service was never enabled, so host→arch-dev SSH
+  needed a manual `systemctl enable --now sshd` first; now declarative,
+  wanted on `laptop`/`workstation` too, not arch-dev-only (see Runtime
+  Ownership: sshd is a system service). (2) `en_US.UTF-8` and
+  `de_DE.UTF-8` locales generated (`community.general.locale_gen`) —
+  conservative: does not touch `/etc/locale.conf`'s `LANG`, only makes
+  `de_DE.UTF-8` available. (3) `/etc/vconsole.conf` `KEYMAP=de-latin1`
+  (Arch-documented German console keymap) for the pre-login virtual
+  console, separate from Hyprland's own Wayland keyboard layout below.
+- **`hyprland` role**: (1) `hyprland_keyboard_layout` (default `de`)
+  now sets `hl.config({ input = { kb_layout = ... } })` — this machine
+  is primarily used with a German keyboard. (2) **Root cause found and
+  fixed for hyprpolkitagent never starting**: `pgrep -af hyprpolkitagent`
+  found no process while `mako` (started the same way) was running fine.
+  `pacman -Ql hyprpolkitagent` showed the binary at
+  `/usr/lib/hyprpolkitagent/hyprpolkitagent`, not on `$PATH` (unlike
+  `mako`) — `hl.exec_cmd("hyprpolkitagent")` was silently failing a PATH
+  lookup, no crash, no log. Fixed by using the absolute path. The
+  package also ships a D-Bus service activation file
+  (`org.hyprland.hyprpolkitagent.service`) and a systemd `--user` unit —
+  this file's earlier claim that the polkit agent "is not
+  D-Bus-activatable" was **wrong**; Hyprland session lifecycle is kept
+  as the sole owner anyway, deliberately, not because D-Bus activation
+  is unavailable (see Runtime Ownership; no second autostart path).
+- **`apps` role**: `~/.config/mimeapps.list` now sets `application/pdf`
+  → `org.pwmt.zathura.desktop` and `image/png` → `imv.desktop`. Real-VM
+  finding: with no default set, `xdg-mime query default` resolved both
+  to `chromium.desktop` (Chromium self-registers for both), not the
+  readers this role actually installs zathura/imv for. Only these two
+  confirmed-wrong associations are set — not a speculative full
+  `image/*` mapping (other image MIME types were not tested).
+- **Portal warnings investigated, confirmed harmless, no fix applied**:
+  `journalctl --user -u xdg-desktop-portal.service` showed repeated
+  `Failed to load RealtimeKit property: ... The name is not
+  activatable`. Root cause: the optional `rtkit` (realtime scheduling
+  for PipeWire audio threads) is not installed — unrelated to portal
+  configuration. `xdg-desktop-portal-hyprland`'s and `-gtk`'s own logs
+  are clean, and the portal's actual job (screencopy/PipeWire init) is
+  confirmed working (matches the already-real-VM-tested region
+  screenshot feature). Not fixed: `rtkit` would be a new package for an
+  already-non-broken warning, out of this run's "no new features" scope
+  — flagged as an open point, not silently added.
+- **zathura/imv real-file test — real bug found, confirmed workaround,
+  deliberately NOT wired into the repository**: opening a real (freshly
+  generated, structurally valid) test PDF/PNG failed for both with a
+  Wayland protocol error (`wl_surface#N.attach: invalid arguments`) —
+  same failure class as the already-fixed Ghostty OpenGL-version issue,
+  different mechanism. `LIBGL_ALWAYS_SOFTWARE=1 zathura|imv <file>`
+  confirmed working (visually verified: real PDF content and the test
+  PNG both rendered in the VM window). Not applied as a repository fix:
+  unlike `hyprland_terminal` for Ghostty, there is no existing per-app
+  launch-command variable covering zathura/imv's actual launch paths
+  (Thunar "Open with" / fuzzel / MIME double-click), and inventing a
+  session-wide env-var mechanism would mean guessing an unconfirmed
+  `hl.*` API — deliberately deferred rather than guessed. Manual
+  workaround on `arch-dev` in the meantime:
+  `LIBGL_ALWAYS_SOFTWARE=1 zathura|imv <file>`.
+- **mpv real-file test — confirmed correct as-is, explicitly not
+  "fixed"**: default `mpv <file>` on a real WAV test file selected the
+  audio track and played correctly; the optional cover-art *video*
+  display hit the same `wl_surface.attach` error as zathura/imv above,
+  but mpv handled it gracefully (clean exit 0) — core function (audio
+  playback) intact. `LIBGL_ALWAYS_SOFTWARE=1` was also tested against
+  mpv and made things **worse**: mpv's `gpu-next` VO detected the forced
+  software renderer, wrongly attempted an X11 fallback in this
+  Wayland-only session, and crashed
+  (`Assertion '!vo->x11' failed`, coredump). mpv is therefore left
+  completely untouched — no wrapper, no env override — per this run's
+  explicit instruction not to "fix" mpv behavior that is already
+  correct. Real video-file (not just audio-with-cover-art) playback was
+  not tested this session — open point.
 
 **Not started (no code yet):** Quickshell foundation, Bluetooth,
 session/lock/idle, hardware-specific optimization.
