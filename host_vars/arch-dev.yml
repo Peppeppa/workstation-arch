@@ -25,3 +25,32 @@
 # session has no normal Alt-based keybindings, so ALT (triggered by
 # Left Alt) is free to use here.
 hyprland_main_modifier: ALT
+
+# Real, VM-specific deviation #2 (same "no invented deltas" rule as
+# above): real testing on arch-dev showed `hyprctl monitors -j`
+# reporting physicalWidth/physicalHeight: 0 for VirtualBox's virtual
+# display, which makes hyprland.lua.j2's default scale = "auto" (see
+# roles/hyprland/defaults/main.yml hyprland_monitor_scale) mis-detect
+# scale 2 for the 1280x800 output instead of 1 - this is what made the
+# whole session render far too large, including Thunar windows larger
+# than the visible VM area. laptop/workstation report real physical
+# monitor dimensions and keep the default "auto".
+hyprland_monitor_scale: 1
+
+# Real, VM-specific deviation #3: real testing on arch-dev showed
+# Ghostty (hyprland_terminal default, see
+# roles/hyprland/defaults/main.yml) failing to start with
+# `Gdk: Error flushing display: Broken pipe`. Root cause confirmed with
+# `GSK_RENDERER=cairo ghostty`: "loaded OpenGL 4.1" / "OpenGL version is
+# too old. Ghostty requires OpenGL 4.3" - VirtualBox's 3D-accelerated
+# OpenGL only exposes 4.1. `LIBGL_ALWAYS_SOFTWARE=1 ghostty` confirmed
+# working (loaded OpenGL 4.6 via Mesa's software rasterizer, Ghostty
+# actually started its shell subprocess) - forcing software rendering
+# for Ghostty specifically is an accepted VM-only trade-off, not a
+# permanent laptop/workstation choice (they have real GPUs that meet
+# Ghostty's OpenGL 4.3 requirement, so keep the default `ghostty`
+# there). Known gap: this only fixes the mainMod+Return keybind: fuzzel
+# still launches Ghostty via its own unmodified .desktop entry, which
+# still fails the same way on arch-dev - accepted for this disposable
+# test VM (see AGENTS.md VM / Hardware Separation), not fixed here.
+hyprland_terminal: "env LIBGL_ALWAYS_SOFTWARE=1 ghostty"

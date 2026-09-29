@@ -9,11 +9,23 @@
 -- config path resolution and the official example config, not an old
 -- blog post.
 
+-- scale is "auto" on real hardware (laptop/workstation report real
+-- physical monitor dimensions, so Hyprland's auto-scale heuristic picks
+-- the right value) - configurable per host (see hyprland_monitor_scale
+-- in roles/hyprland/defaults/main.yml) because arch-dev's VirtualBox
+-- virtual display reports physicalWidth/physicalHeight as 0, which
+-- makes "auto" pick scale 2 for a 1280x800 output instead of 1 (real
+-- VM testing: `hyprctl monitors -j` showed physicalWidth/Height: 0 and
+-- scale: 2) - see host_vars/arch-dev.yml.
 hl.monitor({
     output   = "",
     mode     = "preferred",
     position = "auto",
+{%- if hyprland_monitor_scale == "auto" %}
     scale    = "auto",
+{%- else %}
+    scale    = {{ hyprland_monitor_scale }},
+{%- endif %}
 })
 
 local terminal = "{{ hyprland_terminal }}"
