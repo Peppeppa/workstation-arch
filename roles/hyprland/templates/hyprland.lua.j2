@@ -153,10 +153,14 @@ for i = 1, 9 do
     hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
 end
 
--- Region screenshot -> clipboard (select a region, then paste directly
--- into a browser/chat). grim/slurp/wl-clipboard come from roles/desktop.
+{% if screenshots_enabled %}
+-- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled and
+-- docs/feature-architecture.md). Region screenshot -> clipboard (select
+-- a region, then paste directly into a browser/chat); grim/slurp come
+-- from roles/desktop's screenshot_packages, wl-clipboard is core.
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
 
 -- Full-screen screenshot -> clipboard. Not on mainMod - a physical key,
 -- unaffected by the main-modifier override.
 hl.bind("Print", hl.dsp.exec_cmd("grim - | wl-copy"))
+{% endif %}

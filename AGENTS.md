@@ -118,6 +118,34 @@ Service ownership defaults:
 - session-specific process → session lifecycle / Hyprland
 - temporary UI helper → started on demand only
 
+## Feature Architecture
+
+Everything above this point (Hyprland, the Quickshell process/core bar/
+launcher, NetworkManager, PipeWire/WirePlumber, UPower, hyprpolkitagent,
+the portal stack, base provisioning) is **Core** - never optional, never
+behind a flag.
+
+Optional capabilities layered on top (screenshots, gaming, and - later -
+things like clipboard history, power menu, lock/idle, tray, Bluetooth
+UI) are **Features**: one flat `<name>_enabled` boolean in
+`group_vars/all.yml` (optionally overridden per host in
+`host_vars/<hostname>.yml`) is the single source of truth for whether
+each is on, gating that feature's own packages/config/binds wherever
+they already live via `when:`/`{% if %}` - generalizing the pattern
+`gaming_enabled` already established. `<name>_enabled: false` is always
+safe: it stops the feature from being used but never removes already-
+installed packages or deletes user data (see "Disable vs. Purge").
+
+This is deliberately *not* a plugin framework or a generic feature
+engine - no dynamic loading, no new config DSL, no metadata schema. See
+`docs/feature-architecture.md` for the full model: Core vs. Feature,
+the Feature Contract, feature categories (provisioning-only / Hyprland
+integration / Quickshell UI / background service / privileged), the
+security rules every feature must follow, Disable-vs-Purge semantics,
+and the step-by-step for adding a new one. Read it before adding any
+new optional capability - don't re-derive this from scratch or build a
+parallel mechanism.
+
 ## Provisioning Model
 
 ```
@@ -643,9 +671,10 @@ output from `arch-dev` via SSH, not guessed):
   not tested this session — open point.
 
 **Not started (no code yet):** Bluetooth, session/lock/idle,
-hardware-specific optimization. Quickshell has a minimal foundation
-(see below) - launcher, tray, notifications, control center, lock
-screen, etc. are still not started.
+hardware-specific optimization, tray, notification center, control
+center, lock screen. Quickshell now owns the bar and the app launcher
+(Core Desktop v1, see "Next Milestone" below) - the rest of this list
+is still genuinely not started.
 
 **Deliberately deferred this run — open points, not oversights:**
 - **LazyVim bootstrap**: Neovim is installed; LazyVim itself is user
@@ -688,41 +717,39 @@ screen, etc. are still not started.
 
 ## Next Milestone
 
-**Real (VM) validation of the Quickshell foundation milestone on
-`arch-dev`.** `roles/quickshell` now installs Quickshell (official
-`extra` package - `pacman -Si quickshell` confirmed it there on current
-upstream Arch, no AUR/Flatpak exception needed) and deploys one
-minimal, static top bar (`roles/quickshell/files/shell.qml`): left =
-Hyprland workspaces (native IPC via `Quickshell.Hyprland`, clickable),
-center = clock (native `SystemClock`, no-seconds precision), right =
-network state (native `Quickshell.Networking`, NetworkManager-backed),
-output volume/mute (native `Quickshell.Services.Pipewire`), and battery
-percentage only when one is present (native `Quickshell.Services.UPower`
-`displayDevice.isPresent`). No launcher, tray, notifications, or control
-center yet - fuzzel/mako are unchanged. Lifecycle: started exactly once
-by Hyprland's own session lifecycle (`hl.exec_cmd("quickshell")` in
-`hyprland.lua.j2`, same pattern as hyprpolkitagent/mako), never also a
-systemd --user service. Verified by actually launching this exact
-`shell.qml` against a real, live Wayland/Hyprland session (`quickshell
---path roles/quickshell/files/shell.qml -n`) and screenshotting the
-result - loaded with no QML errors, rendered one bar per monitor, with
-correct workspace/clock/network/volume text and no battery shown (none
-present on that machine) - but **not yet run through
-`ansible-playbook local.yml` against clean upstream Arch**, since the
-machine used for that QML smoke test is this project's own excluded
-Omarchy dev machine, not `arch-dev`.
+**Status as of Feature Architecture v1** (supersedes the stale
+"Quickshell foundation" narrative this section used to carry - see git
+history for that milestone's own record):
 
-Per this file's Definition of Done, `roles/quickshell` does not count as
-done until a real `ansible-playbook local.yml` run completes
-successfully on `arch-dev` and the deployed bar is confirmed working
-there too (see the implementation report accompanying this change for
-the exact manual checks to run). `docs/DESIGN_SYSTEM.md` stays
-deliberately empty for now - this milestone used a handful of local
-constants directly in `shell.qml` instead of building a design-system
-framework before one is actually needed; revisit once a second
-Quickshell surface (launcher, notifications, ...) makes sharing real
-values across files worthwhile.
+- **Quickshell Core Desktop v1**: real-VM-validated on `arch-dev`. Bar
+  (per-monitor workspaces, clock, network incl. SSID, volume
+  scroll/click-to-mute, battery-if-present) + a native keyboard-first
+  app launcher (`Quickshell.DesktopEntries`, `mainMod+Space`, toggled
+  via `qs ipc call launcher toggle`) - fuzzel fully retired (package
+  removed, see commit `03d0b78`). Exactly one Quickshell process,
+  parented by Hyprland, confirmed via real session restart.
+- **VirtualBox GPU fix**: `arch-dev` needed `LIBGL_ALWAYS_SOFTWARE=1`
+  for both Ghostty and Quickshell (`host_vars/arch-dev.yml`,
+  `hyprland_terminal` / `hyprland_quickshell_cmd`) - the same
+  `wl_surface.attach` failure class already documented for zathura/imv/
+  mpv above, root-caused via the `scripts/diagnose-quickshell-autostart.sh`
+  diagnostic added for this investigation. `laptop`/`workstation` are
+  unaffected (real GPUs) and keep the plain defaults.
+- **Feature Architecture v1**: see the new "Feature Architecture"
+  section above and `docs/feature-architecture.md`. `screenshots_enabled`
+  (`group_vars/all.yml`) is the proof-of-concept migration - real-VM
+  validated both `true` (default) and `false` on `arch-dev`, then
+  restored to `true`.
 
-Once `arch-dev` validation passes: either extend the bar (e.g. replace
-fuzzel/mako, add a Bluetooth indicator once `roles/bluetooth` exists) or
-start Bluetooth/session/lock/idle - whichever is asked for next.
+`docs/DESIGN_SYSTEM.md` stays deliberately empty still - the bar/
+launcher's handful of shared color/size constants in `shell.qml`
+continue to suffice; revisit once a third Quickshell surface or a
+themeable feature makes a real design system worth building.
+
+**Open for next time**: Bluetooth (no code yet), session/lock/idle (no
+code yet), a tray (native `Quickshell.Services.SystemTray` exists and
+is stable in 0.3.1, deliberately not built - see Feature Architecture
+Category C for the pattern once it's wanted), and migrating a second,
+larger-shaped feature (e.g. one with a Quickshell UI component or a
+background service) through the Feature Architecture model to pressure-
+test it beyond the small screenshots proof-of-concept.

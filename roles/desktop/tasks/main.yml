@@ -13,6 +13,19 @@
     state: present
   tags: desktop
 
+# FEATURE: screenshots (see group_vars/all.yml screenshots_enabled and
+# docs/feature-architecture.md). Disabling the feature only stops this
+# task from running on a future provisioning pass - it does not remove
+# grim/slurp if they were already installed while the feature was on
+# (see "Disable vs. Purge" in docs/feature-architecture.md).
+- name: Install screenshot packages (screenshots_enabled)
+  when: screenshots_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ screenshot_packages }}"
+    state: present
+  tags: desktop
+
 # brightnessctl's own udev rule (shipped with the package) grants
 # read/write access to backlight devices to members of the `video`
 # group, so brightness control works without root or setuid. System-

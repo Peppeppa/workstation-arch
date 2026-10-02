@@ -1,5 +1,27 @@
 ---
 # Shared defaults for every host.
+#
+# This file is also the source of truth for optional FEATURE flags
+# (see docs/feature-architecture.md for the full model/contract). Each
+# feature is one flat `<name>_enabled: true|false` boolean here - the
+# single place to check or change whether it's on, same convention
+# `gaming_enabled` below already established before this was named a
+# pattern. A feature's own packages/config/keybinds stay next to its
+# existing implementation (its role's defaults/tasks, hyprland.lua.j2,
+# ...) gated by `when: <name>_enabled` / `{% if %}` - this file never
+# grows role-specific detail, only the flag and a one-line pointer to
+# where the feature actually lives.
+
+# Screenshots (region + fullscreen -> clipboard, see roles/desktop and
+# roles/hyprland/templates/hyprland.lua.j2's mainMod+Shift+S/Print
+# binds). Proof-of-concept migration for the Feature Architecture v1
+# milestone - already-working daily-driver functionality, so it
+# defaults to true (unlike gaming below, which needs host-specific
+# hardware facts this project will not guess). Set to false on a host
+# to stop installing grim/slurp and remove the two binds; already-
+# installed packages are left alone (see docs/feature-architecture.md
+# "Disable vs. Purge" - disabling never deletes anything).
+screenshots_enabled: true
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack

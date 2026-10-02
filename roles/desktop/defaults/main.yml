@@ -1,9 +1,11 @@
 ---
 # Desktop integration (minimal-usable-daily-driver milestone): the
 # small session-level glue utilities a compositor alone doesn't provide
-# - polkit authentication, XDG desktop portals, clipboard, screenshots,
-# notifications, and brightness control. No bar, launcher, or lock/idle
-# - those are separate concerns (roles/hyprland, later Quickshell).
+# - polkit authentication, XDG desktop portals, clipboard, notifications,
+# and brightness control (always installed), plus the optional
+# screenshots feature below (screenshot_packages, gated by
+# screenshots_enabled). No bar, launcher, or lock/idle - those are
+# separate concerns (roles/hyprland, roles/quickshell).
 desktop_packages:
   # Polkit agent. hyprpolkitagent is Hyprland-org's own agent (not
   # polkit-gnome/mate-polkit) - avoids pulling in GNOME/MATE deps for a
@@ -30,14 +32,11 @@ desktop_packages:
   - xdg-desktop-portal-gtk
 
   # Clipboard - CLI tools only (wl-copy/wl-paste), no history/manager
-  # daemon yet (not needed at this milestone).
+  # daemon yet (not needed at this milestone). Core, not feature-gated:
+  # screenshot_packages below depends on wl-copy, but so would any other
+  # future clipboard consumer - this is a shared dependency, not the
+  # screenshot feature itself.
   - wl-clipboard
-
-  # Region/fullscreen screenshots -> clipboard (bound in
-  # roles/hyprland's hyprland.lua.j2): grim captures, slurp selects a
-  # region, wl-clipboard pipes the result to the clipboard.
-  - grim
-  - slurp
 
   # Notification daemon. TEMPORARY UNTIL QUICKSHELL REPLACEMENT -
   # mako is the standard minimal wlroots/Hyprland-ecosystem notification
@@ -49,3 +48,12 @@ desktop_packages:
   # roles/hyprland's hyprland.lua.j2 (also harmless/inert on the
   # workstation if it has no controllable backlight).
   - brightnessctl
+
+# FEATURE: screenshots (see group_vars/all.yml screenshots_enabled -
+# the actual on/off source of truth - and docs/feature-architecture.md
+# for the full contract). Installed only when the feature is enabled
+# (see tasks/main.yml); the two keybinds live in
+# roles/hyprland/templates/hyprland.lua.j2, gated by the same flag.
+screenshot_packages:
+  - grim   # captures the actual image
+  - slurp  # interactive region selector for the region-screenshot bind

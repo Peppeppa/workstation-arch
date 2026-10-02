@@ -64,6 +64,12 @@ There is still no Bluetooth stack or display manager either. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
+Optional capabilities (screenshots so far, more later) are toggleable
+per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
+(overridable in `host_vars/<hostname>.yml`) - see
+`docs/feature-architecture.md` for the full model. Disabling a feature
+never deletes already-installed packages or personal data.
+
 Note: `base` enables and starts `sshd` by default (needed for remote
 access/administration on `laptop`/`workstation`, see `AGENTS.md` Runtime
 Ownership) - every machine provisioned by this repository listens for
