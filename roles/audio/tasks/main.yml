@@ -13,3 +13,53 @@
     name: "{{ audio_packages }}"
     state: present
   tags: audio
+
+# Real-VM-discovered first-provision bug. The pacman install above is
+# what actually enables the sockets: pipewire's, pipewire-pulse's, and
+# wireplumber's own .install scriptlets each run (as root, via pacman)
+# `systemctl --global enable <unit>`, writing the enablement symlinks
+# straight into /etc/systemd/user - upstream Arch packaging behavior,
+# not anything this role does explicitly, which is why no enable task
+# exists above. `--global` only changes what a *new* systemd --user
+# manager reads at startup; it cannot retroactively start anything in
+# a --user manager that was already running before those symlinks
+# appeared (exactly the case on first provision into an already-
+# logged-in/SSHed-in session). A reboot or logout/login fixes it only
+# because that spawns a fresh --user manager. Reconcile the live one
+# instead, as the real invoking user (never root/root's own --user
+# manager - see AGENTS.md "User vs. System Configuration"), using its
+# actual XDG_RUNTIME_DIR rather than whatever the Ansible process
+# happened to inherit.
+#
+# This only starts the two sockets, exactly mirroring what a reboot
+# already does - pipewire.service and wireplumber.service stay lazily,
+# socket-/dependency-activated on first client connection (confirmed by
+# real-VM testing), so socket activation semantics are fully preserved
+# and no second lifecycle owner is introduced for either service.
+- name: Check for an already-running systemd --user manager for the invoking user
+  ansible.builtin.stat:
+    path: "/run/user/{{ ansible_facts.user_uid }}/systemd/private"
+  register: audio_user_manager
+  tags: audio
+
+- name: Reload the running user manager so it sees the new PipeWire enablement
+  ansible.builtin.systemd_service:
+    scope: user
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  when: audio_user_manager.stat.exists
+  tags: audio
+
+- name: Ensure PipeWire sockets are active in the already-running session (first-provision fix)
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    scope: user
+    state: started
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  loop:
+    - pipewire.socket
+    - pipewire-pulse.socket
+  when: audio_user_manager.stat.exists
+  tags: audio

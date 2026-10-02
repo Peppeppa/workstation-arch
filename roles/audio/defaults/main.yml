@@ -14,6 +14,24 @@ audio_packages:
                      # PulseAudio-only client apps keep working
   - pipewire-alsa    # ALSA client compatibility (apps using ALSA
                      # directly get routed through PipeWire)
+  - rtkit            # RealtimeKit: grants PipeWire/WirePlumber threads
+                     # realtime scheduling priority on request, over
+                     # D-Bus, so they are not stuck at the fallback
+                     # nice/priority values. Listed as an optdepend of
+                     # pipewire upstream, not something this project
+                     # invents. Its rtkit-daemon.service is D-Bus
+                     # bus-activated (upstream unit, no [Install]
+                     # enablement) - installing the package is the
+                     # entire fix; no Ansible service task is needed or
+                     # correct here.
 
   # Deliberately NOT included: pipewire-jack (JACK compatibility) - no
   # concrete pro-audio/JACK workload exists yet; add it if one does.
+  #
+  # Deliberately NOT included: realtime-privileges - an alternative,
+  # mutually redundant way to grant realtime scheduling (static
+  # `realtime` group + ambient RLIMIT instead of rtkit's on-demand
+  # D-Bus grants). Installing both would be two owners for the same
+  # responsibility; rtkit is the one WirePlumber actually calls (see
+  # the RTKit D-Bus errors this fixes), so it is the one this project
+  # keeps.
