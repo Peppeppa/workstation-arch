@@ -11,3 +11,21 @@ quickshell_packages:
   # QtQuick/qt6-wayland itself via pacman; nothing extra to declare
   # here.
   - quickshell
+
+  # Real-VM-discovered bug: shell.qml's battery widget imports
+  # Quickshell.Services.UPower, which talks to org.freedesktop.UPower
+  # over D-Bus - quickshell's own pacman metadata lists no dependency
+  # on upower at all (`pacman -Si quickshell` shows no Depends/Optional
+  # entry for it: it is a pure runtime D-Bus client, not something
+  # pacman pulls in for us), so without this the name is simply not
+  # activatable and Quickshell logs
+  # "Could not launch service org.freedesktop.UPower:
+  # org.freedesktop.DBus.Error.ServiceUnknown". upower's own
+  # upower.service is `Type=dbus`/`BusName=org.freedesktop.UPower`
+  # with a matching /usr/share/dbus-1/system-services/
+  # org.freedesktop.UPower.service (`SystemdService=upower.service`) -
+  # standard D-Bus activation, exactly like rtkit-daemon.service (see
+  # roles/audio). Installing the package is the entire fix; no enable/
+  # start task is needed or correct here - D-Bus activates it on first
+  # use regardless of `systemctl is-enabled` state.
+  - upower
