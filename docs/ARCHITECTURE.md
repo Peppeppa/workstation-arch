@@ -80,8 +80,9 @@ Responsibility split within the provisioning layer:
   the file-chooser portal. All are started exactly once - the portals by
   their own D-Bus-activated systemd `--user` units, the polkit agent by
   Hyprland's session lifecycle.
-- fuzzel (launcher) and mako (notifications) are temporary owners of
-  their responsibility until Quickshell replaces them - see AGENTS.md.
+- Quickshell owns the app launcher (fuzzel retired as of Core Desktop
+  v1); mako (notifications) remains a temporary owner until Quickshell
+  replaces it too - see AGENTS.md.
 - Quickshell owns presentation - it displays and controls the above, it
   never becomes a second source of truth for them.
 

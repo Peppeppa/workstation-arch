@@ -87,12 +87,12 @@ direct upstream dependency.
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ |
 | Compositor / window manager | Hyprland |
-| App launcher | fuzzel (**temporary until Quickshell replacement**) |
+| App launcher | Quickshell (`Launcher.qml`, toggled via `qs ipc call launcher toggle` - fuzzel retired as of Core Desktop v1) |
 | Notifications | mako (**temporary until Quickshell replacement**) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
 | File chooser / settings portal | xdg-desktop-portal-gtk |
-| Shell presentation / integration | Quickshell (minimal top bar so far - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
+| Shell presentation / integration | Quickshell (top bar + app launcher - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 

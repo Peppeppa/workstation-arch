@@ -1,8 +1,11 @@
 -- Minimal-usable-daily-driver Hyprland session config - managed by
 -- Ansible. Do not edit by hand: see roles/hyprland in workstation-arch.
 --
--- No bar or wallpaper yet - Quickshell is a later, separate
--- presentation layer. See docs/ARCHITECTURE.md for the intended stack.
+-- No wallpaper tool yet. Quickshell (roles/quickshell) is the separate
+-- presentation layer - this file only starts it (see AUTOSTART below)
+-- and binds its launcher (see KEYBINDINGS below); the bar/launcher
+-- content itself lives entirely in roles/quickshell. See
+-- docs/ARCHITECTURE.md for the intended stack.
 --
 -- Current Hyprland (0.55+) reads ~/.config/hypr/hyprland.lua, not the
 -- older hyprlang hyprland.conf format - verified against Hyprland's own
@@ -29,7 +32,6 @@ hl.monitor({
 })
 
 local terminal = "{{ hyprland_terminal }}"
-local launcher = "{{ hyprland_launcher }}"
 
 -- Main modifier for every keybind below - configurable per host (see
 -- hyprland_main_modifier in roles/hyprland/defaults/main.yml), SUPER on
@@ -124,8 +126,15 @@ hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 
--- Temporary launcher (see hyprland_packages / TEMPORARY note above).
-hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd(launcher))
+-- App launcher (roles/quickshell's Launcher.qml). This does not start
+-- a new process - Quickshell is already running (see the hyprland.start
+-- block above) - it sends one one-shot IPC call to the already-running
+-- instance's "launcher" IpcHandler target, which just toggles that
+-- instance's own visibility. `qs` here is the same quickshell binary
+-- already installed by roles/quickshell (`qs` is its own CLI name for
+-- its own `ipc call` subcommand - see Launcher.qml), not a separate
+-- launcher process or a second Quickshell lifecycle owner.
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
 
 -- Move keyboard focus between windows.
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

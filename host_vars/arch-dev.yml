@@ -49,10 +49,12 @@ hyprland_monitor_scale: 1
 # for Ghostty specifically is an accepted VM-only trade-off, not a
 # permanent laptop/workstation choice (they have real GPUs that meet
 # Ghostty's OpenGL 4.3 requirement, so keep the default `ghostty`
-# there). Known gap: this only fixes the mainMod+Return keybind: fuzzel
-# still launches Ghostty via its own unmodified .desktop entry, which
-# still fails the same way on arch-dev - accepted for this disposable
-# test VM (see AGENTS.md VM / Hardware Separation), not fixed here.
+# there). Known gap: this only fixes the mainMod+Return keybind: the
+# Quickshell launcher (roles/quickshell/files/quickshell/Launcher.qml)
+# launches entries via their own unmodified .desktop Exec= line, so
+# launching Ghostty from the launcher still fails the same way on
+# arch-dev - accepted for this disposable test VM (see AGENTS.md VM /
+# Hardware Separation), not fixed here.
 hyprland_terminal: "env LIBGL_ALWAYS_SOFTWARE=1 ghostty"
 
 # Real, VM-specific deviation #4, same mechanism/root cause as #3

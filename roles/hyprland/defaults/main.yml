@@ -1,9 +1,9 @@
 ---
-# Minimal-usable-daily-driver milestone: Hyprland itself, its default
-# terminal, and a temporary app launcher. No bar, notifications,
-# lock/idle daemon, or wallpaper tool here - see roles/desktop for the
-# rest of desktop integration and docs/ARCHITECTURE.md for the intended
-# final stack (Quickshell replaces the launcher and owns presentation).
+# Minimal-usable-daily-driver milestone: Hyprland itself and its
+# default terminal. No bar, notifications, lock/idle daemon, or
+# wallpaper tool here - see roles/desktop for the rest of desktop
+# integration, roles/quickshell for the shell/launcher, and
+# docs/ARCHITECTURE.md for the intended final stack.
 hyprland_packages:
   # compositor/window manager/Wayland session owner. Pulls its own
   # dependencies (wayland, mesa, xorg-xwayland, ... already declared
@@ -17,19 +17,15 @@ hyprland_packages:
   # deliberate UX choice rather than the smallest-possible footprint.
   - ghostty
 
-  # Temporary app launcher - see hyprland_launcher below. TEMPORARY
-  # UNTIL QUICKSHELL REPLACEMENT: Quickshell's own launcher will take
-  # over this responsibility once it exists (see docs/ARCHITECTURE.md);
-  # fuzzel is a small, mature, native-Wayland launcher from the official
-  # repos in the meantime, not a permanent architectural decision.
-  - fuzzel
+  # fuzzel (the TEMPORARY-UNTIL-QUICKSHELL-REPLACEMENT launcher) is
+  # gone as of Core Desktop v1: roles/quickshell's own Launcher.qml,
+  # bound to mainMod+Space below, now owns this responsibility - see
+  # AGENTS.md Runtime Ownership. No second launcher installed alongside
+  # it.
 
 # Command the terminal keybind runs. Kept separate from the package
 # name so a later terminal swap only needs to change this one value.
 hyprland_terminal: ghostty
-
-# Command the launcher keybind runs. See the TEMPORARY note above.
-hyprland_launcher: fuzzel
 
 # Command hl.on("hyprland.start", ...) uses to launch Quickshell (see
 # roles/quickshell). Plain "quickshell" on real target hosts - only
@@ -53,9 +49,9 @@ hyprland_monitor_scale: auto
 # with a German keyboard - "de" is the correct default for every current
 # host (laptop, workstation, arch-dev alike), not a per-host deviation.
 # Kept as a variable (not hardcoded in the template) purely for the same
-# override flexibility already established for hyprland_terminal/
-# hyprland_launcher, should a genuine future need arise - not because a
-# deviation exists today. Does not affect the pre-login virtual console
+# override flexibility already established for hyprland_terminal,
+# should a genuine future need arise - not because a deviation exists
+# today. Does not affect the pre-login virtual console
 # keymap (see roles/base) or the system locale (see roles/base) - kept
 # deliberately separate.
 hyprland_keyboard_layout: de

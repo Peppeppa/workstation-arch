@@ -53,15 +53,16 @@ repository.
 Ansible is now the primary provisioner. `base`, `graphics`, `hyprland`,
 `desktop` (polkit/portals/clipboard/screenshots/notifications/
 brightness), `audio` (PipeWire/WirePlumber), `network` (NetworkManager +
-WireGuard tooling), `quickshell` (minimal top bar - workspaces/clock/
-network/volume/battery), `apps` (end-user applications), `virtualization`
+WireGuard tooling), `quickshell` (Core Desktop v1 - top bar + app
+launcher, see below), `apps` (end-user applications), `virtualization`
 (VirtualBox), and `gaming` (Steam/Lutris) are implemented, aiming at a
-minimal but genuinely usable daily-driver desktop. `quickshell` is only
-a small foundation so far - no launcher, tray, notifications, or control
-center yet, fuzzel/mako still own those. There is still no Bluetooth
-stack, no display manager, no lock/idle, and no theming - those will be
-added as further roles under `roles/`. See `AGENTS.md` for exactly what
-is real-VM-tested versus only structurally verified so far.
+minimal but genuinely usable daily-driver desktop. `quickshell` now owns
+the app launcher too (fuzzel is gone); mako still owns notifications,
+and there is still no tray, control center, Wi-Fi/Bluetooth menus,
+lock/idle, or theming - those will be added as further roles/milestones.
+There is still no Bluetooth stack or display manager either. See
+`AGENTS.md` for exactly what is real-VM-tested versus only structurally
+verified so far.
 
 Note: `base` enables and starts `sshd` by default (needed for remote
 access/administration on `laptop`/`workstation`, see `AGENTS.md` Runtime
@@ -161,11 +162,11 @@ first - see the `gaming` row below.
 |------------------|-----------------|------------------------------------------------------------------------|
 | `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); enables/starts `sshd`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated |
 | `graphics`       | `graphics`      | Wayland/Mesa/XWayland foundation - no compositor yet                   |
-| `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal), fuzzel (temporary launcher) |
+| `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal)                       |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation)  |
-| `quickshell`     | `quickshell`    | Quickshell (official `extra` package) + one minimal top bar: workspaces/clock/network/volume/battery |
+| `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar (workspaces/clock/network/volume/battery) + app launcher (`mainMod+Space`) |
 | `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...); default PDF/PNG handlers set to zathura/imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
@@ -179,12 +180,12 @@ for the intended stack.
 Hyprland is set up to start and stop by hand - it deliberately does
 **not** install a display manager and does not add any
 `.bash_profile`/`exec Hyprland` autostart hack. Hyprland's own session
-lifecycle (`hl.on("hyprland.start", ...)`) now also starts a minimal
-Quickshell bar (workspaces/clock/network/volume/battery - see
-`roles/quickshell`); a launcher, tray, notifications, and control center
-are still later work, so `fuzzel` (launcher) and `mako` (notifications)
-remain temporary stand-ins until then - see `AGENTS.md`. After
-provisioning and a reboot:
+lifecycle (`hl.on("hyprland.start", ...)`) now also starts Quickshell
+(`roles/quickshell`), which owns the top bar (workspaces/clock/network/
+volume/battery) and the app launcher (`mainMod+Space` - see below);
+`mako` (notifications) remains a temporary stand-in until a later
+milestone replaces it - see `AGENTS.md`. After provisioning and a
+reboot:
 
 ```sh
 reboot
@@ -202,7 +203,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | Keybind                | Action                                      |
 |-------------------------|---------------------------------------------|
 | `Super + Return`         | open a terminal (Ghostty)                    |
-| `Super + Space`          | open the app launcher (fuzzel, temporary)    |
+| `Super + Space`          | toggle the Quickshell app launcher            |
 | `Super + Q`              | close the focused window                     |
 | `Super + [1-9]`          | switch to workspace 1-9                      |
 | `Super + Shift + [1-9]`  | move the focused window to workspace 1-9     |

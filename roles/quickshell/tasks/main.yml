@@ -24,14 +24,17 @@
     mode: "0755"
   tags: quickshell
 
-# Plain copy, not a template: shell.qml has no host-specific values to
-# substitute at this milestone (unlike hyprland.lua.j2's per-host
-# scale/modifier/layout), and copying avoids any ambiguity between QML's
-# own brace syntax and Jinja2's.
-- name: Deploy the minimal Quickshell bar config
+# Plain copy, not a template: none of these .qml files have
+# host-specific values to substitute at this milestone (unlike
+# hyprland.lua.j2's per-host scale/modifier/layout), and copying avoids
+# any ambiguity between QML's own brace syntax and Jinja2's. `src`
+# ends in `/` so the contents of files/quickshell/ (shell.qml, Bar.qml,
+# Launcher.qml) land directly in ~/.config/quickshell/, not nested
+# under an extra quickshell/ subdirectory.
+- name: Deploy the Quickshell Core Desktop v1 config
   ansible.builtin.copy:
-    src: shell.qml
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
+    src: quickshell/
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
