@@ -54,3 +54,27 @@ hyprland_monitor_scale: 1
 # still fails the same way on arch-dev - accepted for this disposable
 # test VM (see AGENTS.md VM / Hardware Separation), not fixed here.
 hyprland_terminal: "env LIBGL_ALWAYS_SOFTWARE=1 ghostty"
+
+# Real, VM-specific deviation #4, same mechanism/root cause as #3
+# above: real testing on arch-dev showed Quickshell (roles/quickshell)
+# starting via hl.exec_cmd (both at hyprland.start and via a controlled
+# manual hl.exec_cmd() test afterward, so this is not a startup-timing
+# issue) but never staying up. Captured stderr (the default spawn
+# redirects it to /dev/null, so this needed a wrapper that redirects it
+# back) showed the actual failure:
+#   wl_display#1: error 1: invalid arguments for wl_surface#47.attach
+#   WARN: The Wayland connection experienced a fatal error: Invalid argument
+# i.e. Quickshell's QtQuick scene graph tries to attach a
+# GPU-accelerated buffer the moment it renders its first frame (the bar
+# window), and VirtualBox's 3D-accelerated OpenGL driver produces a
+# buffer Hyprland's Wayland compositor rejects as malformed - the exact
+# same VirtualBox-GPU-driver failure class already fixed for Ghostty
+# above (confirmed via its own "OpenGL version is too old" error) and
+# previously documented, but left unfixed, for zathura/imv in AGENTS.md.
+# `env LIBGL_ALWAYS_SOFTWARE=1 quickshell` confirmed working on
+# arch-dev: process stayed running past the point it previously died,
+# and `hyprctl layers` showed a real 1280x28 "quickshell" layer-shell
+# surface actually on screen. laptop/workstation have real GPUs and
+# keep the default `quickshell` (see hyprland_quickshell_cmd in
+# roles/hyprland/defaults/main.yml).
+hyprland_quickshell_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 quickshell"

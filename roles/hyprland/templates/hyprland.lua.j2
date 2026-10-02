@@ -101,10 +101,15 @@ hl.config({
 -- default config. Restarting it cleanly is a normal kill + rerun -
 -- Quickshell enforces its own single-instance-per-config lock, so this
 -- stays exactly one owner even across a manual restart.
+--
+-- hyprland_quickshell_cmd (roles/hyprland/defaults/main.yml) is plain
+-- "quickshell" on real target hosts - only overridden per-host (see
+-- host_vars/arch-dev.yml) for a real, VM/hardware-confirmed reason,
+-- same pattern as hyprland_terminal below.
 hl.on("hyprland.start", function()
     hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
     hl.exec_cmd("mako")
-    hl.exec_cmd("quickshell")
+    hl.exec_cmd("{{ hyprland_quickshell_cmd }}")
 end)
 
 ---------------------
