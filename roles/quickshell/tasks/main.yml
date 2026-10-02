@@ -1,0 +1,38 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here - this role only
+# ensures its own package/config are present.
+- name: Install Quickshell
+  become: true
+  community.general.pacman:
+    name: "{{ quickshell_packages }}"
+    state: present
+  tags: quickshell
+
+# Everything below is user-level configuration and intentionally has no
+# `become`: it must be owned by the normal user who ran bootstrap.sh,
+# never root - same pattern as roles/hyprland. ansible_facts.user_*
+# reflect that invoking user, gathered once at the start of the play
+# before any become escalation happens.
+
+- name: Ensure ~/.config/quickshell exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/quickshell"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
+# Plain copy, not a template: shell.qml has no host-specific values to
+# substitute at this milestone (unlike hyprland.lua.j2's per-host
+# scale/modifier/layout), and copying avoids any ambiguity between QML's
+# own brace syntax and Jinja2's.
+- name: Deploy the minimal Quickshell bar config
+  ansible.builtin.copy:
+    src: shell.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: quickshell

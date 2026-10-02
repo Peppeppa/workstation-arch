@@ -89,9 +89,22 @@ hl.config({
 -- (org.hyprland.hyprpolkitagent.service) and a systemd --user unit -
 -- deliberately not used, to keep exactly one owner (Hyprland session
 -- lifecycle, per the rule above), not a second autostart path.
+--
+-- Quickshell (roles/quickshell) is started here for the same reason:
+-- it is a session-specific presentation process, not a machine-wide or
+-- long-lived-independent-of-the-session daemon, so it gets the same
+-- "session lifecycle / Hyprland" ownership as hyprpolkitagent/mako
+-- above - never also a systemd --user service for the same process
+-- (see AGENTS.md Runtime Ownership / "one owner per responsibility").
+-- No args needed: quickshell's own config resolution already finds
+-- ~/.config/quickshell/shell.qml (deployed by roles/quickshell) as the
+-- default config. Restarting it cleanly is a normal kill + rerun -
+-- Quickshell enforces its own single-instance-per-config lock, so this
+-- stays exactly one owner even across a manual restart.
 hl.on("hyprland.start", function()
     hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
     hl.exec_cmd("mako")
+    hl.exec_cmd("quickshell")
 end)
 
 ---------------------

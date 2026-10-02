@@ -101,6 +101,9 @@
     - role: network
       tags: [network]
 
+    - role: quickshell
+      tags: [quickshell]
+
     - role: apps
       tags: [apps]
 

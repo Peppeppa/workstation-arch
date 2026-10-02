@@ -1,0 +1,13 @@
+---
+# Quickshell foundation milestone: the smallest shell that proves
+# install/config/lifecycle, not yet the full presentation layer (see
+# docs/ARCHITECTURE.md). fuzzel/mako stay in roles/hyprland and
+# roles/desktop for now - this role does not replace them yet.
+quickshell_packages:
+  # Official Arch `extra` repository (verified via `pacman -Si
+  # quickshell` against a real upstream-Arch package database), not
+  # AUR/Flatpak/a vendor channel - the Package Source Policy's #1
+  # choice was genuinely available, no exception needed. Pulls Qt6/
+  # QtQuick/qt6-wayland itself via pacman; nothing extra to declare
+  # here.
+  - quickshell

@@ -92,7 +92,7 @@ direct upstream dependency.
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
 | File chooser / settings portal | xdg-desktop-portal-gtk |
-| Shell presentation / integration | Quickshell |
+| Shell presentation / integration | Quickshell (minimal top bar so far - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 
@@ -642,8 +642,10 @@ output from `arch-dev` via SSH, not guessed):
   correct. Real video-file (not just audio-with-cover-art) playback was
   not tested this session — open point.
 
-**Not started (no code yet):** Quickshell foundation, Bluetooth,
-session/lock/idle, hardware-specific optimization.
+**Not started (no code yet):** Bluetooth, session/lock/idle,
+hardware-specific optimization. Quickshell has a minimal foundation
+(see below) - launcher, tray, notifications, control center, lock
+screen, etc. are still not started.
 
 **Deliberately deferred this run — open points, not oversights:**
 - **LazyVim bootstrap**: Neovim is installed; LazyVim itself is user
@@ -686,25 +688,41 @@ session/lock/idle, hardware-specific optimization.
 
 ## Next Milestone
 
-**Real (VM) validation of this session's minimal-usable-daily-driver
-work on `arch-dev`, THEN Quickshell foundation.** Per this file's own
-Definition of Done, none of the roles added/changed in this session
-(`hyprland` changes, `desktop`, `audio`, `network`, `virtualization`,
-`apps`, and `gaming` once a real host opts in via `gaming_enabled`)
-count as done until a real `ansible-playbook local.yml` run completes
-successfully against clean upstream Arch and the manual checks in the
-exact `arch-dev` test commands (see the report accompanying this
-change, or ask for them again) all pass — TTY login → `Hyprland` →
-Ghostty/fuzzel/Chromium/Thunar/audio/clipboard/region-screenshot/
-notifications/workspaces/clean exit. `gaming` stays disabled
-(`gaming_enabled: false`) on `arch-dev` for this validation - that is
-the correct, expected outcome, not a gap to fix there.
+**Real (VM) validation of the Quickshell foundation milestone on
+`arch-dev`.** `roles/quickshell` now installs Quickshell (official
+`extra` package - `pacman -Si quickshell` confirmed it there on current
+upstream Arch, no AUR/Flatpak exception needed) and deploys one
+minimal, static top bar (`roles/quickshell/files/shell.qml`): left =
+Hyprland workspaces (native IPC via `Quickshell.Hyprland`, clickable),
+center = clock (native `SystemClock`, no-seconds precision), right =
+network state (native `Quickshell.Networking`, NetworkManager-backed),
+output volume/mute (native `Quickshell.Services.Pipewire`), and battery
+percentage only when one is present (native `Quickshell.Services.UPower`
+`displayDevice.isPresent`). No launcher, tray, notifications, or control
+center yet - fuzzel/mako are unchanged. Lifecycle: started exactly once
+by Hyprland's own session lifecycle (`hl.exec_cmd("quickshell")` in
+`hyprland.lua.j2`, same pattern as hyprpolkitagent/mako), never also a
+systemd --user service. Verified by actually launching this exact
+`shell.qml` against a real, live Wayland/Hyprland session (`quickshell
+--path roles/quickshell/files/shell.qml -n`) and screenshotting the
+result - loaded with no QML errors, rendered one bar per monitor, with
+correct workspace/clock/network/volume text and no battery shown (none
+present on that machine) - but **not yet run through
+`ansible-playbook local.yml` against clean upstream Arch**, since the
+machine used for that QML smoke test is this project's own excluded
+Omarchy dev machine, not `arch-dev`.
 
-Once that passes: start Quickshell foundation by writing
-`docs/DESIGN_SYSTEM.md` (colors, spacing, typography, motion rules
-consistent with the "responsiveness over decoration" stance already set
-in the `hyprland` role), then add a minimal `roles/quickshell` that only
-installs the package and gets an empty/near-empty config loading under
-Hyprland — no widgets, no bar content yet, and no need to keep fuzzel/
-mako once Quickshell can replace them (see Runtime Ownership). Do not
-start Bluetooth or session/lock/idle before this lands.
+Per this file's Definition of Done, `roles/quickshell` does not count as
+done until a real `ansible-playbook local.yml` run completes
+successfully on `arch-dev` and the deployed bar is confirmed working
+there too (see the implementation report accompanying this change for
+the exact manual checks to run). `docs/DESIGN_SYSTEM.md` stays
+deliberately empty for now - this milestone used a handful of local
+constants directly in `shell.qml` instead of building a design-system
+framework before one is actually needed; revisit once a second
+Quickshell surface (launcher, notifications, ...) makes sharing real
+values across files worthwhile.
+
+Once `arch-dev` validation passes: either extend the bar (e.g. replace
+fuzzel/mako, add a Bluetooth indicator once `roles/bluetooth` exists) or
+start Bluetooth/session/lock/idle - whichever is asked for next.

@@ -53,13 +53,15 @@ repository.
 Ansible is now the primary provisioner. `base`, `graphics`, `hyprland`,
 `desktop` (polkit/portals/clipboard/screenshots/notifications/
 brightness), `audio` (PipeWire/WirePlumber), `network` (NetworkManager +
-WireGuard tooling), `apps` (end-user applications), `virtualization`
+WireGuard tooling), `quickshell` (minimal top bar - workspaces/clock/
+network/volume/battery), `apps` (end-user applications), `virtualization`
 (VirtualBox), and `gaming` (Steam/Lutris) are implemented, aiming at a
-minimal but genuinely usable daily-driver desktop. There is still no
-shell (Quickshell), no Bluetooth stack, no display manager, no
-lock/idle, and no theming - those will be added as further roles under
-`roles/`. See `AGENTS.md` for exactly what is real-VM-tested versus only
-structurally verified so far.
+minimal but genuinely usable daily-driver desktop. `quickshell` is only
+a small foundation so far - no launcher, tray, notifications, or control
+center yet, fuzzel/mako still own those. There is still no Bluetooth
+stack, no display manager, no lock/idle, and no theming - those will be
+added as further roles under `roles/`. See `AGENTS.md` for exactly what
+is real-VM-tested versus only structurally verified so far.
 
 Note: `base` enables and starts `sshd` by default (needed for remote
 access/administration on `laptop`/`workstation`, see `AGENTS.md` Runtime
@@ -142,6 +144,7 @@ Only run a specific part, by tag:
 ./bootstrap.sh --tags desktop
 ./bootstrap.sh --tags audio
 ./bootstrap.sh --tags network
+./bootstrap.sh --tags quickshell
 ./bootstrap.sh --tags apps
 ./bootstrap.sh --tags virtualization
 ./bootstrap.sh --tags gaming
@@ -162,22 +165,26 @@ first - see the `gaming` row below.
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation)  |
+| `quickshell`     | `quickshell`    | Quickshell (official `extra` package) + one minimal top bar: workspaces/clock/network/volume/battery |
 | `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...); default PDF/PNG handlers set to zathura/imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 
-Further roles (`quickshell`, `bluetooth`, `session`, `hardware`, ...)
-will be added the same way as the desktop is built out - see
-`docs/ARCHITECTURE.md` for the intended stack.
+Further roles (`bluetooth`, `session`, `hardware`, ...) will be added
+the same way as the desktop is built out - see `docs/ARCHITECTURE.md`
+for the intended stack.
 
 ## Hyprland session (manual start, no display manager)
 
 Hyprland is set up to start and stop by hand - it deliberately does
 **not** install a display manager and does not add any
-`.bash_profile`/`exec Hyprland` autostart hack. A shell (Quickshell) and
-a permanent bar/launcher are still later work; `fuzzel` (launcher) and
-`mako` (notifications) are explicitly temporary stand-ins until then -
-see `AGENTS.md`. After provisioning and a reboot:
+`.bash_profile`/`exec Hyprland` autostart hack. Hyprland's own session
+lifecycle (`hl.on("hyprland.start", ...)`) now also starts a minimal
+Quickshell bar (workspaces/clock/network/volume/battery - see
+`roles/quickshell`); a launcher, tray, notifications, and control center
+are still later work, so `fuzzel` (launcher) and `mako` (notifications)
+remain temporary stand-ins until then - see `AGENTS.md`. After
+provisioning and a reboot:
 
 ```sh
 reboot
