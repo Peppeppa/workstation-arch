@@ -1,10 +1,10 @@
 ---
-# Hyprland session: compositor, default terminal (Ghostty), and a
-# temporary launcher (fuzzel, until Quickshell replaces it) - see
+# Hyprland session: compositor and default terminal (Ghostty) - see
 # roles/desktop for the polkit agent/portals/notifications/screenshot/
-# clipboard/brightness tools that make this a practically usable
-# desktop. No display manager, no autostart-on-login hook. Login on a
-# TTY and run `Hyprland` manually - see README.md.
+# clipboard/brightness tools and roles/quickshell for the bar/launcher
+# that together make this a practically usable desktop. No display
+# manager, no autostart-on-login hook. Login on a TTY and run
+# `Hyprland` manually - see README.md.
 #
 # The once-per-run package database sync + full system upgrade lives in
 # local.yml's pre_tasks (tags: always), not here - this role only
@@ -16,6 +16,21 @@
   community.general.pacman:
     name: "{{ hyprland_packages }}"
     state: present
+  tags: hyprland
+
+# fuzzel is no longer in hyprland_packages (Core Desktop v1 - roles/
+# quickshell's own Launcher.qml owns this responsibility now), but
+# `pacman: state: present` with a package list never removes a package
+# that was installed by an earlier run and then dropped from the list -
+# it would otherwise stay installed, unused, and contradicting the
+# documented "Quickshell owns the launcher" ownership (see AGENTS.md
+# Runtime Ownership). Explicit, one-time cleanup, not a precedent for
+# a general package-removal mechanism - idempotent no-op once removed.
+- name: Remove fuzzel (retired - Quickshell's Launcher.qml replaces it)
+  become: true
+  community.general.pacman:
+    name: fuzzel
+    state: absent
   tags: hyprland
 
 # Everything below is user-level configuration and intentionally has no
