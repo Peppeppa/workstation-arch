@@ -15,7 +15,7 @@ Prozesse), nicht Prozent-Schwankungen.
 | Prozess            | CPU (idle) | RSS     |
 |---------------------|-----------|---------|
 | Hyprland            | ~0.4%     | ~145 MB |
-| quickshell          | ~0.2%     | ~305 MB |
+| quickshell          | ~0.2%     | ~305 MB (frisch gestartet nach Notifications v1 + FiraCode: ~366 MB; nach vielen Hot-Reloads beobachtet bis ~460 MB) |
 | wireplumber         | 0.0%      | ~24 MB  |
 | hyprpolkitagent     | 0.0%      | ~60 MB  |
 | xdg-desktop-portal* (3 Prozesse: core, gtk, hyprland) | 0.0% je | ~20-32 MB je |
