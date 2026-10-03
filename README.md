@@ -64,12 +64,19 @@ the app launcher, notifications and the system tray too (fuzzel and
 mako are gone), plus a dark/light theme switcher next to the clock.
 Bluetooth: BlueZ plus a bar icon whose popup powers the adapter, scans,
 pairs (in-popup PIN/passkey dialogs), connects and forgets devices.
-There is still no control center, Wi-Fi menu or display manager -
-those come as further milestones. See
+Clicking the network label opens the Connectivity Center (Wi-Fi with
+password entry and QR sharing, Bluetooth, NetworkManager VPN/WireGuard);
+right-clicking the volume opens device selection/volume/mute; the
+battery (or, without one, a profile icon) opens power profiles.
+`mainMod+V` shows the clipboard history (cliphist); wallpapers come from
+the active theme's `backgrounds/` and are picked in the theme dialog.
+Laptop lid: lock, then suspend. There is no display manager. Feature
+freeze: next is visual polish (RICE v1). See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
-Optional capabilities (screenshots + OCR, power menu, lock/idle, notifications, tray, bluetooth) are toggleable
+Optional capabilities (screenshots + OCR, power menu, lock/idle, notifications, tray, bluetooth,
+power profiles, audio popup, connectivity center, clipboard history, wallpaper) are toggleable
 per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 (overridable in `host_vars/<hostname>.yml`) - see
 `docs/feature-architecture.md` for the full model. Disabling a feature
@@ -177,12 +184,14 @@ first - see the `gaming` row below.
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation)  |
-| `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar (workspaces/clock/network/volume/battery) + app launcher (`mainMod+Space`) |
+| `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
+| `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
+| `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
 | `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...); default PDF/PNG handlers set to zathura/imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 
-Further roles (`bluetooth`, `session`, `hardware`, ...) will be added
+Further roles (`session`, `hardware`, ...) will be added
 the same way as the desktop is built out - see `docs/ARCHITECTURE.md`
 for the intended stack.
 

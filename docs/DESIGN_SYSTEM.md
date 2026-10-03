@@ -36,10 +36,13 @@ Invalid directories (no/both markers, missing/unknown color, bad hex,
 no `theme.yml`/`backgrounds/`) are skipped at runtime and fail
 `bootstrap.sh` (`theme validate`), so they are caught early.
 
-`backgrounds/` is part of the contract but not used yet: a later
-wallpaper step picks a file from the *active* theme's `backgrounds/`
-(e.g. `theme status` exposing them, the dialog offering a choice, a
-`background=` line in the state) - the same helper, no new registry.
+`backgrounds/` holds the theme's wallpapers (`*.png|jpg|jpeg|webp|gif`,
+feature `wallpaper`): the directory is the list - no second registry.
+The helper resolves the active theme's wallpaper (remembered per-theme
+choice, else the first file in sorted order, else none = the theme's
+`background` color) and ships it in `colors.json`; Quickshell draws it.
+GIFs play animated. Own images can simply be dropped into the directory
+(untracked files are never touched by git pull/bootstrap).
 
 ### One implementation: the `theme` helper
 
@@ -47,8 +50,8 @@ wallpaper step picks a file from the *active* theme's `backgrounds/`
 level, on demand only) owns discovery, contract validation, rendering,
 the state and applying it. Ansible only deploys it and calls
 `theme validate` + `theme apply`; the bar calls `theme status --json`,
-`theme toggle`, `theme select <dark|light> <id>`. Nothing else renders
-theme colors.
+`theme toggle`, `theme select <dark|light> <id>`, `theme wallpaper
+list|set <file>`. Nothing else renders theme colors or picks wallpapers.
 
 ### Runtime vs. initial deployment
 
@@ -69,7 +72,7 @@ includes its file instead of being re-templated:
 
 | Consumer | File | Included via | Live apply |
 |---|---|---|---|
-| Quickshell | `colors.json` | `Colors.qml` (`FileView`) | `qs ipc call theme reload` - bindings update in place, no Quickshell reload (coffee mode etc. survive) |
+| Quickshell | `colors.json` (+ wallpaper) | `Colors.qml` (`FileView`); `Wallpaper.qml` reads `Colors.data.wallpaper` | `qs ipc call theme reload` - bindings update in place, no Quickshell reload (coffee mode etc. survive) |
 | Hyprland | `hyprland.lua` | `dofile` in `hyprland.lua` (pcall: missing -> Hyprland defaults) | `hyprctl reload` |
 | hyprlock | `hyprlock.conf` | `source =` in `hyprlock.conf` | read at every lock |
 | Ghostty | `ghostty` | `config-file = ?...` in `config.ghostty` | `SIGUSR2` to Ghostty: every open window recolors, no restart |
@@ -88,6 +91,7 @@ theme never reaches any consumer; a write failure changes nothing.
 dark=retro-82
 light=rose-pine-dawn
 mode=dark
+wallpaper.retro-82=sunset.png      # per-theme wallpaper choice (optional lines)
 ```
 
 `group_vars/all.yml` `theme_dark` / `theme_light` / `theme_mode` are only
@@ -103,7 +107,9 @@ invisible until hovered. Theme icon = moon (dark) / sun (light) from
 (`ThemeDialog.qml`) - "Dark theme" / "Light theme" dropdowns listing only
 themes with that marker, current choice checked; picking one persists it
 and applies it immediately only if that mode is active (never switches
-the mode). Escape / click outside closes. Discovery runs once per open.
+the mode). With the wallpaper feature the dialog also shows the active
+theme's wallpapers as thumbnails (click = `theme wallpaper set`). Escape /
+click outside closes. Discovery runs once per open.
 
 ### Shipped themes
 

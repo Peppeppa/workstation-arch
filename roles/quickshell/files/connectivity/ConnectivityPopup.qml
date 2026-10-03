@@ -425,6 +425,7 @@ PanelWindow {
                             sourceSize.width: 180
                             sourceSize.height: 180
                             smooth: false
+                            cache: false        // the QR encodes the password: not in Qt's pixmap cache
                             source: popup.qrSvg !== "" ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(popup.qrSvg) : ""
                         }
 

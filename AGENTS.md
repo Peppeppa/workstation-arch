@@ -97,6 +97,11 @@ direct upstream dependency.
 | Screen locker | hyprlock (on demand only - spawned by hypridle on logind Lock, exits on unlock) |
 | System tray host (`org.kde.StatusNotifierWatcher`) | Quickshell `SystemTray` (feature `tray`) |
 | Shell presentation / integration | Quickshell (top bar + app launcher - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
+| Power profiles | power-profiles-daemon (systemd system service, `roles/power`, feature `power_profiles`); switched over its D-Bus API from Quickshell |
+| Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
+| Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
+| Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
+| Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 
@@ -815,7 +820,17 @@ history for that milestone's own record):
   `Notification.expireTimeout` is milliseconds (doc says seconds), and
   an `image-path` icon name becomes an unchecked `image://icon/` URL.
 
-**Open for next time**: migrating a second,
-larger-shaped feature (e.g. one with a Quickshell UI component or a
-background service) through the Feature Architecture model to pressure-
-test it beyond the small screenshots proof-of-concept.
+- **Functional completion (last milestone before RICE v1)**: Hyprland
+  config split into modules (`conf/*.lua`) + monitor foundation
+  (`hyprland_monitors`); hardware keys; lid -> lock + suspend (logind
+  drop-in, `roles/power`); battery fix (UPower percentage is 0-1) +
+  low-battery warning (core); features `power_profiles`, `audio_popup`,
+  `connectivity` (Wi-Fi/QR/Bluetooth/VPN), `clipboard_history`
+  (cliphist), `wallpaper` (theme backgrounds, per-theme choice) - see
+  their contracts in `docs/feature-architecture.md`. Bootstrap now also
+  brings back a stopped desktop Quickshell.
+
+**FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
+polish only); real-hardware validation of the items listed in
+`docs/feature-architecture.md` ("Hardware-only validation") and the
+milestone report stays open on `laptop`/`workstation`.

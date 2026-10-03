@@ -116,17 +116,15 @@ blanket sudoers change.
 
 ## Hyprland modularity
 
-Today: one feature (screenshots), two binds, one `{% if %}` block in
-`hyprland.lua.j2` - proportionate, no extra structure needed.
-
-If/when several features each need their own binds and the file starts
-accumulating many such blocks, the natural next step - still
-Jinja/Ansible-native, no custom DSL - is to split feature binds into
-their own template(s) and pull them in with Jinja's own `{% include %}`
-(or a small `{% for %}` over an explicit list of enabled features' bind
-templates), keeping `hyprland.lua.j2` itself to core binds plus one
-include line. Do not build this before there is a second or third
-feature bind that actually needs it.
+`hyprland.lua` is only the entry point; it `dofile()`s the modules in
+`~/.config/hypr/conf/` (`roles/hyprland/templates/conf/*.lua.j2`):
+`vars`, `monitors` (`hyprland_monitors`), `input`, `appearance`,
+`session` (the processes Hyprland owns), `binds` (incl. hardware keys).
+Each module is a function taking the shared values. Feature binds/
+autostarts stay `{% if <name>_enabled %}` blocks inside the module they
+belong to (`binds.lua.j2`, `session.lua.j2`) - no per-feature files, no
+include machinery. A module-only change triggers an explicit `hyprctl
+reload` (Hyprland watches only `hyprland.lua`).
 
 ## Quickshell modularity
 
@@ -387,3 +385,110 @@ handler), so splitting them would buy nothing.
 | Persistent user data | BlueZ's own pairing store (`/var/lib/bluetooth`), never touched by us |
 | Hardware-only validation | real pairing/agent prompts, connect/disconnect, battery, BT audio via WirePlumber, rfkill soft/hard + unblock (arch-dev has no adapter) |
 
+
+## Power profiles v1 (+ core battery, lid)
+
+`power_profiles_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/power` (PPD, logind lid drop-in); `roles/quickshell/files/power/` (`PowerControl.qml`, `PowerPopup.qml`, loaded by `Bar.qml`) |
+| Core (no flag) | `BatteryIndicator.qml` (hidden without battery; UPower `displayDevice`, percentage 0-1 -> %), `BatteryWatcher.qml` (one critical notification at <= 10 % per discharge cycle, re-armed when charging), lid: `HandleLidSwitch=suspend`, `...ExternalPower=suspend`, `...Docked=ignore` (logind drop-in, SIGHUP, no restart); hypridle locks before sleep |
+| Packages | `power-profiles-daemon` |
+| Lifecycle | `power-profiles-daemon.service` (systemd, enabled); UI in the existing Quickshell |
+| API | Quickshell `PowerProfiles` (PPD D-Bus, event-driven): `profile` set = switch; `hasPerformanceProfile` decides whether Performance is offered; `degradationReason` shown |
+| UI | battery slot (laptop) or profile icon (no battery) opens the popup: battery state/time, available profiles |
+| Privileges | PPD's own polkit policy: switching is allowed for the active local session (not from SSH) - no rule added |
+| Secrets / Network | none / none |
+| Disable | no popup/profile icon; PPD disabled + stopped; package stays |
+| Persistent user data | none (PPD keeps its own last profile) |
+
+## Audio popup v1
+
+`audio_popup_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/quickshell/files/audio/` (`AudioControl.qml`, `AudioPopup.qml`, loaded by `Bar.qml`) |
+| Packages | none (PipeWire/WirePlumber core, `roles/audio`) |
+| API | Quickshell `Pipewire`: hardware nodes (`isSink`, `!isStream`), `preferredDefaultAudioSink/Source` (WirePlumber persists the choice), `PwNodeAudio.volume/muted`; trackers only for the default nodes |
+| UI | core volume label keeps left click mute + wheel; right click opens the popup (outputs/inputs, default highlighted, mute + volume bar for both, clamped 0-100 %); mic-off icon in the bar while the default input is muted |
+| Hardware keys | core binds (`binds.lua`): volume +/-, mute, mic mute (`wpctl`), brightness (`brightnessctl`), play/pause/next/prev (`playerctl`) - all `locked`, volume/brightness `repeating` |
+| Privileges / Secrets / Network | none / none / none |
+| Disable | no popup, no mic icon; the core label stays |
+| Persistent user data | none (WirePlumber's own default-node state) |
+
+## Connectivity Center v1
+
+`connectivity_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/quickshell/files/connectivity/` (`ConnectivityControl.qml`, `ConnectivityPopup.qml` loaded by `Bar.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
+| Packages | `qrencode`, `python-gobject` |
+| Owner | NetworkManager (`roles/network`) is the only network owner; nothing else manages Wi-Fi/VPN |
+| UI | click on the core network label: Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
+| Wi-Fi API | Quickshell `Networking` (NM D-Bus): `wifiEnabled`, `scannerEnabled` (only while the popup is open), `connect()`, `connectWithPsk()`, `disconnect()`, `forget()`; the client radio is preferred over a hotspot radio. Enterprise/WEP/hidden networks: `nmtui` |
+| Wi-Fi password | typed into a password field, handed to NM (`connectWithPsk`), field cleared; never logged, never stored outside NM |
+| QR | only on request, for the active network: `wifi-qr <iface>` reads the PSK via NM `GetSecrets` (NM/polkit decide), pipes the `WIFI:` payload to `qrencode` on stdin (never argv/log/disk), prints SVG; the SVG lives in popup memory and is dropped on network change/close. Exit 2 (enterprise/WEP/OWE/secret not readable, e.g. agent-owned) -> no QR |
+| VPN | NM `vpn`/`wireguard` profiles: one `nmcli -t` listing on open and after each action; `nmcli connection up|down uuid <uuid>` (fixed argv). No monitor process: changes made elsewhere show on the next open. VPNs needing interactive secrets (no NM secret agent in this session) report the NM error; university VPN is out of scope for v1 |
+| Privileges | NM's own polkit policy for the active session; no sudo |
+| Network | none of its own |
+| Disable | no popup; the core network label stays; files stay unreferenced |
+| Persistent user data | NM connection profiles (created by NM on connect; `forget` deletes on request) |
+
+## Clipboard history v1
+
+`clipboard_history_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/hyprland` (package, watcher in `session.lua`, mainMod+V bind, start/stop tasks); `roles/quickshell/files/clipboard/ClipboardHistory.qml` |
+| Packages | `cliphist` (`wl-clipboard` is core) |
+| Lifecycle owner | Hyprland session start: `wl-paste --type text --watch cliphist -max-items 100 store` (one process, event-driven, ~2 MB RSS, 0 % CPU idle); bootstrap in a running session starts it via that Hyprland and replaces it when its command changed |
+| Storage | `~/.cache/cliphist/db` (dir 0700), at most `clipboard_history_max_items` (100) text entries |
+| Sensitive content | text only (no images/files); content offered with the password-manager hint (`CLIPBOARD_STATE=sensitive`, e.g. `wl-copy --sensitive`, KeePassXC) is not stored |
+| UI | mainMod+V toggles the popup (created only while open): `cliphist list` once, type to search, Enter/click = `cliphist decode ID | wl-copy`, Del/trash = `cliphist delete` (ID on stdin), Clear (two clicks) = `cliphist wipe` |
+| Privileges / Network | none / none |
+| Disable | watcher stopped, no bind/popup; the history file stays (Disable vs. Purge; `cliphist wipe` clears it) |
+| Persistent user data | the history file |
+
+## Wallpaper v1
+
+`wallpaper_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/quickshell/files/wallpaper/` (`Wallpaper.qml` in `shell.qml.j2`, `WallpaperPicker.qml` in `ThemeDialog.qml`); the `theme` helper (`roles/theme`) resolves the wallpaper; `appearance.lua` turns Hyprland's own wallpaper/logo off |
+| Registry | `themes/<id>/backgrounds/*.{png,jpg,jpeg,webp,gif}` - the directory is the list, no second registry |
+| Packages | `qt6-imageformats` (WebP); first install restarts Quickshell (Qt reads its image plugins once per process) |
+| Selection | per theme, runtime state of the `theme` helper (`wallpaper.<id>=<file>` in `~/.config/workstation/theme-state`): `theme wallpaper list|set <file>`; never reset by bootstrap (`theme apply` keeps it). Default: first file in sorted order; none: the theme's background color |
+| Apply | the wallpaper rides in `colors.json` and switches with the theme through the existing `theme reload` IPC - no watcher |
+| Renderer | the existing Quickshell: one background-layer surface per monitor; `Image` (static, decoded at screen size) or `AnimatedImage` (GIF, looping) - the animated element exists only while a GIF is selected; Qt pixmap cache off |
+| Cost (arch-dev, llvmpipe) | static: 0 % CPU; animated GIF 1280x800/24 frames: ~13 % of one core (software rendering) - static is the default recommendation |
+| UI | theme dialog (right click on the theme icon): thumbnails of the active theme's backgrounds, GIF badge, click applies |
+| Privileges / Secrets / Network | none / none / none |
+| Disable | no wallpaper surface/picker; Hyprland's default wallpaper returns; state lines stay |
+| Persistent user data | own images in `themes/<id>/backgrounds/` (untracked files are never touched); the per-theme choice |
+
+## Hardware-only validation
+
+What `arch-dev` (VirtualBox, no battery/Wi-Fi/Bluetooth adapter/GPU,
+software rendering) cannot prove - to check once on `laptop` and
+`workstation`:
+
+| Area | Check |
+|---|---|
+| Monitors | laptop panel + external monitor (hotplug, `hyprland_monitors` explicit entry with scale), bar/wallpaper on every output |
+| Lid | closed on battery -> locked, then suspended; on AC -> same; docked (external monitor) -> ignored; resume shows hyprlock, unlock works, displays on |
+| Hardware keys | volume +/-/mute, mic mute (+ bar mic icon), brightness +/- (`brightnessctl`, laptop backlight), play/pause/next/prev with a real player; all also while locked |
+| Battery | percentage/icon, charging state, time to empty/full in the popup, low-battery notification once at 10 % (and again after a charge cycle) |
+| Power profiles | Performance offered only where PPD has it, switching from the popup, degradation note (lap/temperature) |
+| Audio | real outputs/inputs (speakers, headset, HDMI, Bluetooth headset), default switching moves playing streams, mic mute LED |
+| Wi-Fi | scan, connect to a new WPA2/WPA3 network via password, known network reconnect, wrong password -> re-asked, disconnect, forget, radio off/on, rfkill hardware switch note |
+| Wi-Fi QR | phone scans the QR and joins; no QR for enterprise networks |
+| VPN | real WireGuard profile up/down from the popup; Uni-VPN still out of scope |
+| Bluetooth | (from Bluetooth v1) pairing dialogs, connect, battery, audio; plus the Connectivity Center summary and "More" |
+| Clipboard | browser/terminal/password-manager copies (KeePassXC/Bitwarden must not appear), paste after selecting |
+| Wallpaper | real 4K images, multi-monitor, GIF CPU cost with a real GPU (arch-dev: ~13 % of one core under llvmpipe) |
+| Idle baseline | fresh login: process list, RSS/CPU of Quickshell, PPD, clipboard watcher, hypridle; no timers added |

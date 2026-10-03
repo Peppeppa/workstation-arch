@@ -9,11 +9,10 @@
 // Owns: one top bar per monitor (Bar.qml) and one keyboard-driven app
 // launcher (Launcher.qml), toggled via Quickshell's own IPC (see
 // Launcher.qml's IpcHandler and roles/hyprland's mainMod+Space bind).
-// Optional: the power menu (PowerMenu.qml, power_menu_enabled) and
-// notifications (Notifications.qml, notifications_enabled). No tray,
-// notification center, Wi-Fi/
-// Bluetooth menus, or theme framework yet - see AGENTS.md Next
-// Milestone for what's deliberately deferred.
+// Optional features (<name>_enabled, docs/feature-architecture.md) are
+// either composed below (power menu, notifications, clipboard history,
+// wallpaper) or loaded by Bar.qml through Loaders (tray, Bluetooth,
+// power profiles, audio popup, connectivity center).
 //
 // Colors come from the Colors singleton (Colors.qml -> active scheme,
 // see docs/DESIGN_SYSTEM.md), which every component reads directly -
