@@ -217,7 +217,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super` + left/right click drag | move / resize a floating window       |
 | `Super + X`              | smart screenshot: drag a region or click a window -> PNG file + clipboard |
 | `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
-| `Super + Escape`         | power menu: Suspend / (Hibernate) / Logout / Reboot / Shutdown - last three ask for confirmation; Lock is listed but not available yet |
+| `Super + Escape`         | power menu: Suspend / (Hibernate) / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation; Lock is listed but not available yet |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
 
 Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR

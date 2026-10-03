@@ -25,14 +25,14 @@ border.color: Colors.border
 | Role | Meaning | Used by today |
 |---|---|---|
 | `background` | panels, bar, launcher window | Bar, Launcher, Power Menu |
-| `surface` | element on a background (input field, button) | Launcher search field, Power Menu confirm buttons |
+| `surface` | element on a background (input field, button) | Launcher search field |
 | `surfaceHover` | hovered surface | - (unused: in Launcher/Power Menu hover moves the selection instead) |
 | `text` | primary text | Bar, Launcher, Power Menu |
 | `textMuted` | secondary text (descriptions, hints) | Launcher generic names, Power Menu header + unavailable items |
 | `accent` | focus/selection fill | focused workspace, selected launcher/power menu row + button |
 | `accentText` | text drawn on `accent` | same two places |
 | `border` | panel/input outlines | Launcher, Power Menu |
-| `error` | destructive/failed state | Power Menu icons + confirm label of Logout/Reboot/Shutdown |
+| `error` | destructive/failed state | Power Menu icons of Logout/Reboot/Shutdown |
 
 Add a role only when a real component needs one. No `success`/
 `warning`/`overlay` yet because nothing draws them.

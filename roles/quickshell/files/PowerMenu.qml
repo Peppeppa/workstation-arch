@@ -17,8 +17,8 @@
 //   logout: Hyprland's own exit dispatcher (same as mainMod+SHIFT+E)
 //   lock: shown but unavailable - no lockscreen exists yet (Lock/Idle
 //     is its own later milestone); never a fake lock
-// Logout/Reboot/Shutdown need a second step (Cancel is preselected);
-// Suspend/Hibernate run directly. Hibernate is listed only if logind
+// Every action runs immediately on Enter/click - no confirm step, by
+// explicit user decision. Hibernate is listed only if logind
 // reported it available when this host was provisioned
 // (hibernateAvailable, templated by roles/quickshell) - a static host
 // capability, never checked at runtime.
@@ -38,20 +38,17 @@ PanelWindow {
 
     readonly property string iconFont: "JetBrainsMono Nerd Font Propo"
 
-    // group: visual block (session vs. power). confirm: needs the
-    // second step. danger: icon/confirm label drawn in Colors.error.
+    // danger: icon drawn in Colors.error (session-ending actions).
     readonly property var items: [
-        { id: "lock",      label: "Lock",      icon: "", group: 0, available: false, hint: "not set up" },
-        { id: "suspend",   label: "Suspend",   icon: "", group: 0, available: true },
-        { id: "hibernate", label: "Hibernate", icon: "", group: 0, available: true },
-        { id: "logout",    label: "Logout",    icon: "", group: 0, available: true, confirm: true, danger: true },
-        { id: "reboot",    label: "Reboot",    icon: "", group: 1, available: true, confirm: true, danger: true },
-        { id: "shutdown",  label: "Shutdown",  icon: "", group: 1, available: true, confirm: true, danger: true }
+        { id: "lock",      label: "Lock",      icon: "", available: false, hint: "not set up" },
+        { id: "suspend",   label: "Suspend",   icon: "", available: true },
+        { id: "hibernate", label: "Hibernate", icon: "", available: true },
+        { id: "logout",    label: "Logout",    icon: "", available: true, danger: true },
+        { id: "reboot",    label: "Reboot",    icon: "", available: true, danger: true },
+        { id: "shutdown",  label: "Shutdown",  icon: "", available: true, danger: true }
     ].filter(item => item.id !== "hibernate" || hibernateAvailable)
 
     property int selectedIndex: 0
-    property var confirming: null   // the item awaiting confirmation, or null
-    property int confirmChoice: 0   // 0 = Cancel, 1 = confirm
 
     // While open, the transparent surface covers the whole focused
     // output (Overlay layer: above the bar and fullscreen windows) so a
@@ -76,8 +73,6 @@ PanelWindow {
     // once its surface is mapped, so the old selection would briefly
     // still apply.
     function open() {
-        confirming = null;
-        confirmChoice = 0;
         selectedIndex = firstAvailable();
         visible = true;
     }
@@ -100,13 +95,7 @@ PanelWindow {
     }
 
     function activate(item) {
-        if (!item.available) return;
-        if (item.confirm) {
-            confirming = item;
-            confirmChoice = 0;
-        } else {
-            run(item.id);
-        }
+        if (item.available) run(item.id);
     }
 
     // Fixed action table - the only place a command is defined.
@@ -131,21 +120,6 @@ PanelWindow {
     }
 
     function handleKey(key) {
-        if (confirming) {
-            switch (key) {
-            case Qt.Key_Left: case Qt.Key_Right: case Qt.Key_Tab: case Qt.Key_Backtab:
-                confirmChoice = 1 - confirmChoice;
-                return true;
-            case Qt.Key_Return: case Qt.Key_Enter:
-                if (confirmChoice === 1) run(confirming.id);
-                else confirming = null;
-                return true;
-            case Qt.Key_Escape:
-                confirming = null;
-                return true;
-            }
-            return false;
-        }
         switch (key) {
         case Qt.Key_Up:     moveSelection(-1); return true;
         case Qt.Key_Down:   moveSelection(1); return true;
@@ -170,8 +144,7 @@ PanelWindow {
         }
     }
 
-    // Click outside the panel (also in the confirm state) closes the
-    // whole menu. Declared before the panel, so the panel sits on top.
+    // Click outside the panel closes the menu. Declared before the panel, so the panel sits on top.
     MouseArea {
         anchors.fill: parent
         onClicked: menu.visible = false
@@ -206,20 +179,18 @@ PanelWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: 10
-            spacing: 4   // between entries of one group
+            spacing: 4   // uniform gap between all entries
 
             Text {
                 Layout.leftMargin: 10
                 Layout.bottomMargin: 4
-                text: menu.confirming ? menu.confirming.label + "?" : "System"
-                color: menu.confirming ? Colors.text : Colors.textMuted
+                text: "System"
+                color: Colors.textMuted
                 font.pixelSize: menu.fontSize
-                font.bold: menu.confirming !== null
             }
 
-            // Normal state: the action list.
             Repeater {
-                model: menu.confirming ? [] : menu.items
+                model: menu.items
 
                 Rectangle {
                     id: row
@@ -230,7 +201,6 @@ PanelWindow {
                                               : selected ? Colors.accentText : Colors.text
 
                     Layout.fillWidth: true
-                    Layout.topMargin: index > 0 && menu.items[index - 1].group !== modelData.group ? 16 : 0   // + spacing = 20px between Session and System groups
                     implicitHeight: 36
                     radius: 4
                     color: selected ? Colors.accent : "transparent"
@@ -270,48 +240,6 @@ PanelWindow {
                         hoverEnabled: true
                         onEntered: if (row.modelData.available) menu.selectedIndex = row.index
                         onClicked: menu.activate(row.modelData)
-                    }
-                }
-            }
-
-            // Confirmation state: Cancel (preselected) / <Action>.
-            RowLayout {
-                visible: menu.confirming !== null
-                Layout.fillWidth: true
-                Layout.topMargin: 6
-                spacing: 8
-
-                Repeater {
-                    model: menu.confirming ? ["Cancel", menu.confirming.label] : []
-
-                    Rectangle {
-                        id: button
-                        required property string modelData
-                        required property int index
-                        readonly property bool selected: index === menu.confirmChoice
-
-                        Layout.fillWidth: true
-                        implicitHeight: 36
-                        radius: 4
-                        color: selected ? Colors.accent : Colors.surface
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: button.modelData
-                            font.pixelSize: menu.fontSize
-                            color: button.selected ? Colors.accentText
-                                 : button.index === 1 ? Colors.error : Colors.text
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onEntered: menu.confirmChoice = button.index
-                            onClicked: {
-                                if (button.index === 1) menu.run(menu.confirming.id);
-                                else menu.confirming = null;
-                            }
-                        }
                     }
                 }
             }

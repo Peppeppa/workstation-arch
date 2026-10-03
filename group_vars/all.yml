@@ -33,8 +33,8 @@ screenshots_ocr_enabled: true
 
 # Power menu (mainMod+Escape: Quickshell overlay with Lock (shown as
 # unavailable until a lockscreen exists), Suspend, Hibernate (only where
-# logind reports it available), Logout, Reboot, Shutdown - the last
-# three behind a confirm step). Lives in roles/quickshell (PowerMenu.qml,
+# logind reports it available), Logout, Reboot, Shutdown - each runs
+# immediately, no confirm step). Lives in roles/quickshell (PowerMenu.qml,
 # composed by shell.qml.j2) + the bind in hyprland.lua.j2. No extra
 # process: part of the running Quickshell instance, no privileges
 # beyond logind's normal active-session rules. false drops the bind and
