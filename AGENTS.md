@@ -141,6 +141,12 @@ Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
   reference roles only - nothing branches on dark/light or a theme name.
   The user's state (`~/.config/workstation/theme-state`) is never
   overwritten by provisioning.
+- Ansible = initial deployment / provisioning only. Runtime state and
+  runtime switching (themes now, and any future interactive feature)
+  belong to user-level helpers and native runtime interfaces (IPC,
+  `hyprctl`, GSettings, signals) - never `bootstrap.sh`, a playbook,
+  sudo or re-provisioning. Ansible may initialise a missing runtime
+  state but must not manage or reset it.
 - Theming stays declarative: no daemon, timer, polling, or file watcher.
 - Fonts likewise: `font.family: Fonts.family` (icons: `Fonts.icons`),
   never a font name in a component. Font names live only in
@@ -797,7 +803,10 @@ history for that milestone's own record):
 - **Theme Switcher v1**: theme directories with dark/light markers as the
   only registry, `theme` helper (state, discovery, render, live apply -
   no sudo, no bootstrap), bar moon/sun icon (left click toggle, right
-  click picker). Ghostty colors still Coverage v2.
+  click picker).
+- **Theme Coverage v2**: mandatory 16-color `terminal:` block per theme;
+  Ghostty fully themed via the helper (`config-file` include, live
+  reload by `SIGUSR2`); staged atomic writes. Zathura deferred.
 - **Notifications v1**: `notifications_enabled` - Quickshell owns
   `org.freedesktop.Notifications`; toasts only (no history/center).
   mako retired. Quickshell 0.3.1 quirks found on arch-dev:

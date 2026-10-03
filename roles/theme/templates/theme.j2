@@ -385,3 +385,8 @@ if __name__ == "__main__":
     except ThemeError as e:
         print("theme: %s" % e, file=sys.stderr)
         sys.exit(1)
+    except OSError as e:
+        # e.g. an unwritable output dir - write_files() has already
+        # discarded its staged files, so the previous theme stays intact.
+        print("theme: could not write theme files, nothing changed: %s" % e, file=sys.stderr)
+        sys.exit(1)

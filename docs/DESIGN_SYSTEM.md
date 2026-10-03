@@ -24,7 +24,8 @@ Serif stays the distro default (documents). Quickshell components use
 ```
 themes/<id>/            directory name = stable theme id ([a-z0-9-])
   dark  | light         empty marker file - exactly one; the ONLY source of the mode
-  theme.yml             data only: name + the 9 semantic colors (+ source comments)
+  theme.yml             data only: name, the 9 semantic colors, the 16 terminal colors
+                        (+ source comments)
   backgrounds/          wallpapers for this theme (may be empty; .gitkeep keeps it in git)
 ```
 
@@ -49,6 +50,20 @@ the state and applying it. Ansible only deploys it and calls
 `theme toggle`, `theme select <dark|light> <id>`. Nothing else renders
 theme colors.
 
+### Runtime vs. initial deployment
+
+- **Ansible = initial deployment / provisioning only**: installs the
+  helper, deploys the app config *bases* (which merely include the
+  generated files), creates the state from `group_vars` if missing,
+  validates the theme directories and runs `theme apply` once per
+  bootstrap (a no-op when nothing changed). It never renders theme
+  colors, never touches an existing state, and is never the way to
+  switch themes.
+- **Runtime = the `theme` helper + native interfaces**: switching, picking
+  and applying happen only through the helper (bar clicks/dialog or
+  the CLI), which talks to Quickshell IPC, `hyprctl`, GSettings and
+  signals - no sudo, no bootstrap, no daemon.
+
 Rendered files (all in `~/.config/workstation/theme/`), each consumer
 includes its file instead of being re-templated:
 
@@ -57,11 +72,13 @@ includes its file instead of being re-templated:
 | Quickshell | `colors.json` | `Colors.qml` (`FileView`) | `qs ipc call theme reload` - bindings update in place, no Quickshell reload (coffee mode etc. survive) |
 | Hyprland | `hyprland.lua` | `dofile` in `hyprland.lua` (pcall: missing -> Hyprland defaults) | `hyprctl reload` |
 | hyprlock | `hyprlock.conf` | `source =` in `hyprlock.conf` | read at every lock |
-| GTK | - | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`), no CSS | immediate for GTK4/libadwaita |
+| Ghostty | `ghostty` | `config-file = ?...` in `config.ghostty` | `SIGUSR2` to Ghostty: every open window recolors, no restart |
+| GTK | - | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`), no CSS | immediate for GTK4/libadwaita; GTK3 apps on restart |
 
-A switch validates the target first, then writes the files atomically
-(only if changed), then the state, then applies live - an invalid theme
-never reaches any consumer.
+A switch validates the target first, renders every output in memory,
+stages all changed outputs *and* the state as temp files, and renames
+them into place only once all staged - then applies live. An invalid
+theme never reaches any consumer; a write failure changes nothing.
 
 ### Runtime state
 
@@ -112,8 +129,27 @@ the mode). Escape / click outside closes. Discovery runs once per open.
 | `border_active` | `borderActive` | emphasized outline | active Hyprland border, focused overlays, lockscreen input |
 | `error` | `error` | destructive/failed/critical | power menu danger icons, critical toasts, lockscreen fail, dialog errors |
 
-Add a role only when something draws it. Not covered yet (Coverage v2):
-Ghostty colors (needs a 16-color ANSI palette per theme).
+Add a role only when something draws it.
+
+### Terminal palette contract
+
+Every `theme.yml` also has a mandatory `terminal:` block with exactly the
+16 ANSI colors `black, red, green, yellow, blue, magenta, cyan, white,
+bright_black, ..., bright_white` (palette 0-15), taken from the theme's
+own terminal palette (source in the file) - never assembled from the
+semantic roles. Consumer: Ghostty. Ghostty's background/foreground are
+the semantic `background`/`foreground`; cursor = `foreground` on
+`background`; selection = `accent` / `accent_foreground` (the semantic
+selection pair) - no extra per-app fields.
+
+### Coverage
+
+| App | Status |
+|---|---|
+| Quickshell, Hyprland borders, hyprlock, GTK mode, Ghostty | themed, live switch |
+| GTK/libadwaita apps (Thunar, ...) | follow the GTK light/dark preference natively |
+| Zathura | deferred: its config isn't repo-managed and a running window only re-reads colors via its own `:source` command (no signal/IPC) |
+| Browsers, Thunderbird, Bitwarden, Flatpaks | not themed by design (no CSS/app hacks; native preference only) |
 
 ### Performance
 
