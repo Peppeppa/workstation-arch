@@ -158,6 +158,76 @@ misses Ansible's atomic file replace.
 A static host capability a component needs (hibernate) is resolved at
 provisioning time and templated in - never polled at runtime.
 
+## Bar (RICE v1)
+
+Modelled on Omarchy's bar engine (`shell/plugins/bar/` in
+omacom/omarchy: a bar host, separate widgets, the layout as user state
+with left/center/right zones and a `centerAnchor`, a one-popout
+coordinator, drag-to-reorder) - the principle, not its plugin stack: no
+manifests, no plugin installation, no custom command modules, no
+third-party API.
+
+```
+~/.config/quickshell/bar/
+  Bar.qml            host: zones, positions, drag & drop, shared tooltip (one per monitor)
+  BarLayout.qml      registry of widget ids + the user layout (singleton, IPC "bar")
+  BarPopups.qml      coordinator: at most one bar popup open (singleton)
+  BarStyle.qml       geometry / type sizes (singleton; colors stay in Colors)
+  BarFeatures.qml    which optional parts exist (templated from the flags)
+  BarWidget.qml      common frame: hitbox, hover, active/muted, underline, tooltip, popup protocol
+  BarPopup.qml       common popup: overlay, outside click/Escape, below its widget
+  PopupButton.qml    the button used in popups
+  default-layout.json
+  widgets/<Name>/    Widget.qml (+ Model.qml shared state, Popup.qml, ...)
+```
+
+| Widget id | Core / feature | Popup |
+|---|---|---|
+| `workspaces` | core | - |
+| `clock` | core (center anchor) | - (tooltip: full date) |
+| `tray` | `tray_enabled` (whole widget) | item context menu |
+| `connectivity` | core icon | `connectivity_enabled`: Connectivity Center |
+| `bluetooth` | `bluetooth_enabled` (whole widget; hidden without adapter) | Bluetooth popup |
+| `audio` | core icon + percent (wheel volume, right click mute) | `audio_popup_enabled`: devices/volume (without it left click mutes) |
+| `power` | core battery (only with a battery) | `power_profiles_enabled`: profiles (+ profile icon without battery) |
+| `coffee` | `lock_idle_enabled` | - |
+| `theme` | core | themes + wallpapers |
+
+- **Interface**: a widget gets `bar` (barHeight, screen, dragging,
+  showTooltip/hideTooltip, openWidgetPopup) - nothing else. Core widgets
+  are imported by `Bar.qml`; feature-only widgets (tray, bluetooth) are
+  loaded by path, so a host without them has no such files.
+- **Positions**: every available widget exists once per bar and is placed
+  absolutely from the layout - reordering never recreates a widget. Left
+  zone from the left edge, right zone from the right edge; the clock
+  (center anchor) sits at the exact geometric center, other center
+  widgets flank it; without the clock the center group is centered.
+- **Layout state**: `~/.config/workstation/bar-layout.json`
+  (`{"version": 1, "layout": {"left": [{"id": ...}], "center": [...],
+  "right": [...]}}`), widget ids (+ plain values) only. Read once at
+  start (no watcher), written atomically on each change. Unknown ids are
+  ignored (and dropped on the next write); ids of switched-off features
+  keep their place; a widget missing from the file is appended to its
+  default zone. Ansible only creates the file if missing (`force: false`);
+  `qs ipc call bar resetLayout` restores `default-layout.json`.
+- **Drag & drop**: a `DragHandler` per slot (threshold 6 px) takes the
+  pointer over from the widget - the widget's click is cancelled, so a
+  drag never clicks. The widget follows the pointer, the landing place is
+  outlined, neighbours slide aside (preview = layout with the widget
+  there; the hit test uses the layout *without* it, so there is no
+  feedback). Works across zones; empty zones accept drops at their
+  anchor. Release inside the bar -> saved at once; outside -> unchanged
+  (Hyprland delivers no motion outside the bar during the drag, but
+  sends the bar a leave right after a release outside it - the drop is
+  decided ~120 ms after release from the bar's hover state).
+- **Popups**: each popup belongs to its widget (Loader bound to
+  `popupOpen`), built on `BarPopup`: overlay layer covering the output
+  except the bar strip (another widget switches popups in one click),
+  outside click / Escape close, panel centered under its widget. The
+  coordinator closes the previous popup on `request()`.
+- **Cost**: no process, no watcher, no timer except two one-shot timers
+  per drop.
+
 ## Ansible structure
 
 Not every feature needs its own role. A small feature (a package list
@@ -397,7 +467,7 @@ handler), so splitting them would buy nothing.
 | Packages | `power-profiles-daemon` |
 | Lifecycle | `power-profiles-daemon.service` (systemd, enabled); UI in the existing Quickshell |
 | API | Quickshell `PowerProfiles` (PPD D-Bus, event-driven): `profile` set = switch; `hasPerformanceProfile` decides whether Performance is offered; `degradationReason` shown |
-| UI | battery slot (laptop) or profile icon (no battery) opens the popup: battery state/time, available profiles |
+| UI | bar widget `power`: battery icon + percent (laptop) or profile icon (no battery) opens the popup: battery state/time, available profiles |
 | Privileges | PPD's own polkit policy: switching is allowed for the active local session (not from SSH) - no rule added |
 | Secrets / Network | none / none |
 | Disable | no popup/profile icon; PPD disabled + stopped; package stays |
@@ -412,7 +482,7 @@ handler), so splitting them would buy nothing.
 | Scope | `roles/quickshell/files/audio/` (`AudioControl.qml`, `AudioPopup.qml`, loaded by `Bar.qml`) |
 | Packages | none (PipeWire/WirePlumber core, `roles/audio`) |
 | API | Quickshell `Pipewire`: hardware nodes (`isSink`, `!isStream`), `preferredDefaultAudioSink/Source` (WirePlumber persists the choice), `PwNodeAudio.volume/muted`; trackers only for the default nodes |
-| UI | core volume label keeps left click mute + wheel; right click opens the popup (outputs/inputs, default highlighted, mute + volume bar for both, clamped 0-100 %); mic-off icon in the bar while the default input is muted |
+| UI | bar widget `audio` (icon + percent, wheel volume, right click mute); left click opens the popup (outputs/inputs, default highlighted, mute + volume bar for both, clamped 0-100 %); mic-off glyph in the widget while the default input is muted |
 | Hardware keys | core binds (`binds.lua`): volume +/-, mute, mic mute (`wpctl`), brightness (`brightnessctl`), play/pause/next/prev (`playerctl`) - all `locked`, volume/brightness `repeating` |
 | Privileges / Secrets / Network | none / none / none |
 | Disable | no popup, no mic icon; the core label stays |
@@ -427,7 +497,7 @@ handler), so splitting them would buy nothing.
 | Scope | `roles/quickshell/files/connectivity/` (`ConnectivityControl.qml`, `ConnectivityPopup.qml` loaded by `Bar.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
 | Packages | `qrencode`, `python-gobject` |
 | Owner | NetworkManager (`roles/network`) is the only network owner; nothing else manages Wi-Fi/VPN |
-| UI | click on the core network label: Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
+| UI | click on the bar widget `connectivity` (core icon, details in the tooltip): Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
 | Wi-Fi API | Quickshell `Networking` (NM D-Bus): `wifiEnabled`, `scannerEnabled` (only while the popup is open), `connect()`, `connectWithPsk()`, `disconnect()`, `forget()`; the client radio is preferred over a hotspot radio. Enterprise/WEP/hidden networks: `nmtui` |
 | Wi-Fi password | typed into a password field, handed to NM (`connectWithPsk`), field cleared; never logged, never stored outside NM |
 | QR | only on request, for the active network: `wifi-qr <iface>` reads the PSK via NM `GetSecrets` (NM/polkit decide), pipes the `WIFI:` payload to `qrencode` on stdin (never argv/log/disk), prints SVG; the SVG lives in popup memory and is dropped on network change/close. Exit 2 (enterprise/WEP/OWE/secret not readable, e.g. agent-owned) -> no QR |

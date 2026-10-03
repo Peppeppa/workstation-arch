@@ -101,15 +101,35 @@ override the initial values in host_vars.
 
 ### Bar UI
 
-Left of the clock (fixed slots, nothing shifts): `[coffee][theme]`, both
-invisible until hovered. Theme icon = moon (dark) / sun (light) from
-`Colors.mode`. Left click: `theme toggle`. Right click: theme dialog
-(`ThemeDialog.qml`) - "Dark theme" / "Light theme" dropdowns listing only
-themes with that marker, current choice checked; picking one persists it
-and applies it immediately only if that mode is active (never switches
-the mode). With the wallpaper feature the dialog also shows the active
-theme's wallpapers as thumbnails (click = `theme wallpaper set`). Escape /
-click outside closes. Discovery runs once per open.
+The theme widget (`bar/widgets/Theme/`, see `docs/feature-architecture.md`
+"Bar") shows a moon (dark) / sun (light) from `Colors.mode`. Left click:
+`theme toggle`. Right click: the theme popup (`Theme/Popup.qml`) - "Dark
+theme" / "Light theme" dropdowns listing only themes with that marker,
+current choice checked; picking one persists it and applies it
+immediately only if that mode is active (never switches the mode). With
+the wallpaper feature the popup also shows the active theme's wallpapers
+as thumbnails (click = `theme wallpaper set`). Escape / click outside
+closes. Discovery runs once per open.
+
+### Bar look (RICE v1)
+
+Geometry and type sizes live in `bar/BarStyle.qml` only; colors stay the
+semantic roles. Omarchy-style compact bar:
+
+| Element | Value |
+|---|---|
+| Bar height / edge inset | 26 px / 8 px |
+| Icon widget slot / glyph | 27 px / 14 px (`Fonts.icons`) |
+| Labels | 12 px `Fonts.family`, 8 px padding each side |
+| Hover | `surface` plate, inset 3 px, radius 4 |
+| Active (on / connected / focused) | `accent` |
+| Muted (off / nothing happening) | `foreground_muted` |
+| Warning (battery low) | `error` |
+| Popup open | 2 px `accent` underline under the widget |
+| Popups | `background`, 1 px `border_active`, radius 8, padding 10, 4 px below the bar |
+| Drag | lifted widget on a `surface` plate with `border_active`; landing place outlined in `accent`; neighbours slide 120 ms (only during a drag) |
+
+No blur, no transparency, no permanent animation.
 
 ### Shipped themes
 

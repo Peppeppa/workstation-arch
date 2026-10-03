@@ -100,6 +100,7 @@ direct upstream dependency.
 | Power profiles | power-profiles-daemon (systemd system service, `roles/power`, feature `power_profiles`); switched over its D-Bus API from Quickshell |
 | Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
+| Bar layout (widget order/zones) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout`); Ansible creates it once if missing |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
 | Provisioning / desired state | Ansible |
@@ -829,6 +830,13 @@ history for that milestone's own record):
   (cliphist), `wallpaper` (theme backgrounds, per-theme choice) - see
   their contracts in `docs/feature-architecture.md`. Bootstrap now also
   brings back a stopped desktop Quickshell.
+
+- **RICE v1 step 1 - modular bar**: Omarchy-style bar host + widgets
+  (`bar/`), layout as user state with drag & drop (also across zones),
+  clock as exact center anchor, one-popup coordinator, common
+  BarWidget/BarPopup, compact look (`docs/feature-architecture.md` "Bar",
+  `docs/DESIGN_SYSTEM.md` "Bar look"). The rest of the rice is not
+  started yet.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

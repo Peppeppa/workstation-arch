@@ -70,7 +70,7 @@ right-clicking the volume opens device selection/volume/mute; the
 battery (or, without one, a profile icon) opens power profiles.
 `mainMod+V` shows the clipboard history (cliphist); wallpapers come from
 the active theme's `backgrounds/` and are picked in the theme dialog.
-Laptop lid: lock, then suspend. There is no display manager. Feature
+Laptop lid: lock, then suspend. Bar widgets can be rearranged by dragging them (also between left/center/right); the order is kept in `~/.config/workstation/bar-layout.json` (`qs ipc call bar resetLayout` restores the default). There is no display manager. Feature
 freeze: next is visual polish (RICE v1). See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.

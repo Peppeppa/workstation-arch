@@ -9,7 +9,10 @@ import Quickshell.Networking
 QtObject {
     id: model
 
-    readonly property var connectedDevice: Networking.devices.values.find(d => d.connected && d.type === DeviceType.Wifi)
+    // Wi-Fi counts only with a joined network (a radio running a hotspot
+    // is "connected" too, but that is not this machine's uplink).
+    readonly property var connectedDevice: Networking.devices.values.find(d => d.connected && d.type === DeviceType.Wifi
+                                                                              && d.networks && d.networks.values.some(n => n.connected))
                                            || Networking.devices.values.find(d => d.connected && d.type === DeviceType.Wired)
                                            || null
     readonly property string kind: connectedDevice === null ? "none"
