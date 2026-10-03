@@ -153,7 +153,10 @@ Implemented by Power Menu v1: `shell.qml` is now
 `roles/quickshell/templates/shell.qml.j2`; feature components live
 outside `files/quickshell/` (e.g. `roles/quickshell/files/
 PowerMenu.qml`) and are copied only when enabled, before the root file
-is rendered (Quickshell hot-reloads, so the referencing file goes last).
+is rendered (the referencing file goes last). Any Quickshell config
+change notifies `roles/quickshell/handlers/main.yml`, which reloads the
+running instance once at the end of the run - Quickshell's own watcher
+misses Ansible's atomic file replace.
 A static host capability a component needs (hibernate) is resolved at
 provisioning time and templated in - never polled at runtime.
 

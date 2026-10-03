@@ -1,0 +1,15 @@
+---
+# Quickshell hot-reloads its config on file changes, but its watcher
+# does not reliably notice Ansible's atomic replace (write temp file +
+# rename) - confirmed on arch-dev: after a changed shell.qml was
+# deployed, the running instance kept the old config until the next
+# login, while an in-place mtime change on shell.qml triggered a clean
+# reload at once. So any config change notifies this handler, which
+# runs once at the end of the play - after every file is in place, so
+# the reload never sees a half-deployed config. Harmless if Quickshell
+# isn't running. No process, no IPC: just the watcher Quickshell
+# already has.
+- name: Reload running Quickshell config
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
+    state: touch
