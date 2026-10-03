@@ -7,3 +7,5 @@ base_packages:
   - openssh  # reliable remote access/administration of the workstation
   - curl     # standard tool for fetching resources and checking connectivity
   - rsync    # general-purpose file copy/sync tool for later roles and admin
+  - btop     # interactive resource monitor - run on demand, no service/autostart
+  - fastfetch # system summary - run on demand only, never from a shell rc file
