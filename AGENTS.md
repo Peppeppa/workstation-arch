@@ -85,7 +85,8 @@ direct upstream dependency.
 | Networking | NetworkManager |
 | Remote access (SSH) | sshd (system service, `roles/base`) |
 | Audio | PipeWire + WirePlumber |
-| Bluetooth | BlueZ |
+| Bluetooth | BlueZ - `bluetoothd`, systemd system service (`roles/bluetooth`); UI via Quickshell's native Bluetooth module |
+| Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |
 | Compositor / window manager | Hyprland |
 | App launcher | Quickshell (`Launcher.qml`, toggled via `qs ipc call launcher toggle` - fuzzel retired as of Core Desktop v1) |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
@@ -814,9 +815,7 @@ history for that milestone's own record):
   `Notification.expireTimeout` is milliseconds (doc says seconds), and
   an `image-path` icon name becomes an unchecked `image://icon/` URL.
 
-**Open for next time**: Bluetooth (no code yet), a tray (native `Quickshell.Services.SystemTray` exists and
-is stable in 0.3.1, deliberately not built - see Feature Architecture
-Category C for the pattern once it's wanted), and migrating a second,
+**Open for next time**: migrating a second,
 larger-shaped feature (e.g. one with a Quickshell UI component or a
 background service) through the Feature Architecture model to pressure-
 test it beyond the small screenshots proof-of-concept.

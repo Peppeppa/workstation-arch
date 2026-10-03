@@ -62,12 +62,14 @@ launcher, see below), `apps` (end-user applications), `virtualization`
 minimal but genuinely usable daily-driver desktop. `quickshell` now owns
 the app launcher, notifications and the system tray too (fuzzel and
 mako are gone), plus a dark/light theme switcher next to the clock.
-There is still no control center or Wi-Fi/Bluetooth menu, and no
-Bluetooth stack or display manager - those come as further milestones. See
+Bluetooth: BlueZ plus a bar icon whose popup powers the adapter, scans,
+pairs (in-popup PIN/passkey dialogs), connects and forgets devices.
+There is still no control center, Wi-Fi menu or display manager -
+those come as further milestones. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
-Optional capabilities (screenshots + OCR, power menu, lock/idle, notifications, tray) are toggleable
+Optional capabilities (screenshots + OCR, power menu, lock/idle, notifications, tray, bluetooth) are toggleable
 per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 (overridable in `host_vars/<hostname>.yml`) - see
 `docs/feature-architecture.md` for the full model. Disabling a feature

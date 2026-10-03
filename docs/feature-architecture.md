@@ -368,3 +368,22 @@ handler), so splitting them would buy nothing.
 | Disable | Loader inactive: no tray component, Quickshell never becomes watcher/host; files stay unreferenced |
 | Persistent user data | none |
 | Test | `scripts/sni-test-client.py` (on demand, python-gobject only) |
+
+## Bluetooth v1
+
+`bluetooth_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/bluetooth` (packages, `bluetooth.service`); `roles/quickshell/files/bluetooth/` (`BluetoothButton.qml`, `BluetoothPopup.qml` loaded by `Bar.qml`; `bluetooth-agent.py` -> `~/.local/libexec/workstation/bluetooth-agent`) |
+| Packages | `bluez`, `python-gobject` (audio: PipeWire's bluez5 plugin is already in `pipewire-audio`; no `bluez-utils`) |
+| Lifecycle | `bluetoothd`: systemd system service, enabled; it carries `ConditionPathIsDirectory=/sys/class/bluetooth`, so without an adapter it never runs (zero cost) and udev's `bluetooth.target` starts it when one appears. UI: the existing Quickshell instance. Agent: Quickshell child, only during a user-started pairing |
+| API | Quickshell 0.3.1 `Quickshell.Bluetooth` (BlueZ D-Bus, event-driven): `adapter.enabled` = Powered (runtime on/off, never `systemctl`), `adapter.discovering`, `device.connect/disconnect/pair/cancelPair/forget`, `trusted`, `battery` |
+| UI | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected) + tooltip; popup: power, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), Connected/Paired/Available, Scan, two-click Forget, in-popup pairing dialogs |
+| Scanning | user-started only, auto-stop after 30 s, stopped on popup close if we started it |
+| Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected |
+| Privileges / Secrets / Network | none at runtime (no sudo; `rfkill unblock` as the session user) / no codes stored or logged / Bluetooth radio only |
+| Disable | no UI (Loader inactive), `bluetooth.service` disabled + stopped; `/var/lib/bluetooth` pairings and packages kept |
+| Persistent user data | BlueZ's own pairing store (`/var/lib/bluetooth`), never touched by us |
+| Hardware-only validation | real pairing/agent prompts, connect/disconnect, battery, BT audio via WirePlumber, rfkill soft/hard + unblock (arch-dev has no adapter) |
+
