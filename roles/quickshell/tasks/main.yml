@@ -279,6 +279,9 @@
   community.general.pacman:
     name: "{{ wallpaper_packages }}"
     state: present
+  # Qt lists its image plugins once per process: a running Quickshell only
+  # sees newly installed formats (WebP) after a restart.
+  notify: Restart running Quickshell
   tags: quickshell
 
 - name: Deploy the wallpaper components (wallpaper_enabled)
@@ -330,12 +333,7 @@
         if [ "$owner" = "quickshell" ]; then held="$held $name"; fi
       done
       if [ -z "$held" ]; then echo unchanged; exit 0; fi
-      sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
-      if [ -z "$sig" ]; then echo no-session; exit 0; fi
-      pkill -u "$(id -u)" -x quickshell || true
-      timeout 5 sh -c 'while pgrep -u "$(id -u)" -x quickshell >/dev/null; do sleep 0.1; done'
-      hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ hyprland_quickshell_exec }}")' >/dev/null
-      echo restarted
+      {{ quickshell_restart_script }}
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.user_uid }}/bus"

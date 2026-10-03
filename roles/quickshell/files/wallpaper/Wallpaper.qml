@@ -27,6 +27,7 @@ Scope {
 
             property var modelData
             readonly property var wallpaper: Colors.data.wallpaper || null
+            readonly property bool animated: wallpaper !== null && wallpaper.animated === true
             readonly property string source: wallpaper ? "file://" + wallpaper.path : ""
 
             screen: modelData
@@ -43,9 +44,11 @@ Scope {
 
             Loader {
                 anchors.fill: parent
-                active: surface.wallpaper !== null && !surface.wallpaper.animated
+                active: surface.wallpaper !== null && !surface.animated
                 sourceComponent: Image {
-                    source: surface.source
+                    // Guarded: during a switch the other loader may still
+                    // exist for a moment - never decode the wrong kind.
+                    source: surface.animated ? "" : surface.source
                     fillMode: Image.PreserveAspectCrop
                     sourceSize.width: surface.width * surface.devicePixelRatio
                     sourceSize.height: surface.height * surface.devicePixelRatio
@@ -56,9 +59,9 @@ Scope {
 
             Loader {
                 anchors.fill: parent
-                active: surface.wallpaper !== null && surface.wallpaper.animated
+                active: surface.animated
                 sourceComponent: AnimatedImage {
-                    source: surface.source
+                    source: surface.animated ? surface.source : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     cache: false

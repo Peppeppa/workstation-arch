@@ -50,3 +50,13 @@ connectivity_packages:
 # JPEG and GIF are built into Qt; WebP needs the extra image plugins.
 wallpaper_packages:
   - qt6-imageformats
+
+# Internal: restarts the running Quickshell, exec'd by the running Hyprland
+# (lifecycle owner stays Hyprland). Prints "restarted", or "no-session".
+quickshell_restart_script: |
+  sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
+  if [ -z "$sig" ]; then echo no-session; exit 0; fi
+  pkill -u "$(id -u)" -x quickshell || true
+  timeout 5 sh -c 'while pgrep -u "$(id -u)" -x quickshell >/dev/null; do sleep 0.1; done'
+  hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ hyprland_quickshell_exec }}")' >/dev/null
+  echo restarted
