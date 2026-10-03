@@ -1,0 +1,15 @@
+# Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Source: https://github.com/catppuccin/palette - palette.json, flavor mocha
+# Each color: original palette name -> our semantic role.
+name: "Catppuccin Mocha"
+mode: dark
+colors:
+  background:        "#1e1e2e"  # base
+  surface:           "#181825"  # mantle
+  foreground:        "#cdd6f4"  # text
+  foreground_muted:  "#a6adc8"  # subtext0
+  accent:            "#89b4fa"  # blue
+  accent_foreground: "#1e1e2e"  # base
+  border:            "#45475a"  # surface1
+  border_active:     "#89b4fa"  # blue = accent
+  error:             "#f38ba8"  # red

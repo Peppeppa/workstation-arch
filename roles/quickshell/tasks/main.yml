@@ -24,6 +24,31 @@
     mode: "0755"
   tags: quickshell
 
+# Colors.qml is generated from the active theme (roles/theme). Before the
+# component copy below, so a hot reload never sees components without it.
+- name: Deploy the Quickshell color singleton (Colors.qml, from the active theme)
+  ansible.builtin.template:
+    src: Colors.qml.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/Colors.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
+# Central Color System v1's hand-written scheme files, superseded by the
+# theme data in themes/ (Theme Architecture v1). Ansible-owned core files,
+# not user data - removed so no stale palette lingers next to Colors.qml.
+- name: Remove retired Quickshell scheme files
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    state: absent
+  loop:
+    - ColorScheme.qml
+    - DefaultDark.qml
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Fonts.qml is templated (unlike the rest of the core files) because the
 # font names come from group_vars/all.yml desktop_*_font_family.
 - name: Deploy the Quickshell font singleton (Fonts.qml)
@@ -41,8 +66,7 @@
 # hyprland.lua.j2's per-host scale/modifier/layout), and copying avoids
 # any ambiguity between QML's own brace syntax and Jinja2's. `src`
 # ends in `/` so the contents of files/quickshell/ (Bar.qml,
-# Launcher.qml, and the color system Colors.qml/ColorScheme.qml/
-# DefaultDark.qml - see docs/DESIGN_SYSTEM.md) land directly in
+# Launcher.qml, CoffeeMode.qml) land directly in
 # ~/.config/quickshell/, not nested under an extra quickshell/
 # subdirectory. shell.qml itself is templated below (it composes the
 # optional features), and feature components live outside this

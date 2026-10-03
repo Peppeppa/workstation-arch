@@ -8,17 +8,17 @@
 # `auth include login`); nothing here touches credentials.
 
 # --- Colors -------------------------------------------------------------
-# The only color decisions for the lockscreen, mirroring the Quickshell
-# scheme roles/quickshell/files/quickshell/DefaultDark.qml by hand
-# (hyprlock can't read QML). Once a theme switcher exists these should be
-# generated from the one system-wide scheme (see docs/DESIGN_SYSTEM.md
-# "Later") - keep them here, not inline below.
-$background = rgb(1e1e1e)
-$surface    = rgb(171717)
-$text       = rgb(e0e0e0)
-$textMuted  = rgba(e0e0e0b3)
-$accent     = rgb(3a6ea5)
-$error      = rgb(d9534f)
+# Generated from the active theme (roles/theme: themes/{{ theme_active }}.yml)
+# - the same semantic roles Quickshell's Colors.qml uses. Only referenced
+# below through these variables.
+{% macro rgb(hex) %}rgb({{ hex | regex_replace('^#', '') }}){% endmacro %}
+$background       = {{ rgb(theme_colors.background) }}
+$surface          = {{ rgb(theme_colors.surface) }}
+$foreground       = {{ rgb(theme_colors.foreground) }}
+$foreground_muted = {{ rgb(theme_colors.foreground_muted) }}
+$accent           = {{ rgb(theme_colors.accent) }}
+$border_active    = {{ rgb(theme_colors.border_active) }}
+$error            = {{ rgb(theme_colors.error) }}
 # ------------------------------------------------------------------------
 
 # Shell font (group_vars/all.yml desktop_shell_font_family)
@@ -42,7 +42,7 @@ background {
 label {
     monitor =
     text = $TIME
-    color = $text
+    color = $foreground
     font_family = $font
     font_size = 72
     position = 0, 160
@@ -55,7 +55,7 @@ label {
 label {
     monitor =
     text = cmd[update:60000] date +"%A, %d. %B %Y"
-    color = $textMuted
+    color = $foreground_muted
     font_family = $font
     font_size = 18
     position = 0, 80
@@ -68,9 +68,9 @@ input-field {
     size = 300, 48
     rounding = 6
     outline_thickness = 2
-    outer_color = $accent
+    outer_color = $border_active
     inner_color = $surface
-    font_color = $text
+    font_color = $foreground
     font_family = $font
     check_color = $accent
     fail_color = $error

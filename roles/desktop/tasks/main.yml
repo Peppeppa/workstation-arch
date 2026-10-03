@@ -63,7 +63,7 @@
 # the already D-Bus-activated dconf service. Compare first so an
 # unchanged value is not rewritten (idempotent). community.general.dconf
 # would need python-psutil just for this.
-- name: Set GTK interface fonts (GSettings)
+- name: Set GTK interface fonts and light/dark mode (GSettings)
   ansible.builtin.shell:
     cmd: |
       set -eu
@@ -78,6 +78,12 @@
   loop:
     - { key: font-name, value: "{{ desktop_ui_font_family }} {{ desktop_ui_font_size }}" }
     - { key: monospace-font-name, value: "{{ desktop_monospace_font_family }} {{ desktop_ui_font_size }}" }
+    # Theme mode (roles/theme theme_mode), GTK-native only - no custom CSS:
+    # color-scheme is what libadwaita/GTK4 apps (via xdg-desktop-portal-
+    # gtk) and the portal Settings API follow; gtk-theme switches plain
+    # GTK3 apps between the built-in Adwaita and Adwaita-dark.
+    - { key: color-scheme, value: "{{ 'prefer-dark' if theme_mode == 'dark' else 'prefer-light' }}" }
+    - { key: gtk-theme, value: "{{ 'Adwaita-dark' if theme_mode == 'dark' else 'Adwaita' }}" }
   loop_control:
     label: "{{ item.key }}"
   tags: desktop

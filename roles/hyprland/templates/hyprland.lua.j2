@@ -53,6 +53,16 @@ local mainMod = "{{ hyprland_main_modifier }}"
 -- together, so picking a German layout never silently changes UI
 -- language or date/number formats.
 hl.config({
+    -- Window border colors from the active theme (roles/theme, themes/
+    -- {{ theme_active }}.yml): border_active = focused window, border =
+    -- every other one. Width stays Hyprland's default.
+    general = {
+        col = {
+            active_border   = "rgb({{ theme_colors.border_active | regex_replace('^#', '') }})",
+            inactive_border = "rgb({{ theme_colors.border | regex_replace('^#', '') }})",
+        },
+    },
+
     animations = {
         enabled = false,
     },

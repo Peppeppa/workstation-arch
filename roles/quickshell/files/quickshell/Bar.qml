@@ -92,7 +92,7 @@ PanelWindow {
                         id: label
                         anchors.centerIn: parent
                         text: modelData.name.length > 0 ? modelData.name : modelData.id
-                        color: modelData.focused ? Colors.accentText : Colors.text
+                        color: modelData.focused ? Colors.accentForeground : Colors.foreground
                         font.family: Fonts.family
                         font.pixelSize: bar.fontSize
                     }
@@ -117,7 +117,7 @@ PanelWindow {
                 id: clockText
                 anchors.centerIn: parent
                 text: Qt.formatDateTime(bar.clock.date, "dddd HH:mm")
-                color: Colors.text
+                color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: bar.fontSize
             }
@@ -141,7 +141,7 @@ PanelWindow {
                     text: "\uf0f4"
                     font.family: Fonts.icons
                     font.pixelSize: bar.fontSize + 1
-                    color: CoffeeMode.active ? Colors.text : Colors.textMuted
+                    color: CoffeeMode.active ? Colors.foreground : Colors.foregroundMuted
                 }
 
                 MouseArea {
@@ -159,7 +159,7 @@ PanelWindow {
             spacing: 16
 
             Text {
-                color: Colors.text
+                color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {
@@ -184,7 +184,7 @@ PanelWindow {
             // gain via a stray scroll.
             Text {
                 id: volumeLabel
-                color: Colors.text
+                color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {
@@ -213,7 +213,7 @@ PanelWindow {
 
             Text {
                 visible: UPower.displayDevice !== null && UPower.displayDevice.isPresent
-                color: Colors.text
+                color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {

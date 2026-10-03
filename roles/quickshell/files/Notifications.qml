@@ -162,14 +162,14 @@ Scope {
                                     text: toast.modelData.appName
                                     textFormat: Text.PlainText
                                     elide: Text.ElideRight
-                                    color: Colors.textMuted
+                                    color: Colors.foregroundMuted
                                     font.family: Fonts.family
                                     font.pixelSize: root.fontSize - 2
                                 }
 
                                 Text {
                                     text: ""   // x - the whole toast is clickable too
-                                    color: Colors.textMuted
+                                    color: Colors.foregroundMuted
                                     font.family: Fonts.icons
                                     font.pixelSize: root.fontSize - 1
                                 }
@@ -183,7 +183,7 @@ Scope {
                                 wrapMode: Text.Wrap
                                 maximumLineCount: 2
                                 elide: Text.ElideRight
-                                color: Colors.text
+                                color: Colors.foreground
                                 font.family: Fonts.family
                                 font.pixelSize: root.fontSize
                                 font.bold: true
@@ -197,7 +197,7 @@ Scope {
                                 wrapMode: Text.Wrap
                                 maximumLineCount: 4
                                 elide: Text.ElideRight
-                                color: Colors.text
+                                color: Colors.foreground
                                 font.family: Fonts.family
                                 font.pixelSize: root.fontSize - 1
                             }

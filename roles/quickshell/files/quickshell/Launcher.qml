@@ -103,7 +103,7 @@ PanelWindow {
         height: 340
         radius: 8
         color: Colors.background
-        border.color: Colors.border
+        border.color: Colors.borderActive
         border.width: 1
 
         ColumnLayout {
@@ -116,14 +116,14 @@ PanelWindow {
                 height: 36
                 radius: 4
                 color: Colors.surface
-                border.color: Colors.border
+                border.color: Colors.borderActive
                 border.width: 1
 
                 TextInput {
                     id: searchInput
                     anchors.fill: parent
                     anchors.margins: 8
-                    color: Colors.text
+                    color: Colors.foreground
                     font.family: Fonts.family
                     font.pixelSize: launcher.fontSize + 2
                     clip: true
@@ -165,7 +165,7 @@ PanelWindow {
 
                         Text {
                             text: resultDelegate.modelData.name
-                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentText : Colors.text
+                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foreground
                             font.family: Fonts.family
                             font.pixelSize: launcher.fontSize
                             elide: Text.ElideRight
@@ -175,7 +175,7 @@ PanelWindow {
                         Text {
                             visible: text.length > 0
                             text: resultDelegate.modelData.genericName
-                            color: Colors.textMuted
+                            color: Colors.foregroundMuted
                             font.family: Fonts.family
                             font.pixelSize: launcher.fontSize - 2
                             elide: Text.ElideRight

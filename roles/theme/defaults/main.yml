@@ -1,0 +1,19 @@
+---
+# Theme Architecture v1 - the semantic color CONTRACT every theme in
+# themes/*.yml must fill completely (see docs/DESIGN_SYSTEM.md).
+# Adding a role here means: add it to every theme file and give it a
+# consumer. Selection (theme_dark / theme_light / theme_mode) lives in
+# group_vars/all.yml.
+theme_roles:
+  - background         # base layer: panels, bar, lockscreen
+  - surface            # elements on the base (input fields, buttons)
+  - foreground         # primary text
+  - foreground_muted   # secondary text, hints
+  - accent             # selection / focus fill
+  - accent_foreground  # text drawn on accent
+  - border             # passive outlines (inactive window border, toasts)
+  - border_active      # emphasized outlines (active window border, focused overlays)
+  - error              # destructive / failed / critical
+
+# Where the theme data lives (repo-relative, read on the controller).
+theme_dir: "{{ playbook_dir }}/themes"

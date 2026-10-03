@@ -1,0 +1,15 @@
+# Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Source: https://github.com/rose-pine/palette - palette.json, variant dawn (the light Rosé Pine variant)
+# Each color: original palette name -> our semantic role.
+name: "Rosé Pine Dawn"
+mode: light
+colors:
+  background:        "#faf4ed"  # base
+  surface:           "#fffaf3"  # surface
+  foreground:        "#464261"  # text
+  foreground_muted:  "#797593"  # subtle
+  accent:            "#286983"  # pine
+  accent_foreground: "#faf4ed"  # base
+  border:            "#9893a5"  # muted
+  border_active:     "#286983"  # pine = accent
+  error:             "#b4637a"  # love

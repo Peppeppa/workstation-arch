@@ -83,6 +83,11 @@
       tags: always
 
   roles:
+    # Core: resolves the active color theme (data only) for every later
+    # role's templates - always runs, see roles/theme.
+    - role: theme
+      tags: [always]
+
     - role: base
       tags: [base]
 

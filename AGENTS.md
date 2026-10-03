@@ -125,13 +125,15 @@ Service ownership defaults:
 Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
 
 - Use the semantic roles of the `Colors` singleton (`Colors.background`,
-  `Colors.text`, `Colors.accent`, ...). Never hardcode a basic theme
-  color locally - no hex literals, `Qt.rgba`, `Qt.darker` of a theme
-  color, or `opacity` used to fake a muted color. Missing role -> add
-  it to `ColorScheme.qml` (+ every scheme), not to the component.
-- Color scheme (pure data) != theme/appearance (which scheme is
-  active). Only `Colors.qml` decides; components never contain their
-  own dark/light branches.
+  `Colors.foreground`, `Colors.accent`, ...). Never hardcode a color in
+  a component or an app config - no hex literals, `Qt.rgba`, `Qt.darker`
+  of a theme color, or `opacity` used to fake a muted color. Missing
+  role -> add it to the contract (`roles/theme/defaults/main.yml`) and
+  every `themes/*.yml`, never to one consumer.
+- All desktop colors come from the active theme (`themes/*.yml`,
+  selected by `theme_dark`/`theme_light`/`theme_mode`). Adapters
+  (`Colors.qml.j2`, `hyprland.lua.j2`, `hyprlock.conf.j2`, ...) reference
+  roles only; nothing ever branches on dark/light or a theme name.
 - Theming stays declarative: no daemon, timer, polling, or file watcher.
 - Fonts likewise: `font.family: Fonts.family` (icons: `Fonts.icons`),
   never a font name in a component. Font names live only in
@@ -766,8 +768,8 @@ history for that milestone's own record):
 - **Central Color System v1**: Bar and Launcher read only the `Colors`
   singleton (`Colors.qml` -> `DefaultDark.qml`, contract
   `ColorScheme.qml`); no hex color left in components. Visually
-  identical refactor. See `docs/DESIGN_SYSTEM.md`. No theme switcher /
-  light scheme yet.
+  identical refactor. Superseded by Theme Architecture v1 (the scheme
+  files are gone; `Colors.qml` is generated from `themes/`).
 - **Power Menu v1**: `power_menu_enabled` - first optional Quickshell
   component; established the `shell.qml.j2` composition pattern (see
   `docs/feature-architecture.md`).
@@ -781,6 +783,11 @@ history for that milestone's own record):
 - **System Font v1** (+ correction): GTK/sans-serif use Adwaita Sans;
   Quickshell/hyprlock FiraCode Nerd Font; monospace/Ghostty FiraCode
   Nerd Font Mono (names only in `group_vars/all.yml`).
+- **Theme Architecture v1**: themes are data (`themes/*.yml`, 5 shipped:
+  Retro 82, Solarized Dark, Catppuccin Mocha / Rosé Pine Dawn,
+  Catppuccin Latte), one 9-role contract validated by `roles/theme`,
+  adapters for Quickshell, Hyprland borders, hyprlock, GTK mode. No
+  switcher UI yet; Ghostty colors are Coverage v2.
 - **Notifications v1**: `notifications_enabled` - Quickshell owns
   `org.freedesktop.Notifications`; toasts only (no history/center).
   mako retired. Quickshell 0.3.1 quirks found on arch-dev:

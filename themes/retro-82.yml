@@ -1,0 +1,15 @@
+# Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Source: https://github.com/oldjobobo/retro-82.nvim - lua/retro82/palette.lua (v0.3.0, Base24 palette by OldJobobo; role names in comments are the author's own aliases)
+# Each color: original palette name -> our semantic role.
+name: "Retro 82"
+mode: dark
+colors:
+  background:        "#00172E"  # base00 (bg0 / base)
+  surface:           "#0A3A45"  # base02 (author alias: surface)
+  foreground:        "#A7C9C6"  # base06 (author alias: text / fg0)
+  foreground_muted:  "#5F8F96"  # base05 (author alias: fg_dim) - base04 'text_muted' is too low-contrast on bg0 for UI text
+  accent:            "#FAA968"  # base0A (keyword/func - the 'warm sunset' accent)
+  accent_foreground: "#00172E"  # base00 - dark text on the light accent
+  border:            "#2A6A73"  # base04 (author alias: border)
+  border_active:     "#FAA968"  # base0A = accent
+  error:             "#F85525"  # base08 (author alias: error)

@@ -1,0 +1,15 @@
+# Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Source: https://github.com/catppuccin/palette - palette.json, flavor latte
+# Each color: original palette name -> our semantic role.
+name: "Catppuccin Latte"
+mode: light
+colors:
+  background:        "#eff1f5"  # base
+  surface:           "#e6e9ef"  # mantle
+  foreground:        "#4c4f69"  # text
+  foreground_muted:  "#6c6f85"  # subtext0
+  accent:            "#1e66f5"  # blue
+  accent_foreground: "#eff1f5"  # base
+  border:            "#bcc0cc"  # surface1
+  border_active:     "#1e66f5"  # blue = accent
+  error:             "#d20f39"  # red

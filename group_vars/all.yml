@@ -59,6 +59,16 @@ lock_idle_enabled: true
 # all (notify-send then just fails quietly). Nothing is persisted.
 notifications_enabled: true
 
+# Theme selection (Theme Architecture v1) - core presentation, not a
+# feature flag: the desktop always has colors. Themes are data files in
+# themes/<id>.yml (validated by roles/theme against one semantic
+# contract); these three values pick which one is active. A host can
+# override any of them in host_vars. A later theme switcher only flips
+# theme_mode (or the two picks) - see docs/DESIGN_SYSTEM.md.
+theme_dark: retro-82          # preferred dark theme
+theme_light: rose-pine-dawn   # preferred light theme
+theme_mode: dark              # which of the two is active: dark | light
+
 # Typography roles - core presentation, not a feature flag. The one
 # place font names live (exact fontconfig family names, verified with
 # fc-scan/fc-list, not guessed):

@@ -158,7 +158,7 @@ PanelWindow {
         implicitHeight: content.implicitHeight + 20
         radius: 8
         color: Colors.background
-        border.color: Colors.border
+        border.color: Colors.borderActive
         border.width: 1
 
         // Swallows clicks on the panel's own padding/header/gaps so they
@@ -179,7 +179,7 @@ PanelWindow {
                 Layout.leftMargin: 10
                 Layout.bottomMargin: 4
                 text: "System"
-                color: Colors.textMuted
+                color: Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: menu.fontSize
             }
@@ -192,8 +192,8 @@ PanelWindow {
                     required property var modelData
                     required property int index
                     readonly property bool selected: index === menu.selectedIndex
-                    readonly property color fg: selected ? Colors.accentText
-                                              : !modelData.available ? Colors.textMuted : Colors.text
+                    readonly property color fg: selected ? Colors.accentForeground
+                                              : !modelData.available ? Colors.foregroundMuted : Colors.foreground
 
                     Layout.fillWidth: true
                     implicitHeight: 36
@@ -228,7 +228,7 @@ PanelWindow {
                             text: row.modelData.hint || ""
                             font.family: Fonts.family
                             font.pixelSize: menu.fontSize - 2
-                            color: row.selected ? Colors.accentText : Colors.textMuted
+                            color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
                         }
                     }
 
