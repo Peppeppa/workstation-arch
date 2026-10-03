@@ -53,3 +53,23 @@ Repo neu hinzugekommenen Timer oder Polling-Loops.
   (VirtualBox-GPU-Workaround, siehe `host_vars/arch-dev.yml`) - dieser
   Workaround ist VM-spezifisch und erhöht die CPU-Last hier etwas
   gegenüber echter GPU-Beschleunigung auf Laptop/Workstation.
+
+## Clean Rebuild + Integration Audit v2 (2026-10-03, commit e7bf806+)
+
+Frische VM, ein `./bootstrap.sh` (ok=67 changed=44 failed=0), Reboot,
+TTY-Login + `Hyprland`, Messung ~2 min nach Login, 30 s CPU-Fenster:
+
+| Prozess | CPU (30 s) | RSS |
+|---|---|---|
+| Hyprland | 0.0% | ~142 MB |
+| quickshell (Bar, Launcher, Power Menu, Notifications, Tray, Theme) | 0.0% | ~254 MB |
+| hypridle | 0.0% | ~6 MB |
+| hyprpolkitagent | 0.0% | ~55 MB |
+| wireplumber / pipewire | 0.0% | ~22 / ~12 MB |
+
+Gegenüber der ersten Baseline: mako entfällt (Quickshell ist Notification-
+Owner), hypridle kam dazu; Quickshell liegt frisch *unter* dem alten Wert
+(~305 MB) - die früher beobachteten 370-570 MB stammten aus vielen Hot
+Reloads in einer langen Session. 0 User-Timer, 12 aktive User-Services
+(D-Bus-aktivierte Standarddienste), nur die 4 Arch-System-Timer.
+

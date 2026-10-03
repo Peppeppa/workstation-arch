@@ -50,21 +50,24 @@ repository.
 
 ## Status
 
-Ansible is now the primary provisioner. `base`, `graphics`, `hyprland`,
+Ansible is now the primary provisioner (initial deployment only - runtime
+changes such as theme switching go through user-level helpers, never
+`bootstrap.sh`). `theme` (theme engine, `~/.local/bin/theme`), `base`,
+`graphics`, `hyprland`,
 `desktop` (polkit/portals/clipboard/screenshots/notifications/
 brightness), `audio` (PipeWire/WirePlumber), `network` (NetworkManager +
 WireGuard tooling), `quickshell` (Core Desktop v1 - top bar + app
 launcher, see below), `apps` (end-user applications), `virtualization`
 (VirtualBox), and `gaming` (Steam/Lutris) are implemented, aiming at a
 minimal but genuinely usable daily-driver desktop. `quickshell` now owns
-the app launcher and notifications too (fuzzel and mako are gone), and
-there is still no tray, control center, Wi-Fi/Bluetooth menus, or
-theme switching - those will be added as further roles/milestones.
-There is still no Bluetooth stack or display manager either. See
+the app launcher, notifications and the system tray too (fuzzel and
+mako are gone), plus a dark/light theme switcher next to the clock.
+There is still no control center or Wi-Fi/Bluetooth menu, and no
+Bluetooth stack or display manager - those come as further milestones. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
-Optional capabilities (screenshots + screenshot OCR, power menu, lock/idle so far) are toggleable
+Optional capabilities (screenshots + OCR, power menu, lock/idle, notifications, tray) are toggleable
 per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 (overridable in `host_vars/<hostname>.yml`) - see
 `docs/feature-architecture.md` for the full model. Disabling a feature
