@@ -1,9 +1,15 @@
 // Quickshell Core Desktop v1 - root config. Managed by Ansible: do not
 // edit by hand, see roles/quickshell in workstation-arch.
 //
+// Rendered from roles/quickshell/templates/shell.qml.j2: optional
+// Quickshell features are composed here inside a Jinja if-block on their
+// <name>_enabled flag (see docs/feature-architecture.md "Quickshell
+// modularity"), so a disabled feature is not even instantiated.
+//
 // Owns: one top bar per monitor (Bar.qml) and one keyboard-driven app
 // launcher (Launcher.qml), toggled via Quickshell's own IPC (see
 // Launcher.qml's IpcHandler and roles/hyprland's mainMod+Space bind).
+// Optional: the power menu (PowerMenu.qml, power_menu_enabled).
 // mako still owns notifications; no tray, control center, Wi-Fi/
 // Bluetooth menus, or theme framework yet - see AGENTS.md Next
 // Milestone for what's deliberately deferred.
@@ -75,4 +81,16 @@ ShellRoot {
         // Qualified with `root.` for the same reason as Bar above.
         fontSize: root.fontSize
     }
+{% if power_menu_enabled %}
+
+    // FEATURE: power_menu (group_vars/all.yml power_menu_enabled). One
+    // instance, placed on the focused monitor like the launcher.
+    // hibernateAvailable is this host's logind CanHibernate answer at
+    // provisioning time (roles/quickshell/tasks/main.yml) - static, no
+    // runtime capability check.
+    PowerMenu {
+        fontSize: root.fontSize
+        hibernateAvailable: {{ 'true' if power_menu_hibernate_available | default(false) | bool else 'false' }}
+    }
+{% endif %}
 }

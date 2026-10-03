@@ -135,6 +135,13 @@ hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 -- its own `ipc call` subcommand - see Launcher.qml), not a separate
 -- launcher process or a second Quickshell lifecycle owner.
 hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+{% if power_menu_enabled %}
+
+-- FEATURE: power_menu (group_vars/all.yml power_menu_enabled): toggle the
+-- power menu inside the running Quickshell instance via its IPC - same
+-- one-shot mechanism as the launcher above, no second instance.
+hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
+{% endif %}
 
 -- Move keyboard focus between windows.
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

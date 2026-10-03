@@ -24,21 +24,27 @@ border.color: Colors.border
 
 | Role | Meaning | Used by today |
 |---|---|---|
-| `background` | panels, bar, launcher window | Bar, Launcher |
-| `surface` | element on a background (input field, button) | Launcher search field |
-| `surfaceHover` | hovered surface | - (Power Menu v1) |
-| `text` | primary text | Bar, Launcher |
-| `textMuted` | secondary text (descriptions, hints) | Launcher generic names |
-| `accent` | focus/selection fill | focused workspace, selected launcher row |
+| `background` | panels, bar, launcher window | Bar, Launcher, Power Menu |
+| `surface` | element on a background (input field, button) | Launcher search field, Power Menu confirm buttons |
+| `surfaceHover` | hovered surface | - (unused: in Launcher/Power Menu hover moves the selection instead) |
+| `text` | primary text | Bar, Launcher, Power Menu |
+| `textMuted` | secondary text (descriptions, hints) | Launcher generic names, Power Menu header + unavailable items |
+| `accent` | focus/selection fill | focused workspace, selected launcher/power menu row + button |
 | `accentText` | text drawn on `accent` | same two places |
-| `border` | panel/input outlines | Launcher |
-| `error` | destructive/failed state | - (Power Menu v1) |
+| `border` | panel/input outlines | Launcher, Power Menu |
+| `error` | destructive/failed state | Power Menu icons + confirm label of Logout/Reboot/Shutdown |
 
 Add a role only when a real component needs one. No `success`/
 `warning`/`overlay` yet because nothing draws them.
 
 ## Rules
 
+- One selection language: keyboard selection and mouse hover are the
+  same state, drawn as `accent` fill + `accentText`. Unavailable
+  entries use `textMuted` and are skipped by keyboard navigation.
+- Icons: glyphs from the already-installed JetBrainsMono Nerd Font
+  (`font.family: "JetBrainsMono Nerd Font Propo"`), always next to a
+  text label - no icon library/theme dependency.
 - Components never hardcode a theme color (hex, `Qt.rgba`, `Qt.darker`
   of a theme color, `opacity` to fake a muted color). If no role fits,
   add one to `ColorScheme.qml` and every scheme.

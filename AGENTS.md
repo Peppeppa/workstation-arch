@@ -761,7 +761,11 @@ history for that milestone's own record):
   singleton (`Colors.qml` -> `DefaultDark.qml`, contract
   `ColorScheme.qml`); no hex color left in components. Visually
   identical refactor. See `docs/DESIGN_SYSTEM.md`. No theme switcher /
-  light scheme yet; Power Menu v1 is next and must use these roles.
+  light scheme yet.
+- **Power Menu v1**: `power_menu_enabled` - first optional Quickshell
+  component; established the `shell.qml.j2` composition pattern (see
+  `docs/feature-architecture.md`). Lock is shown as unavailable: no
+  lockscreen exists yet (Lock/Idle is its own milestone).
 
 **Open for next time**: Bluetooth (no code yet), session/lock/idle (no
 code yet), a tray (native `Quickshell.Services.SystemTray` exists and

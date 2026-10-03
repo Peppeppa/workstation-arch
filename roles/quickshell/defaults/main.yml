@@ -29,3 +29,12 @@ quickshell_packages:
   # start task is needed or correct here - D-Bus activates it on first
   # use regardless of `systemctl is-enabled` state.
   - upower
+
+# FEATURE: power_menu (see group_vars/all.yml power_menu_enabled).
+# PowerMenu.qml draws its icons from this Nerd Font (Font Awesome
+# codepoints). roles/apps already installs it for the terminal; listed
+# here too so the feature's dependency is explicit and doesn't silently
+# break if the apps list ever changes. No other packages: actions go
+# through systemctl/logind and Hyprland, both core.
+power_menu_packages:
+  - ttf-jetbrains-mono-nerd

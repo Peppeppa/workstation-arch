@@ -28,15 +28,78 @@
 # host-specific values to substitute at this milestone (unlike
 # hyprland.lua.j2's per-host scale/modifier/layout), and copying avoids
 # any ambiguity between QML's own brace syntax and Jinja2's. `src`
-# ends in `/` so the contents of files/quickshell/ (shell.qml, Bar.qml,
+# ends in `/` so the contents of files/quickshell/ (Bar.qml,
 # Launcher.qml, and the color system Colors.qml/ColorScheme.qml/
 # DefaultDark.qml - see docs/DESIGN_SYSTEM.md) land directly in
 # ~/.config/quickshell/, not nested under an extra quickshell/
-# subdirectory.
+# subdirectory. shell.qml itself is templated below (it composes the
+# optional features), and feature components live outside this
+# directory so a disabled feature's file is never deployed.
 - name: Deploy the Quickshell Core Desktop v1 config
   ansible.builtin.copy:
     src: quickshell/
     dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: quickshell
+
+# FEATURE: power_menu (see group_vars/all.yml power_menu_enabled and
+# docs/feature-architecture.md). Disabling stops these tasks and drops
+# the component from shell.qml + the Hyprland bind; an already-deployed
+# PowerMenu.qml is left in place but no longer referenced (Disable vs.
+# Purge - nothing is deleted).
+- name: Install power menu packages (power_menu_enabled)
+  when: power_menu_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ power_menu_packages }}"
+    state: present
+  tags: quickshell
+
+# Hibernate is a host capability (swap large enough + resume configured),
+# so it is asked from logind - the same authority `systemctl hibernate`
+# goes through - once per provisioning run, per host, and baked into
+# shell.qml. Nothing checks at runtime. "na"/"no" (or a failed query)
+# hide the menu entry; "yes"/"challenge" (challenge = allowed after
+# polkit auth, typical when bootstrap.sh runs outside the active seat
+# session) show it. A host that gains working hibernate later picks it
+# up on its next bootstrap.sh run.
+- name: Query logind hibernate capability (power_menu_enabled)
+  when: power_menu_enabled
+  ansible.builtin.command:
+    cmd: busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate
+  register: power_menu_can_hibernate
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: quickshell
+
+- name: Record hibernate availability for the power menu (power_menu_enabled)
+  when: power_menu_enabled
+  ansible.builtin.set_fact:
+    power_menu_hibernate_available: >-
+      {{ power_menu_can_hibernate.rc == 0 and
+         power_menu_can_hibernate.stdout | trim in ['s "yes"', 's "challenge"'] }}
+  tags: quickshell
+
+- name: Deploy the power menu component (power_menu_enabled)
+  when: power_menu_enabled
+  ansible.builtin.copy:
+    src: PowerMenu.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/PowerMenu.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: quickshell
+
+# Last on purpose: Quickshell hot-reloads on every file change, so the
+# root file that references feature components goes in only after those
+# components exist (avoids a reload against a missing type).
+- name: Deploy the Quickshell root config (shell.qml)
+  ansible.builtin.template:
+    src: shell.qml.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"

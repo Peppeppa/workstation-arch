@@ -149,9 +149,13 @@ when disabled. `Bar.qml`/`Launcher.qml` stay plain (not templated)
 files as long as they have no feature-conditional content of their
 own.
 
-Not implemented now: no Quickshell feature is being added this
-milestone (screenshots has no UI component). This section documents
-the pattern for when one is.
+Implemented by Power Menu v1: `shell.qml` is now
+`roles/quickshell/templates/shell.qml.j2`; feature components live
+outside `files/quickshell/` (e.g. `roles/quickshell/files/
+PowerMenu.qml`) and are copied only when enabled, before the root file
+is rendered (Quickshell hot-reloads, so the referencing file goes last).
+A static host capability a component needs (hibernate) is resolved at
+provisioning time and templated in - never polled at runtime.
 
 ## Ansible structure
 
@@ -288,3 +292,22 @@ outlives it is `wl-copy`'s own forked clipboard owner, which is how the
 Wayland clipboard works for any copy and ends when something else is
 copied. Feature Category A (provisioning-only) plus Category B
 (Hyprland binds).
+
+## Power menu v1
+
+`power_menu_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | Quickshell component + one Hyprland bind |
+| Packages | `power_menu_packages`: `ttf-jetbrains-mono-nerd` (icons; also in `roles/apps`) |
+| Config ownership | `roles/quickshell` (`files/PowerMenu.qml`, `templates/shell.qml.j2`), `roles/hyprland` (bind) |
+| UI | `PowerMenu.qml`, centered layer-shell overlay inside the running Quickshell |
+| Keybind | `mainMod + Escape` -> `qs ipc call powermenu toggle` (IPC exposes only `toggle`/`close`) |
+| Lifecycle owner | the existing Quickshell instance under Hyprland - no new process |
+| Privileges | none added: `systemctl suspend/hibernate/reboot/poweroff` via logind's normal active-session polkit rules; logout = Hyprland `hl.dsp.exit()` |
+| Secrets / Network | none / none |
+| Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned |
+| Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
+| Disable | no bind, component not instantiated/deployed; an already-deployed `PowerMenu.qml` stays unreferenced; nothing deleted |
+| Persistent user data | none |

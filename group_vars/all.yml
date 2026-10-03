@@ -31,6 +31,16 @@ screenshots_enabled: true
 # keypress). false drops the bind and stops installing tesseract.
 screenshots_ocr_enabled: true
 
+# Power menu (mainMod+Escape: Quickshell overlay with Lock (shown as
+# unavailable until a lockscreen exists), Suspend, Hibernate (only where
+# logind reports it available), Logout, Reboot, Shutdown - the last
+# three behind a confirm step). Lives in roles/quickshell (PowerMenu.qml,
+# composed by shell.qml.j2) + the bind in hyprland.lua.j2. No extra
+# process: part of the running Quickshell instance, no privileges
+# beyond logind's normal active-session rules. false drops the bind and
+# the component; nothing is deleted.
+power_menu_enabled: true
+
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack
 # (base/graphics/hyprland/desktop/audio/network/apps/virtualization)

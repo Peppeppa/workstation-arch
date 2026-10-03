@@ -64,7 +64,7 @@ There is still no Bluetooth stack or display manager either. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
-Optional capabilities (screenshots + screenshot OCR so far, more later) are toggleable
+Optional capabilities (screenshots + screenshot OCR, power menu so far) are toggleable
 per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 (overridable in `host_vars/<hostname>.yml`) - see
 `docs/feature-architecture.md` for the full model. Disabling a feature
@@ -217,6 +217,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super` + left/right click drag | move / resize a floating window       |
 | `Super + X`              | smart screenshot: drag a region or click a window -> PNG file + clipboard |
 | `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
+| `Super + Escape`         | power menu: Suspend / (Hibernate) / Logout / Reboot / Shutdown - last three ask for confirmation; Lock is listed but not available yet |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
 
 Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR
