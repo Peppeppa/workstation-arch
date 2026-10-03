@@ -1,0 +1,23 @@
+---
+# Lid close -> suspend (core). logind stays the only power-button/lid
+# handler; Hyprland and Quickshell don't bind lid switches.
+- name: Ensure /etc/systemd/logind.conf.d exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: power
+
+- name: Deploy logind lid configuration
+  become: true
+  ansible.builtin.copy:
+    src: 50-workstation-lid.conf
+    dest: /etc/systemd/logind.conf.d/50-workstation-lid.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd-logind configuration
+  tags: power

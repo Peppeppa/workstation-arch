@@ -1,0 +1,7 @@
+---
+# Power: lid handling (core, systemd-logind) and - feature
+# power_profiles_enabled - power-profiles-daemon for the bar's power
+# popup. Battery data itself comes from UPower (already installed by
+# roles/quickshell).
+power_profiles_packages:
+  - power-profiles-daemon

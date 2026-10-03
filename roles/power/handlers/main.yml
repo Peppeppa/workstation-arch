@@ -1,0 +1,6 @@
+---
+# systemd-logind re-reads logind.conf(.d) on SIGHUP - no session restart.
+- name: Reload systemd-logind configuration
+  become: true
+  ansible.builtin.command:
+    cmd: systemctl kill --signal=SIGHUP systemd-logind.service

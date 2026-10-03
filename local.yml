@@ -109,6 +109,9 @@
     - role: bluetooth
       tags: [bluetooth]
 
+    - role: power
+      tags: [power]
+
     - role: quickshell
       tags: [quickshell]
 

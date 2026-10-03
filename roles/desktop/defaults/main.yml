@@ -43,9 +43,13 @@ desktop_packages:
   # roles/quickshell). mako is retired, see tasks/main.yml.
 
   # Brightness control CLI, bound to the laptop's brightness keys in
-  # roles/hyprland's hyprland.lua.j2 (also harmless/inert on the
+  # roles/hyprland's conf/binds.lua (also harmless/inert on the
   # workstation if it has no controllable backlight).
   - brightnessctl
+
+  # Media keys (play/pause/next/previous) via MPRIS - roles/hyprland
+  # conf/binds.lua. A one-shot CLI per key press, no daemon.
+  - playerctl
 
   # Typography (group_vars/all.yml desktop_*_font_family), official
   # `extra` packages:
