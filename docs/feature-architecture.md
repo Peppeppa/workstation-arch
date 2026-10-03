@@ -314,3 +314,23 @@ copied. Feature Category A (provisioning-only) plus Category B
 | Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
 | Disable | no bind, component not instantiated/deployed; an already-deployed `PowerMenu.qml` stays unreferenced; nothing deleted |
 | Persistent user data | none |
+
+## Lock + Idle v1
+
+`lock_idle_enabled` (`group_vars/all.yml`, default `true`). One flag:
+lock and idle share the same daemon (hypridle is also the logind Lock
+handler), so splitting them would buy nothing.
+
+| Contract | |
+|---|---|
+| Scope | `roles/hyprland`: packages, `hypridle.conf.j2`, `files/hyprlock.conf`, autostart + bind in `hyprland.lua.j2`; Power Menu Lock entry (`lockAvailable`) |
+| Packages | `lock_idle_packages`: `hyprlock`, `hypridle` (official `extra`) |
+| Lock path | `loginctl lock-session` only (Super+L, power menu, idle listener, `before_sleep_cmd`) -> logind Lock -> hypridle `lock_cmd` -> `pidof hyprlock \|\| hyprlock` |
+| Idle | `lock_idle_lock_timeout` 300 s -> lock, `lock_idle_dpms_timeout` 600 s -> `hl.dsp.dpms` off, on at activity (ext-idle-notify, no polling) |
+| Suspend | hypridle holds a logind delay inhibitor until Hyprland reports the session locked (`inhibit_sleep` auto -> lock-notify) |
+| Lifecycle owner | Hyprland session start; a bootstrap inside a running session asks that Hyprland to exec it; config/start-command changes restart it (handler) |
+| Privileges / Auth | none added; unlock only via hyprlock's package PAM file (`auth include login`), no `unlock_cmd` |
+| Secrets / Network | none / none |
+| Host overrides | `lock_idle_hypridle_cmd` (arch-dev: `env LIBGL_ALWAYS_SOFTWARE=1 hypridle`, inherited by hyprlock) |
+| Disable | no bind, no autostart, power menu Lock unavailable, running hypridle stopped, `hypridle.conf`/`hyprlock.conf` removed (feature-owned config); packages stay |
+| Persistent user data | none |

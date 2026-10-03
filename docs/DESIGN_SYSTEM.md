@@ -73,5 +73,9 @@ Add a role only when a real component needs one. No `success`/
   (Jinja, like `hyprland.lua.j2`) into `DefaultDark.qml`, mako's config,
   Hyprland's border colors, Ghostty, GTK/Qt settings - one source, many
   generated outputs. Components stay untouched by that move, since they
-  only see `Colors.<role>`. Don't build it before that second consumer
-  exists.
+  only see `Colors.<role>`.
+- Second consumer now exists: `roles/hyprland/files/hyprlock.conf`
+  (lockscreen) keeps its colors in one `$variable` block mirroring
+  `DefaultDark.qml` by hand. Deliberately not generated yet (Lock/Idle
+  v1 scope); that block is the first thing the generation step above
+  should take over, together with the theme switcher.

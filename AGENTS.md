@@ -92,6 +92,8 @@ direct upstream dependency.
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
 | File chooser / settings portal | xdg-desktop-portal-gtk |
+| Idle handling, lock-on-sleep (logind Lock/PrepareForSleep) | hypridle (session lifecycle, started once by Hyprland; feature `lock_idle`) |
+| Screen locker | hyprlock (on demand only - spawned by hypridle on logind Lock, exits on unlock) |
 | Shell presentation / integration | Quickshell (top bar + app launcher - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
@@ -764,11 +766,14 @@ history for that milestone's own record):
   light scheme yet.
 - **Power Menu v1**: `power_menu_enabled` - first optional Quickshell
   component; established the `shell.qml.j2` composition pattern (see
-  `docs/feature-architecture.md`). Lock is shown as unavailable: no
-  lockscreen exists yet (Lock/Idle is its own milestone).
+  `docs/feature-architecture.md`).
+- **Lock + Idle v1**: `lock_idle_enabled` - hypridle + hyprlock, one
+  lock path (`loginctl lock-session`) for Super+L, power menu, idle and
+  before-sleep. First persistent process added since the idle baseline
+  (hypridle, ~7 MB, 0% CPU - see `docs/idle-baseline.md`). arch-dev
+  needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars).
 
-**Open for next time**: Bluetooth (no code yet), session/lock/idle (no
-code yet), a tray (native `Quickshell.Services.SystemTray` exists and
+**Open for next time**: Bluetooth (no code yet), a tray (native `Quickshell.Services.SystemTray` exists and
 is stable in 0.3.1, deliberately not built - see Feature Architecture
 Category C for the pattern once it's wanted), and migrating a second,
 larger-shaped feature (e.g. one with a Quickshell UI component or a

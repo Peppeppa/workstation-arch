@@ -22,10 +22,15 @@ Prozesse), nicht Prozent-Schwankungen.
 | pipewire            | 0.0%      | (im service) |
 | pipewire-pulse      | 0.0%      | ~11 MB  |
 | mako                | 0.0%      | -       |
+| hypridle (seit Lock + Idle v1) | 0.0% | ~7 MB |
 
-Lifecycle-Owner für quickshell/hyprpolkitagent/mako: ausschließlich
-Hyprland (`hl.on("hyprland.start", ...)`), kein zusätzlicher
-systemd --user-Service für diese drei Prozesse.
+Lifecycle-Owner für quickshell/hyprpolkitagent/mako/hypridle:
+ausschließlich Hyprland (`hl.on("hyprland.start", ...)`), kein
+zusätzlicher systemd --user-Service für diese Prozesse. hypridle ist der
+einzige persistente Prozess, der nach dieser Baseline dazukam
+(ereignisgesteuert über ext-idle-notify, kein Polling). hyprlock läuft
+nur während gesperrt ist (arch-dev mit Software-Rendering: ~215 MB RSS
+solange gesperrt, danach 0).
 
 ## systemd --user (idle)
 
