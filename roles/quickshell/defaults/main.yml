@@ -45,3 +45,8 @@ power_menu_packages:
 connectivity_packages:
   - python-gobject
   - qrencode
+
+# FEATURE: wallpaper (see group_vars/all.yml wallpaper_enabled). PNG,
+# JPEG and GIF are built into Qt; WebP needs the extra image plugins.
+wallpaper_packages:
+  - qt6-imageformats

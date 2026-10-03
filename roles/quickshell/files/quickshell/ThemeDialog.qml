@@ -11,6 +11,9 @@
 // away only if that slot's mode is the active one (it never switches the
 // mode). The helper validates first, so a broken theme can't be applied.
 //
+// With the wallpaper feature (WallpaperPicker.qml, loaded only then) the
+// dialog also shows the active theme's wallpapers as thumbnails.
+//
 // Closed: an unmapped layer surface - no process, no timer, no polling.
 
 import QtQuick
@@ -24,6 +27,8 @@ PanelWindow {
 
     required property int fontSize
     required property int barHeight
+    // wallpaper_enabled (templated by shell.qml.j2).
+    required property bool wallpaperEnabled
 
     readonly property string helper: Quickshell.env("HOME") + "/.local/bin/theme"
 
@@ -70,6 +75,12 @@ PanelWindow {
         openSlot = "";
         if (id === selectedId(slot) || actionProc.running) return;
         actionProc.command = [helper, "select", slot, id];
+        actionProc.running = true;
+    }
+
+    function setWallpaper(file) {
+        if (actionProc.running) return;
+        actionProc.command = [helper, "wallpaper", "set", file];
         actionProc.running = true;
     }
 
@@ -147,7 +158,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: dialog.barHeight + 6
-        width: 280
+        width: dialog.wallpaperEnabled ? 340 : 280
         implicitHeight: content.implicitHeight + 24
         radius: 8
         color: Colors.background
@@ -280,6 +291,14 @@ PanelWindow {
                         }
                     }
                 }
+            }
+
+            // FEATURE: wallpaper.
+            Loader {
+                Layout.fillWidth: true
+                active: dialog.wallpaperEnabled && dialog.visible
+                visible: active
+                Component.onCompleted: if (dialog.wallpaperEnabled) setSource("WallpaperPicker.qml", { dialog: dialog })
             }
 
             Text {

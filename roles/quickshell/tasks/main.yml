@@ -270,6 +270,28 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: wallpaper (see group_vars/all.yml wallpaper_enabled). The
+# images are the themes' backgrounds/ (roles/theme); the choice is runtime
+# state of the `theme` helper - nothing here touches it.
+- name: Install wallpaper packages (wallpaper_enabled)
+  when: wallpaper_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ wallpaper_packages }}"
+    state: present
+  tags: quickshell
+
+- name: Deploy the wallpaper components (wallpaper_enabled)
+  when: wallpaper_enabled
+  ansible.builtin.copy:
+    src: wallpaper/
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

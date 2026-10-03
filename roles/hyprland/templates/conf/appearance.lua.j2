@@ -29,13 +29,22 @@ return function(v)
             shadow = { enabled = false },
             blur   = { enabled = false },
         },
-{% if lock_idle_enabled %}
+{% if lock_idle_enabled or wallpaper_enabled %}
 
-        -- FEATURE: lock_idle. If the locker (hyprlock) ever crashes, the
-        -- session stays locked; this lets a fresh locker take over
-        -- instead of leaving only a TTY switch. Never unlocks anything.
         misc = {
+{% if lock_idle_enabled %}
+            -- FEATURE: lock_idle. If the locker (hyprlock) ever crashes, the
+            -- session stays locked; this lets a fresh locker take over
+            -- instead of leaving only a TTY switch. Never unlocks anything.
             allow_session_lock_restore = true,
+{% endif %}
+{% if wallpaper_enabled %}
+            -- FEATURE: wallpaper. Quickshell draws the background layer;
+            -- Hyprland's own default wallpaper/logo would only be decoded
+            -- underneath for nothing.
+            force_default_wallpaper = 0,
+            disable_hyprland_logo = true,
+{% endif %}
         },
 {% endif %}
     })

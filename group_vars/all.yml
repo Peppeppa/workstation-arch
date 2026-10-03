@@ -110,6 +110,17 @@ connectivity_enabled: true
 # popup; the existing history file stays (`cliphist wipe` clears it).
 clipboard_history_enabled: true
 
+# Wallpaper (roles/quickshell files/wallpaper/): Quickshell draws the
+# background on every monitor from the active theme's backgrounds/
+# (themes/<id>/backgrounds/*.png|jpg|jpeg|webp|gif - the directory is the
+# list). Pick in the theme dialog (right click on the theme icon); the
+# choice is remembered per theme by the `theme` helper (runtime state in
+# ~/.config/workstation/theme-state, never reset by bootstrap). Default:
+# first file in sorted order; none: the theme's background color. GIFs
+# play animated (only while selected). false: Hyprland's own default
+# wallpaper, no picker.
+wallpaper_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the

@@ -89,7 +89,14 @@ ShellRoot {
         id: themeDialogWindow
         fontSize: root.fontSize
         barHeight: root.barHeight
+        wallpaperEnabled: {{ 'true' if wallpaper_enabled else 'false' }}
     }
+{% if wallpaper_enabled %}
+
+    // FEATURE: wallpaper (group_vars/all.yml wallpaper_enabled): the
+    // background layer on every monitor, from the active theme.
+    Wallpaper {}
+{% endif %}
 
     // One launcher instance, not one per monitor: it has no preferred
     // screen set, so the compositor places it on whichever output is
