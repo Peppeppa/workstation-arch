@@ -1,0 +1,12 @@
+---
+# hypridle reads its config only at startup: after a config change,
+# replace the running instance (again exec'd by Hyprland, so the
+# lifecycle owner stays Hyprland).
+- name: Restart hypridle in the running Hyprland session
+  ansible.builtin.shell:
+    cmd: |
+      pkill -u "$(id -u)" -x hypridle || true
+      timeout 5 sh -c 'while pgrep -u "$(id -u)" -x hypridle >/dev/null; do sleep 0.1; done'
+      {{ lock_idle_start_script }}
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"

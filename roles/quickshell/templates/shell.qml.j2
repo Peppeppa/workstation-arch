@@ -91,6 +91,9 @@ ShellRoot {
     PowerMenu {
         fontSize: root.fontSize
         hibernateAvailable: {{ 'true' if power_menu_hibernate_available | default(false) | bool else 'false' }}
+        // Lock works only with the lock_idle feature (hypridle answers
+        // logind's Lock signal).
+        lockAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
     }
 {% endif %}
 }

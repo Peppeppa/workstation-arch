@@ -65,6 +65,15 @@ hl.config({
     input = {
         kb_layout = "{{ hyprland_keyboard_layout }}",
     },
+{% if lock_idle_enabled %}
+
+    -- FEATURE: lock_idle. If the locker (hyprlock) ever crashes, the
+    -- session stays locked; this lets a fresh locker take over instead
+    -- of leaving only a TTY switch as the way out. Never unlocks anything.
+    misc = {
+        allow_session_lock_restore = true,
+    },
+{% endif %}
 })
 
 -------------------
@@ -112,6 +121,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
     hl.exec_cmd("mako")
     hl.exec_cmd("{{ hyprland_quickshell_cmd }}")
+{% if lock_idle_enabled %}
+    -- FEATURE: lock_idle - hypridle's only lifecycle owner (session-
+    -- specific, like mako/Quickshell; no systemd --user unit: the
+    -- package's hypridle.service hangs off graphical-session.target,
+    -- which this session never activates).
+    hl.exec_cmd("{{ lock_idle_hypridle_cmd }}")
+{% endif %}
 end)
 
 ---------------------
@@ -125,6 +141,12 @@ end)
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
+{% if lock_idle_enabled %}
+
+-- FEATURE: lock_idle - lock now. Same single lock path as the power
+-- menu and the idle timeout: logind Lock -> hypridle -> hyprlock.
+hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
+{% endif %}
 
 -- App launcher (roles/quickshell's Launcher.qml). This does not start
 -- a new process - Quickshell is already running (see the hyprland.start

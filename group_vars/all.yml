@@ -41,6 +41,16 @@ screenshots_ocr_enabled: true
 # the component; nothing is deleted.
 power_menu_enabled: true
 
+# Lock + idle (hyprlock + hypridle, roles/hyprland). Super+L and the
+# power menu's Lock both run `loginctl lock-session`; after
+# lock_idle_lock_timeout (5 min) idle the session locks, after
+# lock_idle_dpms_timeout (10 min) the displays go off; the session is
+# always locked before suspend/hibernate. Adds exactly one persistent
+# process (hypridle, started by Hyprland); hyprlock runs only while
+# locked. false: no bind, power menu Lock unavailable again, hypridle
+# stopped, its two feature-owned configs removed - nothing else deleted.
+lock_idle_enabled: true
+
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack
 # (base/graphics/hyprland/desktop/audio/network/apps/virtualization)

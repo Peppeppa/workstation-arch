@@ -15,10 +15,11 @@
 //   suspend/hibernate/reboot/shutdown: `systemctl <verb>` - logind's own
 //     polkit rules allow these for the active local session, no sudo
 //   logout: Hyprland's own exit dispatcher (same as mainMod+SHIFT+E)
-//   lock: shown but unavailable - no lockscreen exists yet (Lock/Idle
-//     is its own later milestone); never a fake lock. Still always the
-//     initial selection (user decision): mainMod+Escape, Enter = lock,
-//     replacing a separate lock bind - a no-op until a lockscreen exists.
+//   lock: `loginctl lock-session` - the one lock path of the lock_idle
+//     feature (logind Lock -> hypridle -> hyprlock); this menu never
+//     locks by itself. Without lock_idle (lockAvailable false) it is
+//     shown as unavailable - never a fake lock. Always the initial
+//     selection (user decision): mainMod+Escape, Enter = lock.
 //     Unavailable entries stay selectable so navigation stays linear;
 //     only activating them does nothing.
 // Every action runs immediately on Enter/click - no confirm step, by
@@ -39,12 +40,13 @@ PanelWindow {
 
     required property int fontSize
     required property bool hibernateAvailable
+    required property bool lockAvailable
 
     readonly property string iconFont: "JetBrainsMono Nerd Font Propo"
 
     // danger: icon drawn in Colors.error (session-ending actions).
     readonly property var items: [
-        { id: "lock",      label: "Lock",      icon: "", available: false, hint: "not set up" },
+        { id: "lock",      label: "Lock",      icon: "", available: lockAvailable, hint: "not set up" },
         { id: "suspend",   label: "Suspend",   icon: "", available: true },
         { id: "hibernate", label: "Hibernate", icon: "", available: true },
         { id: "logout",    label: "Logout",    icon: "", available: true, danger: true },
@@ -94,6 +96,7 @@ PanelWindow {
     // Fixed action table - the only place a command is defined.
     function commandFor(id) {
         switch (id) {
+        case "lock":      return { argv: ["loginctl", "lock-session"] };
         case "suspend":   return { argv: ["systemctl", "suspend"] };
         case "hibernate": return { argv: ["systemctl", "hibernate"] };
         case "reboot":    return { argv: ["systemctl", "reboot"] };

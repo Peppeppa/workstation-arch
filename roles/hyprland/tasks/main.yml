@@ -64,3 +64,72 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   tags: hyprland
+
+# FEATURE: lock_idle (see group_vars/all.yml lock_idle_enabled and
+# docs/feature-architecture.md).
+- name: Install lock/idle packages (lock_idle_enabled)
+  when: lock_idle_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ lock_idle_packages }}"
+    state: present
+  tags: hyprland
+
+- name: Deploy hypridle config (lock_idle_enabled)
+  when: lock_idle_enabled
+  ansible.builtin.template:
+    src: hypridle.conf.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/hypr/hypridle.conf"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Restart hypridle in the running Hyprland session
+  tags: hyprland
+
+# hyprlock reads its config on every start - no restart needed.
+- name: Deploy hyprlock config (lock_idle_enabled)
+  when: lock_idle_enabled
+  ansible.builtin.copy:
+    src: hyprlock.conf
+    dest: "{{ ansible_facts.user_dir }}/.config/hypr/hyprlock.conf"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: hyprland
+
+# Hyprland's session start (hl.on("hyprland.start")) is hypridle's only
+# lifecycle owner. A bootstrap run inside an already-running session
+# would otherwise leave the feature inactive until the next login, so
+# this asks THAT Hyprland instance to exec it (via its IPC -> the
+# process is still Hyprland's child, same owner). No-op without a
+# running Hyprland or with hypridle already up.
+- name: Ensure hypridle runs in the active Hyprland session (lock_idle_enabled)
+  when: lock_idle_enabled
+  ansible.builtin.shell:
+    cmd: "{{ lock_idle_start_script }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  register: lock_idle_start
+  changed_when: lock_idle_start.stdout == "started"
+  tags: hyprland
+
+# Disable = stop and remove only what this feature owns. Packages stay
+# (Disable vs. Purge); no user data is involved.
+- name: Stop hypridle (lock_idle disabled)
+  when: not lock_idle_enabled
+  ansible.builtin.command:
+    cmd: "pkill -u {{ ansible_facts.user_uid }} -x hypridle"
+  register: lock_idle_stop
+  changed_when: lock_idle_stop.rc == 0
+  failed_when: lock_idle_stop.rc not in [0, 1]
+  tags: hyprland
+
+- name: Remove feature-owned lock/idle configs (lock_idle disabled)
+  when: not lock_idle_enabled
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/hypr/{{ item }}"
+    state: absent
+  loop:
+    - hypridle.conf
+    - hyprlock.conf
+  tags: hyprland

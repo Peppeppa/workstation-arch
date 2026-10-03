@@ -1,0 +1,40 @@
+# FEATURE: lock_idle (group_vars/all.yml lock_idle_enabled). Managed by
+# Ansible from roles/hyprland/templates/hypridle.conf.j2 - do not edit
+# by hand.
+#
+# hypridle is the one event-driven idle daemon (ext-idle-notify; no
+# polling), started once by Hyprland's session lifecycle. It is also the
+# single lock path: `loginctl lock-session` (Super+L, the power menu,
+# the idle listener below, before sleep) makes logind emit Lock, and
+# hypridle answers with lock_cmd. hyprlock runs only while locked.
+
+general {
+    # pidof guard: a second Lock signal never starts a second locker.
+    lock_cmd = pidof hyprlock || hyprlock
+
+    # Lock before suspend/hibernate (also when triggered by the power
+    # menu's `systemctl suspend`). inhibit_sleep = 2 ("auto") resolves to
+    # "wait until locked" for exactly this lock_cmd/before_sleep_cmd pair:
+    # hypridle holds a logind delay inhibitor until Hyprland reports the
+    # session locked (hyprland-lock-notify-v1) - no sleep/race hack.
+    before_sleep_cmd = loginctl lock-session
+    after_sleep_cmd = hyprctl dispatch 'hl.dsp.dpms({ action = "on" })'
+    inhibit_sleep = 2
+
+    # Deliberately no unlock_cmd: unlocking happens only through
+    # hyprlock's own PAM prompt, never via a logind Unlock signal.
+}
+
+# {{ lock_idle_lock_timeout }}s idle -> lock
+listener {
+    timeout = {{ lock_idle_lock_timeout }}
+    on-timeout = loginctl lock-session
+}
+
+# {{ lock_idle_dpms_timeout }}s idle -> all displays off via Hyprland's own DPMS
+# dispatcher, back on at the first input.
+listener {
+    timeout = {{ lock_idle_dpms_timeout }}
+    on-timeout = hyprctl dispatch 'hl.dsp.dpms({ action = "off" })'
+    on-resume = hyprctl dispatch 'hl.dsp.dpms({ action = "on" })'
+}

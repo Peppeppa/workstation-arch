@@ -74,3 +74,31 @@ hyprland_keyboard_layout: de
 # combining a keysym with a classic modifier the way every bind here
 # does.
 hyprland_main_modifier: SUPER
+
+# FEATURE: lock_idle (see group_vars/all.yml lock_idle_enabled and
+# docs/feature-architecture.md). Official Arch `extra` packages from the
+# Hyprland ecosystem: hyprlock (ext-session-lock locker, PAM unlock via
+# its own shipped /etc/pam.d/hyprlock) and hypridle (event-driven
+# ext-idle-notify daemon, also the logind Lock/PrepareForSleep handler).
+lock_idle_packages:
+  - hyprlock
+  - hypridle
+
+# Idle timeouts in seconds (per-host override in host_vars if needed).
+lock_idle_lock_timeout: 300   # lock
+lock_idle_dpms_timeout: 600   # displays off
+
+# Command Hyprland's session start uses for hypridle - same per-host
+# override pattern as hyprland_quickshell_cmd. hyprlock is spawned by
+# hypridle and inherits its environment.
+lock_idle_hypridle_cmd: hypridle
+
+# Internal: starts hypridle inside the running Hyprland instance (used by
+# tasks/main.yml + handlers/main.yml). Prints "started" only if it did.
+lock_idle_start_script: |
+  set -eu
+  if pgrep -u "$(id -u)" -x hypridle >/dev/null; then echo running; exit 0; fi
+  sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
+  if [ -z "$sig" ]; then echo no-session; exit 0; fi
+  hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ lock_idle_hypridle_cmd }}")' >/dev/null
+  echo started
