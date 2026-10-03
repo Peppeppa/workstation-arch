@@ -10,12 +10,33 @@
     state: present
   tags: bluetooth
 
-- name: Enable and start bluetooth.service (bluetooth_enabled)
+# bluetooth.service carries ConditionPathIsDirectory=/sys/class/bluetooth:
+# with no adapter systemd (correctly) never starts bluetoothd - zero cost
+# on machines without Bluetooth (seen on arch-dev: enabled, condition
+# failed, inactive). It is WantedBy=bluetooth.target, which udev pulls in
+# when an adapter appears, so ENABLING is what matters; it is only
+# started right away when an adapter already exists (otherwise a "start"
+# would be a no-op that reports changed on every run).
+- name: Enable bluetooth.service (bluetooth_enabled)
   when: bluetooth_enabled
   become: true
   ansible.builtin.systemd_service:
     name: bluetooth.service
     enabled: true
+  tags: bluetooth
+
+- name: Check for a Bluetooth adapter (bluetooth_enabled)
+  when: bluetooth_enabled
+  ansible.builtin.stat:
+    path: /sys/class/bluetooth
+  register: bluetooth_sysfs
+  tags: bluetooth
+
+- name: Start bluetooth.service now (bluetooth_enabled, adapter present)
+  when: bluetooth_enabled and bluetooth_sysfs.stat.isdir | default(false)
+  become: true
+  ansible.builtin.systemd_service:
+    name: bluetooth.service
     state: started
   tags: bluetooth
 
