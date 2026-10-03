@@ -70,9 +70,17 @@ ShellRoot {
             clock: systemClock
             // Coffee (idle-pause) toggle only with the lock_idle feature.
             idleToggleAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
+            themeDialog: themeDialogWindow
             barHeight: root.barHeight
             fontSize: root.fontSize
         }
+    }
+
+    // Theme picker (core): one instance, opened from the bar's theme icon.
+    ThemeDialog {
+        id: themeDialogWindow
+        fontSize: root.fontSize
+        barHeight: root.barHeight
     }
 
     // One launcher instance, not one per monitor: it has no preferred

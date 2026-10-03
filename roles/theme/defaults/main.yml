@@ -1,19 +1,15 @@
 ---
-# Theme Architecture v1 - the semantic color CONTRACT every theme in
-# themes/*.yml must fill completely (see docs/DESIGN_SYSTEM.md).
-# Adding a role here means: add it to every theme file and give it a
-# consumer. Selection (theme_dark / theme_light / theme_mode) lives in
-# group_vars/all.yml.
-theme_roles:
-  - background         # base layer: panels, bar, lockscreen
-  - surface            # elements on the base (input fields, buttons)
-  - foreground         # primary text
-  - foreground_muted   # secondary text, hints
-  - accent             # selection / focus fill
-  - accent_foreground  # text drawn on accent
-  - border             # passive outlines (inactive window border, toasts)
-  - border_active      # emphasized outlines (active window border, focused overlays)
-  - error              # destructive / failed / critical
-
-# Where the theme data lives (repo-relative, read on the controller).
+# Theme Architecture (see docs/DESIGN_SYSTEM.md "Themes"). The contract,
+# discovery, rendering and state all live in the `theme` helper
+# (templates/theme.j2) - this role only deploys it and calls it.
+#
+# The theme registry: the repo's themes/ directory, read in place (one
+# directory per theme). A new valid theme directory there shows up in
+# the bar's theme dialog the next time it opens - no list to update, no
+# copy step.
 theme_dir: "{{ playbook_dir }}/themes"
+
+# python-yaml: the helper parses theme.yml with it (already present as an
+# Ansible dependency - listed so the helper's dependency is explicit).
+theme_packages:
+  - python-yaml

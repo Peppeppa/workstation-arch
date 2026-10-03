@@ -36,6 +36,9 @@ PanelWindow {
     // is there an idle daemon worth pausing, so only then the coffee
     // toggle exists.
     required property bool idleToggleAvailable
+    // The one ThemeDialog instance (shell.qml), opened by right-clicking
+    // the theme icon next to the clock.
+    required property var themeDialog
     required property int barHeight
     required property int fontSize
 
@@ -106,9 +109,9 @@ PanelWindow {
         }
 
         // CENTER: clock - weekday + 24h time, e.g. "Saturday 16:03"
-        // (weekday language follows the session locale). The coffee
-        // toggle hangs off the clock's left edge, so the clock stays
-        // exactly centered and nothing moves when the icon shows/hides.
+        // (weekday language follows the session locale). The bar controls
+        // hang off the clock's left edge in fixed-size slots, so the clock
+        // stays exactly centered and nothing moves when icons show/hide.
         Item {
             Layout.fillWidth: true
             implicitHeight: clockText.implicitHeight
@@ -122,33 +125,69 @@ PanelWindow {
                 font.pixelSize: bar.fontSize
             }
 
-            // Coffee toggle (CoffeeMode.qml). Fixed 22px click/hover
-            // target whether or not the icon is drawn. Off: icon hidden,
-            // shown muted on hover. On: always shown in the normal text
-            // color. Click toggles.
-            Item {
-                id: coffee
-                visible: bar.idleToggleAvailable
-                anchors.right: clockText.left
-                anchors.rightMargin: 6
-                anchors.verticalCenter: clockText.verticalCenter
-                width: 22
-                height: bar.barHeight
+            // [coffee][theme] - both icons invisible until the pointer is
+            // over either slot (the slots always take their 22px).
+            Row {
+                id: clockControls
+                readonly property bool hovered: themeMouse.containsMouse || coffeeMouse.containsMouse
 
-                Text {
-                    anchors.centerIn: parent
-                    visible: CoffeeMode.active || coffeeMouse.containsMouse
-                    text: "\uf0f4"
-                    font.family: Fonts.icons
-                    font.pixelSize: bar.fontSize + 1
-                    color: CoffeeMode.active ? Colors.foreground : Colors.foregroundMuted
+                anchors.right: clockText.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: clockText.verticalCenter
+
+                // Coffee toggle (CoffeeMode.qml). Off: hidden, muted on
+                // hover. On: always shown in the normal text color.
+                Item {
+                    visible: bar.idleToggleAvailable
+                    width: 22
+                    height: bar.barHeight
+
+                    Text {
+                        anchors.centerIn: parent
+                        visible: CoffeeMode.active || clockControls.hovered
+                        text: "\uf0f4"
+                        font.family: Fonts.icons
+                        font.pixelSize: bar.fontSize + 1
+                        color: CoffeeMode.active ? Colors.foreground : Colors.foregroundMuted
+                    }
+
+                    MouseArea {
+                        id: coffeeMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: CoffeeMode.active = !CoffeeMode.active
+                    }
                 }
 
-                MouseArea {
-                    id: coffeeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: CoffeeMode.active = !CoffeeMode.active
+                // Theme mode: moon in dark mode, sun in light mode (from the
+                // active theme's mode). Left click toggles dark/light via the
+                // `theme` helper (a one-shot process); right click opens the
+                // theme picker (ThemeDialog.qml).
+                Item {
+                    width: 22
+                    height: bar.barHeight
+
+                    Text {
+                        anchors.centerIn: parent
+                        visible: clockControls.hovered
+                        text: Colors.mode === "light" ? "\uf185" : "\uf186"
+                        font.family: Fonts.icons
+                        font.pixelSize: bar.fontSize + 1
+                        color: Colors.foreground
+                    }
+
+                    MouseArea {
+                        id: themeMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: mouse => {
+                            if (mouse.button === Qt.RightButton)
+                                bar.themeDialog.open();
+                            else
+                                Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/theme", "toggle"]);
+                        }
+                    }
                 }
             }
         }

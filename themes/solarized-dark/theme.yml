@@ -1,8 +1,8 @@
 # Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Mode comes from the marker file next to this one (dark), never from here.
 # Source: https://github.com/altercation/solarized - README.md (Ethan Schoonover's canonical values)
 # Each color: original palette name -> our semantic role.
 name: "Solarized Dark"
-mode: dark
 colors:
   background:        "#002b36"  # base03
   surface:           "#073642"  # base02

@@ -1,66 +1,57 @@
 ---
-# Core (no feature flag): every desktop color comes from here. Pure data
-# handling on the controller - no files written, nothing at runtime.
-# Tagged `always` (in local.yml) so a partial run (--tags quickshell)
-# still has theme_colors for its templates.
-#
-# 1) Load and validate ALL themes, not just the selected ones, so a
-#    broken/incomplete palette fails provisioning immediately instead of
-#    the day someone selects it.
-- name: Load all theme files
-  ansible.builtin.set_fact:
-    theme_catalog: >-
-      {{ theme_catalog | default({}) | combine({
-           (item | basename | regex_replace('\.yml$', '')): (lookup('ansible.builtin.file', item) | from_yaml)
-         }) }}
-  loop: "{{ query('ansible.builtin.fileglob', theme_dir ~ '/*.yml') | sort }}"
-  loop_control:
-    label: "{{ item | basename }}"
+# Core (no feature flag): every desktop color comes from the active
+# theme. All theme logic is the `theme` helper; this role deploys it,
+# lets it validate every theme directory (a broken theme fails the run
+# early), and applies the user's theme state - creating that state from
+# group_vars theme_dark/theme_light/theme_mode ONLY if it doesn't exist
+# yet, so a choice made in the bar survives every later bootstrap.
+- name: Install theme helper dependencies
+  become: true
+  community.general.pacman:
+    name: "{{ theme_packages }}"
+    state: present
 
-- name: Require at least one theme file
-  ansible.builtin.assert:
-    that: theme_catalog is defined and theme_catalog | length > 0
-    fail_msg: "No theme files found in {{ theme_dir }} (expected themes/<id>.yml)."
-    quiet: true
+- name: Ensure ~/.local/bin and ~/.config/workstation exist
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  loop:
+    - .local/bin
+    - .config/workstation
 
-- name: Validate the theme contract for every theme
-  ansible.builtin.assert:
-    that:
-      - item.value.name is string and item.value.name | length > 0
-      - item.value.mode in ['dark', 'light']
-      - item.value.colors is mapping
-      - (theme_roles | difference(item.value.colors.keys() | list)) | length == 0
-      - (item.value.colors.keys() | list | difference(theme_roles)) | length == 0
-      - item.value.colors.values() | map('regex_search', '^#[0-9a-fA-F]{6}$') | select('none') | list | length == 0
-    fail_msg: >-
-      themes/{{ item.key }}.yml breaks the theme contract: needs name,
-      mode dark|light, and exactly the roles {{ theme_roles | join(', ') }}
-      as #rrggbb (missing: {{ theme_roles | difference(item.value.colors.keys() | list) }},
-      unknown: {{ item.value.colors.keys() | list | difference(theme_roles) }})
-    quiet: true
-  loop: "{{ theme_catalog | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
+- name: Deploy the theme helper (~/.local/bin/theme)
+  ansible.builtin.template:
+    src: theme.j2
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/theme"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
 
-# 2) Validate the selection.
-- name: Validate the theme selection
-  ansible.builtin.assert:
-    that:
-      - theme_mode in ['dark', 'light']
-      - theme_dark in theme_catalog
-      - theme_light in theme_catalog
-      - theme_catalog[theme_dark].mode == 'dark'
-      - theme_catalog[theme_light].mode == 'light'
-    fail_msg: >-
-      Invalid theme selection: theme_mode={{ theme_mode }},
-      theme_dark={{ theme_dark }}, theme_light={{ theme_light }}.
-      theme_dark/theme_light must name a dark/light theme in themes/
-      (available: {{ theme_catalog.keys() | list | sort | join(', ') }}).
-    quiet: true
+- name: Validate every theme directory
+  ansible.builtin.command:
+    cmd: "{{ ansible_facts.user_dir }}/.local/bin/theme validate"
+  changed_when: false
 
-# 3) The active palette every consumer template reads.
-- name: Resolve the active theme
-  ansible.builtin.set_fact:
-    theme_active: "{{ theme_dark if theme_mode == 'dark' else theme_light }}"
-    theme_name: "{{ theme_catalog[theme_dark if theme_mode == 'dark' else theme_light].name }}"
-    theme_colors: "{{ theme_catalog[theme_dark if theme_mode == 'dark' else theme_light].colors }}"
+# Renders ~/.config/workstation/theme/{colors.json,hyprland.lua,
+# hyprlock.conf} from the state and applies them live where something is
+# running (Quickshell IPC, hyprctl reload, GSettings). Changed only if a
+# file or the GTK mode actually changed.
+- name: Apply the user's theme state (initialised from group_vars if missing)
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_facts.user_dir }}/.local/bin/theme"
+      - apply
+      - --init-dark
+      - "{{ theme_dark }}"
+      - --init-light
+      - "{{ theme_light }}"
+      - --init-mode
+      - "{{ theme_mode }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.user_uid }}/bus"
+  register: theme_apply
+  changed_when: theme_apply.stdout == "changed"

@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+# Managed by Ansible (roles/theme/templates/theme.j2) - do not edit by hand.
+#
+# `theme` - the ONE implementation of the theme system (see
+# docs/DESIGN_SYSTEM.md "Themes"): discovery, contract validation,
+# rendering of every consumer's color file, the persistent user state and
+# applying it live. Ansible provisions by calling `theme validate` and
+# `theme apply`; the Quickshell bar calls `theme status|toggle|select`.
+# Nothing else renders theme colors.
+#
+# On-demand only: runs, does its work, exits. No daemon, no watcher.
+#
+#   theme status [--json]          state + valid dark/light themes (+ invalid ones)
+#   theme list dark|light          valid theme ids of that mode, one per line
+#   theme current                  dark=<id> light=<id> mode=<mode>
+#   theme toggle                   flip mode, apply
+#   theme mode dark|light          set mode, apply
+#   theme select dark|light <id>   pick the dark/light theme; applied only if that
+#                                  mode is active (never switches the mode)
+#   theme apply [--init-dark ID --init-light ID --init-mode MODE]
+#                                  (re)render + apply the current state; creates
+#                                  the state from the --init-* values only if it
+#                                  does not exist yet. Prints changed/unchanged.
+#   theme validate                 check every theme directory, exit 1 if any is invalid
+#
+# Theme registry = the theme directories themselves (no list anywhere else):
+#   <THEMES_DIR>/<id>/{dark|light, theme.yml, backgrounds/}
+
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+import yaml
+
+THEMES_DIR = "{{ theme_dir }}"
+CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+STATE_FILE = os.path.join(CONFIG_HOME, "workstation", "theme-state")
+OUT_DIR = os.path.join(CONFIG_HOME, "workstation", "theme")
+
+MODES = ("dark", "light")
+# Semantic color contract - every theme fills exactly these roles.
+ROLES = (
+    "background", "surface", "foreground", "foreground_muted", "accent",
+    "accent_foreground", "border", "border_active", "error",
+)
+THEME_KEYS = {"name", "colors"}
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+class ThemeError(Exception):
+    pass
+
+
+# --- discovery / contract --------------------------------------------------
+
+def load_theme(theme_id):
+    """Return (theme, errors). theme = {id, name, mode, colors} when valid."""
+    path = os.path.join(THEMES_DIR, theme_id)
+    errors = []
+    if not ID_RE.match(theme_id):
+        errors.append("directory name must match [a-z0-9][a-z0-9-]* (it is the theme id)")
+    markers = [m for m in MODES if os.path.isfile(os.path.join(path, m))]
+    if len(markers) != 1:
+        errors.append("needs exactly one marker file 'dark' or 'light' (found: %s)"
+                      % (", ".join(markers) or "none"))
+    if not os.path.isdir(os.path.join(path, "backgrounds")):
+        errors.append("missing backgrounds/ directory")
+    data = None
+    try:
+        with open(os.path.join(path, "theme.yml"), encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except FileNotFoundError:
+        errors.append("missing theme.yml")
+    except yaml.YAMLError as e:
+        errors.append("theme.yml is not valid YAML: %s" % str(e).splitlines()[0])
+    if data is not None:
+        if not isinstance(data, dict):
+            errors.append("theme.yml must be a mapping")
+        else:
+            unknown = set(data) - THEME_KEYS
+            if unknown:
+                errors.append("unknown keys in theme.yml: %s" % ", ".join(sorted(unknown)))
+            if not isinstance(data.get("name"), str) or not data.get("name"):
+                errors.append("theme.yml needs a non-empty string 'name'")
+            colors = data.get("colors")
+            if not isinstance(colors, dict):
+                errors.append("theme.yml needs a 'colors' mapping")
+            else:
+                missing = [r for r in ROLES if r not in colors]
+                extra = [r for r in colors if r not in ROLES]
+                bad = [r for r in ROLES if r in colors
+                       and not (isinstance(colors[r], str) and HEX_RE.match(colors[r]))]
+                if missing:
+                    errors.append("missing colors: %s" % ", ".join(missing))
+                if extra:
+                    errors.append("unknown colors: %s" % ", ".join(extra))
+                if bad:
+                    errors.append("not #rrggbb: %s" % ", ".join(bad))
+    if errors:
+        return None, errors
+    return {"id": theme_id, "name": data["name"], "mode": markers[0],
+            "colors": {r: data["colors"][r] for r in ROLES}}, []
+
+
+def discover():
+    """Scan the theme directories once. Returns (valid {id: theme}, invalid {id: errors})."""
+    valid, invalid = {}, {}
+    try:
+        entries = sorted(os.listdir(THEMES_DIR))
+    except FileNotFoundError:
+        raise ThemeError("theme directory %s does not exist" % THEMES_DIR)
+    for entry in entries:
+        if entry.startswith(".") or not os.path.isdir(os.path.join(THEMES_DIR, entry)):
+            continue
+        theme, errors = load_theme(entry)
+        if theme:
+            valid[entry] = theme
+        else:
+            invalid[entry] = errors
+    return valid, invalid
+
+
+# --- state -----------------------------------------------------------------
+
+def read_state():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            pairs = dict(line.strip().split("=", 1) for line in f if "=" in line)
+    except FileNotFoundError:
+        return None
+    return {k: pairs.get(k, "") for k in ("dark", "light", "mode")}
+
+
+def check_state(state, valid):
+    if state["mode"] not in MODES:
+        raise ThemeError("mode must be dark or light, not %r" % state["mode"])
+    for slot in MODES:
+        theme = valid.get(state[slot])
+        if theme is None:
+            raise ThemeError("%s theme %r is not a valid theme" % (slot, state[slot]))
+        if theme["mode"] != slot:
+            raise ThemeError("%r is a %s theme, not %s" % (state[slot], theme["mode"], slot))
+
+
+def atomic_write(path, text):
+    """Write only if different; replace atomically. Returns True if changed."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            if f.read() == text:
+                return False
+    except FileNotFoundError:
+        pass
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+    return True
+
+
+def state_text(state):
+    return "".join("%s=%s\n" % (k, state[k]) for k in ("dark", "light", "mode"))
+
+
+# --- rendering (the only place theme colors are turned into app formats) ---
+
+def render(state, valid):
+    theme = valid[state[state["mode"]]]
+    c = theme["colors"]
+    rgb = {r: "rgb(%s)" % c[r].lstrip("#") for r in ROLES}
+    return {
+        # Quickshell: Colors.qml reads this (on start and on IPC theme.reload).
+        "colors.json": json.dumps({"id": theme["id"], "name": theme["name"],
+                                   "mode": state["mode"], "colors": c}, indent=2) + "\n",
+        # Hyprland: hyprland.lua does dofile() on this.
+        "hyprland.lua": "-- generated by `theme` - do not edit\nreturn {\n"
+                        + "".join('    %s = "%s",\n' % (r, rgb[r]) for r in ROLES) + "}\n",
+        # hyprlock: hyprlock.conf sources this.
+        "hyprlock.conf": "# generated by `theme` - do not edit\n"
+                         + "".join("$%s = %s\n" % (r, rgb[r]) for r in ROLES),
+    }
+
+
+# --- applying live (user level only, best effort, never a lingering process) -
+
+def _session_env():
+    env = dict(os.environ)
+    env.setdefault("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid())
+    env.setdefault("DBUS_SESSION_BUS_ADDRESS", "unix:path=%s/bus" % env["XDG_RUNTIME_DIR"])
+    if not env.get("HYPRLAND_INSTANCE_SIGNATURE") or not env.get("WAYLAND_DISPLAY"):
+        try:
+            out = subprocess.run(["hyprctl", "instances", "-j"], env=env, capture_output=True,
+                                 text=True, timeout=5).stdout
+            inst = json.loads(out or "[]")
+            if inst:
+                env.setdefault("HYPRLAND_INSTANCE_SIGNATURE", inst[0]["instance"])
+                env.setdefault("WAYLAND_DISPLAY", inst[0]["wl_socket"])
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+    return env
+
+
+def _run(argv, env):
+    try:
+        return subprocess.run(argv, env=env, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def apply_live(state, changed_files):
+    env = _session_env()
+    if "colors.json" in changed_files:
+        _run(["qs", "ipc", "--any-display", "call", "theme", "reload"], env)
+    if "hyprland.lua" in changed_files and env.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        _run(["hyprctl", "reload"], env)
+    gtk_changed = False
+    want = {"color-scheme": "prefer-%s" % state["mode"],
+            "gtk-theme": "Adwaita-dark" if state["mode"] == "dark" else "Adwaita"}
+    for key, value in want.items():
+        cur = _run(["gsettings", "get", "org.gnome.desktop.interface", key], env)
+        if cur is not None and cur.returncode == 0 and cur.stdout.strip() == "'%s'" % value:
+            continue
+        res = _run(["gsettings", "set", "org.gnome.desktop.interface", key, value], env)
+        gtk_changed = gtk_changed or (res is not None and res.returncode == 0)
+    return gtk_changed
+
+
+def commit(state, valid):
+    """Validate, render, write outputs, then state, then apply. Returns changed?"""
+    check_state(state, valid)              # nothing written unless the new state is valid
+    outputs = render(state, valid)
+    changed_files = [name for name, text in outputs.items()
+                     if atomic_write(os.path.join(OUT_DIR, name), text)]
+    state_changed = atomic_write(STATE_FILE, state_text(state))
+    gtk_changed = apply_live(state, changed_files)
+    return bool(changed_files or state_changed or gtk_changed)
+
+
+# --- CLI -------------------------------------------------------------------
+
+def usage():
+    sys.stderr.write("usage: theme status [--json] | list dark|light | current | toggle |"
+                     " mode dark|light | select dark|light <id> | apply [...] | validate\n")
+    return 2
+
+
+def require_state():
+    state = read_state()
+    if state is None:
+        raise ThemeError("no theme state yet (%s) - run bootstrap.sh once" % STATE_FILE)
+    return state
+
+
+def main(argv):
+    if not argv:
+        return usage()
+    cmd, args = argv[0], argv[1:]
+    valid, invalid = discover()
+
+    if cmd == "validate":
+        for tid, errors in sorted(invalid.items()):
+            for e in errors:
+                print("%s: %s" % (tid, e), file=sys.stderr)
+        if not valid:
+            print("no valid themes in %s" % THEMES_DIR, file=sys.stderr)
+        return 1 if invalid or not valid else 0
+
+    if cmd == "status":
+        state = read_state()
+        status = {
+            "state": state,
+            "dark": [{"id": t["id"], "name": t["name"]} for t in valid.values() if t["mode"] == "dark"],
+            "light": [{"id": t["id"], "name": t["name"]} for t in valid.values() if t["mode"] == "light"],
+            "invalid": invalid,
+        }
+        if args == ["--json"]:
+            print(json.dumps(status))
+        else:
+            print("state: %s" % (state_text(state).replace("\n", " ") if state else "none"))
+            for m in MODES:
+                print("%s: %s" % (m, ", ".join("%s (%s)" % (t["id"], t["name"]) for t in status[m])))
+            for tid, errors in invalid.items():
+                print("invalid: %s - %s" % (tid, "; ".join(errors)))
+        return 0
+
+    if cmd == "list" and len(args) == 1 and args[0] in MODES:
+        for t in valid.values():
+            if t["mode"] == args[0]:
+                print(t["id"])
+        return 0
+
+    if cmd == "current" and not args:
+        print(state_text(require_state()).replace("\n", " ").strip())
+        return 0
+
+    if cmd == "toggle" and not args:
+        state = require_state()
+        state["mode"] = "light" if state["mode"] == "dark" else "dark"
+        commit(state, valid)
+        return 0
+
+    if cmd == "mode" and len(args) == 1 and args[0] in MODES:
+        state = require_state()
+        state["mode"] = args[0]
+        commit(state, valid)
+        return 0
+
+    if cmd == "select" and len(args) == 2 and args[0] in MODES:
+        state = require_state()
+        state[args[0]] = args[1]
+        commit(state, valid)
+        return 0
+
+    if cmd == "apply":
+        opts = dict(zip(args[0::2], args[1::2]))
+        state = read_state()
+        if state is None:
+            state = {"dark": opts.get("--init-dark", ""), "light": opts.get("--init-light", ""),
+                     "mode": opts.get("--init-mode", "")}
+        print("changed" if commit(state, valid) else "unchanged")
+        return 0
+
+    return usage()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except ThemeError as e:
+        print("theme: %s" % e, file=sys.stderr)
+        sys.exit(1)

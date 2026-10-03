@@ -130,10 +130,17 @@ Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
   of a theme color, or `opacity` used to fake a muted color. Missing
   role -> add it to the contract (`roles/theme/defaults/main.yml`) and
   every `themes/*.yml`, never to one consumer.
-- All desktop colors come from the active theme (`themes/*.yml`,
-  selected by `theme_dark`/`theme_light`/`theme_mode`). Adapters
-  (`Colors.qml.j2`, `hyprland.lua.j2`, `hyprlock.conf.j2`, ...) reference
-  roles only; nothing ever branches on dark/light or a theme name.
+- All desktop colors come from the active theme. A new theme is added
+  ONLY as a new valid theme directory `themes/<id>/` (marker `dark` or
+  `light`, `theme.yml`, `backgrounds/`) - never by listing theme ids or
+  names in QML, Ansible or anywhere else. Theme directories contain data
+  and assets only, no executable code.
+- The `theme` helper (`roles/theme/templates/theme.j2`) is the only code
+  that discovers, validates or renders themes; consumers include its
+  output files (`colors.json`, `hyprland.lua`, `hyprlock.conf`) and
+  reference roles only - nothing branches on dark/light or a theme name.
+  The user's state (`~/.config/workstation/theme-state`) is never
+  overwritten by provisioning.
 - Theming stays declarative: no daemon, timer, polling, or file watcher.
 - Fonts likewise: `font.family: Fonts.family` (icons: `Fonts.icons`),
   never a font name in a component. Font names live only in
@@ -786,8 +793,11 @@ history for that milestone's own record):
 - **Theme Architecture v1**: themes are data (`themes/*.yml`, 5 shipped:
   Retro 82, Solarized Dark, Catppuccin Mocha / Rosé Pine Dawn,
   Catppuccin Latte), one 9-role contract validated by `roles/theme`,
-  adapters for Quickshell, Hyprland borders, hyprlock, GTK mode. No
-  switcher UI yet; Ghostty colors are Coverage v2.
+  adapters for Quickshell, Hyprland borders, hyprlock, GTK mode.
+- **Theme Switcher v1**: theme directories with dark/light markers as the
+  only registry, `theme` helper (state, discovery, render, live apply -
+  no sudo, no bootstrap), bar moon/sun icon (left click toggle, right
+  click picker). Ghostty colors still Coverage v2.
 - **Notifications v1**: `notifications_enabled` - Quickshell owns
   `org.freedesktop.Notifications`; toasts only (no history/center).
   mako retired. Quickshell 0.3.1 quirks found on arch-dev:

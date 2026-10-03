@@ -17,84 +17,109 @@ Font names are defined once in `group_vars/all.yml`, by role:
 Serif stays the distro default (documents). Quickshell components use
 `font.family: Fonts.family` / `Fonts.icons` - never a font name literal.
 
-## Themes (Theme Architecture v1)
+## Themes
 
-Three layers, one direction of data:
+### Theme directory contract (the registry)
 
-1. **Theme palette** - `themes/<id>.yml`: pure data (`name`, `mode`,
-   `colors`), nothing executable. Each file says where its values come
-   from and which original palette color fills which role.
-2. **Semantic colors** - the contract in `roles/theme/defaults/main.yml`
-   (`theme_roles`). Every theme fills exactly these roles; `roles/theme`
-   validates *all* theme files on every provisioning run (missing/unknown
-   role, non-`#rrggbb` value, wrong mode -> the run stops).
-3. **Adapters** - templates that turn the active palette (`theme_colors`)
-   into each consumer's format. They only ever reference roles, never a
-   theme by name.
+```
+themes/<id>/            directory name = stable theme id ([a-z0-9-])
+  dark  | light         empty marker file - exactly one; the ONLY source of the mode
+  theme.yml             data only: name + the 9 semantic colors (+ source comments)
+  backgrounds/          wallpapers for this theme (may be empty; .gitkeep keeps it in git)
+```
 
-### Selection (source of truth)
+The set of valid directories *is* the theme list - nothing else lists
+themes (no QML list, no Ansible list). Adding a theme = adding a valid
+directory; it shows up in the bar's theme dialog the next time it opens.
+Invalid directories (no/both markers, missing/unknown color, bad hex,
+no `theme.yml`/`backgrounds/`) are skipped at runtime and fail
+`bootstrap.sh` (`theme validate`), so they are caught early.
 
-`group_vars/all.yml` (host-overridable): `theme_dark` (preferred dark
-theme id), `theme_light` (preferred light theme id), `theme_mode`
-(`dark`|`light`). The active theme is the one for `theme_mode`. Core, not
-a feature flag - the desktop always has colors; a later switcher is the
-optional part.
+`backgrounds/` is part of the contract but not used yet: a later
+wallpaper step picks a file from the *active* theme's `backgrounds/`
+(e.g. `theme status` exposing them, the dialog offering a choice, a
+`background=` line in the state) - the same helper, no new registry.
+
+### One implementation: the `theme` helper
+
+`~/.local/bin/theme` (`roles/theme/templates/theme.j2`, Python, user
+level, on demand only) owns discovery, contract validation, rendering,
+the state and applying it. Ansible only deploys it and calls
+`theme validate` + `theme apply`; the bar calls `theme status --json`,
+`theme toggle`, `theme select <dark|light> <id>`. Nothing else renders
+theme colors.
+
+Rendered files (all in `~/.config/workstation/theme/`), each consumer
+includes its file instead of being re-templated:
+
+| Consumer | File | Included via | Live apply |
+|---|---|---|---|
+| Quickshell | `colors.json` | `Colors.qml` (`FileView`) | `qs ipc call theme reload` - bindings update in place, no Quickshell reload (coffee mode etc. survive) |
+| Hyprland | `hyprland.lua` | `dofile` in `hyprland.lua` (pcall: missing -> Hyprland defaults) | `hyprctl reload` |
+| hyprlock | `hyprlock.conf` | `source =` in `hyprlock.conf` | read at every lock |
+| GTK | - | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`), no CSS | immediate for GTK4/libadwaita |
+
+A switch validates the target first, then writes the files atomically
+(only if changed), then the state, then applies live - an invalid theme
+never reaches any consumer.
+
+### Runtime state
+
+`~/.config/workstation/theme-state`:
+
+```
+dark=retro-82
+light=rose-pine-dawn
+mode=dark
+```
+
+`group_vars/all.yml` `theme_dark` / `theme_light` / `theme_mode` are only
+the **initial** values: `bootstrap.sh` creates the state from them if it
+doesn't exist and otherwise leaves the user's choice alone. A host can
+override the initial values in host_vars.
+
+### Bar UI
+
+Left of the clock (fixed slots, nothing shifts): `[coffee][theme]`, both
+invisible until hovered. Theme icon = moon (dark) / sun (light) from
+`Colors.mode`. Left click: `theme toggle`. Right click: theme dialog
+(`ThemeDialog.qml`) - "Dark theme" / "Light theme" dropdowns listing only
+themes with that marker, current choice checked; picking one persists it
+and applies it immediately only if that mode is active (never switches
+the mode). Escape / click outside closes. Discovery runs once per open.
+
+### Shipped themes
 
 | id | Name | Mode | Source |
 |---|---|---|---|
-| `retro-82` (default dark) | Retro 82 | dark | OldJobobo, `retro-82.nvim` palette |
+| `retro-82` (initial dark) | Retro 82 | dark | OldJobobo, `retro-82.nvim` palette |
 | `solarized-dark` | Solarized Dark | dark | Ethan Schoonover, `altercation/solarized` |
 | `catppuccin-mocha` | Catppuccin Mocha | dark | `catppuccin/palette` |
-| `rose-pine-dawn` (default light) | Rosé Pine Dawn | light | `rose-pine/palette` (the light Rosé Pine variant) |
+| `rose-pine-dawn` (initial light) | Rosé Pine Dawn | light | `rose-pine/palette` (the light Rosé Pine variant) |
 | `catppuccin-latte` | Catppuccin Latte | light | `catppuccin/palette` |
-
-New theme = one new file with the 9 roles. No QML/Ansible/app changes.
 
 ### Semantic roles
 
-| Role (`themes/*.yml`) | QML (`Colors.`) | Meaning | Consumers |
+| Role (`theme.yml`) | QML (`Colors.`) | Meaning | Consumers |
 |---|---|---|---|
-| `background` | `background` | base layer | bar, launcher, power menu, toasts, lockscreen |
-| `surface` | `surface` | element on the base | launcher search field, lockscreen input |
+| `background` | `background` | base layer | bar, launcher, power menu, toasts, theme dialog, lockscreen |
+| `surface` | `surface` | element on the base | launcher search field, dropdown buttons, lockscreen input |
 | `foreground` | `foreground` | primary text | everywhere |
-| `foreground_muted` | `foregroundMuted` | secondary text | hints, app names, coffee hover, lockscreen date |
+| `foreground_muted` | `foregroundMuted` | secondary text | hints, labels, coffee hover, lockscreen date |
 | `accent` | `accent` | selection/focus fill | focused workspace, selected rows, lockscreen check |
 | `accent_foreground` | `accentForeground` | text on `accent` | same places |
-| `border` | `border` | passive outline | inactive Hyprland border, toasts |
-| `border_active` | `borderActive` | emphasized outline | active Hyprland border, focused overlays (launcher, power menu), lockscreen input |
-| `error` | `error` | destructive/failed/critical | power menu danger icons, critical toasts, lockscreen fail |
+| `border` | `border` | passive outline | inactive Hyprland border, toasts, closed dropdowns |
+| `border_active` | `borderActive` | emphasized outline | active Hyprland border, focused overlays, lockscreen input |
+| `error` | `error` | destructive/failed/critical | power menu danger icons, critical toasts, lockscreen fail, dialog errors |
 
-Add a role only when something draws it (no `success`/`warning`/
-`surface_alt` yet).
+Add a role only when something draws it. Not covered yet (Coverage v2):
+Ghostty colors (needs a 16-color ANSI palette per theme).
 
-### Coverage
+### Performance
 
-| Consumer | Adapter | Notes |
-|---|---|---|
-| Quickshell | `roles/quickshell/templates/Colors.qml.j2` | one `Colors` singleton for every component |
-| Hyprland | `hyprland.lua.j2` `general.col.*` | active/inactive window border |
-| hyprlock | `hyprlock.conf.j2` `$variables` | |
-| GTK | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`) | mode only - native Adwaita, no custom CSS |
-| Ghostty | - | **Coverage v2**: needs a 16-color ANSI palette per theme (all five upstreams publish one, Retro 82 incl. a Ghostty file); today only its font is managed |
-| Zathura, Thunar, ... | - | not themed by us (GTK apps follow the GTK mode) |
-
-### Runtime switching (prepared, not built)
-
-A switch = change `theme_mode` (or a pick) and re-render the adapters.
-What each consumer then needs, all without logout:
-
-- Quickshell: new `Colors.qml` + reload (already automatic via the
-  `roles/quickshell` reload handler) - every binding follows.
-- Hyprland: picks up a changed `hyprland.lua` itself (`hyprctl reload`
-  as fallback).
-- hyprlock: reads its config at every lock - nothing to do.
-- GTK: `gsettings set ... color-scheme` is live for libadwaita/GTK4
-  (via the portal); plain GTK3 apps pick up `gtk-theme` on restart.
-- Ghostty (once covered): `reload_config` / restart.
-
-Today that means `./bootstrap.sh -e theme_mode=light` (or a host_vars
-change). A switcher should reuse these adapters, not reimplement them -
-no daemon, no watcher.
+Zero idle cost: no process, timer, watcher or polling. The helper runs
+for a moment on a click / dialog open / bootstrap and exits; 5 or 50
+theme directories only matter while the dialog is opening.
 
 ## Rules
 
@@ -109,7 +134,7 @@ no daemon, no watcher.
   selectable, activating them does nothing.
 - Icons: Nerd Font glyphs via `Fonts.icons`, always next to a text
   label - no icon library.
-- Theme files are data: no templates, no code, no downloads; themes are
-  only ever read from the repo.
+- Theme directories are data/assets only: no templates, no code, no
+  downloads; read only from the repo's `themes/`.
 - Purely declarative at runtime: no process, timer, polling or file
   watcher for theming.

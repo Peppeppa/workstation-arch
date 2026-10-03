@@ -1,8 +1,8 @@
 # Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Mode comes from the marker file next to this one (dark), never from here.
 # Source: https://github.com/oldjobobo/retro-82.nvim - lua/retro82/palette.lua (v0.3.0, Base24 palette by OldJobobo; role names in comments are the author's own aliases)
 # Each color: original palette name -> our semantic role.
 name: "Retro 82"
-mode: dark
 colors:
   background:        "#00172E"  # base00 (bg0 / base)
   surface:           "#0A3A45"  # base02 (author alias: surface)

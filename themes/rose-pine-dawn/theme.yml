@@ -1,8 +1,8 @@
 # Theme data only - no logic (see docs/DESIGN_SYSTEM.md "Themes").
+# Mode comes from the marker file next to this one (light), never from here.
 # Source: https://github.com/rose-pine/palette - palette.json, variant dawn (the light Rosé Pine variant)
 # Each color: original palette name -> our semantic role.
 name: "Rosé Pine Dawn"
-mode: light
 colors:
   background:        "#faf4ed"  # base
   surface:           "#fffaf3"  # surface
