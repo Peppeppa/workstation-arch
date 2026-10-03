@@ -1,8 +1,10 @@
 ---
-# hypridle reads its config only at startup: after a config change,
+# hypridle reads its config and environment only at startup: after a
+# change to hypridle.conf or its start command (hyprland.lua),
 # replace the running instance (again exec'd by Hyprland, so the
 # lifecycle owner stays Hyprland).
 - name: Restart hypridle in the running Hyprland session
+  when: lock_idle_enabled
   ansible.builtin.shell:
     cmd: |
       pkill -u "$(id -u)" -x hypridle || true

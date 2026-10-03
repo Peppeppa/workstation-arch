@@ -80,3 +80,11 @@ hyprland_terminal: "env LIBGL_ALWAYS_SOFTWARE=1 ghostty"
 # keep the default `quickshell` (see hyprland_quickshell_cmd in
 # roles/hyprland/defaults/main.yml).
 hyprland_quickshell_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 quickshell"
+
+# hyprlock (spawned by hypridle, inheriting its environment) hits the same
+# VirtualBox `wl_surface.attach` failure as Ghostty/Quickshell above:
+# real arch-dev test - plain hyprlock aborted ("invalid arguments for
+# wl_surface#18.attach", core dumped, session never locked);
+# `LIBGL_ALWAYS_SOFTWARE=1 hyprlock` locked and rendered correctly.
+# Applied to hypridle so every hyprlock it starts gets it.
+lock_idle_hypridle_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 hypridle"
