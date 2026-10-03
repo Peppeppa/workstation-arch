@@ -22,10 +22,6 @@ import Quickshell.Io
 PanelWindow {
     id: launcher
 
-    required property color colorBackground
-    required property color colorText
-    required property color colorTextActive
-    required property color colorActive
     required property int fontSize
 
     readonly property int maxResults: 8
@@ -106,8 +102,8 @@ PanelWindow {
         width: 460
         height: 340
         radius: 8
-        color: launcher.colorBackground
-        border.color: launcher.colorActive
+        color: Colors.background
+        border.color: Colors.border
         border.width: 1
 
         ColumnLayout {
@@ -119,15 +115,15 @@ PanelWindow {
                 Layout.fillWidth: true
                 height: 36
                 radius: 4
-                color: Qt.darker(launcher.colorBackground, 1.3)
-                border.color: launcher.colorActive
+                color: Colors.surface
+                border.color: Colors.border
                 border.width: 1
 
                 TextInput {
                     id: searchInput
                     anchors.fill: parent
                     anchors.margins: 8
-                    color: launcher.colorText
+                    color: Colors.text
                     font.pixelSize: launcher.fontSize + 2
                     clip: true
 
@@ -156,7 +152,7 @@ PanelWindow {
                     width: ListView.view.width
                     height: 40
                     radius: 4
-                    color: index === launcher.selectedIndex ? launcher.colorActive : "transparent"
+                    color: index === launcher.selectedIndex ? Colors.accent : "transparent"
 
                     Column {
                         anchors.left: parent.left
@@ -168,7 +164,7 @@ PanelWindow {
 
                         Text {
                             text: resultDelegate.modelData.name
-                            color: resultDelegate.index === launcher.selectedIndex ? launcher.colorTextActive : launcher.colorText
+                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentText : Colors.text
                             font.pixelSize: launcher.fontSize
                             elide: Text.ElideRight
                             width: parent.width
@@ -177,8 +173,7 @@ PanelWindow {
                         Text {
                             visible: text.length > 0
                             text: resultDelegate.modelData.genericName
-                            color: launcher.colorText
-                            opacity: 0.7
+                            color: Colors.textMuted
                             font.pixelSize: launcher.fontSize - 2
                             elide: Text.ElideRight
                             width: parent.width

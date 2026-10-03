@@ -8,10 +8,10 @@
 // Bluetooth menus, or theme framework yet - see AGENTS.md Next
 // Milestone for what's deliberately deferred.
 //
-// A handful of readonly color/size constants here, shared by Bar.qml
-// and Launcher.qml via required properties, are the whole "design
-// system" for now - not a framework, just the one place to change a
-// value instead of repeating literals in two files.
+// Colors come from the Colors singleton (Colors.qml -> active scheme,
+// see docs/DESIGN_SYSTEM.md), which every component reads directly -
+// no color is passed down from here. The two size constants below are
+// still shared via required properties.
 
 import QtQuick
 import Quickshell
@@ -20,10 +20,6 @@ import Quickshell.Services.Pipewire
 ShellRoot {
     id: root
 
-    readonly property color colorBackground: "#1e1e1e"
-    readonly property color colorText: "#e0e0e0"
-    readonly property color colorTextActive: "#ffffff"
-    readonly property color colorActive: "#3a6ea5"
     readonly property int barHeight: 28
     readonly property int fontSize: 13
 
@@ -65,10 +61,6 @@ ShellRoot {
             // reported "Binding loop detected" and clock.date read as
             // undefined until this was qualified).
             clock: systemClock
-            colorBackground: root.colorBackground
-            colorText: root.colorText
-            colorTextActive: root.colorTextActive
-            colorActive: root.colorActive
             barHeight: root.barHeight
             fontSize: root.fontSize
         }
@@ -81,10 +73,6 @@ ShellRoot {
     // single modal overlay than guessing which monitor to pin it to.
     Launcher {
         // Qualified with `root.` for the same reason as Bar above.
-        colorBackground: root.colorBackground
-        colorText: root.colorText
-        colorTextActive: root.colorTextActive
-        colorActive: root.colorActive
         fontSize: root.fontSize
     }
 }

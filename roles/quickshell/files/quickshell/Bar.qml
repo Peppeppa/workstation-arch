@@ -31,10 +31,6 @@ PanelWindow {
     screen: modelData
 
     required property var clock
-    required property color colorBackground
-    required property color colorText
-    required property color colorTextActive
-    required property color colorActive
     required property int barHeight
     required property int fontSize
 
@@ -47,7 +43,7 @@ PanelWindow {
     // Quickshell reserve this bar's own height as a layer-shell
     // exclusive zone automatically - no hardcoded Hyprland gaps.
     implicitHeight: barHeight
-    color: colorBackground
+    color: Colors.background
 
     RowLayout {
         anchors.fill: parent
@@ -76,13 +72,13 @@ PanelWindow {
                     implicitWidth: label.implicitWidth + 12
                     implicitHeight: bar.barHeight - 8
                     radius: 3
-                    color: modelData.focused ? bar.colorActive : "transparent"
+                    color: modelData.focused ? Colors.accent : "transparent"
 
                     Text {
                         id: label
                         anchors.centerIn: parent
                         text: modelData.name.length > 0 ? modelData.name : modelData.id
-                        color: modelData.focused ? bar.colorTextActive : bar.colorText
+                        color: modelData.focused ? Colors.accentText : Colors.text
                         font.pixelSize: bar.fontSize
                     }
 
@@ -99,7 +95,7 @@ PanelWindow {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             text: Qt.formatDateTime(bar.clock.date, "ddd dd MMM hh:mm")
-            color: bar.colorText
+            color: Colors.text
             font.pixelSize: bar.fontSize
         }
 
@@ -109,7 +105,7 @@ PanelWindow {
             spacing: 16
 
             Text {
-                color: bar.colorText
+                color: Colors.text
                 font.pixelSize: bar.fontSize
                 text: {
                     const devices = Networking.devices.values;
@@ -133,7 +129,7 @@ PanelWindow {
             // gain via a stray scroll.
             Text {
                 id: volumeLabel
-                color: bar.colorText
+                color: Colors.text
                 font.pixelSize: bar.fontSize
                 text: {
                     const sink = Pipewire.defaultAudioSink;
@@ -161,7 +157,7 @@ PanelWindow {
 
             Text {
                 visible: UPower.displayDevice !== null && UPower.displayDevice.isPresent
-                color: bar.colorText
+                color: Colors.text
                 font.pixelSize: bar.fontSize
                 text: {
                     const battery = UPower.displayDevice;

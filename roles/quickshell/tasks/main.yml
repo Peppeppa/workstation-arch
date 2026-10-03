@@ -29,8 +29,10 @@
 # hyprland.lua.j2's per-host scale/modifier/layout), and copying avoids
 # any ambiguity between QML's own brace syntax and Jinja2's. `src`
 # ends in `/` so the contents of files/quickshell/ (shell.qml, Bar.qml,
-# Launcher.qml) land directly in ~/.config/quickshell/, not nested
-# under an extra quickshell/ subdirectory.
+# Launcher.qml, and the color system Colors.qml/ColorScheme.qml/
+# DefaultDark.qml - see docs/DESIGN_SYSTEM.md) land directly in
+# ~/.config/quickshell/, not nested under an extra quickshell/
+# subdirectory.
 - name: Deploy the Quickshell Core Desktop v1 config
   ansible.builtin.copy:
     src: quickshell/

@@ -118,6 +118,20 @@ Service ownership defaults:
 - session-specific process → session lifecycle / Hyprland
 - temporary UI helper → started on demand only
 
+## Colors / Design System
+
+Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
+
+- Use the semantic roles of the `Colors` singleton (`Colors.background`,
+  `Colors.text`, `Colors.accent`, ...). Never hardcode a basic theme
+  color locally - no hex literals, `Qt.rgba`, `Qt.darker` of a theme
+  color, or `opacity` used to fake a muted color. Missing role -> add
+  it to `ColorScheme.qml` (+ every scheme), not to the component.
+- Color scheme (pure data) != theme/appearance (which scheme is
+  active). Only `Colors.qml` decides; components never contain their
+  own dark/light branches.
+- Theming stays declarative: no daemon, timer, polling, or file watcher.
+
 ## Feature Architecture
 
 Everything above this point (Hyprland, the Quickshell process/core bar/
@@ -135,6 +149,10 @@ they already live via `when:`/`{% if %}` - generalizing the pattern
 `gaming_enabled` already established. `<name>_enabled: false` is always
 safe: it stops the feature from being used but never removes already-
 installed packages or deletes user data (see "Disable vs. Purge").
+
+The central color system (Quickshell `Colors` singleton) is Core
+presentation architecture, not a Feature - never put it behind a flag.
+A later theme switcher may be a Feature on top of it.
 
 This is deliberately *not* a plugin framework or a generic feature
 engine - no dynamic loading, no new config DSL, no metadata schema. See
@@ -704,10 +722,8 @@ is still genuinely not started.
   them like native apps) is a documented future idea, not built.
 
 **Documentation gaps found during the prior audit, still open:**
-- `docs/DESIGN_SYSTEM.md` exists but is **empty (0 bytes)**.
-  `docs/system_architecture.md` §18/§33 and `docs/wifi_applet.md` §33
-  both require a shared design system before shell UI work — this is a
-  real blocker for starting Quickshell cleanly, not just a nice-to-have.
+- `docs/DESIGN_SYSTEM.md` now covers colors (Central Color System v1);
+  sizes/spacing/typography are still just constants in `shell.qml`.
 - `config/`, `systemd/`, `hardware/`, and `scripts/diagnostics/` appear
   in `README.md`'s repository-structure diagram but hold no tracked
   files (git does not track empty directories) — a fresh clone will not
@@ -741,10 +757,11 @@ history for that milestone's own record):
   validated both `true` (default) and `false` on `arch-dev`, then
   restored to `true`.
 
-`docs/DESIGN_SYSTEM.md` stays deliberately empty still - the bar/
-launcher's handful of shared color/size constants in `shell.qml`
-continue to suffice; revisit once a third Quickshell surface or a
-themeable feature makes a real design system worth building.
+- **Central Color System v1**: Bar and Launcher read only the `Colors`
+  singleton (`Colors.qml` -> `DefaultDark.qml`, contract
+  `ColorScheme.qml`); no hex color left in components. Visually
+  identical refactor. See `docs/DESIGN_SYSTEM.md`. No theme switcher /
+  light scheme yet; Power Menu v1 is next and must use these roles.
 
 **Open for next time**: Bluetooth (no code yet), session/lock/idle (no
 code yet), a tray (native `Quickshell.Services.SystemTray` exists and
