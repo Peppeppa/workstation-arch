@@ -18,6 +18,9 @@
   community.general.pacman:
     name: "{{ apps_retired_packages }}"
     state: absent
+    # pacman -Rs: also their dependencies that nothing else needs (and that
+    # were only installed as dependencies) - never anything still required.
+    extra_args: --recursive
   tags: apps
 
 # Flatpak is only installed/configured because at least one desired app

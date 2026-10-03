@@ -244,7 +244,7 @@ PanelWindow {
                         Text {
                             visible: text.length > 0
                             text: resultDelegate.modelData.genericName
-                            color: Colors.foregroundMuted
+                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foregroundMuted
                             font.family: Fonts.family
                             font.pixelSize: launcher.fontSize - 2
                             elide: Text.ElideRight

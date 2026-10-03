@@ -131,6 +131,33 @@ semantic roles. Omarchy-style compact bar:
 
 No blur, no transparency, no permanent animation.
 
+### Launcher
+
+`Launcher.qml` (`mainMod+Space`) lists `DesktopEntries.applications`
+(Quickshell's own XDG parser) - no app list of our own. Shown is an entry
+that passes, in this order:
+
+1. its own metadata: `NoDisplay=true` and `Hidden=true` are dropped by
+   Quickshell (e.g. imv - it needs a file -, Xwayland, portals, pinentry,
+   quickshell). Quickshell 0.3.1 does not evaluate `OnlyShowIn`,
+   `NotShowIn` or `TryExec`; the entries that depend on them are in rule 3.
+2. categories: `Settings`, `DesktopSettings`, `Debugger` are hidden
+   (settings dialogs, debuggers - e.g. Thunar's settings, Qt D-Bus viewer).
+3. a small denylist of desktop-file ids (`hiddenIds`), each annotated with
+   the package that brings it: avahi-discover/bssh/bvnc (avahi), lstopo
+   (hwloc), Qt Designer/Linguist/Assistant (qt6-tools via VirtualBox),
+   qv4l2/qvidcap (v4l-utils via ffmpeg), xfce4-about (`OnlyShowIn=XFCE`),
+   thunar-bulk-rename (reachable from Thunar).
+
+Hiding an entry never uninstalls anything - those packages are
+dependencies. New apps appear without any change here.
+
+Each row: the entry's icon (`Quickshell.iconPath(icon, true)`, resolved
+in the session icon theme `QS_ICON_THEME`; Flatpak icons via
+`XDG_DATA_DIRS`), 22 px, decoded asynchronously, or a muted generic
+application glyph when the theme has none; then name + generic name
+(`accent_foreground` on the selected row).
+
 ### Shipped themes
 
 | id | Name | Mode | Source |
