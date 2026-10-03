@@ -30,6 +30,27 @@
 # pattern as roles/hyprland/roles/quickshell: it must be owned by the
 # invoking user, never root.
 
+# xdg-user-dir (used by screenshot.sh) only resolves PICTURES/etc. to
+# their real subdirectories once ~/.config/user-dirs.dirs exists -
+# without it, it falls back to bare $HOME (confirmed on a real clean
+# arch-dev run: a screenshot landed in ~/Screenshots instead of
+# ~/Pictures/Screenshots). xdg-user-dirs ships an autostart .desktop
+# entry that normally generates this file on first graphical login,
+# but this project's minimal Hyprland session runs no XDG autostart
+# entries at all (see roles/hyprland's hl.on("hyprland.start", ...) -
+# only hyprpolkitagent/mako/quickshell, no autostart directory
+# processing), so that never happens here. Running the same tool
+# Ansible already installs, once, is simpler than adding an autostart
+# mechanism just for this - `creates` makes it a one-time, idempotent
+# setup step that still leaves a user's own later edits to
+# user-dirs.dirs untouched (it never re-runs once the file exists).
+- name: Generate the user's XDG user directories once (screenshots_enabled)
+  when: screenshots_enabled
+  ansible.builtin.command:
+    cmd: xdg-user-dirs-update
+    creates: "{{ ansible_facts.user_dir }}/.config/user-dirs.dirs"
+  tags: desktop
+
 - name: Ensure ~/.local/bin exists (screenshots_enabled)
   when: screenshots_enabled
   ansible.builtin.file:
