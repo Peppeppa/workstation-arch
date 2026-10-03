@@ -26,6 +26,34 @@
     state: present
   tags: desktop
 
+# Everything below for this feature is user-level (no `become`), same
+# pattern as roles/hyprland/roles/quickshell: it must be owned by the
+# invoking user, never root.
+
+- name: Ensure ~/.local/bin exists (screenshots_enabled)
+  when: screenshots_enabled
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/bin"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: desktop
+
+# Plain copy, not a template: the script has no host-specific values
+# to substitute (unlike hyprland.lua.j2) - the two Hyprland binds that
+# call it (roles/hyprland/templates/hyprland.lua.j2) pass "region" or
+# "monitor" as the one argument it needs.
+- name: Deploy the screenshot helper script (screenshots_enabled)
+  when: screenshots_enabled
+  ansible.builtin.copy:
+    src: screenshot.sh
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/screenshot"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: desktop
+
 # brightnessctl's own udev rule (shipped with the package) grants
 # read/write access to backlight devices to members of the `video`
 # group, so brightness control works without root or setuid. System-

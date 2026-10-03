@@ -248,15 +248,26 @@ managed files).
 10. Document anything user-facing in `README.md`; update `AGENTS.md`
     Runtime Ownership if it introduces a new owned process.
 
-## Proof of concept: screenshots
+## Proof of concept: screenshots v1
 
-Migrated as the worked example for this milestone (see `AGENTS.md`
-Next Milestone for the validation record): `screenshots_enabled`
-(`group_vars/all.yml`, default `true` - already-working daily-driver
-functionality, not something requiring unknown host hardware the way
-`gaming_enabled` does) gates `screenshot_packages` (`grim`, `slurp` -
-`roles/desktop/defaults/main.yml`) and the two screenshot binds
-(`mainMod+Shift+S`, `Print` - `roles/hyprland/templates/hyprland.lua.j2`).
-No Quickshell component, no persistent process, no new privileges -
-Feature Category A (provisioning-only) plus Category B (Hyprland
-binds).
+`screenshots_enabled` (`group_vars/all.yml`, default `true` - already-
+working daily-driver functionality, not something requiring unknown
+host hardware the way `gaming_enabled` does) gates:
+
+- `screenshot_packages` (`grim`, `slurp`, `libnotify`, `xdg-user-dirs` -
+  `roles/desktop/defaults/main.yml`)
+- the deployed on-demand helper script (`roles/desktop/files/
+  screenshot.sh` -> `~/.local/bin/screenshot`, modes `region`/
+  `monitor` - `roles/desktop/tasks/main.yml`), which owns file naming
+  (`~/Pictures/Screenshots/Screenshot_<timestamp>.png`, collision-safe,
+  respects a custom XDG Pictures dir via `xdg-user-dir`), the
+  `wl-copy` clipboard write, and the `notify-send` confirmation
+- the two Hyprland binds that start it (`Print` -> region, `mainMod +
+  SHIFT + S` -> current monitor -
+  `roles/hyprland/templates/hyprland.lua.j2`)
+
+No Quickshell component, no persistent process - the script is started
+on demand by the bind and exits on its own once done (see `AGENTS.md`
+Runtime Ownership "temporary UI helper -> started on demand only"), no
+new privileges. Feature Category A (provisioning-only) plus Category B
+(Hyprland binds).

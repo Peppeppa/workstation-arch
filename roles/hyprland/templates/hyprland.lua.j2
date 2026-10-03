@@ -155,12 +155,19 @@ end
 
 {% if screenshots_enabled %}
 -- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled and
--- docs/feature-architecture.md). Region screenshot -> clipboard (select
--- a region, then paste directly into a browser/chat); grim/slurp come
--- from roles/desktop's screenshot_packages, wl-clipboard is core.
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
+-- docs/feature-architecture.md). All capture/save/clipboard/notify
+-- logic lives in the deployed screenshot.sh helper (roles/desktop's
+-- files/screenshot.sh, installed to ~/.local/bin/screenshot) - these
+-- two binds only start it on demand with the mode it should run; it
+-- never stays running afterward (see AGENTS.md Runtime Ownership
+-- "temporary UI helper -> started on demand only" - no second
+-- lifecycle owner needed for a process that exits on its own).
+--
+-- Print (a physical key, unaffected by the main-modifier override):
+-- interactive region selection via slurp, then grim.
+hl.bind("Print", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot region"))
 
--- Full-screen screenshot -> clipboard. Not on mainMod - a physical key,
--- unaffected by the main-modifier override.
-hl.bind("Print", hl.dsp.exec_cmd("grim - | wl-copy"))
+-- mainMod + SHIFT + S: grim of the currently focused Hyprland monitor,
+-- no interactive selection.
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot monitor"))
 {% endif %}

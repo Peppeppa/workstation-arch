@@ -53,7 +53,25 @@ desktop_packages:
 # the actual on/off source of truth - and docs/feature-architecture.md
 # for the full contract). Installed only when the feature is enabled
 # (see tasks/main.yml); the two keybinds live in
-# roles/hyprland/templates/hyprland.lua.j2, gated by the same flag.
+# roles/hyprland/templates/hyprland.lua.j2, gated by the same flag. The
+# actual capture/save/clipboard/notify workflow lives in the deployed
+# screenshot.sh helper (files/screenshot.sh, see tasks/main.yml) - an
+# on-demand script, never a persistent process (see AGENTS.md Runtime
+# Ownership "temporary UI helper -> started on demand only").
 screenshot_packages:
-  - grim   # captures the actual image
-  - slurp  # interactive region selector for the region-screenshot bind
+  - grim         # captures the actual image
+  - slurp        # interactive region selector for the region-screenshot bind
+
+  # notify-send for screenshot.sh's post-capture confirmation. Already
+  # present on this system as libnotify (e.g. transitively via other
+  # desktop packages) is not relied upon - listed explicitly here so
+  # the dependency is deterministic and owned by this feature rather
+  # than incidental.
+  - libnotify
+
+  # xdg-user-dir, used by screenshot.sh to resolve the real XDG
+  # Pictures directory (respects a user-customized
+  # ~/.config/user-dirs.dirs instead of a hardcoded ~/Pictures) with no
+  # extra generator step needed - the tool already falls back to the
+  # standard default on its own when unconfigured.
+  - xdg-user-dirs

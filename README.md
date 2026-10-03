@@ -215,8 +215,8 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + [1-9]`  | move the focused window to workspace 1-9     |
 | `Super` + arrow keys     | move keyboard focus                          |
 | `Super` + left/right click drag | move / resize a floating window       |
-| `Super + Shift + S`      | region screenshot -> clipboard               |
-| `Print`                  | fullscreen screenshot -> clipboard           |
+| `Print`                  | region screenshot -> file + clipboard        |
+| `Super + Shift + S`      | current-monitor screenshot -> file + clipboard |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
 
 These are not the final Quickshell UX - just a genuinely usable set of
