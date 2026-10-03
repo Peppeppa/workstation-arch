@@ -124,6 +124,7 @@ PanelWindow {
                     anchors.fill: parent
                     anchors.margins: 8
                     color: Colors.text
+                    font.family: Fonts.family
                     font.pixelSize: launcher.fontSize + 2
                     clip: true
 
@@ -165,6 +166,7 @@ PanelWindow {
                         Text {
                             text: resultDelegate.modelData.name
                             color: resultDelegate.index === launcher.selectedIndex ? Colors.accentText : Colors.text
+                            font.family: Fonts.family
                             font.pixelSize: launcher.fontSize
                             elide: Text.ElideRight
                             width: parent.width
@@ -174,6 +176,7 @@ PanelWindow {
                             visible: text.length > 0
                             text: resultDelegate.modelData.genericName
                             color: Colors.textMuted
+                            font.family: Fonts.family
                             font.pixelSize: launcher.fontSize - 2
                             elide: Text.ElideRight
                             width: parent.width

@@ -69,6 +69,28 @@
   notify: Restart hypridle in the running Hyprland session
   tags: hyprland
 
+# Ghostty ignores fontconfig's monospace alias (with no font-family it
+# falls back to its own built-in font), so the system mono font is set
+# explicitly. This takes over ~/.config/ghostty/config.ghostty, which
+# until now only existed as the empty file Ghostty creates on first run.
+- name: Ensure ~/.config/ghostty exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/ghostty"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy Ghostty config (system mono font)
+  ansible.builtin.template:
+    src: config.ghostty.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/ghostty/config.ghostty"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: hyprland
+
 # FEATURE: lock_idle (see group_vars/all.yml lock_idle_enabled and
 # docs/feature-architecture.md).
 - name: Install lock/idle packages (lock_idle_enabled)
@@ -93,8 +115,8 @@
 # hyprlock reads its config on every start - no restart needed.
 - name: Deploy hyprlock config (lock_idle_enabled)
   when: lock_idle_enabled
-  ansible.builtin.copy:
-    src: hyprlock.conf
+  ansible.builtin.template:
+    src: hyprlock.conf.j2
     dest: "{{ ansible_facts.user_dir }}/.config/hypr/hyprlock.conf"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"

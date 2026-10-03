@@ -42,8 +42,6 @@ PanelWindow {
     required property bool hibernateAvailable
     required property bool lockAvailable
 
-    readonly property string iconFont: "JetBrainsMono Nerd Font Propo"
-
     // danger: icon drawn in Colors.error (session-ending actions).
     readonly property var items: [
         { id: "lock",      label: "Lock",      icon: "", available: lockAvailable, hint: "not set up" },
@@ -182,6 +180,7 @@ PanelWindow {
                 Layout.bottomMargin: 4
                 text: "System"
                 color: Colors.textMuted
+                font.family: Fonts.family
                 font.pixelSize: menu.fontSize
             }
 
@@ -211,7 +210,7 @@ PanelWindow {
                             Layout.preferredWidth: 18
                             horizontalAlignment: Text.AlignHCenter
                             text: row.modelData.icon
-                            font.family: menu.iconFont
+                            font.family: Fonts.icons
                             font.pixelSize: menu.fontSize + 2
                             color: row.modelData.danger && !row.selected ? Colors.error : row.fg
                         }
@@ -219,6 +218,7 @@ PanelWindow {
                         Text {
                             Layout.fillWidth: true
                             text: row.modelData.label
+                            font.family: Fonts.family
                             font.pixelSize: menu.fontSize
                             color: row.fg
                         }
@@ -226,6 +226,7 @@ PanelWindow {
                         Text {
                             visible: !row.modelData.available
                             text: row.modelData.hint || ""
+                            font.family: Fonts.family
                             font.pixelSize: menu.fontSize - 2
                             color: row.selected ? Colors.accentText : Colors.textMuted
                         }

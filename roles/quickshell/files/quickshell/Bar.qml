@@ -93,6 +93,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: modelData.name.length > 0 ? modelData.name : modelData.id
                         color: modelData.focused ? Colors.accentText : Colors.text
+                        font.family: Fonts.family
                         font.pixelSize: bar.fontSize
                     }
 
@@ -117,6 +118,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 text: Qt.formatDateTime(bar.clock.date, "dddd HH:mm")
                 color: Colors.text
+                font.family: Fonts.family
                 font.pixelSize: bar.fontSize
             }
 
@@ -137,7 +139,7 @@ PanelWindow {
                     anchors.centerIn: parent
                     visible: CoffeeMode.active || coffeeMouse.containsMouse
                     text: "\uf0f4"
-                    font.family: "JetBrainsMono Nerd Font Propo"
+                    font.family: Fonts.icons
                     font.pixelSize: bar.fontSize + 1
                     color: CoffeeMode.active ? Colors.text : Colors.textMuted
                 }
@@ -158,6 +160,7 @@ PanelWindow {
 
             Text {
                 color: Colors.text
+                font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {
                     const devices = Networking.devices.values;
@@ -182,6 +185,7 @@ PanelWindow {
             Text {
                 id: volumeLabel
                 color: Colors.text
+                font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {
                     const sink = Pipewire.defaultAudioSink;
@@ -210,6 +214,7 @@ PanelWindow {
             Text {
                 visible: UPower.displayDevice !== null && UPower.displayDevice.isPresent
                 color: Colors.text
+                font.family: Fonts.family
                 font.pixelSize: bar.fontSize
                 text: {
                     const battery = UPower.displayDevice;

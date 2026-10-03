@@ -221,6 +221,9 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate) / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
 
+System font: FiraCode Nerd Font (UI, monospace, terminal, lockscreen,
+GTK; Qt via fontconfig) - names in `group_vars/all.yml`.
+
 Idle (hypridle): 5 min -> lock, 10 min -> displays off, back on at any
 input; the session is always locked before suspend/hibernate.
 

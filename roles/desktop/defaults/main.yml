@@ -49,6 +49,11 @@ desktop_packages:
   # workstation if it has no controllable backlight).
   - brightnessctl
 
+  # System font (group_vars/all.yml desktop_font_family*): FiraCode Nerd
+  # Font, official `extra` package - UI, monospace and Nerd Font icon
+  # glyphs (power menu, coffee toggle) from one family.
+  - ttf-firacode-nerd
+
 # FEATURE: screenshots (see group_vars/all.yml screenshots_enabled -
 # the actual on/off source of truth - and docs/feature-architecture.md
 # for the full contract). Installed only when the feature is enabled

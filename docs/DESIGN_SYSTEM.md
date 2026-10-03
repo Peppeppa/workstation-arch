@@ -1,7 +1,17 @@
 # Design System
 
-Deliberately small. Today it covers colors only (Central Color System
-v1); sizes/spacing are still a couple of constants in `shell.qml`.
+Deliberately small: colors (Central Color System v1) and the system font
+(System Font v1); sizes/spacing are still a couple of constants in
+`shell.qml`.
+
+## Font
+
+FiraCode Nerd Font, names defined once in `group_vars/all.yml`
+(`desktop_font_family` UI, `_mono` terminal/monospace, `_icons` Propo
+variant for icon glyphs) and rendered into: fontconfig `sans-serif`/
+`monospace` (covers Qt), GTK GSettings, Quickshell `Fonts.qml`, hyprlock,
+Ghostty. Quickshell components use `font.family: Fonts.family` /
+`Fonts.icons` - never a font name literal.
 
 ## Central color source
 

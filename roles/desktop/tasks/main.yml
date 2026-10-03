@@ -13,6 +13,53 @@
     state: present
   tags: desktop
 
+# System font: user-level fontconfig drop-in (conf.d, so a user's own
+# fonts.conf stays theirs) - covers Qt (no platform theme here: Qt
+# resolves its default font through fontconfig) and every other generic
+# family lookup.
+- name: Ensure ~/.config/fontconfig/conf.d exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/fontconfig/conf.d"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: desktop
+
+- name: Deploy system font fontconfig defaults
+  ansible.builtin.template:
+    src: 50-workstation-fonts.conf.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/fontconfig/conf.d/50-workstation-fonts.conf"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: desktop
+
+# GTK3/GTK4 (and xdg-desktop-portal-gtk, which serves these to GTK4/
+# libadwaita apps) read the interface fonts from GSettings, not
+# fontconfig - so they are set there, the declarative GNOME way, through
+# the already D-Bus-activated dconf service. Compare first so an
+# unchanged value is not rewritten (idempotent). community.general.dconf
+# would need python-psutil just for this.
+- name: Set GTK interface fonts (GSettings)
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      want="'{{ item.value }}'"
+      if [ "$(gsettings get org.gnome.desktop.interface {{ item.key }})" = "$want" ]; then echo unchanged; exit 0; fi
+      gsettings set org.gnome.desktop.interface {{ item.key }} "{{ item.value }}"
+      echo changed
+  environment:
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.user_uid }}/bus"
+  register: desktop_gsettings_font
+  changed_when: desktop_gsettings_font.stdout == "changed"
+  loop:
+    - { key: font-name, value: "{{ desktop_font_family }} {{ desktop_font_size }}" }
+    - { key: monospace-font-name, value: "{{ desktop_font_family_mono }} {{ desktop_font_size }}" }
+  loop_control:
+    label: "{{ item.key }}"
+  tags: desktop
+
 # FEATURE: screenshots (see group_vars/all.yml screenshots_enabled and
 # docs/feature-architecture.md). Disabling the feature only stops this
 # task from running on a future provisioning pass - it does not remove

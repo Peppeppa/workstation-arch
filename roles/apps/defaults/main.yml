@@ -37,14 +37,16 @@ apps_packages:
 
   # Editor: Neovim is a normal package. LazyVim is user *configuration*,
   # not a package, and is deliberately NOT bootstrapped by this role -
-  # see AGENTS.md Current Status for why. ripgrep/fd/a Nerd Font are
-  # installed anyway: they are LazyVim's own documented hard
-  # requirements (fuzzy-finding, icons) and are harmless, generically
-  # useful regardless of how/when LazyVim itself gets bootstrapped.
+  # see AGENTS.md Current Status for why. ripgrep/fd are installed
+  # anyway: they are LazyVim's own documented hard requirements
+  # (fuzzy-finding) and are harmless, generically useful regardless of
+  # how/when LazyVim itself gets bootstrapped. LazyVim's third
+  # requirement, a Nerd Font, is the system font (ttf-firacode-nerd,
+  # roles/desktop) - ttf-jetbrains-mono-nerd is no longer listed (left
+  # installed where it already is, never removed).
   - neovim
   - ripgrep
   - fd
-  - ttf-jetbrains-mono-nerd
 
   # Notes
   - obsidian

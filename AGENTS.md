@@ -133,6 +133,9 @@ Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
   active). Only `Colors.qml` decides; components never contain their
   own dark/light branches.
 - Theming stays declarative: no daemon, timer, polling, or file watcher.
+- Fonts likewise: `font.family: Fonts.family` (icons: `Fonts.icons`),
+  never a font name in a component. Font names live only in
+  `group_vars/all.yml` `desktop_font_family*`.
 
 ## Feature Architecture
 

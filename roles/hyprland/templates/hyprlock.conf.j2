@@ -1,5 +1,6 @@
 # FEATURE: lock_idle (group_vars/all.yml lock_idle_enabled). Managed by
-# Ansible from roles/hyprland/files/hyprlock.conf - do not edit by hand.
+# Ansible from roles/hyprland/templates/hyprlock.conf.j2 - do not edit by
+# hand.
 #
 # Deliberately minimal lockscreen: time, date, password field. No
 # wallpaper/screenshot, blur, animations or widgets. Authentication is
@@ -20,6 +21,9 @@ $accent     = rgb(3a6ea5)
 $error      = rgb(d9534f)
 # ------------------------------------------------------------------------
 
+# System font (group_vars/all.yml desktop_font_family)
+$font = {{ desktop_font_family }}
+
 general {
     hide_cursor = false
     ignore_empty_input = true
@@ -39,6 +43,7 @@ label {
     monitor =
     text = $TIME
     color = $text
+    font_family = $font
     font_size = 72
     position = 0, 160
     halign = center
@@ -51,6 +56,7 @@ label {
     monitor =
     text = cmd[update:60000] date +"%A, %d. %B %Y"
     color = $textMuted
+    font_family = $font
     font_size = 18
     position = 0, 80
     halign = center
@@ -65,6 +71,7 @@ input-field {
     outer_color = $accent
     inner_color = $surface
     font_color = $text
+    font_family = $font
     check_color = $accent
     fail_color = $error
     fade_on_empty = false
