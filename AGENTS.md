@@ -771,7 +771,9 @@ history for that milestone's own record):
   lock path (`loginctl lock-session`) for Super+L, power menu, idle and
   before-sleep. First persistent process added since the idle baseline
   (hypridle, ~7 MB, 0% CPU - see `docs/idle-baseline.md`). arch-dev
-  needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars).
+  needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars). Manual
+  PAM test passed on arch-dev (wrong password rejected, correct one
+  unlocks). v1.1: coffee-mode idle-inhibit toggle in the bar.
 
 **Open for next time**: Bluetooth (no code yet), a tray (native `Quickshell.Services.SystemTray` exists and
 is stable in 0.3.1, deliberately not built - see Feature Architecture

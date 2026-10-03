@@ -331,6 +331,7 @@ handler), so splitting them would buy nothing.
 | Lifecycle owner | Hyprland session start; a bootstrap inside a running session asks that Hyprland to exec it; config/start-command changes restart it (handler) |
 | Privileges / Auth | none added; unlock only via hyprlock's package PAM file (`auth include login`), no `unlock_cmd` |
 | Secrets / Network | none / none |
+| Coffee mode (v1.1) | bar toggle left of the clock -> Quickshell `IdleInhibitor` (Wayland idle-inhibit) on the bar surface; hypridle's listeners obey it, explicit/sleep locks don't go through idle events so they're unaffected; not persisted, dropped by the compositor if Quickshell exits |
 | Host overrides | `lock_idle_hypridle_cmd` (arch-dev: `env LIBGL_ALWAYS_SOFTWARE=1 hypridle`, inherited by hyprlock) |
 | Disable | no bind, no autostart, power menu Lock unavailable, running hypridle stopped, `hypridle.conf`/`hyprlock.conf` removed (feature-owned config); packages stay |
 | Persistent user data | none |

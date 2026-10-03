@@ -67,6 +67,8 @@ ShellRoot {
             // reported "Binding loop detected" and clock.date read as
             // undefined until this was qualified).
             clock: systemClock
+            // Coffee (idle-pause) toggle only with the lock_idle feature.
+            idleToggleAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
             barHeight: root.barHeight
             fontSize: root.fontSize
         }

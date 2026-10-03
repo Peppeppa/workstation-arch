@@ -224,6 +224,12 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 Idle (hypridle): 5 min -> lock, 10 min -> displays off, back on at any
 input; the session is always locked before suspend/hibernate.
 
+Coffee icon left of the bar clock (hidden until hovered; click to
+toggle): pauses the *automatic* idle lock/display-off while on (icon
+stays visible). Not persistent - off again after any Quickshell or
+session restart. Super+L, power menu Lock and lock-before-suspend keep
+working while it's on.
+
 Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR
 runs tesseract fully locally (no network), only on the keypress - zero
 idle cost, like the screenshot feature itself.

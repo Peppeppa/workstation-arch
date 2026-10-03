@@ -18,6 +18,7 @@ import Quickshell.Hyprland
 import Quickshell.Networking
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
+import Quickshell.Wayland
 
 PanelWindow {
     id: bar
@@ -31,6 +32,10 @@ PanelWindow {
     screen: modelData
 
     required property var clock
+    // lock_idle feature present (templated by shell.qml.j2): only then
+    // is there an idle daemon worth pausing, so only then the coffee
+    // toggle exists.
+    required property bool idleToggleAvailable
     required property int barHeight
     required property int fontSize
 
@@ -44,6 +49,15 @@ PanelWindow {
     // exclusive zone automatically - no hardcoded Hyprland gaps.
     implicitHeight: barHeight
     color: Colors.background
+
+    // Coffee mode: a Wayland idle inhibitor on this (always visible) bar
+    // surface while active - created on toggle, destroyed on toggle off
+    // or when Quickshell goes away. Every bar holds one; any one is
+    // enough for the compositor.
+    IdleInhibitor {
+        window: bar
+        enabled: bar.idleToggleAvailable && CoffeeMode.active
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -90,13 +104,51 @@ PanelWindow {
             }
         }
 
-        // CENTER: clock, e.g. "Fri 02 Oct 15:30".
-        Text {
+        // CENTER: clock - weekday + 24h time, e.g. "Saturday 16:03"
+        // (weekday language follows the session locale). The coffee
+        // toggle hangs off the clock's left edge, so the clock stays
+        // exactly centered and nothing moves when the icon shows/hides.
+        Item {
             Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: Qt.formatDateTime(bar.clock.date, "ddd dd MMM hh:mm")
-            color: Colors.text
-            font.pixelSize: bar.fontSize
+            implicitHeight: clockText.implicitHeight
+
+            Text {
+                id: clockText
+                anchors.centerIn: parent
+                text: Qt.formatDateTime(bar.clock.date, "dddd HH:mm")
+                color: Colors.text
+                font.pixelSize: bar.fontSize
+            }
+
+            // Coffee toggle (CoffeeMode.qml). Fixed 22px click/hover
+            // target whether or not the icon is drawn. Off: icon hidden,
+            // shown muted on hover. On: always shown in the normal text
+            // color. Click toggles.
+            Item {
+                id: coffee
+                visible: bar.idleToggleAvailable
+                anchors.right: clockText.left
+                anchors.rightMargin: 6
+                anchors.verticalCenter: clockText.verticalCenter
+                width: 22
+                height: bar.barHeight
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: CoffeeMode.active || coffeeMouse.containsMouse
+                    text: "\uf0f4"
+                    font.family: "JetBrainsMono Nerd Font Propo"
+                    font.pixelSize: bar.fontSize + 1
+                    color: CoffeeMode.active ? Colors.text : Colors.textMuted
+                }
+
+                MouseArea {
+                    id: coffeeMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: CoffeeMode.active = !CoffeeMode.active
+                }
+            }
         }
 
         // RIGHT: network, volume, battery (battery only if present).
