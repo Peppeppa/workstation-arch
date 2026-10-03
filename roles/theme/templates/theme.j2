@@ -25,10 +25,14 @@
 #
 # Theme registry = the theme directories themselves (no list anywhere else):
 #   <THEMES_DIR>/<id>/{dark|light, theme.yml, backgrounds/}
+#
+# Outputs (~/.config/workstation/theme/): colors.json (Quickshell),
+# hyprland.lua, hyprlock.conf, ghostty - each app includes its file.
 
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -46,7 +50,14 @@ ROLES = (
     "background", "surface", "foreground", "foreground_muted", "accent",
     "accent_foreground", "border", "border_active", "error",
 )
-THEME_KEYS = {"name", "colors"}
+# Terminal contract - the 16 ANSI colors (0-15, in this order); every
+# theme has them, taken from the theme's own terminal palette.
+TERMINAL = (
+    "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+    "bright_black", "bright_red", "bright_green", "bright_yellow",
+    "bright_blue", "bright_magenta", "bright_cyan", "bright_white",
+)
+THEME_KEYS = {"name", "colors", "terminal"}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -86,24 +97,26 @@ def load_theme(theme_id):
                 errors.append("unknown keys in theme.yml: %s" % ", ".join(sorted(unknown)))
             if not isinstance(data.get("name"), str) or not data.get("name"):
                 errors.append("theme.yml needs a non-empty string 'name'")
-            colors = data.get("colors")
-            if not isinstance(colors, dict):
-                errors.append("theme.yml needs a 'colors' mapping")
-            else:
-                missing = [r for r in ROLES if r not in colors]
-                extra = [r for r in colors if r not in ROLES]
-                bad = [r for r in ROLES if r in colors
-                       and not (isinstance(colors[r], str) and HEX_RE.match(colors[r]))]
+            for block, keys in (("colors", ROLES), ("terminal", TERMINAL)):
+                values = data.get(block)
+                if not isinstance(values, dict):
+                    errors.append("theme.yml needs a '%s' mapping" % block)
+                    continue
+                missing = [k for k in keys if k not in values]
+                extra = [k for k in values if k not in keys]
+                bad = [k for k in keys if k in values
+                       and not (isinstance(values[k], str) and HEX_RE.match(values[k]))]
                 if missing:
-                    errors.append("missing colors: %s" % ", ".join(missing))
+                    errors.append("missing %s: %s" % (block, ", ".join(missing)))
                 if extra:
-                    errors.append("unknown colors: %s" % ", ".join(extra))
+                    errors.append("unknown %s: %s" % (block, ", ".join(extra)))
                 if bad:
-                    errors.append("not #rrggbb: %s" % ", ".join(bad))
+                    errors.append("%s not #rrggbb: %s" % (block, ", ".join(bad)))
     if errors:
         return None, errors
     return {"id": theme_id, "name": data["name"], "mode": markers[0],
-            "colors": {r: data["colors"][r] for r in ROLES}}, []
+            "colors": {r: data["colors"][r] for r in ROLES},
+            "terminal": [data["terminal"][k] for k in TERMINAL]}, []
 
 
 def discover():
@@ -146,26 +159,34 @@ def check_state(state, valid):
             raise ThemeError("%r is a %s theme, not %s" % (state[slot], theme["mode"], slot))
 
 
-def atomic_write(path, text):
-    """Write only if different; replace atomically. Returns True if changed."""
+def write_files(files):
+    """Atomically replace every {path: text} that differs. All new contents
+    are staged as temp files first; only if ALL staged successfully are
+    they renamed into place (same-filesystem renames). A failure while
+    staging leaves every existing file untouched. Returns changed paths."""
+    staged = []
     try:
-        with open(path, encoding="utf-8") as f:
-            if f.read() == text:
-                return False
-    except FileNotFoundError:
-        pass
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".tmp-")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.chmod(tmp, 0o644)
-        os.replace(tmp, path)
+        for path, text in files.items():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    if f.read() == text:
+                        continue
+            except FileNotFoundError:
+                pass
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".tmp-")
+            staged.append((tmp, path))
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(text)
+            os.chmod(tmp, 0o644)
     except BaseException:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+        for tmp, _ in staged:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
         raise
-    return True
+    for tmp, path in staged:
+        os.replace(tmp, path)
+    return [path for _, path in staged]
 
 
 def state_text(state):
@@ -188,6 +209,15 @@ def render(state, valid):
         # hyprlock: hyprlock.conf sources this.
         "hyprlock.conf": "# generated by `theme` - do not edit\n"
                          + "".join("$%s = %s\n" % (r, rgb[r]) for r in ROLES),
+        # Ghostty: config.ghostty includes this (config-file = ?...).
+        # Cursor and selection come from the semantic roles (accent =
+        # "selection fill", accent_foreground = "text on it"), the 16 ANSI
+        # colors from the theme's terminal palette.
+        "ghostty": "# generated by `theme` - do not edit\n"
+                   + "background = %s\nforeground = %s\n" % (c["background"], c["foreground"])
+                   + "cursor-color = %s\ncursor-text = %s\n" % (c["foreground"], c["background"])
+                   + "selection-background = %s\nselection-foreground = %s\n" % (c["accent"], c["accent_foreground"])
+                   + "".join("palette = %d=%s\n" % (i, v) for i, v in enumerate(theme["terminal"])),
     }
 
 
@@ -217,8 +247,22 @@ def _run(argv, env):
         return None
 
 
+def _signal(name, sig):
+    """Send `sig` to every process of ours named `name` (no-op if none)."""
+    res = _run(["pgrep", "-u", str(os.getuid()), "-x", name], dict(os.environ))
+    for pid in (res.stdout.split() if res is not None else []):
+        try:
+            os.kill(int(pid), sig)
+        except (OSError, ValueError):
+            pass
+
+
 def apply_live(state, changed_files):
     env = _session_env()
+    if "ghostty" in changed_files:
+        # Ghostty (1.3) reloads its configuration on SIGUSR2 - every open
+        # window picks up the new colors, no restart.
+        _signal("ghostty", signal.SIGUSR2)
     if "colors.json" in changed_files:
         _run(["qs", "ipc", "--any-display", "call", "theme", "reload"], env)
     if "hyprland.lua" in changed_files and env.get("HYPRLAND_INSTANCE_SIGNATURE"):
@@ -236,14 +280,16 @@ def apply_live(state, changed_files):
 
 
 def commit(state, valid):
-    """Validate, render, write outputs, then state, then apply. Returns changed?"""
+    """Validate, render everything, write outputs + state together, then
+    apply live. Returns whether anything changed."""
     check_state(state, valid)              # nothing written unless the new state is valid
-    outputs = render(state, valid)
-    changed_files = [name for name, text in outputs.items()
-                     if atomic_write(os.path.join(OUT_DIR, name), text)]
-    state_changed = atomic_write(STATE_FILE, state_text(state))
+    outputs = render(state, valid)         # every output exists before anything is written
+    files = {os.path.join(OUT_DIR, name): text for name, text in outputs.items()}
+    files[STATE_FILE] = state_text(state)  # state is only written together with its outputs
+    changed = write_files(files)
+    changed_files = [os.path.basename(p) for p in changed if p != STATE_FILE]
     gtk_changed = apply_live(state, changed_files)
-    return bool(changed_files or state_changed or gtk_changed)
+    return bool(changed or gtk_changed)
 
 
 # --- CLI -------------------------------------------------------------------

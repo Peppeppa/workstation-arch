@@ -13,3 +13,22 @@ colors:
   border:            "#586e75"  # base01
   border_active:     "#268bd2"  # blue = accent
   error:             "#dc322f"  # red
+
+# Terminal palette (ANSI 0-15). Source: altercation/solarized README - the canonical 16-color terminal assignment
+terminal:
+  black:           "#073642"  # base02
+  red:             "#dc322f"  # red
+  green:           "#859900"  # green
+  yellow:          "#b58900"  # yellow
+  blue:            "#268bd2"  # blue
+  magenta:         "#d33682"  # magenta
+  cyan:            "#2aa198"  # cyan
+  white:           "#eee8d5"  # base2
+  bright_black:    "#002b36"  # base03
+  bright_red:      "#cb4b16"  # orange
+  bright_green:    "#586e75"  # base01
+  bright_yellow:   "#657b83"  # base00
+  bright_blue:     "#839496"  # base0
+  bright_magenta:  "#6c71c4"  # violet
+  bright_cyan:     "#93a1a1"  # base1
+  bright_white:    "#fdf6e3"  # base3

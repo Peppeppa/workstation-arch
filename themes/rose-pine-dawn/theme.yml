@@ -13,3 +13,22 @@ colors:
   border:            "#9893a5"  # muted
   border_active:     "#286983"  # pine = accent
   error:             "#b4637a"  # love
+
+# Terminal palette (ANSI 0-15). Source: rose-pine/ghostty dist/rose-pine-dawn (palette 0-15; white uses that repo's #575279 text tone)
+terminal:
+  black:           "#f2e9e1"  # overlay
+  red:             "#b4637a"  # love
+  green:           "#286983"  # pine
+  yellow:          "#ea9d34"  # gold
+  blue:            "#56949f"  # foam
+  magenta:         "#907aa9"  # iris
+  cyan:            "#d7827e"  # rose
+  white:           "#575279"  # text
+  bright_black:    "#9893a5"  # muted
+  bright_red:      "#b4637a"  # love
+  bright_green:    "#286983"  # pine
+  bright_yellow:   "#ea9d34"  # gold
+  bright_blue:     "#56949f"  # foam
+  bright_magenta:  "#907aa9"  # iris
+  bright_cyan:     "#d7827e"  # rose
+  bright_white:    "#575279"  # text

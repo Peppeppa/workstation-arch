@@ -13,3 +13,22 @@ colors:
   border:            "#45475a"  # surface1
   border_active:     "#89b4fa"  # blue = accent
   error:             "#f38ba8"  # red
+
+# Terminal palette (ANSI 0-15). Source: catppuccin/ghostty themes/catppuccin-mocha.conf (palette 0-15)
+terminal:
+  black:           "#45475a"  # surface1
+  red:             "#f38ba8"  # red
+  green:           "#a6e3a1"  # green
+  yellow:          "#f9e2af"  # yellow
+  blue:            "#89b4fa"  # blue
+  magenta:         "#f5c2e7"  # pink
+  cyan:            "#94e2d5"  # teal
+  white:           "#a6adc8"  # subtext0
+  bright_black:    "#585b70"  # surface2
+  bright_red:      "#f38ba8"  # red
+  bright_green:    "#a6e3a1"  # green
+  bright_yellow:   "#f9e2af"  # yellow
+  bright_blue:     "#89b4fa"  # blue
+  bright_magenta:  "#f5c2e7"  # pink
+  bright_cyan:     "#94e2d5"  # teal
+  bright_white:    "#bac2de"  # subtext1
