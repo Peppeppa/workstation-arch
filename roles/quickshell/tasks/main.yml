@@ -43,8 +43,8 @@
     - Tray.qml
     - TrayMenu.qml
     - TrayMenuLevel.qml
-    - Widget.qml
-    - Popup.qml
+    - BluetoothButton.qml
+    - BluetoothPopup.qml
     - PowerControl.qml
     - PowerPopup.qml
     - AudioControl.qml
@@ -210,8 +210,8 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   loop:
-    - BluetoothButton.qml
-    - BluetoothPopup.qml
+    - Widget.qml
+    - Popup.qml
   notify: Reload running Quickshell config
   tags: quickshell
 
