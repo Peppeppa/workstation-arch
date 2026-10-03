@@ -340,3 +340,16 @@
   register: quickshell_release
   changed_when: quickshell_release.stdout == "restarted"
   tags: quickshell
+
+# Hyprland's session start owns Quickshell (roles/hyprland session.lua).
+# Like hypridle: a bootstrap inside a running session where Quickshell is
+# not running (crashed / stopped) asks THAT Hyprland to exec it. No-op
+# without a session or with Quickshell up.
+- name: Ensure Quickshell runs in the active Hyprland session
+  ansible.builtin.shell:
+    cmd: "{{ quickshell_start_script }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  register: quickshell_start
+  changed_when: quickshell_start.stdout == "started"
+  tags: quickshell
