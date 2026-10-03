@@ -86,9 +86,13 @@ Scope {
                     required property int index
 
                     readonly property bool critical: modelData.urgency === NotificationUrgency.Critical
-                    // Sender timeout is in seconds; <= 0 means "server default".
+                    // Sender timeout in MILLISECONDS (the raw D-Bus value: 0.3.1's
+                    // server.cpp passes it through unconverted, despite the
+                    // property doc saying seconds - confirmed on arch-dev, where
+                    // `notify-send -t 2000` otherwise never expired).
+                    // <= 0 means "server default".
                     readonly property int timeoutMs: modelData.expireTimeout > 0
-                                                     ? modelData.expireTimeout * 1000
+                                                     ? modelData.expireTimeout
                                                      : root.defaultTimeoutMs
                     readonly property string iconSource: modelData.image
                                                          || (modelData.appIcon ? Quickshell.iconPath(modelData.appIcon, true) : "")
