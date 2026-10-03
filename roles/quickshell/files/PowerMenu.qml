@@ -16,7 +16,11 @@
 //     polkit rules allow these for the active local session, no sudo
 //   logout: Hyprland's own exit dispatcher (same as mainMod+SHIFT+E)
 //   lock: shown but unavailable - no lockscreen exists yet (Lock/Idle
-//     is its own later milestone); never a fake lock
+//     is its own later milestone); never a fake lock. Still always the
+//     initial selection (user decision): mainMod+Escape, Enter = lock,
+//     replacing a separate lock bind - a no-op until a lockscreen exists.
+//     Unavailable entries stay selectable so navigation stays linear;
+//     only activating them does nothing.
 // Every action runs immediately on Enter/click - no confirm step, by
 // explicit user decision. Hibernate is listed only if logind
 // reported it available when this host was provisioned
@@ -73,25 +77,14 @@ PanelWindow {
     // once its surface is mapped, so the old selection would briefly
     // still apply.
     function open() {
-        selectedIndex = firstAvailable();
+        selectedIndex = 0;   // Lock - first entry, see header
         visible = true;
     }
 
     onVisibleChanged: if (visible) keyHandler.forceActiveFocus()
 
-    function firstAvailable() {
-        for (let i = 0; i < items.length; i++)
-            if (items[i].available) return i;
-        return 0;
-    }
-
     function moveSelection(step) {
-        for (let i = selectedIndex + step; i >= 0 && i < items.length; i += step) {
-            if (items[i].available) {
-                selectedIndex = i;
-                return;
-            }
-        }
+        selectedIndex = Math.max(0, Math.min(items.length - 1, selectedIndex + step));
     }
 
     function activate(item) {
@@ -196,9 +189,9 @@ PanelWindow {
                     id: row
                     required property var modelData
                     required property int index
-                    readonly property bool selected: index === menu.selectedIndex && modelData.available
-                    readonly property color fg: !modelData.available ? Colors.textMuted
-                                              : selected ? Colors.accentText : Colors.text
+                    readonly property bool selected: index === menu.selectedIndex
+                    readonly property color fg: selected ? Colors.accentText
+                                              : !modelData.available ? Colors.textMuted : Colors.text
 
                     Layout.fillWidth: true
                     implicitHeight: 36
@@ -231,14 +224,14 @@ PanelWindow {
                             visible: !row.modelData.available
                             text: row.modelData.hint || ""
                             font.pixelSize: menu.fontSize - 2
-                            color: Colors.textMuted
+                            color: row.selected ? Colors.accentText : Colors.textMuted
                         }
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
-                        onEntered: if (row.modelData.available) menu.selectedIndex = row.index
+                        onEntered: menu.selectedIndex = row.index
                         onClicked: menu.activate(row.modelData)
                     }
                 }

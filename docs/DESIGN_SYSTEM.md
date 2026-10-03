@@ -41,7 +41,8 @@ Add a role only when a real component needs one. No `success`/
 
 - One selection language: keyboard selection and mouse hover are the
   same state, drawn as `accent` fill + `accentText`. Unavailable
-  entries use `textMuted` and are skipped by keyboard navigation.
+  entries use `textMuted` (when not selected); they stay selectable,
+  activating them does nothing.
 - Icons: glyphs from the already-installed JetBrainsMono Nerd Font
   (`font.family: "JetBrainsMono Nerd Font Propo"`), always next to a
   text label - no icon library/theme dependency.
