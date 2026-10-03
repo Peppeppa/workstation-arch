@@ -1,0 +1,39 @@
+---
+# FEATURE: bluetooth. bluetoothd is a machine-wide daemon -> systemd
+# system service, its only lifecycle owner. Runtime on/off of the RADIO is
+# the adapter's Powered property (Quickshell), never this service.
+- name: Install Bluetooth packages (bluetooth_enabled)
+  when: bluetooth_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ bluetooth_packages }}"
+    state: present
+  tags: bluetooth
+
+- name: Enable and start bluetooth.service (bluetooth_enabled)
+  when: bluetooth_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: bluetooth.service
+    enabled: true
+    state: started
+  tags: bluetooth
+
+# Disable: stop the service this feature enabled. Packages and BlueZ's
+# pairing data (/var/lib/bluetooth) stay untouched (Disable vs. Purge).
+# Skipped on hosts where bluez was never installed.
+- name: Check for bluetooth.service (bluetooth disabled)
+  when: not bluetooth_enabled
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/bluetooth.service
+  register: bluetooth_unit
+  tags: bluetooth
+
+- name: Disable and stop bluetooth.service (bluetooth disabled)
+  when: not bluetooth_enabled and bluetooth_unit.stat.exists
+  become: true
+  ansible.builtin.systemd_service:
+    name: bluetooth.service
+    enabled: false
+    state: stopped
+  tags: bluetooth

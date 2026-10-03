@@ -149,6 +149,43 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: bluetooth (see group_vars/all.yml bluetooth_enabled; the
+# service side is roles/bluetooth). Bar slot + popup into the config dir,
+# the on-demand pairing agent into ~/.local/libexec/workstation/.
+- name: Deploy the Bluetooth components (bluetooth_enabled)
+  when: bluetooth_enabled
+  ansible.builtin.copy:
+    src: "bluetooth/{{ item }}"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop:
+    - BluetoothButton.qml
+    - BluetoothPopup.qml
+  notify: Reload running Quickshell config
+  tags: quickshell
+
+- name: Ensure ~/.local/libexec/workstation exists (bluetooth_enabled)
+  when: bluetooth_enabled
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/libexec/workstation"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
+- name: Deploy the Bluetooth pairing agent (bluetooth_enabled)
+  when: bluetooth_enabled
+  ansible.builtin.copy:
+    src: bluetooth/bluetooth-agent.py
+    dest: "{{ ansible_facts.user_dir }}/.local/libexec/workstation/bluetooth-agent"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

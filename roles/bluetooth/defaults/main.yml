@@ -1,0 +1,15 @@
+---
+# FEATURE: bluetooth (group_vars/all.yml bluetooth_enabled, see
+# docs/feature-architecture.md). Official Arch packages only:
+#   bluez         - bluetoothd, the one Bluetooth daemon (systemd system service)
+#   python-gobject - the on-demand pairing agent (roles/quickshell
+#                    files/bluetooth/bluetooth-agent.py) talks D-Bus via Gio;
+#                    already on the system as a dependency, listed so the
+#                    feature's dependency is explicit
+# Not needed: bluez-utils (bluetoothctl & co. - the desktop never shells
+# out to it), a separate audio package (PipeWire's bluez5 plugin ships in
+# pipewire-audio, WirePlumber drives it), blueman/bluez-tools (no
+# persistent tray/agent; see the agent's header for why).
+bluetooth_packages:
+  - bluez
+  - python-gobject

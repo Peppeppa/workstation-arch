@@ -67,6 +67,15 @@ notifications_enabled: true
 # never instantiated (no watcher/host from us); nothing to delete.
 tray_enabled: true
 
+# Bluetooth (roles/bluetooth: bluez + bluetooth.service; roles/quickshell
+# files/bluetooth/: bar slot + popup + on-demand pairing agent). Quickshell's
+# native Bluetooth module drives everything over BlueZ D-Bus (power,
+# scan, connect, pair, forget); the pairing agent runs only while the user
+# pairs. bluetoothd is the one new permanent (system) process. false:
+# no UI, bluetooth.service disabled+stopped; pairings in /var/lib/bluetooth
+# and packages stay.
+bluetooth_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the

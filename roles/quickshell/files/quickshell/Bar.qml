@@ -41,6 +41,8 @@ PanelWindow {
     required property var themeDialog
     // tray_enabled (templated by shell.qml.j2): load the tray zone.
     required property bool trayEnabled
+    // bluetooth_enabled (templated by shell.qml.j2): load the Bluetooth slot.
+    required property bool bluetoothEnabled
     required property int barHeight
     required property int fontSize
 
@@ -194,7 +196,7 @@ PanelWindow {
             }
         }
 
-        // RIGHT: tray (feature), network, volume, battery (battery only if present).
+        // RIGHT: tray, bluetooth (features), network, volume, battery (battery only if present).
         RowLayout {
             Layout.alignment: Qt.AlignVCenter
             spacing: 16
@@ -207,6 +209,16 @@ PanelWindow {
                 visible: active && item !== null && item.shown.length > 0
                 Layout.alignment: Qt.AlignVCenter
                 Component.onCompleted: if (active) setSource("Tray.qml", { bar: bar })
+            }
+
+            // FEATURE: bluetooth (BluetoothButton.qml, bluetooth_enabled).
+            // Not instantiated when the feature is off; hidden when the
+            // machine has no Bluetooth adapter.
+            Loader {
+                active: bar.bluetoothEnabled
+                visible: active && item !== null && item.adapter !== null
+                Layout.alignment: Qt.AlignVCenter
+                Component.onCompleted: if (active) setSource("BluetoothButton.qml", { bar: bar })
             }
 
             Text {
