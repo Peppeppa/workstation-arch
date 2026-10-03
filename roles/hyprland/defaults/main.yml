@@ -101,4 +101,10 @@ lock_idle_start_script: |
   sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
   if [ -z "$sig" ]; then echo no-session; exit 0; fi
   hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ lock_idle_hypridle_cmd }}")' >/dev/null
+  # A replaced hypridle takes its pending on-resume ("displays on") with
+  # it: if the old one had already turned the displays off, nothing would
+  # ever turn them back on (real arch-dev incident: black, unresponsive
+  # screen after a deploy restarted hypridle during idle DPMS-off). The
+  # new instance re-arms its own timers, so switching them on is safe.
+  hyprctl -i "$sig" dispatch 'hl.dsp.dpms({ action = "on" })' >/dev/null
   echo started
