@@ -52,7 +52,14 @@ apps_packages:
   - obsidian
 
   # Password manager (desktop app only - see AGENTS.md: no vault
-  # configuration, no SSH agent setup, no credentials in this repo)
+  # configuration, no SSH agent setup, no credentials in this repo).
+  # bitwarden depends on the virtual org.freedesktop.secrets: named
+  # explicitly (same transaction) so pacman does not pick the first
+  # provider on its own - that was chipass, a full KeePass-style password
+  # manager GUI with no D-Bus activation (so no working Secret Service at
+  # all). gnome-keyring is a small Secret Service started on demand by
+  # D-Bus activation - no permanent process, no extra app.
+  - gnome-keyring
   - bitwarden
 
   # PDF: Zathura as a lean reader (mupdf backend - lighter than the
@@ -94,3 +101,10 @@ apps_flatpak_packages:
 # - GeForce NOW, WhatsApp, Overleaf, draw.io/diagrams.net: web apps via
 #   Chromium for now - no declarative webapp/.desktop-entry system is
 #   built in this run (documented as a future idea only).
+
+# Packages this role once caused to be installed and that are not wanted
+# any more - removed (only these exact names, never their dependencies).
+#   chipass: the accidental org.freedesktop.secrets provider for bitwarden
+#            (see apps_packages; gnome-keyring replaces it)
+apps_retired_packages:
+  - chipass

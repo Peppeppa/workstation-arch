@@ -11,6 +11,15 @@
     state: present
   tags: apps
 
+# Explicit removals (defaults/main.yml apps_retired_packages) - after the
+# install above, which already provides their replacements.
+- name: Remove retired application packages
+  become: true
+  community.general.pacman:
+    name: "{{ apps_retired_packages }}"
+    state: absent
+  tags: apps
+
 # Flatpak is only installed/configured because at least one desired app
 # (IntelliJ IDEA Ultimate) has no clean official-Arch or upstream path -
 # see defaults/main.yml and AGENTS.md Package Source Policy. Flathub is

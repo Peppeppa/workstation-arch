@@ -9,10 +9,23 @@
 //
 // App data comes entirely from Quickshell's own native DesktopEntries
 // singleton (XDG .desktop parsing built into Quickshell 0.3.1) - no
-// hand-rolled .desktop parser, no external search process. Launching
-// uses DesktopEntry.execute() directly, which is Quickshell's own
-// supported way to run an entry's Exec= line (including any
-// Terminal=true handling) - nothing here shells out itself.
+// hand-rolled .desktop parser, no external search process, no app list of
+// our own. Launching uses DesktopEntry.execute() directly, which is
+// Quickshell's own supported way to run an entry's Exec= line (including
+// any Terminal=true handling) - nothing here shells out itself.
+//
+// Which entries are shown (see docs/DESIGN_SYSTEM.md "Launcher"):
+//   1. the entry's own metadata: NoDisplay=true / Hidden=true are dropped
+//      (Quickshell parses both; Hidden entries never reach `applications`).
+//      Quickshell 0.3.1 does not evaluate OnlyShowIn/NotShowIn/TryExec -
+//      the few entries that rely on them are covered by rule 3.
+//   2. category rule: settings dialogs and debuggers are not apps one
+//      launches (hiddenCategories).
+//   3. a small denylist of desktop-file ids for technical tools that
+//      dependencies bring along (hiddenIds) - packages stay installed,
+//      only their launcher entry is hidden.
+// Each result shows the entry's icon (Quickshell.iconPath, resolved in
+// the session's icon theme, QS_ICON_THEME), or a generic app glyph.
 
 import QtQuick
 import QtQuick.Layouts
@@ -25,6 +38,27 @@ PanelWindow {
     required property int fontSize
 
     readonly property int maxResults: 8
+
+    // Rule 2: entries in any of these categories are system configuration
+    // or debugging helpers (e.g. Thunar's settings dialog, Qt's D-Bus viewer).
+    readonly property var hiddenCategories: ["Settings", "DesktopSettings", "Debugger"]
+
+    // Rule 3: desktop-file ids (file name without .desktop) of technical
+    // tools pulled in by dependencies, with the package that brings them.
+    readonly property var hiddenIds: [
+        "avahi-discover", "bssh", "bvnc",            // avahi (needed by CUPS, PipeWire-Pulse, Flatpak/ostree)
+        "lstopo",                                    // hwloc (via onetbb <- appstream <- Flatpak)
+        "designer", "linguist", "assistant",         // qt6-tools (needed by VirtualBox)
+        "qv4l2", "qvidcap",                          // v4l-utils (needed by ffmpeg)
+        "xfce4-about",                               // libxfce4ui (Thunar); OnlyShowIn=XFCE, not honoured by Quickshell
+        "thunar-bulk-rename"                         // Thunar's helper, reachable from Thunar itself
+    ]
+
+    function shown(e) {
+        return !e.noDisplay
+            && hiddenIds.indexOf(e.id) === -1
+            && !(e.categories || []).some(c => hiddenCategories.indexOf(c) !== -1);
+    }
 
     property string query: ""
     property int selectedIndex: 0
@@ -50,7 +84,7 @@ PanelWindow {
     }
 
     function computeResults(q) {
-        const apps = DesktopEntries.applications.values.filter(e => !e.noDisplay);
+        const apps = DesktopEntries.applications.values.filter(e => launcher.shown(e));
         if (q.length === 0) {
             return apps.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, maxResults);
         }
@@ -155,8 +189,43 @@ PanelWindow {
                     radius: 4
                     color: index === launcher.selectedIndex ? Colors.accent : "transparent"
 
-                    Column {
+                    // App icon (theme lookup; "" when the theme has none)
+                    // or a generic app glyph.
+                    readonly property string iconSource: resultDelegate.modelData.icon
+                        ? Quickshell.iconPath(resultDelegate.modelData.icon, true) : ""
+
+                    Item {
+                        id: iconBox
                         anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 22
+                        height: 22
+
+                        Image {
+                            id: appIcon
+                            anchors.fill: parent
+                            visible: resultDelegate.iconSource !== "" && status === Image.Ready
+                            source: resultDelegate.iconSource
+                            sourceSize.width: 22
+                            sourceSize.height: 22
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            smooth: true
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: resultDelegate.iconSource === "" || appIcon.status === Image.Error
+                            text: "\u{F08C6}"          // generic application glyph
+                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foregroundMuted
+                            font.family: Fonts.icons
+                            font.pixelSize: 18
+                        }
+                    }
+
+                    Column {
+                        anchors.left: iconBox.right
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.leftMargin: 10
