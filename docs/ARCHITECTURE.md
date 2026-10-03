@@ -81,8 +81,8 @@ Responsibility split within the provisioning layer:
   their own D-Bus-activated systemd `--user` units, the polkit agent by
   Hyprland's session lifecycle.
 - Quickshell owns the app launcher (fuzzel retired as of Core Desktop
-  v1); mako (notifications) remains a temporary owner until Quickshell
-  replaces it too - see AGENTS.md.
+  v1) and notifications (mako retired as of Notifications v1) - see
+  AGENTS.md.
 - Quickshell owns presentation - it displays and controls the above, it
   never becomes a second source of truth for them.
 

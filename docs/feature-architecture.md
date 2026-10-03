@@ -335,3 +335,19 @@ handler), so splitting them would buy nothing.
 | Host overrides | `lock_idle_hypridle_cmd` (arch-dev: `env LIBGL_ALWAYS_SOFTWARE=1 hypridle`, inherited by hyprlock) |
 | Disable | no bind, no autostart, power menu Lock unavailable, running hypridle stopped, `hypridle.conf`/`hyprlock.conf` removed (feature-owned config); packages stay |
 | Persistent user data | none |
+
+## Notifications v1
+
+`notifications_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/quickshell/files/Notifications.qml`, composed by `shell.qml.j2` |
+| Packages | none (Quickshell is the daemon); `mako` is uninstalled as part of the core change, independent of the flag |
+| D-Bus / lifecycle owner | Quickshell's `NotificationServer` owns `org.freedesktop.Notifications` inside the existing Quickshell process (Hyprland-started) - exactly one owner, no activatable fallback daemon |
+| UI | toasts top-right below the bar, newest on top, max 5 shown; app icon/image (theme names only if they exist), app name, summary, plain-text body; click / x closes |
+| Timeouts | sender `expire_timeout` (ms) or 5 s, paused on hover; critical urgency never expires; one QML Timer per shown toast, window unmapped when empty |
+| Not in v1 | actions, inline reply, history/center, sound, persistence (all advertised as unsupported) |
+| Privileges / Secrets / Network | none / none / none |
+| Disable | component not instantiated -> no notification owner at all (`notify-send` fails; `screenshot.sh` treats toasts as best effort) |
+| Persistent user data | none |

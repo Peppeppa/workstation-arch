@@ -21,10 +21,10 @@ Prozesse), nicht Prozent-Schwankungen.
 | xdg-desktop-portal* (3 Prozesse: core, gtk, hyprland) | 0.0% je | ~20-32 MB je |
 | pipewire            | 0.0%      | (im service) |
 | pipewire-pulse      | 0.0%      | ~11 MB  |
-| mako                | 0.0%      | -       |
+| ~~mako~~ (seit Notifications v1 entfernt - Quickshell besitzt `org.freedesktop.Notifications` selbst) | - | - |
 | hypridle (seit Lock + Idle v1) | 0.0% | ~7 MB |
 
-Lifecycle-Owner für quickshell/hyprpolkitagent/mako/hypridle:
+Lifecycle-Owner für quickshell/hyprpolkitagent/hypridle:
 ausschließlich Hyprland (`hl.on("hyprland.start", ...)`), kein
 zusätzlicher systemd --user-Service für diese Prozesse. hypridle ist der
 einzige persistente Prozess, der nach dieser Baseline dazukam

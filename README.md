@@ -57,9 +57,9 @@ WireGuard tooling), `quickshell` (Core Desktop v1 - top bar + app
 launcher, see below), `apps` (end-user applications), `virtualization`
 (VirtualBox), and `gaming` (Steam/Lutris) are implemented, aiming at a
 minimal but genuinely usable daily-driver desktop. `quickshell` now owns
-the app launcher too (fuzzel is gone); mako still owns notifications,
-and there is still no tray, control center, Wi-Fi/Bluetooth menus,
-lock/idle, or theming - those will be added as further roles/milestones.
+the app launcher and notifications too (fuzzel and mako are gone), and
+there is still no tray, control center, Wi-Fi/Bluetooth menus, or
+theme switching - those will be added as further roles/milestones.
 There is still no Bluetooth stack or display manager either. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
@@ -189,9 +189,8 @@ Hyprland is set up to start and stop by hand - it deliberately does
 lifecycle (`hl.on("hyprland.start", ...)`) now also starts Quickshell
 (`roles/quickshell`), which owns the top bar (workspaces/clock/network/
 volume/battery) and the app launcher (`mainMod+Space` - see below);
-`mako` (notifications) remains a temporary stand-in until a later
-milestone replaces it - see `AGENTS.md`. After provisioning and a
-reboot:
+Quickshell also shows notifications (toasts top-right; mako is
+retired) - see `AGENTS.md`. After provisioning and a reboot:
 
 ```sh
 reboot
@@ -220,6 +219,10 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + L`              | lock now (hyprlock)                          |
 | `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate) / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
+
+Notifications: toasts top-right (Quickshell). Click/x closes; normal
+ones expire after ~5 s (or the sender's timeout, paused on hover),
+critical ones stay until closed. No history, nothing stored.
 
 System font: FiraCode Nerd Font (UI, monospace, terminal, lockscreen,
 GTK; Qt via fontconfig) - names in `group_vars/all.yml`.

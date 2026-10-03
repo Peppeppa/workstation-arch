@@ -88,7 +88,7 @@ direct upstream dependency.
 | Bluetooth | BlueZ |
 | Compositor / window manager | Hyprland |
 | App launcher | Quickshell (`Launcher.qml`, toggled via `qs ipc call launcher toggle` - fuzzel retired as of Core Desktop v1) |
-| Notifications | mako (**temporary until Quickshell replacement**) |
+| Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
 | File chooser / settings portal | xdg-desktop-portal-gtk |
@@ -777,6 +777,13 @@ history for that milestone's own record):
   needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars). Manual
   PAM test passed on arch-dev (wrong password rejected, correct one
   unlocks). v1.1: coffee-mode idle-inhibit toggle in the bar.
+- **System Font v1**: FiraCode Nerd Font everywhere we manage fonts
+  (names only in `group_vars/all.yml` `desktop_font_family*`).
+- **Notifications v1**: `notifications_enabled` - Quickshell owns
+  `org.freedesktop.Notifications`; toasts only (no history/center).
+  mako retired. Quickshell 0.3.1 quirks found on arch-dev:
+  `Notification.expireTimeout` is milliseconds (doc says seconds), and
+  an `image-path` icon name becomes an unchecked `image://icon/` URL.
 
 **Open for next time**: Bluetooth (no code yet), a tray (native `Quickshell.Services.SystemTray` exists and
 is stable in 0.3.1, deliberately not built - see Feature Architecture

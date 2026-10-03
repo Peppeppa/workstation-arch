@@ -77,10 +77,10 @@ Add a role only when a real component needs one. No `success`/
   `Colors.qml`. Every role there is already a binding, so Bar/Launcher/
   Power Menu need no change.
 - System-wide consistency: today Quickshell is the **only** place in
-  this repo that sets colors (Hyprland, mako, Ghostty, GTK/Qt all run
+  this repo that sets colors (Hyprland, Ghostty, GTK/Qt all run
   their own defaults). Once a second consumer gets colors, the scheme
   values should move into one Ansible variable file and be rendered
-  (Jinja, like `hyprland.lua.j2`) into `DefaultDark.qml`, mako's config,
+  (Jinja, like `hyprland.lua.j2`) into `DefaultDark.qml`,
   Hyprland's border colors, Ghostty, GTK/Qt settings - one source, many
   generated outputs. Components stay untouched by that move, since they
   only see `Colors.<role>`.
