@@ -257,17 +257,34 @@ host hardware the way `gaming_enabled` does) gates:
 - `screenshot_packages` (`grim`, `slurp`, `libnotify`, `xdg-user-dirs` -
   `roles/desktop/defaults/main.yml`)
 - the deployed on-demand helper script (`roles/desktop/files/
-  screenshot.sh` -> `~/.local/bin/screenshot`, modes `region`/
-  `monitor` - `roles/desktop/tasks/main.yml`), which owns file naming
-  (`~/Pictures/Screenshots/Screenshot_<timestamp>.png`, collision-safe,
-  respects a custom XDG Pictures dir via `xdg-user-dir`), the
-  `wl-copy` clipboard write, and the `notify-send` confirmation
-- the two Hyprland binds that start it (`Print` -> region, `mainMod +
-  SHIFT + S` -> current monitor -
-  `roles/hyprland/templates/hyprland.lua.j2`)
+  screenshot.sh` -> `~/.local/bin/screenshot`, modes `smart`/`ocr`/
+  `monitor` - `roles/desktop/tasks/main.yml`), which owns the selection
+  (one on-demand `hyprctl clients/monitors -j` call feeds the visible
+  window rectangles to `slurp -o`, which itself decides drag = region
+  vs. click = window/empty desktop = monitor), file naming
+  (`~/Pictures/Screenshots/Screenshot_<timestamp>.png`, mode 0600,
+  collision-safe, respects a custom XDG Pictures dir via
+  `xdg-user-dir`), the `wl-copy` clipboard write, and the `notify-send`
+  confirmation
+- the Hyprland bind that starts it (`mainMod + X` -> smart -
+  `roles/hyprland/templates/hyprland.lua.j2`). The `monitor` mode has
+  no bind on purpose (rarely needed).
 
-No Quickshell component, no persistent process - the script is started
-on demand by the bind and exits on its own once done (see `AGENTS.md`
-Runtime Ownership "temporary UI helper -> started on demand only"), no
-new privileges. Feature Category A (provisioning-only) plus Category B
+**Sub-feature: `screenshots_ocr_enabled`** (default `true`) - the
+pattern for a feature that only makes sense on top of another: its own
+flat flag, gated as `when: screenshots_enabled and
+screenshots_ocr_enabled` / a nested `{% if %}`, and the dependency
+stated in the flag's comment. No dependency engine. It adds
+`screenshot_ocr_packages` (`tesseract` + only `tesseract-data-deu`/
+`-eng`) and the `mainMod + SHIFT + X` bind (same selection, `grim |
+tesseract stdin stdout -l deu+eng` over a pipe - no image ever touches
+disk - recognized text -> clipboard). Fully local, no network.
+
+No Quickshell component, no persistent process - the script (and
+tesseract, for OCR) is started on demand by the bind and exits on its
+own once done (see `AGENTS.md` Runtime Ownership "temporary UI helper
+-> started on demand only"), no new privileges. The only thing that
+outlives it is `wl-copy`'s own forked clipboard owner, which is how the
+Wayland clipboard works for any copy and ends when something else is
+copied. Feature Category A (provisioning-only) plus Category B
 (Hyprland binds).

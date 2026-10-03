@@ -12,16 +12,24 @@
 # grows role-specific detail, only the flag and a one-line pointer to
 # where the feature actually lives.
 
-# Screenshots (region + fullscreen -> clipboard, see roles/desktop and
-# roles/hyprland/templates/hyprland.lua.j2's mainMod+Shift+S/Print
-# binds). Proof-of-concept migration for the Feature Architecture v1
-# milestone - already-working daily-driver functionality, so it
-# defaults to true (unlike gaming below, which needs host-specific
-# hardware facts this project will not guess). Set to false on a host
-# to stop installing grim/slurp and remove the two binds; already-
-# installed packages are left alone (see docs/feature-architecture.md
+# Screenshots (mainMod+X smart region/window capture -> PNG file +
+# clipboard, see roles/desktop's screenshot.sh and the binds in
+# roles/hyprland/templates/hyprland.lua.j2). Already-working daily-
+# driver functionality, so it defaults to true (unlike gaming below,
+# which needs host-specific hardware facts this project will not
+# guess). Set to false on a host to stop installing grim/slurp/the
+# helper and remove the binds; already-installed packages and existing
+# screenshots are left alone (see docs/feature-architecture.md
 # "Disable vs. Purge" - disabling never deletes anything).
 screenshots_enabled: true
+
+# Screenshot OCR (mainMod+Shift+X: select region/window -> local
+# tesseract OCR (deu+eng) -> recognized text to clipboard, no PNG kept).
+# DEPENDS ON screenshots_enabled - it reuses that feature's helper and
+# grim/slurp; with screenshots_enabled: false this flag has no effect.
+# Fully local, no network, zero idle cost (tesseract only runs per
+# keypress). false drops the bind and stops installing tesseract.
+screenshots_ocr_enabled: true
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack

@@ -26,6 +26,20 @@
     state: present
   tags: desktop
 
+# OCR sub-feature: requires the base screenshots feature (the helper
+# script and its grim/slurp/wl-copy deps come from it), so it is gated
+# on both flags - a host that disables screenshots gets no OCR either,
+# no separate dependency engine needed. One pacman transaction, so the
+# explicit deu/eng data packages satisfy tesseract's `tessdata`
+# dependency without a provider prompt.
+- name: Install screenshot OCR packages (screenshots_enabled + screenshots_ocr_enabled)
+  when: screenshots_enabled and screenshots_ocr_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ screenshot_ocr_packages }}"
+    state: present
+  tags: desktop
+
 # Everything below for this feature is user-level (no `become`), same
 # pattern as roles/hyprland/roles/quickshell: it must be owned by the
 # invoking user, never root.
@@ -62,9 +76,11 @@
   tags: desktop
 
 # Plain copy, not a template: the script has no host-specific values
-# to substitute (unlike hyprland.lua.j2) - the two Hyprland binds that
-# call it (roles/hyprland/templates/hyprland.lua.j2) pass "region" or
-# "monitor" as the one argument it needs.
+# to substitute (unlike hyprland.lua.j2) - the Hyprland binds that call
+# it (roles/hyprland/templates/hyprland.lua.j2) pass the mode ("smart",
+# "ocr") as the one argument it needs. The OCR mode ships in the same
+# script either way; without screenshots_ocr_enabled it is simply never
+# bound (and tesseract/its data may not be installed).
 - name: Deploy the screenshot helper script (screenshots_enabled)
   when: screenshots_enabled
   ansible.builtin.copy:

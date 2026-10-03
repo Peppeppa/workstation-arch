@@ -60,7 +60,7 @@ desktop_packages:
 # Ownership "temporary UI helper -> started on demand only").
 screenshot_packages:
   - grim         # captures the actual image
-  - slurp        # interactive region selector for the region-screenshot bind
+  - slurp        # interactive region/window selector (screenshot smart/ocr)
 
   # notify-send for screenshot.sh's post-capture confirmation. Already
   # present on this system as libnotify (e.g. transitively via other
@@ -75,3 +75,19 @@ screenshot_packages:
   # extra generator step needed - the tool already falls back to the
   # standard default on its own when unconfigured.
   - xdg-user-dirs
+
+# FEATURE: screenshot OCR (see group_vars/all.yml screenshots_ocr_enabled
+# - only meaningful on top of screenshots_enabled, which provides grim/
+# slurp/wl-copy/the helper script itself). Purely local, on-demand OCR:
+# tesseract runs once per mainMod+Shift+X press and exits - no daemon,
+# no network, no persisted image.
+screenshot_ocr_packages:
+  - tesseract
+  # Only the two languages actually needed (screenshot.sh runs
+  # `-l deu+eng`, one pass for mixed German/English text). Listed
+  # explicitly, not left to pacman's `tessdata` provider choice: when
+  # tesseract arrives as a dependency (e.g. libmupdf, via zathura in
+  # roles/apps), a --noconfirm install silently picks the alphabetically
+  # first provider, tesseract-data-afr.
+  - tesseract-data-deu
+  - tesseract-data-eng

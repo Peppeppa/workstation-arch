@@ -154,20 +154,24 @@ for i = 1, 9 do
 end
 
 {% if screenshots_enabled %}
--- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled and
--- docs/feature-architecture.md). All capture/save/clipboard/notify
--- logic lives in the deployed screenshot.sh helper (roles/desktop's
--- files/screenshot.sh, installed to ~/.local/bin/screenshot) - these
--- two binds only start it on demand with the mode it should run; it
--- never stays running afterward (see AGENTS.md Runtime Ownership
--- "temporary UI helper -> started on demand only" - no second
--- lifecycle owner needed for a process that exits on its own).
+-- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled /
+-- screenshots_ocr_enabled and docs/feature-architecture.md). All
+-- selection/capture/save/clipboard/notify logic lives in the deployed
+-- screenshot.sh helper (roles/desktop's files/screenshot.sh, installed
+-- to ~/.local/bin/screenshot) - these binds only start it on demand
+-- with the mode it should run; it never stays running afterward (see
+-- AGENTS.md Runtime Ownership "temporary UI helper -> started on demand
+-- only" - no second lifecycle owner needed for a process that exits on
+-- its own). No current-monitor bind on purpose (rarely needed; the
+-- script's "monitor" mode exists for a later bind).
 --
--- Print (a physical key, unaffected by the main-modifier override):
--- interactive region selection via slurp, then grim.
-hl.bind("Print", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot region"))
+-- mainMod + X: smart screenshot - drag a region or click a window
+-- (empty desktop = whole monitor) -> PNG file + image in clipboard.
+hl.bind(mainMod .. " + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot smart"))
+{% if screenshots_ocr_enabled %}
 
--- mainMod + SHIFT + S: grim of the currently focused Hyprland monitor,
--- no interactive selection.
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot monitor"))
+-- mainMod + SHIFT + X: OCR - same selection, local tesseract OCR,
+-- recognized text -> clipboard, no PNG kept.
+hl.bind(mainMod .. " + SHIFT + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot ocr"))
+{% endif %}
 {% endif %}

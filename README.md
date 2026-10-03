@@ -64,7 +64,7 @@ There is still no Bluetooth stack or display manager either. See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
 
-Optional capabilities (screenshots so far, more later) are toggleable
+Optional capabilities (screenshots + screenshot OCR so far, more later) are toggleable
 per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 (overridable in `host_vars/<hostname>.yml`) - see
 `docs/feature-architecture.md` for the full model. Disabling a feature
@@ -215,9 +215,13 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + [1-9]`  | move the focused window to workspace 1-9     |
 | `Super` + arrow keys     | move keyboard focus                          |
 | `Super` + left/right click drag | move / resize a floating window       |
-| `Print`                  | region screenshot -> file + clipboard        |
-| `Super + Shift + S`      | current-monitor screenshot -> file + clipboard |
+| `Super + X`              | smart screenshot: drag a region or click a window -> PNG file + clipboard |
+| `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
+
+Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR
+runs tesseract fully locally (no network), only on the keypress - zero
+idle cost, like the screenshot feature itself.
 
 These are not the final Quickshell UX - just a genuinely usable set of
 defaults in the meantime.
