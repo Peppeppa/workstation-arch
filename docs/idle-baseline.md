@@ -85,3 +85,35 @@ Quickshell's Bluetooth slot/popup add no process; the pairing agent
 exists only while pairing. Real-adapter numbers (scan off, devices
 paired/connected) still to be taken on laptop/workstation.
 
+
+## Funktionsabschluss (2026-10-03, vor RICE v1)
+
+Neu seit Bluetooth v1, gemessen auf arch-dev (llvmpipe, Desktop im
+Leerlauf, 30-s-Fenster):
+
+| Prozess | CPU | RSS | Owner |
+|---|---|---|---|
+| power-profiles-daemon | 0 % | ~9 MB | systemd (`roles/power`) |
+| wl-paste (cliphist-Watcher) | 0 % | ~1-2 MB | Hyprland-Sessionstart |
+| hypridle / bluetoothd / upowerd | 0 % | 6 / 6 / 14 MB | unverändert |
+| quickshell (inkl. Wallpaper, alle Features) | 0 % | ~590-690 MB | Hyprland-Sessionstart |
+
+Keine neuen Timer (user: 0; system: nur die Arch-Standardtimer
+shadow, tmpfiles-clean, fstrim, keyring-wkd-sync). Kein neuer Prozess für
+Audio-Popup, Connectivity Center (Scan nur bei offenem Popup, `wifi-qr`/
+`nmcli` nur on demand) oder Power-Popup.
+
+Quickshell-RSS unter llvmpipe (Harness-Vergleich, gleiche Maschine):
+nur Bar ~350 MB; + Vollbild-Hintergrundfläche (nur Farbe) ~440 MB;
++ JPEG-Wallpaper ~495 MB. Die zweite Vollbildfläche kostet in
+Software-GL ~90 MB (Renderpuffer im RAM) - auf echter GPU liegen diese
+im VRAM. Die Desktop-Instanz bleibt im Leerlauf konstant (4 min ohne
+Änderung) und wächst bei wiederholten Theme-Wechseln/Popups nicht
+monoton (schwankt 620-690 MB, Allocator).
+
+Wallpaper: statisch (PNG/JPEG/WebP) 0 % CPU; animiertes GIF
+(1280x800, 24 Frames) ~13 % eines Kerns unter llvmpipe. Der
+GIF-Renderer existiert nur, solange ein GIF gewählt ist.
+
+Eine echte Messung nach frischem Login (Reboot/Neuanmeldung) steht auf
+der Hardware-Validierungsliste (`docs/feature-architecture.md`).
