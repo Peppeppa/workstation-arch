@@ -38,3 +38,10 @@ quickshell_packages:
 # Hyprland, both core.
 power_menu_packages:
   - ttf-firacode-nerd
+
+# FEATURE: connectivity (see group_vars/all.yml connectivity_enabled).
+# The Wi-Fi QR helper (files/connectivity/wifi-qr.py): python-gobject for
+# NetworkManager's D-Bus API, qrencode for the SVG.
+connectivity_packages:
+  - python-gobject
+  - qrencode

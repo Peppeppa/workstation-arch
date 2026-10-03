@@ -92,6 +92,15 @@ power_profiles_enabled: true
 # click mute, wheel) is core. false: no popup, no mic icon.
 audio_popup_enabled: true
 
+# Connectivity Center (roles/quickshell files/connectivity/): click on the
+# bar's network label opens Wi-Fi (on/off, networks, connect/disconnect/
+# forget, password entry), an on-demand Wi-Fi QR code for the current
+# network, a Bluetooth section (with bluetooth_enabled; opens the
+# Bluetooth popup) and NetworkManager VPN/WireGuard connections.
+# NetworkManager stays the only network owner (roles/network). false: no
+# popup, the network label stays.
+connectivity_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the

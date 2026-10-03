@@ -47,6 +47,8 @@ PanelWindow {
     required property bool powerProfilesEnabled
     // audio_popup_enabled (templated by shell.qml.j2).
     required property bool audioPopupEnabled
+    // connectivity_enabled (templated by shell.qml.j2).
+    required property bool connectivityEnabled
     required property int barHeight
     required property int fontSize
 
@@ -219,13 +221,17 @@ PanelWindow {
             // Not instantiated when the feature is off; hidden when the
             // machine has no Bluetooth adapter.
             Loader {
+                id: bluetoothSlot
                 active: bar.bluetoothEnabled
                 visible: active && item !== null && item.adapter !== null
                 Layout.alignment: Qt.AlignVCenter
                 Component.onCompleted: if (active) setSource("BluetoothButton.qml", { bar: bar })
             }
 
+            // Network status (core). With the connectivity feature a click
+            // opens the Connectivity Center.
             Text {
+                id: networkLabel
                 color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: bar.fontSize
@@ -244,6 +250,24 @@ PanelWindow {
                     }
                     return "Disconnected";
                 }
+
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: connectivityControl.item !== null
+                    onClicked: connectivityControl.item.open(networkLabel)
+                }
+            }
+
+            // FEATURE: connectivity (ConnectivityControl.qml): popup host only.
+            Loader {
+                id: connectivityControl
+                active: bar.connectivityEnabled
+                visible: false
+                Component.onCompleted: if (active) setSource("ConnectivityControl.qml", {
+                    bar: bar,
+                    bluetoothEnabled: bar.bluetoothEnabled,
+                    openBluetooth: () => { if (bluetoothSlot.item) bluetoothSlot.item.popupOpen = true; }
+                })
             }
 
             // Volume: left-click toggles mute, scroll adjusts volume,

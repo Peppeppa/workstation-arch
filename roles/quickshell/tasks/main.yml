@@ -212,6 +212,51 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: connectivity (see group_vars/all.yml connectivity_enabled).
+# NetworkManager stays the only network owner (roles/network). qrencode +
+# python-gobject for the on-demand Wi-Fi QR helper.
+- name: Install connectivity packages (connectivity_enabled)
+  when: connectivity_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ connectivity_packages }}"
+    state: present
+  tags: quickshell
+
+- name: Deploy the Connectivity Center components (connectivity_enabled)
+  when: connectivity_enabled
+  ansible.builtin.copy:
+    src: "connectivity/{{ item }}"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop:
+    - ConnectivityControl.qml
+    - ConnectivityPopup.qml
+  notify: Reload running Quickshell config
+  tags: quickshell
+
+- name: Ensure ~/.local/libexec/workstation exists (connectivity_enabled)
+  when: connectivity_enabled
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/libexec/workstation"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
+- name: Deploy the Wi-Fi QR helper (connectivity_enabled)
+  when: connectivity_enabled
+  ansible.builtin.copy:
+    src: connectivity/wifi-qr.py
+    dest: "{{ ansible_facts.user_dir }}/.local/libexec/workstation/wifi-qr"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).
