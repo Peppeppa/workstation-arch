@@ -31,6 +31,19 @@ Scope {
     readonly property int defaultTimeoutMs: 5000
     readonly property int maxVisible: 5
 
+    // Real pixels (image data / file: URLs) are used as-is. Icon NAMES -
+    // app_icon, or an image-path hint, which Quickshell 0.3.1 turns into
+    // an unchecked image://icon/<name> URL (libnotify sends `-i` as both)
+    // - only if the icon theme actually has them; otherwise no image
+    // rather than Qt's magenta "missing" placeholder.
+    function resolveIcon(n) {
+        const prefix = "image://icon/";
+        const img = n.image || "";
+        if (img !== "" && !img.startsWith(prefix)) return img;
+        const name = img !== "" ? decodeURIComponent(img.substring(prefix.length).split("?")[0]) : n.appIcon;
+        return name ? Quickshell.iconPath(name, true) : "";
+    }
+
     NotificationServer {
         id: server
 
@@ -94,8 +107,7 @@ Scope {
                     readonly property int timeoutMs: modelData.expireTimeout > 0
                                                      ? modelData.expireTimeout
                                                      : root.defaultTimeoutMs
-                    readonly property string iconSource: modelData.image
-                                                         || (modelData.appIcon ? Quickshell.iconPath(modelData.appIcon, true) : "")
+                    readonly property string iconSource: root.resolveIcon(modelData)
 
                     Layout.row: toastWindow.count - 1 - index
                     Layout.fillWidth: true
