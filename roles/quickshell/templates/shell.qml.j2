@@ -1,3 +1,4 @@
+//@ pragma Env QS_ICON_THEME={{ desktop_icon_theme }}
 // Quickshell Core Desktop v1 - root config. Managed by Ansible: do not
 // edit by hand, see roles/quickshell in workstation-arch.
 //
@@ -71,6 +72,7 @@ ShellRoot {
             // Coffee (idle-pause) toggle only with the lock_idle feature.
             idleToggleAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
             themeDialog: themeDialogWindow
+            trayEnabled: {{ 'true' if tray_enabled else 'false' }}
             barHeight: root.barHeight
             fontSize: root.fontSize
         }

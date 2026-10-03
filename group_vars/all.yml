@@ -59,6 +59,14 @@ lock_idle_enabled: true
 # all (notify-send then just fails quietly). Nothing is persisted.
 notifications_enabled: true
 
+# System tray (roles/quickshell files/tray/, loaded by Bar.qml): Quickshell's
+# native StatusNotifierItem host - the running Quickshell process becomes
+# the session's StatusNotifierWatcher and shows registered items in the
+# bar's status zone (DBusMenu context menus rendered with Colors/Fonts).
+# Event-driven over D-Bus, no extra process. false: the tray component is
+# never instantiated (no watcher/host from us); nothing to delete.
+tray_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the
@@ -82,6 +90,11 @@ desktop_ui_font_size: 11                                  # GTK, pt
 desktop_shell_font_family: "FiraCode Nerd Font"
 desktop_monospace_font_family: "FiraCode Nerd Font Mono"
 desktop_icon_font_family: "FiraCode Nerd Font Propo"
+
+# Icon theme Quickshell (Qt, no platform theme here) resolves icon NAMES
+# from - tray items, notification app icons. Applied via QS_ICON_THEME
+# (shell.qml.j2 Env pragma); takes effect at Quickshell's next start.
+desktop_icon_theme: Adwaita
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack

@@ -56,6 +56,13 @@ desktop_packages:
   - adwaita-fonts
   - ttf-firacode-nerd
 
+  # Icon theme for named icons in our shell (group_vars/all.yml
+  # desktop_icon_theme) - listed explicitly instead of riding along as a
+  # GTK dependency; the legacy set adds the full-color app/status icons
+  # that tray items and notifications usually ask for.
+  - adwaita-icon-theme
+  - adwaita-icon-theme-legacy
+
 # FEATURE: screenshots (see group_vars/all.yml screenshots_enabled -
 # the actual on/off source of truth - and docs/feature-architecture.md
 # for the full contract). Installed only when the feature is enabled

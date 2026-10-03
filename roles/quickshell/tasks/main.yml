@@ -134,6 +134,21 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: tray (see group_vars/all.yml tray_enabled). No packages:
+# Quickshell's own StatusNotifier support is the tray host. Disabling
+# stops Bar.qml from loading it (no watcher/host from us); already-
+# deployed files stay unreferenced (Disable vs. Purge).
+- name: Deploy the tray components (tray_enabled)
+  when: tray_enabled
+  ansible.builtin.copy:
+    src: tray/
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

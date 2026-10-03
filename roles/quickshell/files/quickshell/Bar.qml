@@ -39,6 +39,8 @@ PanelWindow {
     // The one ThemeDialog instance (shell.qml), opened by right-clicking
     // the theme icon next to the clock.
     required property var themeDialog
+    // tray_enabled (templated by shell.qml.j2): load the tray zone.
+    required property bool trayEnabled
     required property int barHeight
     required property int fontSize
 
@@ -192,10 +194,20 @@ PanelWindow {
             }
         }
 
-        // RIGHT: network, volume, battery (battery only if present).
+        // RIGHT: tray (feature), network, volume, battery (battery only if present).
         RowLayout {
             Layout.alignment: Qt.AlignVCenter
             spacing: 16
+
+            // FEATURE: tray (Tray.qml, tray_enabled) - first in the status
+            // zone. Not instantiated at all when the feature is off; with no
+            // visible item it is invisible and takes no space.
+            Loader {
+                active: bar.trayEnabled
+                visible: active && item !== null && item.shown.length > 0
+                Layout.alignment: Qt.AlignVCenter
+                Component.onCompleted: if (active) setSource("Tray.qml", { bar: bar })
+            }
 
             Text {
                 color: Colors.foreground
