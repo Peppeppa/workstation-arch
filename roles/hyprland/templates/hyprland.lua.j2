@@ -135,7 +135,7 @@ hl.config({
 -- same pattern as hyprland_terminal below.
 hl.on("hyprland.start", function()
     hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
-    hl.exec_cmd("{{ hyprland_quickshell_cmd }}")
+    hl.exec_cmd("{{ hyprland_quickshell_exec }}")
 {% if lock_idle_enabled %}
     -- FEATURE: lock_idle - hypridle's only lifecycle owner (session-
     -- specific, like mako/Quickshell; no systemd --user unit: the

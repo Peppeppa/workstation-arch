@@ -34,6 +34,13 @@ hyprland_terminal: ghostty
 # pattern), never invented ahead of a real, VM/hardware-confirmed need.
 hyprland_quickshell_cmd: quickshell
 
+# What actually starts Quickshell (session start + any restart task):
+# hyprland_quickshell_cmd plus the icon theme it must see AT PROCESS START.
+# QS_ICON_THEME is read before the config loads - verified on arch-dev: an
+# `//@ pragma Env` in shell.qml sets the variable too late (named icons
+# still unresolved), the startup environment works.
+hyprland_quickshell_exec: "env QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprland_quickshell_cmd }}"
+
 # Monitor scale for hl.monitor() in hyprland.lua.j2. "auto" is correct
 # on real target hosts (laptop/workstation report real physical monitor
 # dimensions, so Hyprland's own auto-scale heuristic works) - only

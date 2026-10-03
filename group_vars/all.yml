@@ -92,8 +92,9 @@ desktop_monospace_font_family: "FiraCode Nerd Font Mono"
 desktop_icon_font_family: "FiraCode Nerd Font Propo"
 
 # Icon theme Quickshell (Qt, no platform theme here) resolves icon NAMES
-# from - tray items, notification app icons. Applied via QS_ICON_THEME
-# (shell.qml.j2 Env pragma); takes effect at Quickshell's next start.
+# from - tray items, notification app icons. Applied as QS_ICON_THEME in
+# Quickshell's start command (roles/hyprland hyprland_quickshell_exec);
+# takes effect at Quickshell's next start.
 desktop_icon_theme: Adwaita
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
