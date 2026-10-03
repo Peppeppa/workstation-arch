@@ -28,6 +28,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Wayland
 
 PanelWindow {
     id: menu
@@ -52,11 +53,23 @@ PanelWindow {
     property var confirming: null   // the item awaiting confirmation, or null
     property int confirmChoice: 0   // 0 = Cancel, 1 = confirm
 
+    // While open, the transparent surface covers the whole focused
+    // output (Overlay layer: above the bar and fullscreen windows) so a
+    // click anywhere outside the panel can close the menu. Closed, the
+    // surface is unmapped - it takes no input and blocks nothing.
+    // ExclusionMode.Ignore: an overlay must not reserve screen space.
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: 280
-    implicitHeight: panel.implicitHeight + 20
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-powermenu"
 
     // State is reset here, synchronously, rather than in
     // onVisibleChanged: a PanelWindow reports the visibility change only
@@ -157,6 +170,13 @@ PanelWindow {
         }
     }
 
+    // Click outside the panel (also in the confirm state) closes the
+    // whole menu. Declared before the panel, so the panel sits on top.
+    MouseArea {
+        anchors.fill: parent
+        onClicked: menu.visible = false
+    }
+
     Item {
         id: keyHandler
         anchors.fill: parent
@@ -174,13 +194,19 @@ PanelWindow {
         border.color: Colors.border
         border.width: 1
 
+        // Swallows clicks on the panel's own padding/header/gaps so they
+        // never reach the close-on-outside-click area underneath.
+        MouseArea {
+            anchors.fill: parent
+        }
+
         ColumnLayout {
             id: content
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: 10
-            spacing: 2
+            spacing: 4   // between entries of one group
 
             Text {
                 Layout.leftMargin: 10
@@ -204,7 +230,7 @@ PanelWindow {
                                               : selected ? Colors.accentText : Colors.text
 
                     Layout.fillWidth: true
-                    Layout.topMargin: index > 0 && menu.items[index - 1].group !== modelData.group ? 10 : 0
+                    Layout.topMargin: index > 0 && menu.items[index - 1].group !== modelData.group ? 16 : 0   // + spacing = 20px between Session and System groups
                     implicitHeight: 36
                     radius: 4
                     color: selected ? Colors.accent : "transparent"
