@@ -1,0 +1,54 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/session.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Session-lifecycle helpers that Hyprland itself must start exactly
+-- once (see docs/ARCHITECTURE.md "one owner per responsibility" - not
+-- also a systemd user service or shell-startup hook for the same
+-- process). Their packages come from roles/desktop, not this role.
+-- xdg-desktop-portal* is NOT started here: those are D-Bus-activated
+-- systemd --user services shipped by their own packages and need no
+-- autostart entry.
+--
+-- Notifications have no autostart of their own: Quickshell (below)
+-- owns them (feature notifications_enabled; mako retired).
+--
+-- hyprpolkitagent uses its absolute path, not a bare PATH lookup like
+-- mako: real package inspection on arch-dev (`pacman -Ql
+-- hyprpolkitagent`) confirmed its binary lives at
+-- /usr/lib/hyprpolkitagent/hyprpolkitagent, not on $PATH (unlike mako) -
+-- `hl.exec_cmd("hyprpolkitagent")` silently never started anything
+-- (`pgrep -af hyprpolkitagent` found no process, no crash, no log). The
+-- package also ships a D-Bus service activation file
+-- (org.hyprland.hyprpolkitagent.service) and a systemd --user unit -
+-- deliberately not used, to keep exactly one owner (Hyprland session
+-- lifecycle, per the rule above), not a second autostart path.
+--
+-- Quickshell (roles/quickshell) is started here for the same reason:
+-- it is a session-specific presentation process, not a machine-wide or
+-- long-lived-independent-of-the-session daemon, so it gets the same
+-- "session lifecycle / Hyprland" ownership as hyprpolkitagent/mako
+-- above - never also a systemd --user service for the same process
+-- (see AGENTS.md Runtime Ownership / "one owner per responsibility").
+-- No args needed: quickshell's own config resolution already finds
+-- ~/.config/quickshell/shell.qml (deployed by roles/quickshell) as the
+-- default config. Restarting it cleanly is a normal kill + rerun -
+-- Quickshell enforces its own single-instance-per-config lock, so this
+-- stays exactly one owner even across a manual restart.
+--
+-- hyprland_quickshell_cmd (roles/hyprland/defaults/main.yml) is plain
+-- "quickshell" on real target hosts - only overridden per-host (see
+-- host_vars/arch-dev.yml) for a real, VM/hardware-confirmed reason,
+-- same pattern as hyprland_terminal below.
+return function(v)
+    hl.on("hyprland.start", function()
+        hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
+        hl.exec_cmd("{{ hyprland_quickshell_exec }}")
+{% if lock_idle_enabled %}
+        -- FEATURE: lock_idle - hypridle's only lifecycle owner (session-
+        -- specific, like mako/Quickshell; no systemd --user unit: the
+        -- package's hypridle.service hangs off graphical-session.target,
+        -- which this session never activates).
+        hl.exec_cmd("{{ lock_idle_hypridle_cmd }}")
+{% endif %}
+    end)
+end

@@ -1,0 +1,12 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/vars.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Values shared by several modules, handed to each one explicitly.
+return {
+    -- Default terminal (hyprland_terminal, per-host override possible).
+    terminal = "{{ hyprland_terminal }}",
+    -- Main modifier for every keybind (hyprland_main_modifier): SUPER on
+    -- real hosts, ALT on arch-dev so it doesn't collide with the host.
+    mainMod = "{{ hyprland_main_modifier }}",
+    userDir = "{{ ansible_facts.user_dir }}",
+}

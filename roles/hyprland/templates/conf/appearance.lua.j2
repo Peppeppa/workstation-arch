@@ -1,0 +1,42 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/appearance.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Performance defaults: instant interaction over decorative effects
+-- (docs/ARCHITECTURE.md) - animations, blur and shadows are off.
+--
+-- Window border colors come from the active theme: the `theme` helper
+-- (roles/theme) renders them into the user's runtime theme dir; a theme
+-- switch rewrites that file and runs `hyprctl reload`. pcall: if it's
+-- missing, Hyprland keeps its default colors (no config error).
+return function(v)
+    local theme_ok, theme = pcall(dofile, v.userDir .. "/.config/workstation/theme/hyprland.lua")
+
+    hl.config({
+        -- border_active = focused window, border = the rest; Hyprland's
+        -- default border width.
+        general = theme_ok and {
+            col = {
+                active_border   = theme.border_active,
+                inactive_border = theme.border,
+            },
+        } or {},
+
+        animations = {
+            enabled = false,
+        },
+
+        decoration = {
+            shadow = { enabled = false },
+            blur   = { enabled = false },
+        },
+{% if lock_idle_enabled %}
+
+        -- FEATURE: lock_idle. If the locker (hyprlock) ever crashes, the
+        -- session stays locked; this lets a fresh locker take over
+        -- instead of leaving only a TTY switch. Never unlocks anything.
+        misc = {
+            allow_session_lock_restore = true,
+        },
+{% endif %}
+    })
+end

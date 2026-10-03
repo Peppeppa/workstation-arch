@@ -1,0 +1,13 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/input.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Keyboard layout of the Wayland session (hyprland_keyboard_layout) -
+-- deliberately not coupled to the console keymap (roles/base
+-- vconsole.conf) or the system locale.
+return function(v)
+    hl.config({
+        input = {
+            kb_layout = "{{ hyprland_keyboard_layout }}",
+        },
+    })
+end

@@ -1,0 +1,79 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/binds.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Keybindings. All bound on v.mainMod, so a host override of
+-- hyprland_main_modifier changes every bind.
+return function(v)
+    local mainMod = v.mainMod
+
+    -- Minimal but genuinely usable keybind set - not final Quickshell/UX
+    -- polish, see README.md. All bound on mainMod, not a hardcoded
+    -- modifier, so a host override (see hyprland_main_modifier) changes
+    -- every bind below, not just some of them.
+    hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(v.terminal))
+    hl.bind(mainMod .. " + Q", hl.dsp.window.close())
+    hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
+{% if lock_idle_enabled %}
+
+    -- FEATURE: lock_idle - lock now. Same single lock path as the power
+    -- menu and the idle timeout: logind Lock -> hypridle -> hyprlock.
+    hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
+{% endif %}
+
+    -- App launcher (roles/quickshell's Launcher.qml). This does not start
+    -- a new process - Quickshell is already running (see the hyprland.start
+    -- block above) - it sends one one-shot IPC call to the already-running
+    -- instance's "launcher" IpcHandler target, which just toggles that
+    -- instance's own visibility. `qs` here is the same quickshell binary
+    -- already installed by roles/quickshell (`qs` is its own CLI name for
+    -- its own `ipc call` subcommand - see Launcher.qml), not a separate
+    -- launcher process or a second Quickshell lifecycle owner.
+    hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+{% if power_menu_enabled %}
+
+    -- FEATURE: power_menu (group_vars/all.yml power_menu_enabled): toggle the
+    -- power menu inside the running Quickshell instance via its IPC - same
+    -- one-shot mechanism as the launcher above, no second instance.
+    hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
+{% endif %}
+
+    -- Move keyboard focus between windows.
+    hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
+    hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
+    hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
+    hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+
+    -- Move/resize floating windows with the mouse.
+    hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
+    hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+
+    -- Switch workspaces with mainMod + [1-9]; move the active window to a
+    -- workspace with mainMod + SHIFT + [1-9].
+    for i = 1, 9 do
+        hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = i }))
+        hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
+    end
+
+{% if screenshots_enabled %}
+    -- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled /
+    -- screenshots_ocr_enabled and docs/feature-architecture.md). All
+    -- selection/capture/save/clipboard/notify logic lives in the deployed
+    -- screenshot.sh helper (roles/desktop's files/screenshot.sh, installed
+    -- to ~/.local/bin/screenshot) - these binds only start it on demand
+    -- with the mode it should run; it never stays running afterward (see
+    -- AGENTS.md Runtime Ownership "temporary UI helper -> started on demand
+    -- only" - no second lifecycle owner needed for a process that exits on
+    -- its own). No current-monitor bind on purpose (rarely needed; the
+    -- script's "monitor" mode exists for a later bind).
+    --
+    -- mainMod + X: smart screenshot - drag a region or click a window
+    -- (empty desktop = whole monitor) -> PNG file + image in clipboard.
+    hl.bind(mainMod .. " + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot smart"))
+{% if screenshots_ocr_enabled %}
+
+    -- mainMod + SHIFT + X: OCR - same selection, local tesseract OCR,
+    -- recognized text -> clipboard, no PNG kept.
+    hl.bind(mainMod .. " + SHIFT + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot ocr"))
+{% endif %}
+{% endif %}
+end

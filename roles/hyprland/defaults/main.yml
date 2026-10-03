@@ -51,6 +51,22 @@ hyprland_quickshell_exec: "env QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprlan
 # of a real, VM/hardware-confirmed need.
 hyprland_monitor_scale: auto
 
+# Monitor foundation (conf/monitors.lua): one entry per hl.monitor() rule.
+# The default catch-all ("" = every output, preferred mode, auto position)
+# fits a laptop panel, laptop + external screens and a workstation alike.
+# A host that needs more lists its outputs explicitly, e.g. a laptop with a
+# fixed external layout:
+#   hyprland_monitors:
+#     - { output: eDP-1,    mode: preferred, position: 0x0,    scale: auto }
+#     - { output: HDMI-A-1, mode: preferred, position: auto-right, scale: 1 }
+#     - { output: "",       mode: preferred, position: auto, scale: auto }
+hyprland_monitors:
+  - output: ""
+    mode: preferred
+    position: auto
+    scale: "{{ hyprland_monitor_scale }}"
+
+
 # Wayland session keyboard layout (hl.config({ input = { kb_layout = ...
 # } }) in hyprland.lua.j2). This project's machines are primarily used
 # with a German keyboard - "de" is the correct default for every current

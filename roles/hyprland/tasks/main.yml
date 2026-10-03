@@ -56,17 +56,52 @@
     mode: "0755"
   tags: hyprland
 
-- name: Deploy minimal Hyprland session config
+# Modules first, entry point last: Hyprland reloads on changes to
+# hyprland.lua, which then loads complete, current modules.
+- name: Ensure ~/.config/hypr/conf exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/hypr/conf"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy Hyprland config modules (~/.config/hypr/conf/)
+  ansible.builtin.template:
+    src: "conf/{{ item }}.lua.j2"
+    dest: "{{ ansible_facts.user_dir }}/.config/hypr/conf/{{ item }}.lua"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop: [vars, monitors, input, appearance, session, binds]
+  register: hyprland_modules
+  # hypridle's start command (incl. per-host environment) lives in
+  # session.lua - a running hypridle must be replaced for it to apply.
+  notify: Restart hypridle in the running Hyprland session
+  tags: hyprland
+
+- name: Deploy the Hyprland config entry point (hyprland.lua)
   ansible.builtin.template:
     src: hyprland.lua.j2
     dest: "{{ ansible_facts.user_dir }}/.config/hypr/hyprland.lua"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
-  # hypridle's start command (lock_idle_hypridle_cmd, incl. per-host
-  # environment) lives in this file - a running hypridle must be
-  # replaced for a change to take effect.
-  notify: Restart hypridle in the running Hyprland session
+  tags: hyprland
+
+# Hyprland only watches hyprland.lua itself; a module-only change needs an
+# explicit reload of the running session (no-op without one).
+- name: Reload the running Hyprland after module changes
+  when: hyprland_modules is changed
+  ansible.builtin.shell:
+    cmd: |
+      sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
+      if [ -z "$sig" ]; then echo no-session; exit 0; fi
+      hyprctl -i "$sig" reload >/dev/null && echo reloaded
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  changed_when: false
   tags: hyprland
 
 # Ghostty ignores fontconfig's monospace alias (with no font-family it

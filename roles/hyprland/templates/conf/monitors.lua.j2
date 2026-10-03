@@ -1,0 +1,25 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/monitors.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Monitor foundation: one hl.monitor() per entry of hyprland_monitors
+-- (roles/hyprland/defaults/main.yml; hosts override the list in
+-- host_vars). The default single catch-all rule (output "") already
+-- covers a laptop panel alone, laptop + any external screen (placed
+-- "auto"), and a workstation - real hosts report real sizes, so
+-- "preferred" mode and "auto" scale are right there. arch-dev only
+-- overrides the scale (VirtualBox reports 0x0 mm, which makes "auto"
+-- pick 2 for its 1280x800 display). No monitor GUI.
+return function(v)
+{% for m in hyprland_monitors %}
+    hl.monitor({
+        output   = "{{ m.output | default('') }}",
+        mode     = "{{ m.mode | default('preferred') }}",
+        position = "{{ m.position | default('auto') }}",
+{% if (m.scale | default('auto') | string) == 'auto' %}
+        scale    = "auto",
+{% else %}
+        scale    = {{ m.scale }},
+{% endif %}
+    })
+{% endfor %}
+end
