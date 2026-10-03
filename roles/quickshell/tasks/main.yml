@@ -163,19 +163,30 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
-# Quickshell keeps a NotificationServer's D-Bus name across config
-# reloads (confirmed on arch-dev: after disabling, the reloaded instance
-# still owned org.freedesktop.Notifications and silently swallowed
-# notifications). So when the feature is off but Quickshell still holds
-# the name, restart it - again exec'd by the running Hyprland, so the
-# lifecycle owner stays Hyprland. No-op otherwise (idempotent).
-- name: Release org.freedesktop.Notifications held by Quickshell (notifications disabled)
-  when: not notifications_enabled
+# Quickshell keeps D-Bus names it once claimed across config reloads -
+# confirmed on arch-dev for both features that own a name: after
+# disabling notifications the reloaded instance still owned
+# org.freedesktop.Notifications (and silently swallowed notifications);
+# after disabling the tray it still owned org.kde.StatusNotifierWatcher
+# (+ its StatusNotifierHost). So when a feature is off but Quickshell
+# still holds that feature's name, restart Quickshell once - exec'd by
+# the running Hyprland, so the lifecycle owner stays Hyprland. No-op
+# otherwise (idempotent).
+- name: Release D-Bus names of disabled Quickshell features
+  vars:
+    quickshell_released_names: >-
+      {{ ([] if notifications_enabled else ['org.freedesktop.Notifications'])
+         + ([] if tray_enabled else ['org.kde.StatusNotifierWatcher']) }}
+  when: quickshell_released_names | length > 0
   ansible.builtin.shell:
     cmd: |
       set -eu
-      owner="$(busctl --user status org.freedesktop.Notifications 2>/dev/null | sed -n 's/^Comm=//p' || true)"
-      if [ "$owner" != "quickshell" ]; then echo unchanged; exit 0; fi
+      held=""
+      for name in {{ quickshell_released_names | join(' ') }}; do
+        owner="$(busctl --user status "$name" 2>/dev/null | sed -n 's/^Comm=//p' || true)"
+        if [ "$owner" = "quickshell" ]; then held="$held $name"; fi
+      done
+      if [ -z "$held" ]; then echo unchanged; exit 0; fi
       sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
       if [ -z "$sig" ]; then echo no-session; exit 0; fi
       pkill -u "$(id -u)" -x quickshell || true
@@ -185,7 +196,6 @@
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.user_uid }}/bus"
-  register: notifications_release
-  changed_when: notifications_release.stdout == "restarted"
+  register: quickshell_release
+  changed_when: quickshell_release.stdout == "restarted"
   tags: quickshell
-
