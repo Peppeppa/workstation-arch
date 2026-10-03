@@ -73,10 +73,14 @@ ShellRoot {
             themeDialog: themeDialogWindow
             trayEnabled: {{ 'true' if tray_enabled else 'false' }}
             bluetoothEnabled: {{ 'true' if bluetooth_enabled else 'false' }}
+            powerProfilesEnabled: {{ 'true' if power_profiles_enabled else 'false' }}
             barHeight: root.barHeight
             fontSize: root.fontSize
         }
     }
+
+    // Low-battery warning (core): one instance, not per bar.
+    BatteryWatcher {}
 
     // Theme picker (core): one instance, opened from the bar's theme icon.
     ThemeDialog {

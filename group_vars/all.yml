@@ -76,6 +76,14 @@ tray_enabled: true
 # and packages stay.
 bluetooth_enabled: true
 
+# Power profiles (roles/power: power-profiles-daemon; roles/quickshell
+# files/power/: power popup with battery details + Performance/Balanced/
+# Power Saver - only the profiles the hardware offers). Switching is
+# PPD's D-Bus property via Quickshell, event-driven, no sudo. The battery
+# indicator and the low-battery warning are core and independent of this.
+# false: no popup/profile icon, PPD disabled+stopped.
+power_profiles_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the

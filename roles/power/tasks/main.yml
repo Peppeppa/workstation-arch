@@ -21,3 +21,40 @@
     mode: "0644"
   notify: Reload systemd-logind configuration
   tags: power
+
+# FEATURE: power_profiles. power-profiles-daemon is a machine-wide daemon
+# -> systemd system service, its only owner. Runtime switching is its
+# D-Bus API (Quickshell PowerProfiles), never this role.
+- name: Install power-profiles-daemon (power_profiles_enabled)
+  when: power_profiles_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ power_profiles_packages }}"
+    state: present
+  tags: power
+
+- name: Enable and start power-profiles-daemon (power_profiles_enabled)
+  when: power_profiles_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: power-profiles-daemon.service
+    enabled: true
+    state: started
+  tags: power
+
+- name: Check for power-profiles-daemon (power_profiles disabled)
+  when: not power_profiles_enabled
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/power-profiles-daemon.service
+  register: power_ppd_unit
+  tags: power
+
+- name: Disable and stop power-profiles-daemon (power_profiles disabled)
+  when: not power_profiles_enabled and power_ppd_unit.stat.exists
+  become: true
+  ansible.builtin.systemd_service:
+    name: power-profiles-daemon.service
+    enabled: false
+    state: stopped
+  tags: power
+

@@ -43,6 +43,8 @@ PanelWindow {
     required property bool trayEnabled
     // bluetooth_enabled (templated by shell.qml.j2): load the Bluetooth slot.
     required property bool bluetoothEnabled
+    // power_profiles_enabled (templated by shell.qml.j2).
+    required property bool powerProfilesEnabled
     required property int barHeight
     required property int fontSize
 
@@ -274,17 +276,23 @@ PanelWindow {
                 }
             }
 
-            Text {
-                visible: UPower.displayDevice !== null && UPower.displayDevice.isPresent
-                color: Colors.foreground
-                font.family: Fonts.family
-                font.pixelSize: bar.fontSize
-                text: {
-                    const battery = UPower.displayDevice;
-                    if (!battery || !battery.isPresent) return "";
-                    const charging = battery.state === UPowerDeviceState.Charging;
-                    return Math.round(battery.percentage) + "%" + (charging ? " +" : "");
-                }
+            // Battery (core; hidden without a battery). With the
+            // power_profiles feature a click opens the power popup.
+            BatteryIndicator {
+                id: battery
+                bar: bar
+                Layout.alignment: Qt.AlignVCenter
+                onClicked: if (powerControl.item) powerControl.item.open(battery)
+            }
+
+            // FEATURE: power_profiles (PowerControl.qml): popup host, plus a
+            // profile icon on machines without a battery.
+            Loader {
+                id: powerControl
+                active: bar.powerProfilesEnabled
+                visible: active && item !== null && !battery.present
+                Layout.alignment: Qt.AlignVCenter
+                Component.onCompleted: if (active) setSource("PowerControl.qml", { bar: bar, hasBattery: Qt.binding(() => battery.present) })
             }
         }
     }
