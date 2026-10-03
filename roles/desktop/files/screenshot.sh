@@ -24,6 +24,13 @@ smart | ocr | monitor) ;;
     ;;
 esac
 
+# Confirmation toast. Best effort: with the notifications feature off
+# there is no notification daemon, and a missing toast must not turn a
+# saved screenshot / copied text into a failed run.
+notify() {
+    notify-send "$@" 2>/dev/null || true
+}
+
 # Visible window rectangles ("x,y wxh", one per line - slurp's stdin box
 # format) from one on-demand pair of hyprctl calls. slurp itself does
 # the click-vs-drag distinction: a click selects the smallest given box
@@ -79,7 +86,7 @@ if [[ "${mode}" == "ocr" ]]; then
     # "Estimating resolution" chatter on stderr is noise, real failures
     # still surface via the exit status (pipefail).
     if ! text="$(grim -s 2 -g "${geometry}" - | tesseract stdin stdout -l deu+eng 2>/dev/null)"; then
-        notify-send "OCR fehlgeschlagen" "tesseract konnte das Bild nicht verarbeiten"
+        notify "OCR fehlgeschlagen" "tesseract konnte das Bild nicht verarbeiten"
         exit 1
     fi
     # Drop the page-break form feed tesseract appends, then trailing
@@ -87,11 +94,11 @@ if [[ "${mode}" == "ocr" ]]; then
     text="${text//$'\f'/}"
     text="${text%"${text##*[![:space:]]}"}"
     if [[ -z "${text//[[:space:]]/}" ]]; then
-        notify-send "OCR: kein Text erkannt" "Zwischenablage unverändert"
+        notify "OCR: kein Text erkannt" "Zwischenablage unverändert"
         exit 0
     fi
     printf '%s' "${text}" | wl-copy --type text/plain
-    notify-send "OCR-Text kopiert" "$(printf '%s' "${text}" | head -c 120)"
+    notify "OCR-Text kopiert" "$(printf '%s' "${text}" | head -c 120)"
     exit 0
 fi
 
@@ -153,4 +160,4 @@ trap - EXIT
 
 wl-copy --type image/png < "${dest}"
 
-notify-send "Screenshot gespeichert" "${dest}"
+notify "Screenshot gespeichert" "${dest}"

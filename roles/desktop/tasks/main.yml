@@ -4,13 +4,35 @@
 # ensures its own packages/group membership are present. No services
 # are installed or enabled by this role: the portals are D-Bus-activated
 # systemd --user services shipped by their own packages, and
-# hyprpolkitagent/mako are started by Hyprland's session lifecycle (see
+# hyprpolkitagent is started by Hyprland's session lifecycle (see
 # roles/hyprland's autostart block), not by systemd.
 - name: Install desktop integration packages
   become: true
   community.general.pacman:
     name: "{{ desktop_packages }}"
     state: present
+  tags: desktop
+
+# mako retired (Notifications v1): Quickshell owns
+# org.freedesktop.Notifications now. Removing the package - not just not
+# starting it - matters: mako ships a D-Bus activation file for that
+# name, so while installed it would silently auto-start as a second
+# daemon whenever no other owner holds the name. A still-running mako
+# from the current session is stopped so Quickshell can claim the name
+# (roles/quickshell reloads at the end of the run).
+- name: Remove mako (retired - Quickshell's NotificationServer replaces it)
+  become: true
+  community.general.pacman:
+    name: mako
+    state: absent
+  tags: desktop
+
+- name: Stop a still-running mako from the current session
+  ansible.builtin.command:
+    cmd: "pkill -u {{ ansible_facts.user_uid }} -x mako"
+  register: desktop_mako_stop
+  changed_when: desktop_mako_stop.rc == 0
+  failed_when: desktop_mako_stop.rc not in [0, 1]
   tags: desktop
 
 # System font: user-level fontconfig drop-in (conf.d, so a user's own
@@ -99,7 +121,7 @@
 # entry that normally generates this file on first graphical login,
 # but this project's minimal Hyprland session runs no XDG autostart
 # entries at all (see roles/hyprland's hl.on("hyprland.start", ...) -
-# only hyprpolkitagent/mako/quickshell, no autostart directory
+# only hyprpolkitagent/quickshell(/hypridle), no autostart directory
 # processing), so that never happens here. Running the same tool
 # Ansible already installs, once, is simpler than adding an autostart
 # mechanism just for this - `creates` makes it a one-time, idempotent

@@ -9,8 +9,9 @@
 // Owns: one top bar per monitor (Bar.qml) and one keyboard-driven app
 // launcher (Launcher.qml), toggled via Quickshell's own IPC (see
 // Launcher.qml's IpcHandler and roles/hyprland's mainMod+Space bind).
-// Optional: the power menu (PowerMenu.qml, power_menu_enabled).
-// mako still owns notifications; no tray, control center, Wi-Fi/
+// Optional: the power menu (PowerMenu.qml, power_menu_enabled) and
+// notifications (Notifications.qml, notifications_enabled). No tray,
+// notification center, Wi-Fi/
 // Bluetooth menus, or theme framework yet - see AGENTS.md Next
 // Milestone for what's deliberately deferred.
 //
@@ -96,6 +97,14 @@ ShellRoot {
         // Lock works only with the lock_idle feature (hypridle answers
         // logind's Lock signal).
         lockAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
+    }
+{% endif %}
+{% if notifications_enabled %}
+
+    // FEATURE: notifications (group_vars/all.yml notifications_enabled):
+    // this process owns org.freedesktop.Notifications and shows toasts.
+    Notifications {
+        fontSize: root.fontSize
     }
 {% endif %}
 }

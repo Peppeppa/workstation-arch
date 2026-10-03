@@ -38,11 +38,9 @@ desktop_packages:
   # screenshot feature itself.
   - wl-clipboard
 
-  # Notification daemon. TEMPORARY UNTIL QUICKSHELL REPLACEMENT -
-  # mako is the standard minimal wlroots/Hyprland-ecosystem notification
-  # daemon; started once via roles/hyprland's autostart block, not a
-  # systemd service (avoids a duplicate autostart path for one process).
-  - mako
+  # Notifications: no package here anymore - Quickshell's own
+  # NotificationServer is the daemon (feature notifications_enabled,
+  # roles/quickshell). mako is retired, see tasks/main.yml.
 
   # Brightness control CLI, bound to the laptop's brightness keys in
   # roles/hyprland's hyprland.lua.j2 (also harmless/inert on the

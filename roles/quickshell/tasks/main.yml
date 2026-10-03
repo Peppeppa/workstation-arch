@@ -107,6 +107,21 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: notifications (see group_vars/all.yml notifications_enabled).
+# No packages: Quickshell itself is the daemon. Disabling drops the
+# component from shell.qml (no D-Bus owner at all then); an already-
+# deployed Notifications.qml stays unreferenced (Disable vs. Purge).
+- name: Deploy the notifications component (notifications_enabled)
+  when: notifications_enabled
+  ansible.builtin.copy:
+    src: Notifications.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/Notifications.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

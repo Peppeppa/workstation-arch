@@ -51,6 +51,14 @@ power_menu_enabled: true
 # stopped, its two feature-owned configs removed - nothing else deleted.
 lock_idle_enabled: true
 
+# Notifications (roles/quickshell Notifications.qml, composed by
+# shell.qml.j2): Quickshell's own NotificationServer owns
+# org.freedesktop.Notifications inside the running Quickshell - toasts
+# top-right, no history/center/sound. mako is retired (roles/desktop)
+# regardless of this flag, so false means: no notification daemon at
+# all (notify-send then just fails quietly). Nothing is persisted.
+notifications_enabled: true
+
 # System font (System Font v1) - core presentation, not a feature flag.
 # The one place the font names live; rendered into fontconfig + GTK
 # (roles/desktop), Quickshell's Fonts.qml (roles/quickshell), hyprlock

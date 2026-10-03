@@ -88,7 +88,8 @@ hl.config({
 -- systemd --user services shipped by their own packages and need no
 -- autostart entry.
 --
--- mako (notifications) is TEMPORARY UNTIL QUICKSHELL REPLACEMENT.
+-- Notifications have no autostart of their own: Quickshell (below)
+-- owns them (feature notifications_enabled; mako retired).
 --
 -- hyprpolkitagent uses its absolute path, not a bare PATH lookup like
 -- mako: real package inspection on arch-dev (`pacman -Ql
@@ -119,7 +120,6 @@ hl.config({
 -- same pattern as hyprland_terminal below.
 hl.on("hyprland.start", function()
     hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
-    hl.exec_cmd("mako")
     hl.exec_cmd("{{ hyprland_quickshell_cmd }}")
 {% if lock_idle_enabled %}
     -- FEATURE: lock_idle - hypridle's only lifecycle owner (session-
