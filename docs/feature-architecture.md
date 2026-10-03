@@ -351,3 +351,20 @@ handler), so splitting them would buy nothing.
 | Privileges / Secrets / Network | none / none / none |
 | Disable | component not instantiated -> no notification owner at all (`notify-send` fails; `screenshot.sh` treats toasts as best effort) |
 | Persistent user data | none |
+
+## System Tray v1
+
+`tray_enabled` (`group_vars/all.yml`, default `true`).
+
+| Contract | |
+|---|---|
+| Scope | `roles/quickshell/files/tray/` (`Tray.qml`, `TrayMenu.qml`, `TrayMenuLevel.qml`), loaded by `Bar.qml` through a Loader |
+| Packages | none (Quickshell 0.3.1 `Quickshell.Services.SystemTray`); named icons need `QS_ICON_THEME` in Quickshell's start env (`hyprland_quickshell_exec`, core) |
+| D-Bus / lifecycle owner | the running Quickshell owns `org.kde.StatusNotifierWatcher` and registers as the one StatusNotifierHost - no other watcher/host |
+| UI | items first in the bar's status zone, 16px icons in 22px slots, Passive items hidden, zone invisible with no items; tooltip = item tooltip/title |
+| Actions | left `activate()` (menu for `onlyMenu` items), middle `secondaryActivate()`, right DBusMenu context menu, wheel `scroll()` - only the item's own SNI/DBusMenu interfaces |
+| Menu | rendered by us via `QsMenuOpener` (themed, live switch; separators, disabled, checkbox/radio, inline submenus); overlay surface exists only while open, click outside / Escape closes |
+| Privileges / Secrets / Network | none / none / none |
+| Disable | Loader inactive: no tray component, Quickshell never becomes watcher/host; files stay unreferenced |
+| Persistent user data | none |
+| Test | `scripts/sni-test-client.py` (on demand, python-gobject only) |

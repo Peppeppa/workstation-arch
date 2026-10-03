@@ -94,6 +94,7 @@ direct upstream dependency.
 | File chooser / settings portal | xdg-desktop-portal-gtk |
 | Idle handling, lock-on-sleep (logind Lock/PrepareForSleep) | hypridle (session lifecycle, started once by Hyprland; feature `lock_idle`) |
 | Screen locker | hyprlock (on demand only - spawned by hypridle on logind Lock, exits on unlock) |
+| System tray host (`org.kde.StatusNotifierWatcher`) | Quickshell `SystemTray` (feature `tray`) |
 | Shell presentation / integration | Quickshell (top bar + app launcher - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |

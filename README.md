@@ -230,6 +230,11 @@ GTK; Qt via fontconfig) - names in `group_vars/all.yml`.
 Idle (hypridle): 5 min -> lock, 10 min -> displays off, back on at any
 input; the session is always locked before suspend/hibernate.
 
+System tray: StatusNotifierItem/AppIndicator icons of running apps
+appear at the left of the bar's status zone (left click activate, middle
+click secondary action, right click menu, wheel scroll); hidden when
+there are none.
+
 Coffee icon left of the bar clock (hidden until hovered; click to
 toggle): pauses the *automatic* idle lock/display-off while on (icon
 stays visible). Not persistent - off again after any Quickshell or

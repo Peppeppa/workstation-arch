@@ -88,8 +88,9 @@ ColumnLayout {
 
                     Text {
                         Layout.fillWidth: true
-                        // DBusMenu mnemonics: "_File" -> "File", "__" -> "_".
-                        text: row.modelData.text.replace(/_(.)/g, "$1")
+                        // Quickshell already strips DBusMenu mnemonics ("_File" ->
+                        // "File"); any underscore left here is a real one.
+                        text: row.modelData.text
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                         color: entryRect.fg
