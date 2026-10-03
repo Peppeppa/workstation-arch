@@ -47,9 +47,13 @@ desktop_packages:
   # workstation if it has no controllable backlight).
   - brightnessctl
 
-  # System font (group_vars/all.yml desktop_font_family*): FiraCode Nerd
-  # Font, official `extra` package - UI, monospace and Nerd Font icon
-  # glyphs (power menu, coffee toggle) from one family.
+  # Typography (group_vars/all.yml desktop_*_font_family), official
+  # `extra` packages:
+  #   adwaita-fonts     - UI font (Adwaita Sans) for GTK/sans-serif;
+  #                       listed explicitly, not left as a GTK dependency
+  #   ttf-firacode-nerd - shell (Quickshell/hyprlock), monospace and Nerd
+  #                       Font icon glyphs (power menu, coffee toggle)
+  - adwaita-fonts
   - ttf-firacode-nerd
 
 # FEATURE: screenshots (see group_vars/all.yml screenshots_enabled -

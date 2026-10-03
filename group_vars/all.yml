@@ -59,15 +59,19 @@ lock_idle_enabled: true
 # all (notify-send then just fails quietly). Nothing is persisted.
 notifications_enabled: true
 
-# System font (System Font v1) - core presentation, not a feature flag.
-# The one place the font names live; rendered into fontconfig + GTK
-# (roles/desktop), Quickshell's Fonts.qml (roles/quickshell), hyprlock
-# and Ghostty (roles/hyprland). Exact family names as fontconfig reports
-# them for ttf-firacode-nerd (verified with fc-scan, not guessed).
-desktop_font_family: "FiraCode Nerd Font"            # UI / sans-serif
-desktop_font_family_mono: "FiraCode Nerd Font Mono"  # monospace, terminal
-desktop_font_family_icons: "FiraCode Nerd Font Propo" # icon glyphs next to text
-desktop_font_size: 11                                # GTK interface size (pt)
+# Typography roles - core presentation, not a feature flag. The one
+# place font names live (exact fontconfig family names, verified with
+# fc-scan/fc-list, not guessed):
+#   ui        -> GTK interface font + fontconfig sans-serif (roles/desktop)
+#   shell     -> our own shell surfaces: Quickshell Fonts.family,
+#                hyprlock (roles/quickshell, roles/hyprland)
+#   monospace -> fontconfig monospace, GTK monospace, Ghostty
+#   icon      -> Nerd Font icon glyphs next to text (Quickshell Fonts.icons)
+desktop_ui_font_family: "Adwaita Sans"
+desktop_ui_font_size: 11                                  # GTK, pt
+desktop_shell_font_family: "FiraCode Nerd Font"
+desktop_monospace_font_family: "FiraCode Nerd Font Mono"
+desktop_icon_font_family: "FiraCode Nerd Font Propo"
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack

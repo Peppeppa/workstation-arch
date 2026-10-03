@@ -25,7 +25,7 @@
   tags: quickshell
 
 # Fonts.qml is templated (unlike the rest of the core files) because the
-# font names come from group_vars/all.yml desktop_font_family*.
+# font names come from group_vars/all.yml desktop_*_font_family.
 - name: Deploy the Quickshell font singleton (Fonts.qml)
   ansible.builtin.template:
     src: Fonts.qml.j2

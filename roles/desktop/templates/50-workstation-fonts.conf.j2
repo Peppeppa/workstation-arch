@@ -2,19 +2,20 @@
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
 <!--
   Managed by Ansible (roles/desktop/templates/50-workstation-fonts.conf.j2,
-  names from group_vars/all.yml desktop_font_family*) - do not edit by hand.
-  User-level drop-in: makes the system font the default for anything that
-  asks fontconfig for a generic family (Qt incl. Quickshell, GTK fallback,
-  hyprlock, ...). Apps with their own explicit font settings and web page
+  names from group_vars/all.yml desktop_*_font_family) - do not edit by hand.
+  User-level drop-in: generic sans-serif = the UI font, monospace = the
+  monospace font, for anything that asks fontconfig for a generic family
+  (Qt apps, GTK fallback, ...). Our own shell surfaces (Quickshell,
+  hyprlock) name their font explicitly instead. Apps with their own explicit font settings and web page
   fonts are deliberately not overridden. Serif is left alone (documents).
 -->
 <fontconfig>
   <alias binding="same">
     <family>sans-serif</family>
-    <prefer><family>{{ desktop_font_family }}</family></prefer>
+    <prefer><family>{{ desktop_ui_font_family }}</family></prefer>
   </alias>
   <alias binding="same">
     <family>monospace</family>
-    <prefer><family>{{ desktop_font_family_mono }}</family></prefer>
+    <prefer><family>{{ desktop_monospace_font_family }}</family></prefer>
   </alias>
 </fontconfig>

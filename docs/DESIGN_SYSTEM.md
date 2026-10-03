@@ -4,14 +4,19 @@ Deliberately small: colors (Central Color System v1) and the system font
 (System Font v1); sizes/spacing are still a couple of constants in
 `shell.qml`.
 
-## Font
+## Typography
 
-FiraCode Nerd Font, names defined once in `group_vars/all.yml`
-(`desktop_font_family` UI, `_mono` terminal/monospace, `_icons` Propo
-variant for icon glyphs) and rendered into: fontconfig `sans-serif`/
-`monospace` (covers Qt), GTK GSettings, Quickshell `Fonts.qml`, hyprlock,
-Ghostty. Quickshell components use `font.family: Fonts.family` /
-`Fonts.icons` - never a font name literal.
+Font names are defined once in `group_vars/all.yml`, by role:
+
+| Role | Variable | Font | Used by |
+|---|---|---|---|
+| UI | `desktop_ui_font_family` (+ `_size` 11) | Adwaita Sans | GTK interface font, fontconfig `sans-serif` (Qt apps) |
+| Shell | `desktop_shell_font_family` | FiraCode Nerd Font | our own surfaces: Quickshell (`Fonts.family`), hyprlock |
+| Monospace | `desktop_monospace_font_family` | FiraCode Nerd Font Mono | fontconfig `monospace`, GTK monospace, Ghostty |
+| Icon | `desktop_icon_font_family` | FiraCode Nerd Font Propo | Nerd Font glyphs next to text (`Fonts.icons`) |
+
+Serif stays the distro default (documents). Quickshell components use
+`font.family: Fonts.family` / `Fonts.icons` - never a font name literal.
 
 ## Central color source
 

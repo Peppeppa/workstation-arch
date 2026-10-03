@@ -135,7 +135,8 @@ Binding for every Quickshell component (see `docs/DESIGN_SYSTEM.md`):
 - Theming stays declarative: no daemon, timer, polling, or file watcher.
 - Fonts likewise: `font.family: Fonts.family` (icons: `Fonts.icons`),
   never a font name in a component. Font names live only in
-  `group_vars/all.yml` `desktop_font_family*`.
+  `group_vars/all.yml` `desktop_*_font_family` (roles: ui, shell,
+  monospace, icon - see `docs/DESIGN_SYSTEM.md`).
 
 ## Feature Architecture
 
@@ -777,8 +778,9 @@ history for that milestone's own record):
   needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars). Manual
   PAM test passed on arch-dev (wrong password rejected, correct one
   unlocks). v1.1: coffee-mode idle-inhibit toggle in the bar.
-- **System Font v1**: FiraCode Nerd Font everywhere we manage fonts
-  (names only in `group_vars/all.yml` `desktop_font_family*`).
+- **System Font v1** (+ correction): GTK/sans-serif use Adwaita Sans;
+  Quickshell/hyprlock FiraCode Nerd Font; monospace/Ghostty FiraCode
+  Nerd Font Mono (names only in `group_vars/all.yml`).
 - **Notifications v1**: `notifications_enabled` - Quickshell owns
   `org.freedesktop.Notifications`; toasts only (no history/center).
   mako retired. Quickshell 0.3.1 quirks found on arch-dev:
