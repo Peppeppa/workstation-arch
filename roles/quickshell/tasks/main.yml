@@ -257,6 +257,19 @@
     mode: "0755"
   tags: quickshell
 
+# FEATURE: clipboard_history (see group_vars/all.yml
+# clipboard_history_enabled; cliphist + the watcher are roles/hyprland).
+- name: Deploy the clipboard history popup (clipboard_history_enabled)
+  when: clipboard_history_enabled
+  ansible.builtin.copy:
+    src: clipboard/ClipboardHistory.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/ClipboardHistory.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

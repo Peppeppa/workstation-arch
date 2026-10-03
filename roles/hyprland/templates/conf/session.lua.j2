@@ -50,5 +50,10 @@ return function(v)
         -- which this session never activates).
         hl.exec_cmd("{{ lock_idle_hypridle_cmd }}")
 {% endif %}
+{% if clipboard_history_enabled %}
+        -- FEATURE: clipboard_history - the clipboard watcher's only
+        -- lifecycle owner (wl-paste --watch -> cliphist store, text only).
+        hl.exec_cmd("{{ clipboard_watch_cmd }}")
+{% endif %}
     end)
 end

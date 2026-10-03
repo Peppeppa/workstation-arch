@@ -101,6 +101,15 @@ audio_popup_enabled: true
 # popup, the network label stays.
 connectivity_enabled: true
 
+# Clipboard history (cliphist): Hyprland's session start runs one watcher
+# (`wl-paste --type text --watch cliphist store`, text only; content
+# marked sensitive by password managers is not stored), mainMod+V opens
+# the Quickshell history popup (search, select = copy, delete, clear).
+# Stored in ~/.cache/cliphist/db, at most clipboard_history_max_items
+# entries (roles/hyprland/defaults). false: watcher stopped, no bind/
+# popup; the existing history file stays (`cliphist wipe` clears it).
+clipboard_history_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the

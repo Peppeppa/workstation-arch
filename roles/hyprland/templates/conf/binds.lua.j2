@@ -36,6 +36,12 @@ return function(v)
     -- one-shot mechanism as the launcher above, no second instance.
     hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
 {% endif %}
+{% if clipboard_history_enabled %}
+
+    -- FEATURE: clipboard_history: the clipboard history popup inside the
+    -- running Quickshell (IPC target "clipboard").
+    hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("qs ipc call clipboard toggle"))
+{% endif %}
 
     -- Move keyboard focus between windows.
     hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

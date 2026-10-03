@@ -115,6 +115,14 @@ ShellRoot {
         lockAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
     }
 {% endif %}
+{% if clipboard_history_enabled %}
+
+    // FEATURE: clipboard_history (group_vars/all.yml
+    // clipboard_history_enabled): popup over cliphist, mainMod+V.
+    ClipboardHistory {
+        fontSize: root.fontSize
+    }
+{% endif %}
 {% if notifications_enabled %}
 
     // FEATURE: notifications (group_vars/all.yml notifications_enabled):

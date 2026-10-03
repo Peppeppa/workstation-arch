@@ -194,3 +194,36 @@
     - hypridle.conf
     - hyprlock.conf
   tags: hyprland
+
+# FEATURE: clipboard_history (see group_vars/all.yml
+# clipboard_history_enabled). Hyprland's session start owns the watcher
+# (session.lua); like hypridle, a bootstrap inside a running session asks
+# THAT Hyprland to exec it, and replaces it when its command changed.
+- name: Install clipboard history packages (clipboard_history_enabled)
+  when: clipboard_history_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ clipboard_history_packages }}"
+    state: present
+  tags: hyprland
+
+- name: Ensure the clipboard watcher runs in the active Hyprland session (clipboard_history_enabled)
+  when: clipboard_history_enabled
+  ansible.builtin.shell:
+    cmd: "{{ clipboard_start_script }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  register: clipboard_start
+  changed_when: clipboard_start.stdout == "started"
+  tags: hyprland
+
+# Disable = stop the watcher. The history (~/.cache/cliphist/db) is user
+# data and stays (Disable vs. Purge); `cliphist wipe` clears it.
+- name: Stop the clipboard watcher (clipboard_history disabled)
+  when: not clipboard_history_enabled
+  ansible.builtin.command:
+    cmd: "pkill -u {{ ansible_facts.user_uid }} -f '^wl-paste .*--watch cliphist'"
+  register: clipboard_stop
+  changed_when: clipboard_stop.rc == 0
+  failed_when: clipboard_stop.rc not in [0, 1]
+  tags: hyprland

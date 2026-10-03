@@ -131,3 +131,34 @@ lock_idle_start_script: |
   # new instance re-arms its own timers, so switching them on is safe.
   hyprctl -i "$sig" dispatch 'hl.dsp.dpms({ action = "on" })' >/dev/null
   echo started
+
+# FEATURE: clipboard_history (see group_vars/all.yml
+# clipboard_history_enabled). cliphist stores what wl-paste's watcher
+# hands it in ~/.cache/cliphist/db; wl-clipboard itself is core
+# (roles/desktop).
+clipboard_history_packages:
+  - cliphist
+
+# History length (oldest entries are dropped beyond this).
+clipboard_history_max_items: 100
+
+# The one clipboard watcher, started by Hyprland's session start. Text
+# only (--type text): images/files are not recorded. wl-paste sets
+# CLIPBOARD_STATE=sensitive for content offered with the password-manager
+# hint (x-kde-passwordManagerHint, e.g. `wl-copy --sensitive`, KeePassXC,
+# Bitwarden) and cliphist then does not store it.
+clipboard_watch_cmd: "wl-paste --type text --watch cliphist -max-items {{ clipboard_history_max_items }} store"
+
+# Internal: (re)starts the watcher inside the running Hyprland instance
+# when it is missing or runs with a different command line (e.g. a
+# changed max-items). Prints "started" only if it did.
+clipboard_start_script: |
+  set -eu
+  want='{{ clipboard_watch_cmd }}'
+  cur="$(pgrep -u "$(id -u)" -a -f '^wl-paste .*--watch cliphist' | cut -d' ' -f2- || true)"
+  if [ "$cur" = "$want" ]; then echo running; exit 0; fi
+  sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
+  if [ -z "$sig" ]; then echo no-session; exit 0; fi
+  if [ -n "$cur" ]; then pkill -u "$(id -u)" -f '^wl-paste .*--watch cliphist' || true; fi
+  hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ clipboard_watch_cmd }}")' >/dev/null
+  echo started
