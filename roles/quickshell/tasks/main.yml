@@ -24,16 +24,34 @@
     mode: "0755"
   tags: quickshell
 
-# Central Color System v1's hand-written scheme files, superseded by the
-# theme data in themes/ (Theme Architecture v1). Ansible-owned core files,
-# not user data - removed so no stale palette lingers next to Colors.qml.
-- name: Remove retired Quickshell scheme files
+# Ansible-owned core files that no longer exist, not user data - removed
+# so nothing stale lingers (a stale root-level Bar.qml etc. would even
+# shadow the new bar/ types):
+# - Central Color System v1 scheme files (superseded by themes/)
+# - the pre-RICE flat bar + feature components (now bar/ and
+#   bar/widgets/<Widget>/, RICE v1)
+- name: Remove retired Quickshell files
   ansible.builtin.file:
     path: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
     state: absent
   loop:
     - ColorScheme.qml
     - DefaultDark.qml
+    - Bar.qml
+    - BatteryIndicator.qml
+    - ThemeDialog.qml
+    - Tray.qml
+    - TrayMenu.qml
+    - TrayMenuLevel.qml
+    - Widget.qml
+    - Popup.qml
+    - PowerControl.qml
+    - PowerPopup.qml
+    - AudioControl.qml
+    - AudioPopup.qml
+    - ConnectivityControl.qml
+    - ConnectivityPopup.qml
+    - WallpaperPicker.qml
   notify: Reload running Quickshell config
   tags: quickshell
 
@@ -49,17 +67,14 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
-# Plain copy, not a template: none of these .qml files have
-# host-specific values to substitute at this milestone (unlike
-# hyprland.lua.j2's per-host scale/modifier/layout), and copying avoids
-# any ambiguity between QML's own brace syntax and Jinja2's. `src`
-# ends in `/` so the contents of files/quickshell/ (Bar.qml,
-# Launcher.qml, CoffeeMode.qml, Colors.qml, ThemeDialog.qml) land directly in
-# ~/.config/quickshell/, not nested under an extra quickshell/
-# subdirectory. shell.qml itself is templated below (it composes the
-# optional features), and feature components live outside this
-# directory so a disabled feature's file is never deployed.
-- name: Deploy the Quickshell Core Desktop v1 config
+# Plain copy, not a template (avoids any ambiguity between QML's braces
+# and Jinja2's). `src` ends in `/`: the contents of files/quickshell/
+# (Colors, Launcher, CoffeeMode, ..., and the bar/ tree: bar host, layout,
+# popup coordinator, common components, core widgets) land directly in
+# ~/.config/quickshell/. shell.qml and bar/BarFeatures.qml are templated
+# below; feature components live outside this directory and are copied
+# into their widget's directory only while enabled.
+- name: Deploy the Quickshell core config (incl. the bar)
   ansible.builtin.copy:
     src: quickshell/
     dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
@@ -67,6 +82,39 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   notify: Reload running Quickshell config
+  tags: quickshell
+
+# Which optional bar parts this host has (the <name>_enabled flags).
+- name: Deploy the bar feature switches (bar/BarFeatures.qml)
+  ansible.builtin.template:
+    src: BarFeatures.qml.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/BarFeatures.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
+# The bar layout is runtime user state (drag & drop in the bar writes it).
+# Ansible only creates it from the shipped default when it does not exist
+# yet - an existing layout is never touched (force: false).
+- name: Ensure ~/.config/workstation exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/workstation"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
+- name: Create the default bar layout if none exists
+  ansible.builtin.copy:
+    src: quickshell/bar/default-layout.json
+    dest: "{{ ansible_facts.user_dir }}/.config/workstation/bar-layout.json"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+    force: false
   tags: quickshell
 
 # FEATURE: power_menu (see group_vars/all.yml power_menu_enabled and
@@ -136,13 +184,13 @@
 
 # FEATURE: tray (see group_vars/all.yml tray_enabled). No packages:
 # Quickshell's own StatusNotifier support is the tray host. Disabling
-# stops Bar.qml from loading it (no watcher/host from us); already-
+# keeps the bar from loading it (no watcher/host from us); already-
 # deployed files stay unreferenced (Disable vs. Purge).
 - name: Deploy the tray components (tray_enabled)
   when: tray_enabled
   ansible.builtin.copy:
     src: tray/
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/widgets/Tray/"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
@@ -150,13 +198,14 @@
   tags: quickshell
 
 # FEATURE: bluetooth (see group_vars/all.yml bluetooth_enabled; the
-# service side is roles/bluetooth). Bar slot + popup into the config dir,
-# the on-demand pairing agent into ~/.local/libexec/workstation/.
+# service side is roles/bluetooth). Bar widget + popup into
+# bar/widgets/Bluetooth/, the on-demand pairing agent into
+# ~/.local/libexec/workstation/.
 - name: Deploy the Bluetooth components (bluetooth_enabled)
   when: bluetooth_enabled
   ansible.builtin.copy:
     src: "bluetooth/{{ item }}"
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/widgets/Bluetooth/"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
@@ -192,7 +241,7 @@
   when: power_profiles_enabled
   ansible.builtin.copy:
     src: power/
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/widgets/Power/"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
@@ -205,7 +254,7 @@
   when: audio_popup_enabled
   ansible.builtin.copy:
     src: audio/
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/widgets/Audio/"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
@@ -226,14 +275,11 @@
 - name: Deploy the Connectivity Center components (connectivity_enabled)
   when: connectivity_enabled
   ansible.builtin.copy:
-    src: "connectivity/{{ item }}"
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    src: connectivity/Popup.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/bar/widgets/Connectivity/Popup.qml"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
-  loop:
-    - ConnectivityControl.qml
-    - ConnectivityPopup.qml
   notify: Reload running Quickshell config
   tags: quickshell
 
@@ -287,11 +333,14 @@
 - name: Deploy the wallpaper components (wallpaper_enabled)
   when: wallpaper_enabled
   ansible.builtin.copy:
-    src: wallpaper/
-    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    src: "wallpaper/{{ item.src }}"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item.dest }}"
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
+  loop:
+    - { src: Wallpaper.qml, dest: Wallpaper.qml }
+    - { src: WallpaperPicker.qml, dest: bar/widgets/Theme/WallpaperPicker.qml }
   notify: Reload running Quickshell config
   tags: quickshell
 

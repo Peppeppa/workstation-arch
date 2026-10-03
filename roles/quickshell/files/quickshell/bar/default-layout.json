@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "layout": {
+    "left": [
+      { "id": "workspaces" }
+    ],
+    "center": [
+      { "id": "clock" }
+    ],
+    "right": [
+      { "id": "tray" },
+      { "id": "connectivity" },
+      { "id": "bluetooth" },
+      { "id": "audio" },
+      { "id": "power" },
+      { "id": "coffee" },
+      { "id": "theme" }
+    ]
+  }
+}

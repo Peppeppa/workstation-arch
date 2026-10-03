@@ -1,9 +1,9 @@
-// FEATURE: audio_popup - output/input devices, default selection, volume
-// and mute (see AudioControl.qml). Managed by Ansible: do not edit by
-// hand, see roles/quickshell in workstation-arch.
+// FEATURE: audio_popup - bar widget "audio", its popup: output/input
+// devices, default selection, volume and mute. Managed by Ansible: do not
+// edit by hand, see roles/quickshell in workstation-arch.
 //
-// Same overlay pattern as the other popups (click outside / Escape
-// closes, created by a Loader only while open). Everything through
+// A BarPopup (click outside / Escape closes, exists only while open).
+// Everything through
 // Quickshell.Services.Pipewire: choosing a device sets
 // Pipewire.preferredDefaultAudioSink/Source (WirePlumber stores the
 // choice like any other client's), volume/mute write the default nodes'
@@ -13,14 +13,11 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Pipewire
-import Quickshell.Wayland
+import qs
+import qs.bar
 
-PanelWindow {
+BarPopup {
     id: popup
-
-    required property real anchorX
-    required property int barHeight
-    required property int fontSize
 
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var source: Pipewire.defaultAudioSource
@@ -28,43 +25,15 @@ PanelWindow {
     readonly property var outputs: Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream)
     readonly property var inputs: Pipewire.nodes.values.filter(n => n.audio && !n.isSink && !n.isStream)
 
-    signal closeRequested
 
     function nodeLabel(n) {
         return n.description || n.nickname || n.name;
     }
 
-    visible: true
-    focusable: true
-    color: "transparent"
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "quickshell-audio"
-
     // Live volume/mute of both defaults while the popup is open.
     PwObjectTracker {
         objects: [popup.sink, popup.source].filter(n => n !== null)
     }
-
-    MouseArea {
-        anchors.fill: parent
-        onClicked: popup.closeRequested()
-    }
-
-    Item {
-        id: keyHandler
-        anchors.fill: parent
-        focus: true
-        Keys.onEscapePressed: popup.closeRequested()
-    }
-
-    Component.onCompleted: keyHandler.forceActiveFocus()
 
     component SectionTitle: Text {
         Layout.topMargin: 6
@@ -187,85 +156,66 @@ PanelWindow {
         }
     }
 
-    Rectangle {
-        readonly property int panelWidth: 320
+    ColumnLayout {
+        id: content
+        anchors.left: parent.left
+        anchors.right: parent.right
+        spacing: 4
 
-        x: Math.max(6, Math.min(popup.anchorX - panelWidth / 2, popup.width - panelWidth - 6))
-        y: popup.barHeight + 4
-        width: panelWidth
-        implicitHeight: content.implicitHeight + 20
-        radius: 8
-        color: Colors.background
-        border.color: Colors.borderActive
-        border.width: 1
-
-        MouseArea {
-            anchors.fill: parent
+        Text {
+            text: "Audio"
+            color: Colors.foreground
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize + 1
+            font.bold: true
         }
 
-        ColumnLayout {
-            id: content
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 10
-            spacing: 4
+        SectionTitle { text: "Output" }
 
-            Text {
-                text: "Audio"
-                color: Colors.foreground
-                font.family: Fonts.family
-                font.pixelSize: popup.fontSize + 1
-                font.bold: true
+        VolumeRow {
+            node: popup.sink
+            icon: "\u{F057E}"          // volume-high
+            mutedIcon: "\u{F075F}"     // volume-mute
+        }
+
+        Repeater {
+            model: popup.outputs
+            delegate: DeviceRow {
+                isDefault: popup.sink === modelData
+                onChosen: Pipewire.preferredDefaultAudioSink = modelData
             }
+        }
 
-            SectionTitle { text: "Output" }
+        Text {
+            visible: popup.outputs.length === 0
+            text: "No output devices"
+            color: Colors.foregroundMuted
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize - 1
+        }
 
-            VolumeRow {
-                node: popup.sink
-                icon: "\u{F057E}"          // volume-high
-                mutedIcon: "\u{F075F}"     // volume-mute
+        SectionTitle { text: "Input" }
+
+        VolumeRow {
+            node: popup.source
+            icon: "\u{F036C}"          // microphone
+            mutedIcon: "\u{F036D}"     // microphone-off
+        }
+
+        Repeater {
+            model: popup.inputs
+            delegate: DeviceRow {
+                isDefault: popup.source === modelData
+                onChosen: Pipewire.preferredDefaultAudioSource = modelData
             }
+        }
 
-            Repeater {
-                model: popup.outputs
-                delegate: DeviceRow {
-                    isDefault: popup.sink === modelData
-                    onChosen: Pipewire.preferredDefaultAudioSink = modelData
-                }
-            }
-
-            Text {
-                visible: popup.outputs.length === 0
-                text: "No output devices"
-                color: Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
-            }
-
-            SectionTitle { text: "Input" }
-
-            VolumeRow {
-                node: popup.source
-                icon: "\u{F036C}"          // microphone
-                mutedIcon: "\u{F036D}"     // microphone-off
-            }
-
-            Repeater {
-                model: popup.inputs
-                delegate: DeviceRow {
-                    isDefault: popup.source === modelData
-                    onChosen: Pipewire.preferredDefaultAudioSource = modelData
-                }
-            }
-
-            Text {
-                visible: popup.inputs.length === 0
-                text: "No input devices"
-                color: Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
-            }
+        Text {
+            visible: popup.inputs.length === 0
+            text: "No input devices"
+            color: Colors.foregroundMuted
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize - 1
         }
     }
 }

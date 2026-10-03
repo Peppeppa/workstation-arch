@@ -1,94 +1,42 @@
-// Quickshell Core Desktop v1 - root config. Managed by Ansible: do not
-// edit by hand, see roles/quickshell in workstation-arch.
+// Quickshell root config. Managed by Ansible: do not edit by hand, see
+// roles/quickshell in workstation-arch.
 //
-// Rendered from roles/quickshell/templates/shell.qml.j2: optional
-// Quickshell features are composed here inside a Jinja if-block on their
-// <name>_enabled flag (see docs/feature-architecture.md "Quickshell
-// modularity"), so a disabled feature is not even instantiated.
+// Rendered from roles/quickshell/templates/shell.qml.j2. Owns: one bar per
+// monitor (bar/Bar.qml - the bar host; its widgets, their layout and
+// popups live in bar/, see docs/feature-architecture.md "Bar"), the app
+// launcher (Launcher.qml, `qs ipc call launcher toggle`), the low-battery
+// warning, and the optional features composed below (power menu,
+// notifications, clipboard history, wallpaper - each inside a Jinja
+// if-block on its <name>_enabled flag, so a disabled feature is not even
+// instantiated). Optional bar parts are switched by bar/BarFeatures.qml.
 //
-// Owns: one top bar per monitor (Bar.qml) and one keyboard-driven app
-// launcher (Launcher.qml), toggled via Quickshell's own IPC (see
-// Launcher.qml's IpcHandler and roles/hyprland's mainMod+Space bind).
-// Optional features (<name>_enabled, docs/feature-architecture.md) are
-// either composed below (power menu, notifications, clipboard history,
-// wallpaper) or loaded by Bar.qml through Loaders (tray, Bluetooth,
-// power profiles, audio popup, connectivity center).
-//
-// Colors come from the Colors singleton (Colors.qml -> active scheme,
-// see docs/DESIGN_SYSTEM.md), which every component reads directly -
-// no color is passed down from here. The two size constants below are
-// still shared via required properties.
+// Colors come from the Colors singleton (Colors.qml -> active theme, see
+// docs/DESIGN_SYSTEM.md); no color is passed down from here.
 
 import QtQuick
 import Quickshell
-import Quickshell.Services.Pipewire
+import qs.bar
 
 ShellRoot {
     id: root
 
-    readonly property int barHeight: 28
+    // Font size of the non-bar overlays (launcher, power menu, toasts,
+    // clipboard); the bar has its own (bar/BarStyle.qml).
     readonly property int fontSize: 13
 
-    // Native, event-driven clock: SystemClock maintains its own
-    // internal timer at the given precision - this never polls `date`.
-    // Shared by every Bar instance below via the `clock` property.
-    SystemClock {
-        id: systemClock
-        precision: SystemClock.Minutes
-    }
-
-    // Binding (not starting/owning) the current default sink: this is
-    // what makes its live audio.volume/audio.muted properties update
-    // and settable at all, per Quickshell.Services.Pipewire's own
-    // PwObjectTracker docs. Shared globally (Pipewire is a singleton),
-    // so one tracker here covers Bar.qml's volume widget on every
-    // monitor. Never starts, stops, or reconfigures PipeWire/
-    // WirePlumber (roles/audio remains their only lifecycle owner).
-    PwObjectTracker {
-        objects: Pipewire.defaultAudioSink ? [Pipewire.defaultAudioSink] : []
-    }
-
-    // One bar per connected monitor - Quickshell's own normal model for
-    // this (Variants over Quickshell.screens) makes it no more complex
-    // than a single bar would be.
+    // One bar per connected monitor.
     Variants {
         model: Quickshell.screens
 
-        Bar {
-            // modelData is injected by Variants itself after this
-            // delegate is created - do not set it explicitly here (see
-            // Bar.qml's own property declaration).
-            //
-            // Qualified with `root.` throughout: Bar.qml declares its
-            // own same-named properties, so an unqualified RHS (e.g.
-            // `clock: clock`) would resolve to Bar's own not-yet-set
-            // property instead of ShellRoot's - a self-reference
-            // binding loop, confirmed the hard way in testing (Qt
-            // reported "Binding loop detected" and clock.date read as
-            // undefined until this was qualified).
-            clock: systemClock
-            // Coffee (idle-pause) toggle only with the lock_idle feature.
-            idleToggleAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
-            themeDialog: themeDialogWindow
-            trayEnabled: {{ 'true' if tray_enabled else 'false' }}
-            bluetoothEnabled: {{ 'true' if bluetooth_enabled else 'false' }}
-            powerProfilesEnabled: {{ 'true' if power_profiles_enabled else 'false' }}
-            audioPopupEnabled: {{ 'true' if audio_popup_enabled else 'false' }}
-            connectivityEnabled: {{ 'true' if connectivity_enabled else 'false' }}
-            barHeight: root.barHeight
-            fontSize: root.fontSize
-        }
+        Bar {}
     }
 
     // Low-battery warning (core): one instance, not per bar.
     BatteryWatcher {}
 
-    // Theme picker (core): one instance, opened from the bar's theme icon.
-    ThemeDialog {
-        id: themeDialogWindow
+    // One launcher instance, placed by the compositor on the focused output.
+    Launcher {
         fontSize: root.fontSize
-        barHeight: root.barHeight
-        wallpaperEnabled: {{ 'true' if wallpaper_enabled else 'false' }}
     }
 {% if wallpaper_enabled %}
 
@@ -96,16 +44,6 @@ ShellRoot {
     // background layer on every monitor, from the active theme.
     Wallpaper {}
 {% endif %}
-
-    // One launcher instance, not one per monitor: it has no preferred
-    // screen set, so the compositor places it on whichever output is
-    // currently focused (standard wlr-layer-shell behavior for a
-    // surface with no output binding) - simpler and more correct for a
-    // single modal overlay than guessing which monitor to pin it to.
-    Launcher {
-        // Qualified with `root.` for the same reason as Bar above.
-        fontSize: root.fontSize
-    }
 {% if power_menu_enabled %}
 
     // FEATURE: power_menu (group_vars/all.yml power_menu_enabled). One

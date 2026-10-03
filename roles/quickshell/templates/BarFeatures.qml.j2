@@ -1,0 +1,20 @@
+pragma Singleton
+
+// Which optional bar parts exist on this host - rendered from the
+// <name>_enabled flags in group_vars/all.yml (roles/quickshell/templates/
+// BarFeatures.qml.j2). Managed by Ansible: do not edit by hand.
+// A widget/popup whose flag is false is never loaded (its files are not
+// even deployed).
+
+import Quickshell
+
+Singleton {
+    readonly property bool tray: {{ 'true' if tray_enabled else 'false' }}
+    readonly property bool bluetooth: {{ 'true' if bluetooth_enabled else 'false' }}
+    // Coffee (idle inhibit) only makes sense with an idle daemon.
+    readonly property bool coffee: {{ 'true' if lock_idle_enabled else 'false' }}
+    readonly property bool powerProfiles: {{ 'true' if power_profiles_enabled else 'false' }}
+    readonly property bool audioPopup: {{ 'true' if audio_popup_enabled else 'false' }}
+    readonly property bool connectivity: {{ 'true' if connectivity_enabled else 'false' }}
+    readonly property bool wallpaper: {{ 'true' if wallpaper_enabled else 'false' }}
+}

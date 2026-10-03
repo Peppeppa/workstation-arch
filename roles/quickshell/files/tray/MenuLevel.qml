@@ -1,15 +1,16 @@
-// FEATURE: tray - one level of a DBusMenu (see TrayMenu.qml). Managed by
+// FEATURE: tray - one level of a DBusMenu (see Menu.qml). Managed by
 // Ansible: do not edit by hand, see roles/quickshell in workstation-arch.
 //
 // Entries come from Quickshell's QsMenuOpener (native DBusMenu support):
 // separators, disabled entries (muted, inert), checkbox/radio state, and
 // submenus - shown inline below their parent, indented, via a nested
-// TrayMenuLevel (no cascading popup surfaces). Choosing a leaf entry calls
+// MenuLevel (no cascading popup surfaces). Choosing a leaf entry calls
 // its `triggered()` (Quickshell sends the DBusMenu "clicked" event).
 
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import qs
 
 ColumnLayout {
     id: level
@@ -128,7 +129,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 active: row.modelData.hasChildren && row.expanded
                 visible: active
-                onActiveChanged: if (active) setSource("TrayMenuLevel.qml", {
+                onActiveChanged: if (active) setSource("MenuLevel.qml", {
                     handle: row.modelData,
                     fontSize: level.fontSize,
                     depth: level.depth + 1
