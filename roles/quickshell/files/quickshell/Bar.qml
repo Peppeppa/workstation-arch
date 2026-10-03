@@ -45,6 +45,8 @@ PanelWindow {
     required property bool bluetoothEnabled
     // power_profiles_enabled (templated by shell.qml.j2).
     required property bool powerProfilesEnabled
+    // audio_popup_enabled (templated by shell.qml.j2).
+    required property bool audioPopupEnabled
     required property int barHeight
     required property int fontSize
 
@@ -244,7 +246,8 @@ PanelWindow {
                 }
             }
 
-            // Volume: left-click toggles mute, scroll adjusts volume.
+            // Volume: left-click toggles mute, scroll adjusts volume,
+            // right-click opens the audio popup (audio_popup feature).
             // Clamped to [0, 1] - no accidental extreme boost past unity
             // gain via a stray scroll.
             Text {
@@ -261,8 +264,12 @@ PanelWindow {
 
                 MouseArea {
                     anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    onClicked: {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => {
+                        if (mouse.button === Qt.RightButton) {
+                            if (audioControl.item) audioControl.item.open(volumeLabel);
+                            return;
+                        }
                         const sink = Pipewire.defaultAudioSink;
                         if (sink && sink.ready) sink.audio.muted = !sink.audio.muted;
                     }
@@ -274,6 +281,16 @@ PanelWindow {
                         sink.audio.volume = Math.max(0, Math.min(1, sink.audio.volume + delta));
                     }
                 }
+            }
+
+            // FEATURE: audio_popup (AudioControl.qml): popup host, plus a
+            // mic-muted icon while the default input is muted.
+            Loader {
+                id: audioControl
+                active: bar.audioPopupEnabled
+                visible: active && item !== null && item.micMuted
+                Layout.alignment: Qt.AlignVCenter
+                Component.onCompleted: if (active) setSource("AudioControl.qml", { bar: bar })
             }
 
             // Battery (core; hidden without a battery). With the

@@ -199,6 +199,19 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# FEATURE: audio_popup (see group_vars/all.yml audio_popup_enabled). No
+# packages: PipeWire/WirePlumber are core (roles/audio).
+- name: Deploy the audio popup components (audio_popup_enabled)
+  when: audio_popup_enabled
+  ansible.builtin.copy:
+    src: audio/
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Last on purpose: should Quickshell's watcher pick up a change mid-run
 # anyway, the root file that references feature components goes in only
 # after those components exist (avoids a reload against a missing type).

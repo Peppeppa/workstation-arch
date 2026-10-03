@@ -84,6 +84,14 @@ bluetooth_enabled: true
 # false: no popup/profile icon, PPD disabled+stopped.
 power_profiles_enabled: true
 
+# Audio popup (roles/quickshell files/audio/): right click on the bar's
+# volume opens output/input device selection (default sink/source),
+# volume and mute for both, plus a mic-muted icon in the bar while the
+# default input is muted. Quickshell's native PipeWire API; PipeWire/
+# WirePlumber stay core (roles/audio). The volume label itself (left
+# click mute, wheel) is core. false: no popup, no mic icon.
+audio_popup_enabled: true
+
 # Theme selection - core presentation, not a feature flag: the desktop
 # always has colors. Themes are directories in themes/<id>/ (see
 # docs/DESIGN_SYSTEM.md "Themes"). These are only the INITIAL values: the
