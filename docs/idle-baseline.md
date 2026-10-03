@@ -73,3 +73,15 @@ Owner), hypridle kam dazu; Quickshell liegt frisch *unter* dem alten Wert
 Reloads in einer langen Session. 0 User-Timer, 12 aktive User-Services
 (D-Bus-aktivierte Standarddienste), nur die 4 Arch-System-Timer.
 
+## Bluetooth v1 (2026-10-03)
+
+`bluetoothd` (BlueZ, systemd system service) is the one new permanent
+process - but only where Bluetooth exists: the unit's
+`ConditionPathIsDirectory=/sys/class/bluetooth` keeps it from running on
+a machine without an adapter (fresh arch-dev boot: enabled, inactive,
+0 processes). Measured on arch-dev after the `bluetooth` kernel module
+had been loaded (no controller): ~6 MB RSS, 0 CPU ticks over 30 s.
+Quickshell's Bluetooth slot/popup add no process; the pairing agent
+exists only while pairing. Real-adapter numbers (scan off, devices
+paired/connected) still to be taken on laptop/workstation.
+
