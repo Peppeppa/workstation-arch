@@ -22,6 +22,7 @@ Singleton {
     readonly property int hoverRadius: 4
     readonly property int underlineHeight: 2     // "popup open" mark under the widget
     readonly property int dragThreshold: 6
+    readonly property int dragCorridor: 100      // a drop counts up to this far below the bar
     readonly property int moveDuration: 120      // neighbours sliding during a drag only
 
     // Popups

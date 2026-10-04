@@ -204,29 +204,47 @@ third-party API.
   widgets flank it; without the clock the center group is centered.
 - **Layout state**: `~/.config/workstation/bar-layout.json`
   (`{"version": 1, "layout": {"left": [{"id": ...}], "center": [...],
-  "right": [...]}}`), widget ids (+ plain values) only. Read once at
+  "right": [...]}, "settings": {"background": "solid"}}`), widget ids
+  (+ plain values) and the bar settings only. Read once at
   start (no watcher), written atomically on each change. Unknown ids are
   ignored (and dropped on the next write); ids of switched-off features
   keep their place; a widget missing from the file is appended to its
   default zone. Ansible only creates the file if missing (`force: false`);
-  `qs ipc call bar resetLayout` restores `default-layout.json`.
+  `qs ipc call bar resetLayout` restores `default-layout.json`'s
+  arrangement (settings stay).
+- **Background**: `settings.background` = `solid` (theme `background`,
+  default) or `transparent` (only the widgets are drawn - no blur, no
+  shadow). Runtime interface, e.g. for a later settings menu:
+  `qs ipc call bar setBackground solid|transparent` (applied at once, no
+  Quickshell restart, written atomically into the same file) and
+  `qs ipc call bar getBackground`. A file without `settings` means
+  `solid`; Ansible never rewrites an existing file.
 - **Drag & drop**: a `DragHandler` per slot (threshold 6 px) takes the
   pointer over from the widget - the widget's click is cancelled, so a
   drag never clicks. The widget follows the pointer, the landing place is
   outlined, neighbours slide aside (preview = layout with the widget
-  there; the hit test uses the layout *without* it, so there is no
-  feedback). Works across zones; empty zones accept drops at their
-  anchor. Release inside the bar -> saved at once; outside -> unchanged
-  (Hyprland delivers no motion outside the bar during the drag, but
-  sends the bar a leave right after a release outside it - the drop is
-  decided ~120 ms after release from the bar's hover state).
+  there). Landing place = the insertion whose real resulting position
+  (each candidate laid out with the same engine) is nearest to where the
+  widget is held - candidates come from the layout *without* it, so there
+  is no feedback, and an unmoved widget keeps its own slot (raw
+  insertion points would make it swap with its neighbour in the
+  leftwards-growing right zone). Works across zones; empty zones accept drops at their
+  anchor. The outline appears right at the widget (its first placement
+  is never animated - only later moves are). While the button is held
+  Hyprland keeps delivering motion to the bar even below it (implicit
+  pointer grab), so the drop is decided from the pointer itself: up to
+  `BarStyle.dragCorridor` (100 px) below the 26 px bar the drag stays
+  live and a release saves at once; further down the preview falls back
+  to the old layout and a release changes nothing. No extra input
+  surface - the corridor exists only as this pointer check during a
+  drag.
 - **Popups**: each popup belongs to its widget (Loader bound to
   `popupOpen`), built on `BarPopup`: overlay layer covering the output
   except the bar strip (another widget switches popups in one click),
   outside click / Escape close, panel centered under its widget. The
   coordinator closes the previous popup on `request()`.
-- **Cost**: no process, no watcher, no timer except two one-shot timers
-  per drop.
+- **Cost**: no process, no watcher, no timer except one short one-shot
+  settle timer per drop.
 
 ## Ansible structure
 

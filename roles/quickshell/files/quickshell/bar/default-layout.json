@@ -16,5 +16,8 @@
       { "id": "coffee" },
       { "id": "theme" }
     ]
+  },
+  "settings": {
+    "background": "solid"
   }
 }

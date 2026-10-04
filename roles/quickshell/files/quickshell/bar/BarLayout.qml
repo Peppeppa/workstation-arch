@@ -6,8 +6,10 @@ pragma Singleton
 // The widget registry (which widget ids exist, where their QML lives,
 // whether this host has them) and the user's arrangement of them in three
 // zones. The arrangement lives in ~/.config/workstation/bar-layout.json:
-//   { "version": 1, "layout": { "left": [{ "id": "workspaces" }], "center": [...], "right": [...] } }
-// Only widget ids (+ plain per-widget values) - nothing executable.
+//   { "version": 1, "layout": { "left": [{ "id": "workspaces" }], "center": [...], "right": [...] },
+//     "settings": { "background": "solid" } }
+// Only widget ids (+ plain per-widget values) and the bar settings -
+// nothing executable.
 //
 // - read once at startup (no watcher); every change is made here (drag &
 //   drop in Bar.qml -> move()) and written back at once, atomically
@@ -16,7 +18,12 @@ pragma Singleton
 //   in the file, so they return to their place when switched on again
 // - a widget missing from the file is shown at the end of its default zone
 // - missing/broken file -> the shipped default (bar/default-layout.json);
-//   `qs ipc call bar resetLayout` restores it
+//   `qs ipc call bar resetLayout` restores it (the arrangement only -
+//   settings stay)
+// - settings.background: "solid" (theme background, the default) or
+//   "transparent"; switched at runtime with
+//   `qs ipc call bar setBackground solid|transparent` (applied at once,
+//   written atomically) - the interface a later settings menu uses
 // Ansible only creates the file when it does not exist; bootstrap never
 // touches an existing one.
 
@@ -51,8 +58,11 @@ Singleton {
     // What the bar shows: {left: [id...], center: [...], right: [...]}.
     readonly property var zones: normalize(raw)
 
+    readonly property var backgrounds: ["solid", "transparent"]
+    readonly property string background: raw.settings.background
+
     function emptyLayout() {
-        return { version: 1, layout: { left: [], center: [], right: [] } };
+        return { version: 1, layout: { left: [], center: [], right: [] }, settings: { background: "solid" } };
     }
 
     function known(id) {
@@ -95,6 +105,8 @@ Singleton {
                 out.layout[z].push(e);
             }
         }
+        const settings = data.settings && typeof data.settings === "object" ? data.settings : {};
+        if (backgrounds.indexOf(settings.background) !== -1) out.settings.background = settings.background;
         return out;
     }
 
@@ -141,8 +153,21 @@ Singleton {
     }
 
     function reset() {
-        raw = JSON.parse(JSON.stringify(defaultLayout));
+        const next = JSON.parse(JSON.stringify(defaultLayout));
+        next.settings = raw.settings;
+        raw = next;
         save();
+    }
+
+    // Returns "" on success, else the reason.
+    function setBackground(mode) {
+        if (backgrounds.indexOf(mode) === -1) return "unknown background '" + mode + "' (" + backgrounds.join("|") + ")";
+        if (raw.settings.background === mode) return "";
+        const next = JSON.parse(JSON.stringify(raw));
+        next.settings.background = mode;
+        raw = next;
+        save();
+        return "";
     }
 
     function save() {
@@ -187,6 +212,16 @@ Singleton {
         // The current stored layout (JSON).
         function layout(): string {
             return JSON.stringify(root.raw);
+        }
+
+        // Bar background: "solid" | "transparent" (persistent, applied at once).
+        function setBackground(mode: string): string {
+            const err = root.setBackground(mode);
+            return err === "" ? root.background : "error: " + err;
+        }
+
+        function getBackground(): string {
+            return root.background;
         }
     }
 }

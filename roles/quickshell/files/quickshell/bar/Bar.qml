@@ -16,13 +16,18 @@
 //     takes the pointer over from the widget (the widget's click is
 //     cancelled, so a drag never clicks), the widget follows the pointer,
 //     the drop place is outlined and the neighbours slide aside (preview =
-//     the layout with the widget moved there). Release inside the bar ->
+//     the layout with the widget moved there). The drop is decided from
+//     the pointer itself: Hyprland keeps delivering motion to the bar
+//     (implicit pointer grab) while the button is held, even below it, so
+//     the drag corridor reaches BarStyle.dragCorridor px below the visible
+//     bar without any extra input surface. Release inside the corridor ->
 //     BarLayout.move() (written to the user's layout file at once).
-//     Release outside the bar -> nothing changes: Hyprland sends the bar a
-//     pointer leave right after a release outside it, so the drop is
-//     decided ~120 ms after release (dropTimer) from the bar's hover state.
+//     Further down the preview shows the old layout and the release
+//     changes nothing.
 //   - one tooltip popup per bar, shared by all widgets
-// No process, no timer except the two short one-shot timers of a drop.
+//   - background: BarLayout.background - "solid" (theme background) or
+//     "transparent" (only the widgets are drawn; no blur, no shadow)
+// No process, no timer except the short one-shot settle timer of a drop.
 
 import QtQuick
 import Quickshell
@@ -71,7 +76,7 @@ PanelWindow {
     }
     // 3 anchors + ExclusionMode.Auto: the bar's height is reserved.
     implicitHeight: BarStyle.height
-    color: Colors.background
+    color: BarLayout.background === "transparent" ? "transparent" : Colors.background
 
     // Coffee mode: a Wayland idle inhibitor on this (always visible) bar
     // surface while active (CoffeeMode.qml); any one bar is enough.
@@ -146,15 +151,20 @@ PanelWindow {
     // ---- drag state --------------------------------------------------------
     property string dragId: ""
     property real dragPointerX: 0
+    property real dragPointerY: 0
     property real dragGrabOffset: 0
     property string dropZone: ""
     property int dropIndex: -1
     property bool animateMoves: false   // neighbours slide only around a drag
 
+    // Pointer inside the drag corridor (the bar + BarStyle.dragCorridor px
+    // below it)? Outside it a release cancels the drag.
+    readonly property bool dropAllowed: dragPointerY <= height + BarStyle.dragCorridor
+
     // The layout as shown: during a drag, with the widget at its drop place.
     readonly property var previewZones: {
         const zones = BarLayout.zones;
-        if (!dragging || dropZone === "") return zones;
+        if (!dragging || dropZone === "" || !dropAllowed) return zones;
         const base = without(zones, dragId);
         const target = base[dropZone].slice();
         target.splice(dropIndex, 0, dragId);
@@ -163,43 +173,46 @@ PanelWindow {
     }
     readonly property var positions: computePositions(previewZones, width)
 
-    function beginDrag(id, pressX) {
-        if (dropTimer.running) return;
+    // Order matters: dragId first, while animations are still off, so the
+    // drop outline (bound to positions[dragId], 0 without a drag) is
+    // already at the widget before anything may animate - otherwise it
+    // visibly shoots in from the left edge.
+    function beginDrag(id, pressX, pressY) {
         BarPopups.closeAll();
         tooltip.target = null;
         dragGrabOffset = pressX - (positions[id] || 0);
         dragPointerX = pressX;
-        animateMoves = true;
+        dragPointerY = pressY;
         dragId = id;
-        updateDrag(pressX);
+        animateMoves = true;
+        updateDrag(pressX, pressY);
     }
 
-    // Nearest insertion point (from the layout without the dragged widget,
-    // so the preview never feeds back into the hit test) to the center of
-    // the dragged widget. Empty zones offer their anchor point.
-    function updateDrag(pointerX) {
+    // Drop place = the insertion (zone, index) whose resulting position of
+    // the dragged widget is nearest to where the widget is held now. Each
+    // candidate is laid out for real (computePositions) - comparing raw
+    // insertion points is wrong in the right zone, which grows leftwards,
+    // and made the widget swap with its neighbour right at drag start.
+    // Candidates come from the layout without the dragged widget, so the
+    // preview never feeds back into the hit test; with no movement the
+    // widget's own slot wins (distance 0).
+    function updateDrag(pointerX, pointerY) {
         if (!dragging) return;
         dragPointerX = pointerX;
+        dragPointerY = pointerY;
         const base = without(BarLayout.zones, dragId);
-        const pos = computePositions(base, width);
-        const center = pointerX - dragGrabOffset + widthOf(dragId) / 2;
+        const held = pointerX - dragGrabOffset;
         let best = null;
         for (const zone of BarLayout.zoneNames) {
-            const ids = visibleIds(base[zone]);
-            const points = [];
-            if (ids.length === 0) {
-                const anchorPoint = zone === "left" ? BarStyle.edgeMargin
-                                  : zone === "right" ? width - BarStyle.edgeMargin : width / 2;
-                points.push({ x: anchorPoint, index: base[zone].length });
-            } else {
-                for (let k = 0; k < ids.length; k++)
-                    points.push({ x: pos[ids[k]], index: base[zone].indexOf(ids[k]) });
-                const last = ids[ids.length - 1];
-                points.push({ x: pos[last] + widthOf(last), index: base[zone].indexOf(last) + 1 });
-            }
-            for (const p of points) {
-                const d = Math.abs(p.x - center);
-                if (best === null || d < best.d) best = { d: d, zone: zone, index: p.index };
+            for (let index = 0; index <= base[zone].length; index++) {
+                const candidate = {
+                    left: base.left.slice(),
+                    center: base.center.slice(),
+                    right: base.right.slice()
+                };
+                candidate[zone].splice(index, 0, dragId);
+                const d = Math.abs(computePositions(candidate, width)[dragId] - held);
+                if (best === null || d < best.d) best = { d: d, zone: zone, index: index };
             }
         }
         dropZone = best ? best.zone : "";
@@ -207,7 +220,7 @@ PanelWindow {
     }
 
     function endDrag() {
-        if (dragging) dropTimer.restart();
+        if (dragging) finishDrop(dropAllowed);
     }
 
     function finishDrop(commit) {
@@ -222,13 +235,6 @@ PanelWindow {
         settleTimer.restart();
     }
 
-    // Released outside the bar? Hyprland's leave event follows the release.
-    Timer {
-        id: dropTimer
-        interval: 120
-        onTriggered: bar.finishDrop(barHover.hovered)
-    }
-
     // Let the dropped widget and its neighbours slide into place, then stop
     // animating (no animation outside a drag).
     Timer {
@@ -237,13 +243,11 @@ PanelWindow {
         onTriggered: bar.animateMoves = false
     }
 
-    HoverHandler {
-        id: barHover
-    }
-
-    // Drop place: outlined where the dragged widget will land.
+    // Drop place: outlined where the dragged widget will land. Only its
+    // moves during a drag animate - never its first placement.
     Rectangle {
-        visible: bar.dragging && bar.dropZone !== ""
+        id: dropOutline
+        visible: bar.dragging && bar.dropZone !== "" && bar.dropAllowed
         x: bar.positions[bar.dragId] !== undefined ? bar.positions[bar.dragId] : 0
         y: BarStyle.hoverInset - 1
         width: bar.widthOf(bar.dragId)
@@ -253,7 +257,7 @@ PanelWindow {
         border.color: Colors.accent
         border.width: 1
         Behavior on x {
-            enabled: bar.animateMoves
+            enabled: bar.animateMoves && dropOutline.visible
             NumberAnimation { duration: BarStyle.moveDuration; easing.type: Easing.OutCubic }
         }
     }
@@ -333,10 +337,10 @@ PanelWindow {
                 acceptedButtons: Qt.LeftButton
                 dragThreshold: BarStyle.dragThreshold
                 onActiveChanged: {
-                    if (active) bar.beginDrag(slot.widgetId, centroid.scenePressPosition.x);
+                    if (active) bar.beginDrag(slot.widgetId, centroid.scenePressPosition.x, centroid.scenePressPosition.y);
                     else bar.endDrag();
                 }
-                onTranslationChanged: if (active) bar.updateDrag(centroid.scenePosition.x)
+                onTranslationChanged: if (active) bar.updateDrag(centroid.scenePosition.x, centroid.scenePosition.y)
             }
 
             Component.onCompleted: {
