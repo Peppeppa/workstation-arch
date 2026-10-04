@@ -79,10 +79,10 @@ Item {
 
                 Image {
                     anchors.centerIn: parent
-                    width: 16
-                    height: 16
-                    sourceSize.width: 16
-                    sourceSize.height: 16
+                    width: BarStyle.trayIconSize
+                    height: BarStyle.trayIconSize
+                    sourceSize.width: BarStyle.trayIconSize
+                    sourceSize.height: BarStyle.trayIconSize
                     source: entry.modelData.icon
                     fillMode: Image.PreserveAspectFit
                     smooth: true
@@ -100,11 +100,6 @@ Item {
 
                 HoverHandler {
                     id: hover
-                    onHoveredChanged: {
-                        const label = entry.modelData.tooltipTitle || entry.modelData.title || "";
-                        if (hovered && tray.menuItem === null) tray.bar.showTooltip(entry, label);
-                        else tray.bar.hideTooltip(entry);
-                    }
                 }
 
                 MouseArea {
@@ -113,7 +108,6 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: event => {
                         const item = entry.modelData;
-                        tray.bar.hideTooltip(entry);
                         if (event.button === Qt.MiddleButton)
                             item.secondaryActivate();
                         else if (event.button === Qt.RightButton || item.onlyMenu) {

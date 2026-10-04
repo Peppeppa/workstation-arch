@@ -127,7 +127,7 @@ semantic roles. Omarchy-style compact bar:
 | Element | Value |
 |---|---|
 | Bar height / edge inset | 26 px / 8 px |
-| Icon widget slot / glyph | 27 px / 14 px (`Fonts.icons`) |
+| Icon widget slot / glyph | 27 px / 13 px (`Fonts.icons`); tray: 24 px slot / 15 px image |
 | Labels | 12 px `Fonts.family`, 8 px padding each side |
 | Hover | `surface` plate, inset 3 px, radius 4 |
 | Normal text / icons | `foreground_strong` (bright in dark themes, full-contrast dark in light themes) |
@@ -137,9 +137,11 @@ semantic roles. Omarchy-style compact bar:
 | Popup open | 2 px `accent` underline under the widget |
 | Popups | `background`, 1 px `border_active`, radius 8, padding 10, 4 px below the bar |
 | Drag | lifted widget on a `surface` plate with `border_active`; landing place outlined in `accent`; neighbours slide 120 ms (only during a drag) |
+| Tooltips | none: **bar widgets do not show hover tooltips by default.** `BarWidget.tooltip` stays as an opt-in for a widget explicitly meant to have one (or whose function is not understandable without); no substitute labels |
 
 Background: `solid` (`background`, default) or `transparent` (bar
-setting, `qs ipc call bar setBackground ...` - see
+setting, `qs ipc call bar setBackground ...`; until a settings menu
+exists: right click on free bar space flips it - see
 `docs/feature-architecture.md` "Bar"); transparent drops only the bar's
 own fill, never adds blur or shadow. No permanent animation.
 
@@ -154,21 +156,35 @@ that passes, in this order:
    quickshell). Quickshell 0.3.1 does not evaluate `OnlyShowIn`,
    `NotShowIn` or `TryExec`; the entries that depend on them are in rule 3.
 2. categories: `Settings`, `DesktopSettings`, `Debugger` are hidden
-   (settings dialogs, debuggers - e.g. Thunar's settings, Qt D-Bus viewer).
+   (settings dialogs, debuggers - e.g. Qt D-Bus viewer).
 3. a small denylist of desktop-file ids (`hiddenIds`), each annotated with
    the package that brings it: avahi-discover/bssh/bvnc (avahi), lstopo
    (hwloc), Qt Designer/Linguist/Assistant (qt6-tools via VirtualBox),
-   qv4l2/qvidcap (v4l-utils via ffmpeg), xfce4-about (`OnlyShowIn=XFCE`),
-   thunar-bulk-rename (reachable from Thunar).
+   qv4l2/qvidcap (v4l-utils via ffmpeg). Nautilus adds only "Files" (its
+   autorun helper is `NoDisplay`).
 
 Hiding an entry never uninstalls anything - those packages are
 dependencies. New apps appear without any change here.
 
-Each row: the entry's icon (`Quickshell.iconPath(icon, true)`, resolved
-in the session icon theme `QS_ICON_THEME`; Flatpak icons via
-`XDG_DATA_DIRS`), 22 px, decoded asynchronously, or a muted generic
-application glyph when the theme has none; then name + generic name
-(`accent_foreground` on the selected row).
+Each row (34 px) is only `[icon] Name`: the entry's icon
+(`Quickshell.iconPath(icon, true)`, resolved in the session icon theme
+`QS_ICON_THEME` = Papirus; Flatpak icons via `XDG_DATA_DIRS`), 22 px,
+decoded asynchronously, or a muted generic application glyph when the
+theme has none; then the name (`accent_foreground` on the selected row).
+No generic name/comment is shown - the search still matches name, generic
+name and keywords.
+
+Open, the launcher's transparent surface covers the focused output below
+the bar strip (like the bar popups): a click outside the panel closes it,
+Escape too. Closed, the window is unmapped - no surface, no input region.
+
+Icon theme: Papirus (`papirus-icon-theme`, official `extra`;
+`group_vars/all.yml` `desktop_icon_theme`) - one consistent style that
+covers our apps under their own `Icon=` names (checked against the
+package's file list: Chromium, Ghostty, Thunderbird, Nautilus, Bitwarden,
+Obsidian, VirtualBox, Flatpak IntelliJ, mpv, Zathura, btop, Neovim,
+Xarchiver). Missing there (Yazi): the app's own icon via hicolor. No
+icon copies of our own, no per-app overrides. GTK keeps Adwaita.
 
 ### Shipped themes
 
@@ -213,7 +229,7 @@ selection pair) - no extra per-app fields.
 | App | Status |
 |---|---|
 | Quickshell, Hyprland borders, hyprlock, GTK mode, Ghostty | themed, live switch |
-| GTK/libadwaita apps (Thunar, ...) | follow the GTK light/dark preference natively |
+| GTK/libadwaita apps (Nautilus, ...) | follow the GTK light/dark preference natively (libadwaita: `color-scheme`; GTK3: `gtk-theme`) |
 | Zathura | deferred: its config isn't repo-managed and a running window only re-reads colors via its own `:source` command (no signal/IPC) |
 | Browsers, Thunderbird, Bitwarden, Flatpaks | not themed by design (no CSS/app hacks; native preference only) |
 

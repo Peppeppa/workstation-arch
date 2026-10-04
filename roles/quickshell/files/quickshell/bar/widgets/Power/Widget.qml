@@ -21,8 +21,6 @@ BarWidget {
     text: power.hasBattery ? power.percent + "%" : ""
     warning: power.low
     interactive: BarFeatures.powerProfiles
-    tooltip: power.hasBattery ? (power.charging ? "Charging" : "On battery") + "  ·  " + power.percent + "%"
-                              : "Power profile: " + PowerProfile.toString(PowerProfiles.profile)
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 
     Loader {

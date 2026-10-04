@@ -169,12 +169,12 @@ third-party API.
 
 ```
 ~/.config/quickshell/bar/
-  Bar.qml            host: zones, positions, drag & drop, shared tooltip (one per monitor)
+  Bar.qml            host: zones, positions, drag & drop, background toggle, opt-in tooltip (one per monitor)
   BarLayout.qml      registry of widget ids + the user layout (singleton, IPC "bar")
   BarPopups.qml      coordinator: at most one bar popup open (singleton)
   BarStyle.qml       geometry / type sizes (singleton; colors stay in Colors)
   BarFeatures.qml    which optional parts exist (templated from the flags)
-  BarWidget.qml      common frame: hitbox, hover, active/muted, underline, tooltip, popup protocol
+  BarWidget.qml      common frame: hitbox, hover, active/muted, underline, opt-in tooltip, popup protocol
   BarPopup.qml       common popup: overlay, outside click/Escape, below its widget
   PopupButton.qml    the button used in popups
   default-layout.json
@@ -184,7 +184,7 @@ third-party API.
 | Widget id | Core / feature | Popup |
 |---|---|---|
 | `workspaces` | core | - |
-| `clock` | core (center anchor) | - (tooltip: full date) |
+| `clock` | core (center anchor) | - |
 | `tray` | `tray_enabled` (whole widget) | item context menu |
 | `connectivity` | core icon | `connectivity_enabled`: Connectivity Center |
 | `bluetooth` | `bluetooth_enabled` (whole widget; hidden without adapter) | Bluetooth popup |
@@ -212,6 +212,9 @@ third-party API.
   default zone. Ansible only creates the file if missing (`force: false`);
   `qs ipc call bar resetLayout` restores `default-layout.json`'s
   arrangement (settings stay).
+- **Tooltips**: none by default - bar widgets do not show hover tooltips
+  (`docs/DESIGN_SYSTEM.md` "Bar look"); `BarWidget.tooltip` is an opt-in
+  for a widget explicitly meant to have one.
 - **Background**: `settings.background` = `solid` (theme `background`,
   default) or `transparent` (only the widgets are drawn - no blur, no
   shadow). Runtime interface, e.g. for a later settings menu:
@@ -219,6 +222,10 @@ third-party API.
   Quickshell restart, written atomically into the same file) and
   `qs ipc call bar getBackground`. A file without `settings` means
   `solid`; Ansible never rewrites an existing file.
+  Until a settings menu exists, a right click on free bar space (no
+  widget under the pointer - a widget's own right click keeps its
+  function, the passive clock is not free space) flips it through the
+  same `BarLayout.setBackground()`.
 - **Drag & drop**: a `DragHandler` per slot (threshold 6 px) takes the
   pointer over from the widget - the widget's click is cancelled, so a
   drag never clicks. The widget follows the pointer, the landing place is
@@ -230,14 +237,16 @@ third-party API.
   insertion points would make it swap with its neighbour in the
   leftwards-growing right zone). Works across zones; empty zones accept drops at their
   anchor. The outline appears right at the widget (its first placement
-  is never animated - only later moves are). While the button is held
-  Hyprland keeps delivering motion to the bar even below it (implicit
-  pointer grab), so the drop is decided from the pointer itself: up to
-  `BarStyle.dragCorridor` (100 px) below the 26 px bar the drag stays
-  live and a release saves at once; further down the preview falls back
-  to the old layout and a release changes nothing. No extra input
-  surface - the corridor exists only as this pointer check during a
-  drag.
+  is never animated - only later moves are). Drag corridor: only while
+  a drag is active the bar's transparent surface grows
+  `BarStyle.dragCorridor` (100 px) below the visible 26 px bar (exclusive
+  zone stays 26 px - windows never move; back to 26 px right after the
+  drop). Needed because Hyprland keeps the pointer on the bar below it
+  only while a window lies there - on an empty desktop the bar got a
+  leave and Qt cancelled the drag (measured on arch-dev). Release within
+  the corridor saves at once; further down the preview falls back to the
+  old layout, and a release there or a drag Qt cancels changes nothing.
+  Outside a drag there is no extra input surface.
 - **Popups**: each popup belongs to its widget (Loader bound to
   `popupOpen`), built on `BarPopup`: overlay layer covering the output
   except the bar strip (another widget switches popups in one click),
@@ -396,10 +405,53 @@ copied. Feature Category A (provisioning-only) plus Category B
 | Lifecycle owner | the existing Quickshell instance under Hyprland - no new process |
 | Privileges | none added: `systemctl suspend/hibernate/reboot/poweroff` via logind's normal active-session polkit rules; logout = Hyprland `hl.dsp.exit()` |
 | Secrets / Network | none / none |
-| Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned |
+| Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned; the resume setup itself is the host capability `hibernate_enabled` (see "Hibernate") |
 | Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
 | Disable | no bind, component not instantiated/deployed; an already-deployed `PowerMenu.qml` stays unreferenced; nothing deleted |
 | Persistent user data | none |
+
+## Hibernate (host capability)
+
+`hibernate_enabled` (`group_vars/all.yml`, default `false`; per host in
+`host_vars/<host>.yml`), implemented in `roles/power`. Not a UI feature:
+it gives a host a real resume target; the power menu keeps asking logind
+(`CanHibernate`, unchanged) whether to offer Hibernate.
+
+| Contract | |
+|---|---|
+| Resume target | a disk swapfile (`hibernate_swapfile_path`, default `/swapfile`, size = RAM rounded up to GiB, `hibernate_swapfile_size_mib`), created with `mkswap --file` (no holes, 0600, No_COW on btrfs), in `/etc/fstab` with `pri=0` |
+| zram | stays (installer's `zram-generator`, priority 100) and keeps doing day-to-day swapping; systemd never hibernates to zram, it picks the swapfile |
+| Kernel | `resume=UUID=<fs of the swapfile> resume_offset=<first physical block>` written into `hibernate_kernel_cmdline_file` (`/etc/kernel/cmdline`, the UKI cmdline of archinstall's systemd-boot + UKI layout); only these two parameters are (re)set, everything else stays |
+| Initramfs | busybox initramfs (archinstall default): `/etc/mkinitcpio.conf.d/50-workstation-resume.conf` appends the `resume` hook (after `udev` and any `encrypt`); systemd initramfs (`systemd` hook) or an existing `resume` hook: nothing added. Then `mkinitcpio -P` rebuilds the UKI |
+| Encryption | a swapfile inside an encrypted root is encrypted with it; the initramfs unlocks the root before it resumes - no separate swap key |
+| Guards | stops (assert) instead of guessing when: no `/etc/kernel/cmdline` (other bootloader layout), filesystem not ext4/xfs/btrfs, less than size + 2 GiB free. Never partitions, never creates btrfs subvolumes |
+| Cost | none at runtime: no process, no timer, no polling - a file, an fstab line, two kernel parameters |
+| Disable | `false` again changes nothing on disk (Disable vs. Purge); remove swapfile/fstab line/cmdline parameters by hand if wanted |
+
+Tested so far (arch-dev): dry run (`--check --diff -e hibernate_enabled=true`) -
+the size guard stops the default 16 GiB swapfile on arch-dev's 14 GiB free
+root; with 4 GiB the plan is swapfile + fstab line + resume hook, nothing
+else touched; the offset/UUID script against a real ext4 test swapfile
+(matches `filefrag`). arch-dev itself stays without hibernate: its kernel
+reports `/sys/power/disk` = `[disabled]` and logind `CanHibernate` = `na`,
+and a VM is no place to trust resume - no VM-only workaround.
+
+Real-hardware bring-up (laptop/workstation), in this order:
+1. Check the layout: `lsblk -f`, `findmnt /`, `cat /etc/kernel/cmdline`,
+   `grep ^HOOKS /etc/mkinitcpio.conf`, `free -g`, `swapon --show`. On a
+   btrfs root create a non-snapshotted subvolume for the swapfile first
+   (e.g. `@swap` at `/swap`) and set `hibernate_swapfile_path`.
+2. Secure Boot with kernel lockdown disables hibernation in the kernel -
+   check `cat /sys/kernel/security/lockdown` and `/sys/power/disk`.
+3. `host_vars/<host>.yml`: `hibernate_enabled: true` (+ path/size if not
+   the defaults), then `./bootstrap.sh`.
+4. Reboot (the new UKI carries resume=/resume_offset=), then
+   `cat /proc/cmdline`, `busctl call org.freedesktop.login1
+   /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate`
+   -> `s "yes"`.
+5. `./bootstrap.sh` once more - the power menu now lists Hibernate.
+6. Real test: open apps, `systemctl hibernate`, power on, unlock - the
+   session is back; `journalctl -b -1 -u systemd-hibernate`.
 
 ## Lock + Idle v1
 
@@ -447,7 +499,7 @@ handler), so splitting them would buy nothing.
 | Scope | `roles/quickshell/files/tray/` (`Tray.qml`, `TrayMenu.qml`, `TrayMenuLevel.qml`), loaded by `Bar.qml` through a Loader |
 | Packages | none (Quickshell 0.3.1 `Quickshell.Services.SystemTray`); named icons need `QS_ICON_THEME` in Quickshell's start env (`hyprland_quickshell_exec`, core) |
 | D-Bus / lifecycle owner | the running Quickshell owns `org.kde.StatusNotifierWatcher` and registers as the one StatusNotifierHost - no other watcher/host |
-| UI | items first in the bar's status zone, 16px icons in 22px slots, Passive items hidden, zone invisible with no items; tooltip = item tooltip/title |
+| UI | items first in the bar's status zone, 15px icons in 24px slots, Passive items hidden, zone invisible with no items; no hover tooltip |
 | Actions | left `activate()` (menu for `onlyMenu` items), middle `secondaryActivate()`, right DBusMenu context menu, wheel `scroll()` - only the item's own SNI/DBusMenu interfaces |
 | Menu | rendered by us via `QsMenuOpener` (themed, live switch; separators, disabled, checkbox/radio, inline submenus); overlay surface exists only while open, click outside / Escape closes |
 | Privileges / Secrets / Network | none / none / none |
@@ -465,7 +517,7 @@ handler), so splitting them would buy nothing.
 | Packages | `bluez`, `python-gobject` (audio: PipeWire's bluez5 plugin is already in `pipewire-audio`; no `bluez-utils`) |
 | Lifecycle | `bluetoothd`: systemd system service, enabled; it carries `ConditionPathIsDirectory=/sys/class/bluetooth`, so without an adapter it never runs (zero cost) and udev's `bluetooth.target` starts it when one appears. UI: the existing Quickshell instance. Agent: Quickshell child, only during a user-started pairing |
 | API | Quickshell 0.3.1 `Quickshell.Bluetooth` (BlueZ D-Bus, event-driven): `adapter.enabled` = Powered (runtime on/off, never `systemctl`), `adapter.discovering`, `device.connect/disconnect/pair/cancelPair/forget`, `trusted`, `battery` |
-| UI | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected) + tooltip; popup: power, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), Connected/Paired/Available, Scan, two-click Forget, in-popup pairing dialogs |
+| UI | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip; popup: power, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), Connected/Paired/Available, Scan, two-click Forget, in-popup pairing dialogs |
 | Scanning | user-started only, auto-stop after 30 s, stopped on popup close if we started it |
 | Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected |
 | Privileges / Secrets / Network | none at runtime (no sudo; `rfkill unblock` as the session user) / no codes stored or logged / Bluetooth radio only |
@@ -515,7 +567,7 @@ handler), so splitting them would buy nothing.
 | Scope | `roles/quickshell/files/connectivity/` (`ConnectivityControl.qml`, `ConnectivityPopup.qml` loaded by `Bar.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
 | Packages | `qrencode`, `python-gobject` |
 | Owner | NetworkManager (`roles/network`) is the only network owner; nothing else manages Wi-Fi/VPN |
-| UI | click on the bar widget `connectivity` (core icon, details in the tooltip): Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
+| UI | click on the bar widget `connectivity` (core icon, details in the popup): Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
 | Wi-Fi API | Quickshell `Networking` (NM D-Bus): `wifiEnabled`, `scannerEnabled` (only while the popup is open), `connect()`, `connectWithPsk()`, `disconnect()`, `forget()`; the client radio is preferred over a hotspot radio. Enterprise/WEP/hidden networks: `nmtui` |
 | Wi-Fi password | typed into a password field, handed to NM (`connectWithPsk`), field cleared; never logged, never stored outside NM |
 | QR | only on request, for the active network: `wifi-qr <iface>` reads the PSK via NM `GetSecrets` (NM/polkit decide), pipes the `WIFI:` payload to `qrencode` on stdin (never argv/log/disk), prints SVG; the SVG lives in popup memory and is dropped on network change/close. Exit 2 (enterprise/WEP/OWE/secret not readable, e.g. agent-owned) -> no QR |

@@ -60,12 +60,13 @@ desktop_packages:
   - adwaita-fonts
   - ttf-firacode-nerd
 
-  # Icon theme for named icons in our shell (group_vars/all.yml
-  # desktop_icon_theme) - listed explicitly instead of riding along as a
-  # GTK dependency; the legacy set adds the full-color app/status icons
-  # that tray items and notifications usually ask for.
+  # GTK's icon theme (Adwaita) - listed explicitly instead of riding along
+  # as a GTK dependency; the legacy set adds full-color app/status icons.
   - adwaita-icon-theme
   - adwaita-icon-theme-legacy
+  # Quickshell's icon theme (group_vars desktop_icon_theme): consistent
+  # app icons in the launcher - see the comment there.
+  - papirus-icon-theme
 
 # FEATURE: screenshots (see group_vars/all.yml screenshots_enabled -
 # the actual on/off source of truth - and docs/feature-architecture.md

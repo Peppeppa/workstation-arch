@@ -20,7 +20,6 @@ BarWidget {
     text: (audio.ready ? Math.round(Math.min(1, audio.volume) * 100) + "%" : "--")
           + (BarFeatures.audioPopup && audio.micMuted ? "  \u{F036D}" : "")
     muted: audio.muted || !audio.ready
-    tooltip: audio.ready ? (audio.sink.description || audio.sink.name) + (audio.muted ? "  ·  muted" : "") : "No audio output"
     onScrolled: delta => audio.step(delta > 0 ? 0.05 : -0.05)
     onClicked: button => {
         if (button === Qt.RightButton || (button === Qt.LeftButton && !BarFeatures.audioPopup)) audio.toggleMute();

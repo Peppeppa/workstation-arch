@@ -70,7 +70,7 @@ right-clicking the volume opens device selection/volume/mute; the
 battery (or, without one, a profile icon) opens power profiles.
 `mainMod+V` shows the clipboard history (cliphist); wallpapers come from
 the active theme's `backgrounds/` and are picked in the theme dialog.
-Laptop lid: lock, then suspend. Bar widgets can be rearranged by dragging them (also between left/center/right); the order is kept in `~/.config/workstation/bar-layout.json` (`qs ipc call bar resetLayout` restores the default). The bar background is `solid` or `transparent` (`qs ipc call bar setBackground transparent`, kept in the same file). There is no display manager. Feature
+Laptop lid: lock, then suspend. Bar widgets can be rearranged by dragging them (also between left/center/right); the order is kept in `~/.config/workstation/bar-layout.json` (`qs ipc call bar resetLayout` restores the default). The bar background is `solid` or `transparent` - right click on free bar space flips it (or `qs ipc call bar setBackground transparent`), kept in the same file. Bar widgets show no hover tooltips. There is no display manager. Feature
 freeze: next is visual polish (RICE v1). See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
@@ -187,7 +187,7 @@ first - see the `gaming` row below.
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
-| `apps`           | `apps`          | End-user applications (browser, mail, file managers, editor, PDF, ...); default PDF/PNG handlers set to zathura/imv |
+| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, ...); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 
@@ -231,7 +231,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + X`              | smart screenshot: drag a region or click a window -> PNG file + clipboard |
 | `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + L`              | lock now (hyprlock)                          |
-| `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate) / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
+| `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
 | `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
 
 Notifications: toasts top-right (Quickshell). Click/x closes; normal

@@ -12,6 +12,5 @@ BarWidget {
     icon: ""
     active: CoffeeMode.active
     muted: !CoffeeMode.active
-    tooltip: CoffeeMode.active ? "Coffee mode on: no idle lock / screen off" : "Coffee mode off"
     onClicked: button => { if (button === Qt.LeftButton) CoffeeMode.active = !CoffeeMode.active; }
 }

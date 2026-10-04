@@ -3,8 +3,9 @@
 //
 // Two dropdowns: the preferred dark theme and the preferred light theme.
 // Their entries come from the `theme` helper (`theme status --json`), run
-// ONCE each time the popup opens - the theme directories are the only
-// registry, nothing is listed here. Picking an entry runs
+// when the popup opens and again whenever the applied theme changes while
+// it is open - the theme directories are the only registry, nothing is
+// listed here. Picking an entry runs
 // `theme select <slot> <id>`: the choice is persisted, and applied right
 // away only if that slot's mode is the active one (it never switches the
 // mode). The helper validates first, so a broken theme can't be applied.
@@ -34,8 +35,25 @@ BarPopup {
     property int highlighted: -1      // keyboard/hover row in the open dropdown
     property string errorText: ""
 
+    // A request while a status run is in flight is not dropped: that run may
+    // have read the state before the change, so one more run follows it.
+    property bool refreshPending: false
+
     function refresh() {
-        if (!statusProc.running) statusProc.running = true;
+        if (statusProc.running) refreshPending = true;
+        else statusProc.running = true;
+    }
+
+    // Every applied change - mode toggle from the bar icon, `theme` on the
+    // CLI, a pick in this dialog - ends in the helper's
+    // `qs ipc call theme reload`, which reloads Colors from colors.json.
+    // That is the event: re-read the status (wallpaper list + selection of
+    // the now active theme). No watcher, no timer.
+    Connections {
+        target: Colors
+        function onDataChanged() {
+            dialog.refresh();
+        }
     }
 
     function options(slot) {
@@ -95,6 +113,12 @@ BarPopup {
     Process {
         id: statusProc
         command: [dialog.helper, "status", "--json"]
+        onExited: {
+            if (dialog.refreshPending) {
+                dialog.refreshPending = false;
+                running = true;
+            }
+        }
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

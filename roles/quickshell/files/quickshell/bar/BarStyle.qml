@@ -12,7 +12,8 @@ Singleton {
     readonly property int height: 26
     readonly property int edgeMargin: 8          // bar content inset left/right
     readonly property int iconSlot: 27           // width of an icon-only widget
-    readonly property int iconSize: 14           // Nerd Font glyph px
+    readonly property int iconSize: 13           // Nerd Font glyph px (slot stays iconSlot wide)
+    readonly property int trayIconSize: 15       // tray item images (slot stays 24 px)
     readonly property int textSize: 12           // bar labels
     readonly property int textPadding: 8         // left/right padding of a labelled widget
     readonly property int groupGap: 4            // icon <-> label inside one widget

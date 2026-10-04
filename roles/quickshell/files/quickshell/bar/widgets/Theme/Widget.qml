@@ -12,7 +12,6 @@ BarWidget {
     id: root
 
     icon: Colors.mode === "light" ? "" : ""
-    tooltip: Colors.themeName + "  ·  right click: themes & wallpaper"
     onClicked: button => {
         if (button === Qt.RightButton) root.togglePopup();
         else if (button === Qt.LeftButton) Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/theme", "toggle"]);

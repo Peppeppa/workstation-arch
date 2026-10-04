@@ -16,17 +16,22 @@
 //     takes the pointer over from the widget (the widget's click is
 //     cancelled, so a drag never clicks), the widget follows the pointer,
 //     the drop place is outlined and the neighbours slide aside (preview =
-//     the layout with the widget moved there). The drop is decided from
-//     the pointer itself: Hyprland keeps delivering motion to the bar
-//     (implicit pointer grab) while the button is held, even below it, so
-//     the drag corridor reaches BarStyle.dragCorridor px below the visible
-//     bar without any extra input surface. Release inside the corridor ->
-//     BarLayout.move() (written to the user's layout file at once).
-//     Further down the preview shows the old layout and the release
-//     changes nothing.
+//     the layout with the widget moved there). Drag corridor: only while a
+//     drag is active the bar's (transparent) surface reaches
+//     BarStyle.dragCorridor px below the visible 26 px bar, so the pointer
+//     stays on the bar - Hyprland keeps the pointer on the bar below it
+//     only while a window lies there, on an empty desktop the bar got a
+//     leave and Qt cancelled the drag. The reserved (exclusive) zone stays
+//     the bar's height, so windows never move; after the drop the surface
+//     shrinks back. Release inside the corridor -> BarLayout.move()
+//     (written to the user's layout file at once). Further down, or a drag
+//     Qt cancels (pointer left even the enlarged surface), changes
+//     nothing.
 //   - one tooltip popup per bar, shared by all widgets
 //   - background: BarLayout.background - "solid" (theme background) or
-//     "transparent" (only the widgets are drawn; no blur, no shadow)
+//     "transparent" (only the widgets are drawn; no blur, no shadow).
+//     Right click on free bar space (no widget there) flips it - the
+//     direct control until a settings menu uses the same BarLayout API
 // No process, no timer except the short one-shot settle timer of a drop.
 
 import QtQuick
@@ -74,9 +79,19 @@ PanelWindow {
         left: true
         right: true
     }
-    // 3 anchors + ExclusionMode.Auto: the bar's height is reserved.
-    implicitHeight: BarStyle.height
-    color: BarLayout.background === "transparent" ? "transparent" : Colors.background
+    // The surface is the bar - plus the drag corridor while a drag is active.
+    // Reserved for windows is always the bar's own height.
+    implicitHeight: BarStyle.height + (dragging ? BarStyle.dragCorridor : 0)
+    exclusionMode: ExclusionMode.Normal
+    exclusiveZone: BarStyle.height
+    color: "transparent"
+
+    // The visible bar: its fill (solid) or nothing (transparent).
+    Rectangle {
+        width: parent.width
+        height: BarStyle.height
+        color: BarLayout.background === "transparent" ? "transparent" : Colors.background
+    }
 
     // Coffee mode: a Wayland idle inhibitor on this (always visible) bar
     // surface while active (CoffeeMode.qml); any one bar is enough.
@@ -159,7 +174,8 @@ PanelWindow {
 
     // Pointer inside the drag corridor (the bar + BarStyle.dragCorridor px
     // below it)? Outside it a release cancels the drag.
-    readonly property bool dropAllowed: dragPointerY <= height + BarStyle.dragCorridor
+    readonly property bool dropAllowed: dragPointerY <= BarStyle.height + BarStyle.dragCorridor
+    property bool dragCanceled: false   // Qt took the pointer away: never commit
 
     // The layout as shown: during a drag, with the widget at its drop place.
     readonly property var previewZones: {
@@ -183,6 +199,7 @@ PanelWindow {
         dragGrabOffset = pressX - (positions[id] || 0);
         dragPointerX = pressX;
         dragPointerY = pressY;
+        dragCanceled = false;
         dragId = id;
         animateMoves = true;
         updateDrag(pressX, pressY);
@@ -220,7 +237,7 @@ PanelWindow {
     }
 
     function endDrag() {
-        if (dragging) finishDrop(dropAllowed);
+        if (dragging) finishDrop(dropAllowed && !dragCanceled);
     }
 
     function finishDrop(commit) {
@@ -243,6 +260,28 @@ PanelWindow {
         onTriggered: bar.animateMoves = false
     }
 
+    // Is there a placed, visible widget at bar x? (Its own handlers win.)
+    function widgetAt(x) {
+        for (const id in positions) {
+            const w = widthOf(id);
+            if (w > 0 && x >= positions[id] && x < positions[id] + w) return true;
+        }
+        return false;
+    }
+
+    // Free bar space: right click toggles solid <-> transparent. Declared
+    // before the widget slots, so every widget's own mouse handling stays
+    // on top; widgetAt() also keeps passive widgets (clock) out of it.
+    MouseArea {
+        width: parent.width
+        height: BarStyle.height
+        acceptedButtons: Qt.RightButton
+        onClicked: mouse => {
+            if (bar.dragging || bar.widgetAt(mouse.x)) return;
+            BarLayout.setBackground(BarLayout.background === "transparent" ? "solid" : "transparent");
+        }
+    }
+
     // Drop place: outlined where the dragged widget will land. Only its
     // moves during a drag animate - never its first placement.
     Rectangle {
@@ -251,7 +290,7 @@ PanelWindow {
         x: bar.positions[bar.dragId] !== undefined ? bar.positions[bar.dragId] : 0
         y: BarStyle.hoverInset - 1
         width: bar.widthOf(bar.dragId)
-        height: bar.height - 2 * (BarStyle.hoverInset - 1)
+        height: BarStyle.height - 2 * (BarStyle.hoverInset - 1)
         radius: BarStyle.hoverRadius
         color: "transparent"
         border.color: Colors.accent
@@ -300,7 +339,7 @@ PanelWindow {
                       : (bar.positions[widgetId] !== undefined ? bar.positions[widgetId] : 0)
             z: lifted ? 10 : 0
             width: slotWidth
-            height: bar.height
+            height: BarStyle.height
             // Not bound to slotWidth: a hidden widget (visible: false) simply
             // has width 0 here; making the slot invisible would make the
             // widget report itself invisible forever.
@@ -324,7 +363,7 @@ PanelWindow {
 
             Loader {
                 id: loader
-                height: bar.height
+                height: BarStyle.height
                 active: slot.placed
                 opacity: slot.lifted ? 0.9 : 1
                 sourceComponent: bar.coreWidgets[slot.widgetId] || null
@@ -341,6 +380,7 @@ PanelWindow {
                     else bar.endDrag();
                 }
                 onTranslationChanged: if (active) bar.updateDrag(centroid.scenePosition.x, centroid.scenePosition.y)
+                onCanceled: bar.dragCanceled = true
             }
 
             Component.onCompleted: {

@@ -24,13 +24,20 @@
 //   3. a small denylist of desktop-file ids for technical tools that
 //      dependencies bring along (hiddenIds) - packages stay installed,
 //      only their launcher entry is hidden.
-// Each result shows the entry's icon (Quickshell.iconPath, resolved in
-// the session's icon theme, QS_ICON_THEME), or a generic app glyph.
+// Each result shows only the entry's icon (Quickshell.iconPath, resolved
+// in the session's icon theme, QS_ICON_THEME - or a generic app glyph) and
+// its name; the search still matches generic name and keywords.
+//
+// While open the surface covers the focused output (transparent, below the
+// bar strip like the bar popups): a click outside the panel closes it.
+// Closed, the window is unmapped - no surface, no input region.
 
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
+import qs.bar
 
 PanelWindow {
     id: launcher
@@ -38,9 +45,10 @@ PanelWindow {
     required property int fontSize
 
     readonly property int maxResults: 8
+    readonly property int rowHeight: 34
 
     // Rule 2: entries in any of these categories are system configuration
-    // or debugging helpers (e.g. Thunar's settings dialog, Qt's D-Bus viewer).
+    // or debugging helpers (e.g. Qt's D-Bus viewer).
     readonly property var hiddenCategories: ["Settings", "DesktopSettings", "Debugger"]
 
     // Rule 3: desktop-file ids (file name without .desktop) of technical
@@ -49,9 +57,7 @@ PanelWindow {
         "avahi-discover", "bssh", "bvnc",            // avahi (needed by CUPS, PipeWire-Pulse, Flatpak/ostree)
         "lstopo",                                    // hwloc (via onetbb <- appstream <- Flatpak)
         "designer", "linguist", "assistant",         // qt6-tools (needed by VirtualBox)
-        "qv4l2", "qvidcap",                          // v4l-utils (needed by ffmpeg)
-        "xfce4-about",                               // libxfce4ui (Thunar); OnlyShowIn=XFCE, not honoured by Quickshell
-        "thunar-bulk-rename"                         // Thunar's helper, reachable from Thunar itself
+        "qv4l2", "qvidcap"                           // v4l-utils (needed by ffmpeg)
     ]
 
     function shown(e) {
@@ -72,8 +78,31 @@ PanelWindow {
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: 480
-    implicitHeight: 360
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-launcher"
+    // The bar strip stays out of the input region (bar clicks reach the bar).
+    mask: Region {
+        item: outside
+    }
+
+    Item {
+        id: outside
+        y: BarStyle.height
+        width: launcher.width
+        height: launcher.height - BarStyle.height
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: launcher.visible = false
+    }
 
     onVisibleChanged: {
         if (visible) {
@@ -134,11 +163,16 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: 460
-        height: 340
+        height: 24 + 36 + 8 + launcher.maxResults * launcher.rowHeight
         radius: 8
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
+
+        // Clicks on the panel itself (not on a row) must not close it.
+        MouseArea {
+            anchors.fill: parent
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -185,7 +219,7 @@ PanelWindow {
                     required property var modelData
                     required property int index
                     width: ListView.view.width
-                    height: 40
+                    height: launcher.rowHeight
                     radius: 4
                     color: index === launcher.selectedIndex ? Colors.accent : "transparent"
 
@@ -224,32 +258,17 @@ PanelWindow {
                         }
                     }
 
-                    Column {
+                    Text {
                         anchors.left: iconBox.right
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.leftMargin: 10
                         anchors.rightMargin: 10
-                        spacing: 0
-
-                        Text {
-                            text: resultDelegate.modelData.name
-                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foreground
-                            font.family: Fonts.family
-                            font.pixelSize: launcher.fontSize
-                            elide: Text.ElideRight
-                            width: parent.width
-                        }
-
-                        Text {
-                            visible: text.length > 0
-                            text: resultDelegate.modelData.genericName
-                            color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foregroundMuted
-                            font.family: Fonts.family
-                            font.pixelSize: launcher.fontSize - 2
-                            elide: Text.ElideRight
-                            width: parent.width
-                        }
+                        text: resultDelegate.modelData.name
+                        color: resultDelegate.index === launcher.selectedIndex ? Colors.accentForeground : Colors.foreground
+                        font.family: Fonts.family
+                        font.pixelSize: launcher.fontSize
+                        elide: Text.ElideRight
                     }
 
                     MouseArea {

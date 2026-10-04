@@ -22,6 +22,8 @@ Item {
 
     property string icon: ""
     property string text: ""
+    // Bar widgets show no hover tooltip by default (docs/DESIGN_SYSTEM.md
+    // "Bar look"); set only where a widget is explicitly meant to have one.
     property string tooltip: ""
     property bool active: false          // accent: something is on/connected
     property bool muted: false           // dimmed: off / nothing happening

@@ -146,10 +146,16 @@ desktop_monospace_font_family: "FiraCode Nerd Font Mono"
 desktop_icon_font_family: "FiraCode Nerd Font Propo"
 
 # Icon theme Quickshell (Qt, no platform theme here) resolves icon NAMES
-# from - tray items, notification app icons. Applied as QS_ICON_THEME in
-# Quickshell's start command (roles/hyprland hyprland_quickshell_exec);
-# takes effect at Quickshell's next start.
-desktop_icon_theme: Adwaita
+# from - launcher app icons, tray items, notification app icons. Applied as
+# QS_ICON_THEME in Quickshell's start command (roles/hyprland
+# hyprland_quickshell_exec); takes effect at Quickshell's next start.
+# Papirus (official extra, papirus-icon-theme): one consistent icon style
+# that covers our apps under their own Icon= names (checked against the
+# package file list: Chromium, Ghostty, Thunderbird, Nautilus, Bitwarden,
+# Obsidian, VirtualBox, Flatpak IntelliJ, mpv, Zathura, btop, Neovim,
+# Xarchiver); an app it lacks (Yazi) keeps its own hicolor icon. GTK apps
+# keep Adwaita (gsettings icon-theme is not touched).
+desktop_icon_theme: Papirus
 
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack

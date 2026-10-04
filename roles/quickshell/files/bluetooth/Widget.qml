@@ -26,10 +26,6 @@ BarWidget {
     icon: !on ? "\u{F00B2}" : connectedDevices.length > 0 ? "\u{F00B1}" : "\u{F00AF}"
     muted: !on
     active: on && connectedDevices.length > 0
-    tooltip: blocked ? "Bluetooth blocked"
-           : !on ? "Bluetooth off"
-           : connectedDevices.length > 0 ? connectedDevices.map(d => d.name || d.address).join(", ") + " connected"
-           : "Bluetooth on"
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 
     // Loaded by path (feature widget): its own files by relative path too.

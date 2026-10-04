@@ -1,5 +1,4 @@
-// Bar widget "connectivity": compact network state (icon; details in the
-// tooltip). With the connectivity feature a click opens the Connectivity
+// Bar widget "connectivity": compact network state (icon only). With the connectivity feature a click opens the Connectivity
 // Center (Popup.qml: Wi-Fi, QR, Bluetooth, VPN). Managed by Ansible: do not
 // edit by hand, see roles/quickshell in workstation-arch.
 
@@ -16,7 +15,6 @@ BarWidget {
 
     icon: net.icon
     muted: net.kind === "none"
-    tooltip: net.label
     interactive: BarFeatures.connectivity
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 
