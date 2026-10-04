@@ -115,6 +115,9 @@
     - role: quickshell
       tags: [quickshell]
 
+    - role: display_manager
+      tags: [display_manager]
+
     - role: apps
       tags: [apps]
 

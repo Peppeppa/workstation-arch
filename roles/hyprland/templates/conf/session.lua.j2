@@ -42,15 +42,15 @@
 return function(v)
     hl.on("hyprland.start", function()
         -- Hyprland hands the systemd user manager (= the D-Bus activation
-        -- environment) WAYLAND_DISPLAY/DISPLAY/XDG_CURRENT_DESKTOP itself, but
-        -- not XDG_SESSION_TYPE/XDG_SESSION_CLASS (its children get
-        -- wayland/user, the manager keeps none - this session starts from a
-        -- TTY). D-Bus-activated GNOME apps need both: without them Nautilus
-        -- as "open folder" handler (xdg-open/gio/portal/FileManager1) exits
-        -- ("missing session type"; localsearch-3 is gated on
-        -- ConditionEnvironment=XDG_SESSION_CLASS=user). One-shot, no process
-        -- stays.
-        hl.exec_cmd("systemctl --user import-environment XDG_SESSION_TYPE XDG_SESSION_CLASS")
+        -- environment) WAYLAND_DISPLAY/DISPLAY/XDG_CURRENT_DESKTOP itself,
+        -- but not XDG_SESSION_TYPE/CLASS/DESKTOP - set for the session (by
+        -- Ly, or by Hyprland for its children after a TTY start) yet never
+        -- handed to the manager. D-Bus-activated GNOME apps need them:
+        -- without them Nautilus as "open folder" handler (gio/portal/
+        -- FileManager1) exits ("missing session type"; localsearch-3 is
+        -- gated on ConditionEnvironment=XDG_SESSION_CLASS=user). One-shot,
+        -- no process stays.
+        hl.exec_cmd("systemctl --user import-environment XDG_SESSION_TYPE XDG_SESSION_CLASS XDG_SESSION_DESKTOP")
 {% if hyprland_activation_environment %}
         -- Host-specific extra variables for D-Bus/systemd-activated apps
         -- (hyprland_activation_environment, host_vars).

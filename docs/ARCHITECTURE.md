@@ -42,8 +42,10 @@ XWayland sits alongside Wayland as a compatibility layer for X11-only
 applications - it is not the primary display stack, native Wayland is.
 
 Phase 3 (current) implements Hyprland itself: the compositor, window
-manager, and Wayland session owner, started manually from a TTY (no
-display manager, no autostart hook, no systemd unit). Quickshell is a
+manager, and Wayland session owner. It is started by the Ly TUI login
+(`roles/display_manager`, `ly@tty2`) through the hyprland package's own
+session entry (`start-hyprland`), or by hand with `start-hyprland` from a
+console login - no autostart hook, no systemd unit of our own. Quickshell is a
 later, separate presentation layer on top of Hyprland - Hyprland has no
 dependency on it and must be fully usable (start, open a terminal,
 close windows, exit cleanly) without it.

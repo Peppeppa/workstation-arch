@@ -51,6 +51,15 @@ power_menu_enabled: true
 # stopped, its two feature-owned configs removed - nothing else deleted.
 lock_idle_enabled: true
 
+# Display manager (roles/display_manager): Ly, the minimal TUI login, on
+# tty2 at boot -> the existing Hyprland session (hyprland.desktop ->
+# start-hyprland). tty1 keeps its console getty (recovery + manual
+# `start-hyprland`). One extra process while logged in: ly-dm, the parent
+# that waits for the session to end (Ly's normal architecture). false:
+# ly@tty2 is no longer enabled (next boot: plain TTY login), package and
+# config stay.
+display_manager_enabled: true
+
 # Notifications (roles/quickshell Notifications.qml, composed by
 # shell.qml.j2): Quickshell's own NotificationServer owns
 # org.freedesktop.Notifications inside the running Quickshell - toasts

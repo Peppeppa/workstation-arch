@@ -87,6 +87,7 @@ direct upstream dependency.
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ - `bluetoothd`, systemd system service (`roles/bluetooth`); UI via Quickshell's native Bluetooth module |
 | Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |
+| Login (display manager) | Ly - `ly@tty2.service` (package unit + PAM), `roles/display_manager`, feature `display_manager_enabled`; starts the hyprland package's `hyprland.desktop` (`start-hyprland`); tty1 keeps its getty for recovery/manual start |
 | Compositor / window manager | Hyprland |
 | App launcher | Quickshell (`Launcher.qml`, toggled via `qs ipc call launcher toggle` - fuzzel retired as of Core Desktop v1) |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |

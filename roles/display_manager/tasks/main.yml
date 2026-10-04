@@ -1,0 +1,82 @@
+---
+# FEATURE: display_manager (see defaults/main.yml and
+# docs/feature-architecture.md "Display manager (Ly)"). Boot -> Ly on
+# display_manager_tty -> the Hyprland session from the hyprland package's
+# /usr/share/wayland-sessions/hyprland.desktop (Exec=start-hyprland - the
+# same watchdog start as the manual TTY path), so Quickshell, hypridle and
+# the session environment keep their single owner: Hyprland's
+# hyprland.start block.
+- name: Install Ly (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ display_manager_packages }}"
+    state: present
+  tags: display_manager
+
+- name: Ly's session directory (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  ansible.builtin.file:
+    path: "{{ display_manager_sessions_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: display_manager
+
+# A link, not a copy: the session stays the hyprland package's own entry.
+- name: Offer exactly the Hyprland session (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  ansible.builtin.file:
+    src: /usr/share/wayland-sessions/hyprland.desktop
+    dest: "{{ display_manager_sessions_dir }}/hyprland.desktop"
+    state: link
+    owner: root
+    group: root
+  tags: display_manager
+
+- name: Ly settings in /etc/ly/config.ini (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  community.general.ini_file:
+    path: /etc/ly/config.ini
+    section: null
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ display_manager_ly_settings | dict2items }}"
+  tags: display_manager
+
+# Enabled only - takes over its VT at the next boot. Starting it from a
+# provisioning run would switch the console away from a running session.
+# ly@.service itself carries Conflicts=getty@<tty>; getty@<tty> is not
+# enabled on Arch (only tty1's is), so nothing else to switch off.
+- name: Enable Ly on its VT (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: "ly@{{ display_manager_tty }}.service"
+    enabled: true
+  tags: display_manager
+
+# Disabled: the VT falls back to an on-demand getty at the next boot; the
+# package and its config stay (Disable vs. Purge). TTY login +
+# start-hyprland work either way.
+- name: Check for Ly (display_manager disabled)
+  when: not display_manager_enabled
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/ly@.service
+  register: display_manager_ly_unit
+  tags: display_manager
+
+- name: Disable Ly (display_manager disabled)
+  when: not display_manager_enabled and display_manager_ly_unit.stat.exists
+  become: true
+  ansible.builtin.systemd_service:
+    name: "ly@{{ display_manager_tty }}.service"
+    enabled: false
+  tags: display_manager

@@ -453,6 +453,35 @@ Real-hardware bring-up (laptop/workstation), in this order:
 6. Real test: open apps, `systemctl hibernate`, power on, unlock - the
    session is back; `journalctl -b -1 -u systemd-hibernate`.
 
+## Display manager (Ly)
+
+`display_manager_enabled` (`group_vars/all.yml`, default `true`),
+`roles/display_manager`. Ly only - not a display-manager framework.
+
+| Contract | |
+|---|---|
+| Package | `ly` from official `extra` (1.4.1 at introduction; deps pam, glibc, libxcb) - no AUR, no source build |
+| Unit / VT | the package's `ly@.service`, enabled as `ly@tty2` (Arch/upstream default VT; it carries `Conflicts=getty@tty2`, and getty@tty2 is not enabled on Arch). tty1 keeps `getty@tty1`, ttys 3-6 get `autovt` gettys on demand. Enabled only - provisioning never starts it (that would switch the console away from a running session); it takes over at the next boot |
+| PAM | the package's `/etc/pam.d/ly` unchanged (`include login`, optional `pam_gnome_keyring` - unlocks the login keyring for Bitwarden's Secret Service). `ly-autologin` is unused: no autologin is configured |
+| Session | Ly's own session dir `/etc/ly/wayland-sessions` with one symlink to the hyprland package's `hyprland.desktop` (`Exec=/usr/bin/start-hyprland`, the same watchdog start as by hand). Needed because Ly ignores `TryExec` and listed the package's `hyprland-uwsm.desktop` first (no uwsm here). Ly's built-in `shell` session stays. Quickshell, hypridle, polkit agent, clipboard watcher and the activation-environment import keep their single owner: Hyprland's `hyprland.start` |
+| Config | `/etc/ly/config.ini` from the package, only these keys set in place: `waylandsessions`, `allow_empty_password = false` (upstream: true), `hide_version_string = true`, static colours after Retro 82 (`fg` #FFF1DA, `border_fg` #2A6A73, `error_fg` #F85525). Upstream defaults kept: no animation, no big clock, password as `*`, last user/session remembered (`save`) |
+| Theme | static on purpose - Ly runs before any user session, so it is not part of the runtime theme helper; no watcher, no IPC, no theme-state dependency |
+| Cost | while logged in: `ly-dm` (root, the parent that waits for the session and closes PAM on logout) - Ly's normal architecture; no timer, no polling of ours |
+| Disable | `ly@tty2` no longer enabled (next boot: plain TTY login on every VT); package and config stay; `start-hyprland` from a console login works either way |
+
+Session environment (verified after a real Ly login on arch-dev): Ly sets
+`XDG_SESSION_TYPE=wayland`, `XDG_SESSION_CLASS=user`,
+`XDG_SESSION_DESKTOP`/`XDG_CURRENT_DESKTOP=Hyprland`; Hyprland's
+`hyprland.start` imports `XDG_SESSION_TYPE/CLASS/DESKTOP` into the systemd
+user manager (D-Bus activation), Hyprland itself adds `WAYLAND_DISPLAY`,
+`DISPLAY`, `XDG_CURRENT_DESKTOP`; host-only extras
+(`hyprland_activation_environment`) stay host-only (arch-dev's
+`LIBGL_ALWAYS_SOFTWARE=1`).
+
+Recovery: tty1 console login (`Ctrl+Alt+F1`), ttys 3-6 on demand, sshd;
+from a console `start-hyprland` starts the session by hand; a broken Ly:
+`systemctl disable --now ly@tty2` (or the flag + bootstrap).
+
 ## Lock + Idle v1
 
 `lock_idle_enabled` (`group_vars/all.yml`, default `true`). One flag:

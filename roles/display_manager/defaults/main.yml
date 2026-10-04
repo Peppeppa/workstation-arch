@@ -1,0 +1,47 @@
+---
+# FEATURE: display_manager (group_vars display_manager_enabled) - Ly, the
+# TUI login on one VT, starting the existing Hyprland session. Not a
+# display-manager framework: this role is Ly only.
+#
+# Package: `ly` from the official extra repository (1.4.1 checked
+# 2026-10-04: depends only on pam, glibc, libxcb; ships ly@.service, its
+# PAM stack /etc/pam.d/ly and /etc/ly/config.ini). The PAM files and the
+# unit are used exactly as the package ships them.
+display_manager_packages:
+  - ly
+
+# The VT Ly owns (ly@<tty>.service; Arch/upstream use tty2). tty1 keeps
+# its normal getty - the console/recovery login and the manual
+# `start-hyprland` path stay; ttys 3-6 get gettys on demand (logind autovt).
+display_manager_tty: tty2
+
+# The only keys changed in the package's /etc/ly/config.ini (edited in
+# place, everything else stays upstream's default and new upstream keys
+# keep working). Upstream defaults already give what we want: no
+# animation, no big clock, password shown as `*`, no autologin, last user
+# and session remembered.
+#   allow_empty_password: upstream true - an account without a password
+#                         must not be one Enter away from a desktop.
+#   hide_version_string:  quiet screen; `ly-dm --version` still tells.
+#   fg / border_fg / error_fg: static colours after the default Retro 82
+#                         theme (foreground_strong #FFF1DA, border #2A6A73,
+#                         error #F85525; 0xSSRRGGBB, SS=01 bold). Ly runs
+#                         before any user session, so it is deliberately
+#                         NOT tied to the runtime theme helper - the Linux
+#                         VT maps them to its nearest console colours.
+#   waylandsessions:      Ly's own session directory holding only a
+#                         symlink to the hyprland package's
+#                         hyprland.desktop (Exec=start-hyprland). The
+#                         package also ships hyprland-uwsm.desktop; Ly
+#                         ignores its TryExec=uwsm and listed it FIRST
+#                         (seen on arch-dev) - a session that cannot start
+#                         here (no uwsm). Ly's built-in "shell" session
+#                         stays as a console fallback.
+display_manager_sessions_dir: /etc/ly/wayland-sessions
+display_manager_ly_settings:
+  waylandsessions: "{{ display_manager_sessions_dir }}"
+  allow_empty_password: "false"
+  hide_version_string: "true"
+  fg: "0x00FFF1DA"
+  border_fg: "0x002A6A73"
+  error_fg: "0x01F85525"

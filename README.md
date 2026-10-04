@@ -70,7 +70,7 @@ right-clicking the volume opens device selection/volume/mute; the
 battery (or, without one, a profile icon) opens power profiles.
 `mainMod+V` shows the clipboard history (cliphist); wallpapers come from
 the active theme's `backgrounds/` and are picked in the theme dialog.
-Laptop lid: lock, then suspend. Bar widgets can be rearranged by dragging them (also between left/center/right); the order is kept in `~/.config/workstation/bar-layout.json` (`qs ipc call bar resetLayout` restores the default). The bar background is `solid` or `transparent` - right click on free bar space flips it (or `qs ipc call bar setBackground transparent`), kept in the same file. Bar widgets show no hover tooltips. There is no display manager. Feature
+Laptop lid: lock, then suspend. Bar widgets can be rearranged by dragging them (also between left/center/right); the order is kept in `~/.config/workstation/bar-layout.json` (`qs ipc call bar resetLayout` restores the default). The bar background is `solid` or `transparent` - right click on free bar space flips it (or `qs ipc call bar setBackground transparent`), kept in the same file. Bar widgets show no hover tooltips. Login: Ly on tty2 (see below). Feature
 freeze: next is visual polish (RICE v1). See
 `AGENTS.md` for exactly what is real-VM-tested versus only structurally
 verified so far.
@@ -195,11 +195,22 @@ Further roles (`session`, `hardware`, ...) will be added
 the same way as the desktop is built out - see `docs/ARCHITECTURE.md`
 for the intended stack.
 
-## Hyprland session (manual start, no display manager)
+## Login and Hyprland session
 
-Hyprland is set up to start and stop by hand - it deliberately does
-**not** install a display manager and does not add any
-`.bash_profile`/`exec Hyprland` autostart hack. Hyprland's own session
+Boot ends in **Ly** (official `ly` package, minimal TUI login) on tty2:
+user + password -> the Hyprland session (the hyprland package's
+`hyprland.desktop`, i.e. `start-hyprland`). Logging out of Hyprland
+(`Super + Shift + E` or the power menu) returns to Ly. No autologin, no
+`.bash_profile`/`exec Hyprland` hack. Feature `display_manager_enabled`
+(`roles/display_manager`).
+
+Recovery: tty1 (`Ctrl+Alt+F1`) keeps a normal console login, ttys 3-6
+get one on demand, sshd stays enabled - and from a console login
+`start-hyprland` still starts the same session by hand. If Ly itself
+misbehaves: `sudo systemctl disable --now ly@tty2` (or
+`display_manager_enabled: false` + `./bootstrap.sh`).
+
+Hyprland's own session
 lifecycle (`hl.on("hyprland.start", ...)`) now also starts Quickshell
 (`roles/quickshell`), which owns the top bar (workspaces/clock/network/
 volume/battery) and the app launcher (`mainMod+Space` - see below);
@@ -208,8 +219,8 @@ retired) - see `AGENTS.md`. After provisioning and a reboot:
 
 ```sh
 reboot
-# then, after logging in on a plain TTY:
-Hyprland
+# Ly appears on tty2 - log in. Manual fallback from a console login:
+start-hyprland
 ```
 
 The deployed config (`~/.config/hypr/hyprland.lua` - current Hyprland
@@ -232,7 +243,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + L`              | lock now (hyprlock)                          |
 | `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
-| `Super + Shift + E`      | exit Hyprland (back to TTY)                  |
+| `Super + Shift + E`      | exit Hyprland (back to Ly / the TTY)         |
 
 Notifications: toasts top-right (Quickshell). Click/x closes; normal
 ones expire after ~5 s (or the sender's timeout, paused on hover),
