@@ -88,3 +88,18 @@ hyprland_quickshell_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 quickshell"
 # `LIBGL_ALWAYS_SOFTWARE=1 hyprlock` locked and rendered correctly.
 # Applied to hypridle so every hyprlock it starts gets it.
 lock_idle_hypridle_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 hypridle"
+
+# Real, VM-specific deviation #5: visual acceptance of the desktop at
+# 2560x1440 (the real hosts' target size class) inside this VM.
+# VirtualBox's vmwgfx connector does not list 2560x1440 (its fixed table
+# has 2560x1600, 2048x1152, 1920x1080, ...; the preferred mode follows
+# the VM window size, 1280x800 here), so "preferred" can never reach it.
+# Hyprland sets an unlisted mode as a custom mode; verified on arch-dev
+# (`hyprctl monitors`: Virtual-1 2560x1440@60, scale 1; bar 2560x26,
+# wallpaper surface 2560x1440). No modeline, no VirtualBox-side hint -
+# just the existing monitor list with an explicit mode, for this VM only.
+hyprland_monitors:
+  - output: ""
+    mode: "2560x1440@60"
+    position: auto
+    scale: "{{ hyprland_monitor_scale }}"

@@ -6,9 +6,10 @@
 -- host_vars). The default single catch-all rule (output "") already
 -- covers a laptop panel alone, laptop + any external screen (placed
 -- "auto"), and a workstation - real hosts report real sizes, so
--- "preferred" mode and "auto" scale are right there. arch-dev only
--- overrides the scale (VirtualBox reports 0x0 mm, which makes "auto"
--- pick 2 for its 1280x800 display). No monitor GUI.
+-- "preferred" mode and "auto" scale are right there. arch-dev overrides
+-- the scale (VirtualBox reports 0x0 mm, which makes "auto" pick 2) and
+-- sets an explicit 2560x1440 mode (see host_vars/arch-dev.yml). No
+-- monitor GUI.
 return function(v)
 {% for m in hyprland_monitors %}
     hl.monitor({
