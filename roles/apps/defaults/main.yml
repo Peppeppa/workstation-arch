@@ -19,13 +19,15 @@ apps_packages:
   # Mail
   - thunderbird
 
-  # File manager (GUI) + practical archive/mount support, kept small:
-  # thunar-archive-plugin + xarchiver add the "create/extract archive"
-  # context-menu actions, 7zip/zip/unzip cover common archive formats,
-  # gvfs adds Trash/removable-media/MTP support - no full desktop-
-  # environment dependency chain pulled in for any of this.
-  - thunar
-  - thunar-archive-plugin
+  # File manager (GUI): Nautilus (GNOME Files, GTK4/libadwaita - follows
+  # the theme's color-scheme natively, no theme hack). It extracts and
+  # compresses archives itself (gnome-autoar/libarchive); its hard
+  # dependencies localsearch + tinysparql (search index) and gvfs come
+  # with it - localsearch is D-Bus-activated by Nautilus on demand (this
+  # session runs no XDG autostart). xarchiver stays: browsing an archive
+  # without extracting it is something Nautilus does not do. 7zip/zip/
+  # unzip cover the CLI side, gvfs Trash/removable media/MTP.
+  - nautilus
   - xarchiver
   - gvfs
   - zip
@@ -103,8 +105,18 @@ apps_flatpak_packages:
 #   built in this run (documented as a future idea only).
 
 # Packages this role once caused to be installed and that are not wanted
-# any more - removed (only these exact names, never their dependencies).
+# any more - removed with pacman -Rs (tasks/main.yml): their dependencies
+# go too, but only those nothing else requires and that were installed as
+# dependencies.
 #   chipass: the accidental org.freedesktop.secrets provider for bitwarden
 #            (see apps_packages; gnome-keyring replaces it)
+#   thunar, thunar-archive-plugin: replaced by Nautilus. Uninstalled, not
+#            just unlisted: Thunar ships its own D-Bus activation for
+#            org.freedesktop.FileManager1, the same name Nautilus owns -
+#            one owner per responsibility. Their XFCE libraries (exo,
+#            libxfce4ui, libxfce4util, xfconf) go with them via -Rs only
+#            when nothing else needs them.
 apps_retired_packages:
   - chipass
+  - thunar-archive-plugin
+  - thunar

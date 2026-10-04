@@ -101,6 +101,7 @@ direct upstream dependency.
 | Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
 | Bar layout (widget order/zones) + bar settings (background solid/transparent) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout` / `qs ipc call bar setBackground`); Ansible creates it once if missing |
+| File manager (`org.freedesktop.FileManager1`, `inode/directory`) | Nautilus (`roles/apps`; D-Bus-activated, it activates localsearch on demand) - Thunar retired and uninstalled (its own FileManager1 activation file would compete) |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
 | Provisioning / desired state | Ansible |

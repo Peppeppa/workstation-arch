@@ -70,7 +70,7 @@
 # image/png both resolved to chromium.desktop instead of the readers
 # this role actually installs zathura/imv for - see
 # templates/mimeapps.list.j2.
-- name: Set default applications for PDF and PNG (zathura, imv)
+- name: Set default applications (folders, PDF, PNG)
   ansible.builtin.template:
     src: mimeapps.list.j2
     dest: "{{ ansible_facts.user_dir }}/.config/mimeapps.list"

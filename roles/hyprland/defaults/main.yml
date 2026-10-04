@@ -162,3 +162,9 @@ clipboard_start_script: |
   if [ -n "$cur" ]; then pkill -u "$(id -u)" -f '^wl-paste .*--watch cliphist' || true; fi
   hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ clipboard_watch_cmd }}")' >/dev/null
   echo started
+
+# Extra environment for apps the session starts through D-Bus/systemd
+# activation (e.g. Nautilus as "open folder" handler) - they get the
+# systemd user manager's environment, not Hyprland's. Set per host only
+# for a real, confirmed need (see host_vars/arch-dev.yml); empty here.
+hyprland_activation_environment: {}

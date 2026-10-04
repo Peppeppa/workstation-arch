@@ -103,3 +103,13 @@ hyprland_monitors:
     mode: "2560x1440@60"
     position: auto
     scale: "{{ hyprland_monitor_scale }}"
+
+# Real, VM-specific deviation #6, same VirtualBox GPU failure class as
+# #3/#4 (Ghostty, Quickshell, hyprlock): Nautilus started by D-Bus
+# activation (the "open folder" path: gio/xdg-open/portal/FileManager1)
+# died with "Lost connection to Wayland compositor"; with
+# LIBGL_ALWAYS_SOFTWARE=1 in the activation environment `gio open ~`
+# opened it (arch-dev, 2026-10-04). Started from the launcher it already
+# worked - it inherits Quickshell's environment, which has the variable.
+hyprland_activation_environment:
+  LIBGL_ALWAYS_SOFTWARE: "1"
