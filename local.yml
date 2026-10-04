@@ -118,6 +118,10 @@
     - role: display_manager
       tags: [display_manager]
 
+    # Core: `repo-diagnose` (on-demand health snapshot, no daemon/timer).
+    - role: diagnostics
+      tags: [diagnostics]
+
     - role: apps
       tags: [apps]
 

@@ -56,6 +56,10 @@ return function(v)
         -- (hyprland_activation_environment, host_vars).
         hl.exec_cmd("systemctl --user set-environment{% for k, v in hyprland_activation_environment.items() %} {{ k }}={{ v }}{% endfor %}")
 {% endif %}
+        -- Output stays discarded on purpose: hyprtoolkit logs ~80 DEBUG lines
+        -- per login (dmabuf formats, output events) with no way to lower
+        -- the level; authentication results are in the system journal from
+        -- polkitd/PAM anyway, and repo-diagnose checks the agent runs.
         hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
         hl.exec_cmd("{{ hyprland_quickshell_exec }}")
 {% if lock_idle_enabled %}
@@ -63,7 +67,7 @@ return function(v)
         -- specific, like mako/Quickshell; no systemd --user unit: the
         -- package's hypridle.service hangs off graphical-session.target,
         -- which this session never activates).
-        hl.exec_cmd("{{ lock_idle_hypridle_cmd }}")
+        hl.exec_cmd("{{ lock_idle_hypridle_exec }}")
 {% endif %}
 {% if clipboard_history_enabled %}
         -- FEATURE: clipboard_history - the clipboard watcher's only

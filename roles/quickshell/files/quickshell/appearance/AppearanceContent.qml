@@ -53,6 +53,7 @@ FocusScope {
                     root.monitors = JSON.parse(text);
                 } catch (e) {
                     root.monitors = [];
+                    Log.warn("appearance", "`hyprctl monitors -j` returned no JSON - no display information");
                 }
             }
         }

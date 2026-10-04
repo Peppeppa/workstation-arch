@@ -30,6 +30,7 @@ Scope {
             warned = false;
         } else if (!warned && percent <= thresholdPercent) {
             warned = true;
+            Log.warn("power", "battery low: " + percent + "% while discharging - notification sent");
             Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "Battery",
                                      "Battery low", percent + "% remaining - plug in the charger"]);
         }

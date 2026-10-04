@@ -39,7 +39,16 @@ hyprland_quickshell_cmd: quickshell
 # QS_ICON_THEME is read before the config loads - verified on arch-dev: an
 # `//@ pragma Env` in shell.qml sets the variable too late (named icons
 # still unresolved), the startup environment works.
-hyprland_quickshell_exec: "env QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprland_quickshell_cmd }}"
+#
+# systemd-cat -t quickshell: Hyprland's exec_cmd sends a child's stdout/
+# stderr to /dev/null and Quickshell's own log file lives in the runtime
+# dir (gone at logout/reboot) - so QML errors of a past session were lost.
+# systemd-cat execs the rest (no extra process, Hyprland stays the parent,
+# the command line stays exactly "quickshell") and its output lands in the
+# persistent journal: `journalctl --user -t quickshell`. NO_COLOR=1: no
+# ANSI color codes in the journal (the --no-color flag would change the
+# command line the restart tasks look for).
+hyprland_quickshell_exec: "systemd-cat -t quickshell -- env NO_COLOR=1 QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprland_quickshell_cmd }}"
 
 # Monitor scale for hl.monitor() in hyprland.lua.j2. "auto" is correct
 # on real target hosts (laptop/workstation report real physical monitor
@@ -116,6 +125,12 @@ lock_idle_dpms_timeout: 600   # displays off
 # hypridle and inherits its environment.
 lock_idle_hypridle_cmd: hypridle
 
+# What actually starts it: output to the journal (`journalctl --user -t
+# hypridle`; hyprlock, its child, writes there too - by default only real
+# problems) instead of /dev/null - see hyprland_quickshell_exec. -q: errors
+# only (hypridle logs ~90 lines per start otherwise).
+lock_idle_hypridle_exec: "systemd-cat -t hypridle -- {{ lock_idle_hypridle_cmd }} -q"
+
 # Internal: starts hypridle inside the running Hyprland instance (used by
 # tasks/main.yml + handlers/main.yml). Prints "started" only if it did.
 lock_idle_start_script: |
@@ -123,7 +138,7 @@ lock_idle_start_script: |
   if pgrep -u "$(id -u)" -x hypridle >/dev/null; then echo running; exit 0; fi
   sig="$(hyprctl instances -j 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d[0]["instance"] if d else "")' 2>/dev/null || true)"
   if [ -z "$sig" ]; then echo no-session; exit 0; fi
-  hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ lock_idle_hypridle_cmd }}")' >/dev/null
+  hyprctl -i "$sig" dispatch 'hl.dsp.exec_cmd("{{ lock_idle_hypridle_exec }}")' >/dev/null
   # A replaced hypridle takes its pending on-resume ("displays on") with
   # it: if the old one had already turned the displays off, nothing would
   # ever turn them back on (real arch-dev incident: black, unresponsive

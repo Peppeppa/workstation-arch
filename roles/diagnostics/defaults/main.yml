@@ -1,0 +1,8 @@
+---
+# Diagnostics (core): `repo-diagnose [--full]`, an on-demand, read-only
+# health snapshot. No daemon, no timer, no package - it only reads what
+# systemd/journald/NetworkManager/BlueZ/PipeWire/UPower/Hyprland already
+# provide. Installed system-wide (/usr/local/bin is on every login PATH -
+# also a TTY recovery login or SSH); it always reports on the CALLING
+# user's session and state. See README "Troubleshooting".
+diagnostics_bin: /usr/local/bin/repo-diagnose

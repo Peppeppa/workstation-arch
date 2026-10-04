@@ -57,12 +57,14 @@ Scope {
     function select(slot, id) {
         if (id === selectedId(slot) || actionProc.running) return;
         actionProc.command = [helper, "select", slot, id];
+        actionProc.what = "theme";
         actionProc.running = true;
     }
 
     function setWallpaper(file) {
         if (actionProc.running) return;
         actionProc.command = [helper, "wallpaper", "set", file];
+        actionProc.what = "wallpaper";
         actionProc.running = true;
     }
 
@@ -78,16 +80,19 @@ Scope {
     Process {
         id: statusProc
         command: [model.helper, "status", "--json"]
+        stderr: StdioCollector { id: statusErr }
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     model.status = JSON.parse(text);
                 } catch (e) {
                     model.errorText = "theme helper returned no status";
+                    Log.warn("theme", "`theme status --json` returned no JSON - is ~/.local/bin/theme deployed?");
                 }
             }
         }
-        onExited: {
+        onExited: exitCode => {
+            if (exitCode !== 0) Log.warn("theme", "`theme status` failed (exit " + exitCode + "): " + Log.firstLine(statusErr.text));
             if (model.refreshPending) {
                 model.refreshPending = false;
                 running = true;
@@ -97,9 +102,12 @@ Scope {
 
     Process {
         id: actionProc
+        property string what: "theme"
         stderr: StdioCollector { id: actionErr }
         onExited: exitCode => {
             model.errorText = exitCode === 0 ? "" : actionErr.text.trim();
+            if (exitCode !== 0)
+                Log.warn(what, "`" + command.slice(1).join(" ") + "` failed (exit " + exitCode + "): " + Log.firstLine(actionErr.text));
             model.refresh();
         }
     }

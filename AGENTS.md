@@ -107,6 +107,7 @@ direct upstream dependency.
 | File manager (`org.freedesktop.FileManager1`, `inode/directory`) | Nautilus (`roles/apps`; D-Bus-activated, it activates localsearch on demand) - Thunar retired and uninstalled (its own FileManager1 activation file would compete) |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
+| Diagnostics | `repo-diagnose [--full]` (`roles/diagnostics`, /usr/local/bin) - on demand only; logs stay in journald (Quickshell/hypridle output via `systemd-cat`, QML failures as `[component] ...` through `Log.qml`) - no log daemon, follower or timer |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 

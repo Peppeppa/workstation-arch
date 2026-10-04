@@ -316,6 +316,47 @@ compete with that owner - per-output editing needs the real laptop/
 workstation outputs first. Everything inside exists only while the window
 is open (Loader): no process, no timer when closed.
 
+## Diagnostics and logging
+
+Quiet when healthy, enough context when something fails; journald is the
+only log store - no logging daemon, follower, rotation or timer of ours.
+
+| Source | Where it goes |
+|---|---|
+| Quickshell (QML, Process failures, our `[component]` lines) | `journalctl --user -t quickshell` - started as `systemd-cat -t quickshell -- env NO_COLOR=1 ... quickshell` (systemd-cat execs: still one process under Hyprland, command line still `quickshell`). Before this, Hyprland's exec sent it to /dev/null and only Quickshell's runtime-dir log existed (gone at logout) |
+| hypridle (+ hyprlock, its child) | `journalctl --user -t hypridle`, hypridle with `-q` (errors only; it logs ~90 lines per start otherwise) |
+| polkit agent | stays discarded: hyprtoolkit logs ~80 DEBUG lines per login with no level setting; authentication results are in the system journal (polkitd/PAM) |
+| OS menu / popup hand-offs (nm-connection-editor) | `systemd-cat -t app-launch -p err -- systemd-run --user --quiet --collect -- ...`: a failed launch is an err line (systemd-run logs it as `systemd-run`), the app runs in its own transient unit |
+| Hyprland | `~/.local/state/ly-session.log` (session stdout), runtime `hyprland.log`, crash reports in `~/.cache/hyprland/` |
+| NetworkManager, BlueZ, PPD, UPower, logind, Ly/PAM | their own units in the system journal |
+| PipeWire / WirePlumber | their user units |
+| bootstrap / Ansible | its own output; `ansible.cfg`: YAML results + task path on failure; `bootstrap.sh` prints where to look next |
+
+Our own messages (`roles/quickshell/files/quickshell/Log.qml`): one line
+per FAILURE, `[network|bluetooth|theme|wallpaper|brightness|power|osmenu|appearance|bar] what failed: why`
+(exit code + first stderr line), never for normal operation (no timer
+ticks, traffic samples, hovers, popup open/close, refreshes) and never
+with secrets (names and exit codes only - no PSK, password, key). The same
+message within 60 s is dropped. Capabilities that simply are not there
+(no backlight, no battery, no Bluetooth controller) are not errors and
+log nothing. A missing file is reported by FileView itself - no second
+line of ours.
+
+`repo-diagnose [--full]` (`roles/diagnostics`, `/usr/local/bin`): read-only
+Python, runs only when called. Default: one screen (session, shell + QML
+warnings, network/default route/VPN summary, Bluetooth, audio, power,
+desktop/theme, failed units, duplicate processes, recent errors,
+coredumps) - exits 1 if it marked an issue. `--full`: unit table,
+allowlisted environment (no full env), monitors, bounded journal excerpts
+per component, hardware capabilities. Expectations come from the feature
+flags (e.g. hypridle only with `lock_idle_enabled`). Failed units and
+coredumps from before the current Hyprland start (logout aborts of
+session helpers) are listed as such, not as issues. Privacy: only fields
+collected on purpose (connection types, never names or profiles), and
+every line passes a redaction filter (private-key blocks, `key=value` and
+`*.psk VALUE` / `--password VALUE` forms, long base64 keys, all sudo
+`COMMAND=` arguments).
+
 ## Ansible structure
 
 Not every feature needs its own role. A small feature (a package list

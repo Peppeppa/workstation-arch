@@ -7,7 +7,8 @@
 // files; destinations outside it are handed over, never re-implemented:
 //   Appearance -> close, open the Appearance window (appearance/)
 //   Network    -> close, start nm-connection-editor (NetworkManager's own
-//                 editor, on demand; no applet)
+//                 editor, on demand, as a transient systemd user unit; no
+//                 applet)
 //   System     -> close, open the existing Power Menu (sole owner of lock/
 //                 suspend/hibernate/logout/reboot/shutdown)
 //
@@ -75,11 +76,18 @@ PanelWindow {
             break;
         case "network":
             close();
-            Quickshell.execDetached(["nm-connection-editor"]);
+            // Its own transient user unit (detached from Quickshell; the
+            // editor's output in the journal); a launch that fails before
+            // that (systemd-run's own error) goes to the journal as
+            // `-t app-launch` at err priority (with --quiet that is its only
+            // output) - see repo-diagnose.
+            Quickshell.execDetached(["systemd-cat", "-t", "app-launch", "-p", "err", "--",
+                                     "systemd-run", "--user", "--quiet", "--collect", "--", "nm-connection-editor"]);
             break;
         case "system":
             close();
             if (powerMenu) powerMenu.open();
+            else Log.warn("osmenu", "System: no power menu (power_menu_enabled is false)");
             break;
         }
     }

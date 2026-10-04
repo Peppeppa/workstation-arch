@@ -13,6 +13,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 Scope {
     id: model
@@ -58,7 +59,10 @@ Scope {
 
     Process {
         id: setProc
-        onExited: {
+        stderr: StdioCollector { id: setErr }
+        onExited: exitCode => {
+            if (exitCode !== 0)
+                Log.warn("brightness", "brightnessctl set on " + model.device + " failed (exit " + exitCode + "): " + Log.firstLine(setErr.text));
             if (model.pending >= 0) {
                 const v = model.pending;
                 model.pending = -1;

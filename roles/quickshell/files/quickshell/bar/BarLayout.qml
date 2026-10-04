@@ -30,6 +30,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 Singleton {
     id: root
@@ -186,6 +187,7 @@ Singleton {
         blockLoading: true
         atomicWrites: true
         printErrors: false
+        onSaveFailed: error => Log.warn("bar", "cannot save " + path + " (" + error + ") - the change is lost at the next start")
     }
 
     function parse(text) {
@@ -198,7 +200,10 @@ Singleton {
 
     Component.onCompleted: {
         defaultLayout = parse(defaultFile.text()) || emptyLayout();
-        raw = parse(stateFile.text()) || JSON.parse(JSON.stringify(defaultLayout));
+        const stored = stateFile.text();
+        raw = parse(stored) || JSON.parse(JSON.stringify(defaultLayout));
+        if (stored.trim() !== "" && parse(stored) === null)
+            Log.warn("bar", "bar-layout.json is not a valid layout - showing the default (the file is rewritten on the next change)");
     }
 
     IpcHandler {
@@ -217,6 +222,7 @@ Singleton {
         // Bar background: "solid" | "transparent" (persistent, applied at once).
         function setBackground(mode: string): string {
             const err = root.setBackground(mode);
+            if (err !== "") Log.warn("bar", "setBackground: " + err);
             return err === "" ? root.background : "error: " + err;
         }
 

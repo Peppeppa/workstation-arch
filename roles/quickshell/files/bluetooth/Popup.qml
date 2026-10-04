@@ -70,6 +70,7 @@ BarPopup {
     }
 
     function finishPairing(text) {
+        if (text !== "") Log.warn("bluetooth", "pairing " + (pairingDevice ? deviceLabel(pairingDevice) : "device") + ": " + text);
         if (agent.running) agent.write(JSON.stringify({ quit: true }) + "\n");
         pairingDevice = null;
         agentRequest = null;
@@ -152,6 +153,7 @@ BarPopup {
                                       : bt.some(r => r.soft === "blocked") ? "soft" : "";
                 } catch (e) {
                     popup.rfkillState = "";
+                    Log.warn("bluetooth", "`rfkill --json` returned no JSON - block state unknown");
                 }
             }
         }
@@ -161,7 +163,10 @@ BarPopup {
         id: unblockProc
         command: ["rfkill", "unblock", "bluetooth"]
         onExited: exitCode => {
-            if (exitCode !== 0) popup.message = "Could not unblock Bluetooth";
+            if (exitCode !== 0) {
+                popup.message = "Could not unblock Bluetooth";
+                Log.warn("bluetooth", "`rfkill unblock bluetooth` failed (exit " + exitCode + ")");
+            }
             popup.rfkillState = "";
         }
     }

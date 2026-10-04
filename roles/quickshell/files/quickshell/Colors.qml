@@ -41,11 +41,15 @@ Singleton {
     readonly property color borderActive: c.border_active || "white"
     readonly property color error: c.error || "red"
 
+    // A missing file is reported by FileView itself ("Read of ... failed");
+    // only content that is not JSON needs a message of ours.
     function parse() {
+        const text = file.text();
+        if (text.trim() === "") return;
         try {
-            root.data = JSON.parse(file.text());
+            root.data = JSON.parse(text);
         } catch (e) {
-            console.warn("Colors: cannot parse", file.path, "-", e);
+            Log.warn("theme", "colors.json unreadable (" + e + ") - keeping the previous colors; run `theme apply`");
         }
     }
 

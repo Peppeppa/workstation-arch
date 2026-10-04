@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+# Managed by Ansible (roles/diagnostics/templates/repo-diagnose.j2) - do not edit by hand.
+#
+# repo-diagnose [--full] - an on-demand health snapshot of this desktop,
+# short enough to paste into a bug report. Read-only: it starts nothing,
+# changes nothing, and does nothing until run (no daemon, no timer).
+#
+# Shareable by construction: only fields collected here on purpose (no
+# environment dump, no NetworkManager profile dump, no config directories);
+# connection NAMES are left out (types only); every line passes redact()
+# (password/psk/secret/token/key=..., private-key blocks, long base64 keys).
+# Journal excerpts are bounded.
+
+import calendar
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+REPO = "{{ playbook_dir }}"
+# What this host is provisioned to run (group_vars/host_vars feature flags).
+EXPECT = {"hypridle": {{ 'True' if lock_idle_enabled else 'False' }},
+          "clipboard": {{ 'True' if clipboard_history_enabled else 'False' }},
+          "bluetooth": {{ 'True' if bluetooth_enabled else 'False' }},
+          "display_manager": {{ 'True' if display_manager_enabled else 'False' }}}
+UID = os.getuid()
+RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % UID
+HOME = os.path.expanduser("~")
+FULL = "--full" in sys.argv[1:]
+ENV_ALLOW = ("XDG_SESSION_TYPE", "XDG_SESSION_CLASS", "XDG_SESSION_DESKTOP", "XDG_CURRENT_DESKTOP",
+             "WAYLAND_DISPLAY", "DISPLAY", "QS_ICON_THEME", "LIBGL_ALWAYS_SOFTWARE", "NO_COLOR")
+
+issues = []
+
+SECRET = [
+    # private key blocks
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "<redacted key block>"),
+    # sudo/command lines: keep the program, drop every argument (an argument
+    # can be a secret, e.g. `nmcli ... wifi-sec.psk VALUE`)
+    (re.compile(r"(COMMAND=\S+)[^\n]*"), r"\1 <args redacted>"),
+    # key=value / key: value
+    (re.compile(r"(?i)\b([\w.-]*(?:psk|password|passwd|passphrase|secret|token|private[-_]?key|preshared[-_]?key|api[-_]?key|cookie|bearer))(\s*[=:]\s*)(\S+)"),
+     r"\1\2<redacted>"),
+    # CLI forms: `wifi-sec.psk VALUE`, `802-1x.password VALUE`, `--password VALUE`
+    (re.compile(r"(?i)((?:\b[\w-]+\.(?:psk|password|secret|private-key|preshared-key))|--(?:password|passwd|secret|token))\s+(\S+)"),
+     r"\1 <redacted>"),
+    # long base64 strings (WireGuard keys, tokens)
+    (re.compile(r"\b[A-Za-z0-9+/]{42,}={0,2}"), "<redacted>"),
+]
+
+
+def redact(text):
+    for rx, sub in SECRET:
+        text = rx.sub(sub, text)
+    return text
+
+
+def run(argv, env=None, timeout=5):
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env=env)
+        return r.returncode, r.stdout.strip(), r.stderr.strip()
+    except (OSError, subprocess.SubprocessError) as e:
+        return 127, "", str(e)
+
+
+def out(label, text, bad=False, name=None):
+    if bad:
+        issues.append(name or label.strip())
+    mark = "!!" if bad else "  "
+    print(redact("%s %-10s %s" % (mark, label, text)))
+
+
+def sub(text):
+    print(redact("              " + text))
+
+
+def pids(name, exact_cmdline=None):
+    found = []
+    for p in glob.glob("/proc/[0-9]*"):
+        try:
+            if os.stat(p).st_uid != UID and name not in ("NetworkManager", "bluetoothd", "power-profiles-daemon", "upowerd", "ly-dm"):
+                continue
+            with open(p + "/comm") as f:
+                comm = f.read().strip()
+            if comm != name[:15]:
+                continue
+            if exact_cmdline is not None:
+                with open(p + "/cmdline", "rb") as f:
+                    if f.read().replace(b"\0", b" ").strip().decode(errors="replace") != exact_cmdline:
+                        continue
+            found.append(int(p.split("/")[-1]))
+        except OSError:
+            pass
+    return sorted(found)
+
+
+def parent_name(pid):
+    try:
+        with open("/proc/%d/stat" % pid) as f:
+            ppid = int(f.read().rsplit(")", 1)[1].split()[1])
+        with open("/proc/%d/comm" % ppid) as f:
+            return f.read().strip()
+    except (OSError, ValueError, IndexError):
+        return "?"
+
+
+def environ_of(pid):
+    try:
+        with open("/proc/%d/environ" % pid, "rb") as f:
+            pairs = [kv.split(b"=", 1) for kv in f.read().split(b"\0") if b"=" in kv]
+        return {k.decode(): v.decode(errors="replace") for k, v in pairs if k.decode() in ENV_ALLOW}
+    except OSError:
+        return {}
+
+
+def unit_state(unit, user=False):
+    base = ["systemctl"] + (["--user"] if user else [])
+    a = run(base + ["is-active", unit])[1] or "?"
+    e = run(base + ["is-enabled", unit])[1] or "?"
+    return a, e
+
+
+def journal(args, n):
+    rc, o, _ = run(["journalctl", "--no-pager", "-q", "-b", "-o", "short-iso", "-n", str(n)] + args, timeout=10)
+    return [l for l in o.splitlines() if l.strip()] if rc == 0 else []
+
+
+def hypr_env():
+    env = dict(os.environ)
+    env.setdefault("XDG_RUNTIME_DIR", RUNTIME)
+    if not env.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        rc, o, _ = run(["hyprctl", "instances", "-j"], env=env)
+        try:
+            inst = json.loads(o or "[]")
+            if inst:
+                env["HYPRLAND_INSTANCE_SIGNATURE"] = inst[0]["instance"]
+        except ValueError:
+            pass
+    return env
+
+
+# ---------------------------------------------------------------------------
+
+def header():
+    rc, commit, _ = run(["git", "-C", REPO, "log", "-1", "--format=%h"])
+    dirty = run(["git", "-C", REPO, "status", "--porcelain"])[1]
+    host = os.uname().nodename
+    print("repo-diagnose%s  %s  host %s  kernel %s  repo %s%s" % (
+        " --full" if FULL else "", time.strftime("%Y-%m-%d %H:%M"), host, os.uname().release,
+        commit or "?", " (uncommitted changes)" if dirty else ""))
+
+
+def section_session(henv):
+    rc, o, _ = run(["loginctl", "list-sessions", "--no-legend"])
+    seat = None
+    for line in o.splitlines():
+        f = line.split()        # SESSION UID USER SEAT LEADER CLASS TTY IDLE SINCE
+        if len(f) >= 4 and f[3] == "seat0" and f[1] == str(UID):
+            seat = {"session": f[0]}
+    if seat is None:
+        out("Session", "no graphical (seat0) session of this user", bad=True)
+    else:
+        rc, props, _ = run(["loginctl", "show-session", str(seat["session"]), "-p", "Type", "-p", "Service",
+                            "-p", "TTY", "-p", "State", "-p", "LockedHint"])
+        p = dict(l.split("=", 1) for l in props.splitlines() if "=" in l)
+        locked = bool(pids("hyprlock"))       # logind's LockedHint is not set by this lock path
+        out("Session", "%s via %s on %s, %s%s" % (p.get("Type", "?"), p.get("Service", "?"), p.get("TTY", "?"),
+                                                 p.get("State", "?"), ", locked (hyprlock)" if locked else ""),
+            bad=p.get("Type") != "wayland")
+    hp = pids("Hyprland")
+    ver = ""
+    if hp:
+        rc, o, _ = run(["hyprctl", "version", "-j"], env=henv)
+        try:
+            ver = " " + json.loads(o).get("tag", "")
+        except ValueError:
+            pass
+    out("Hyprland", ("running%s (pid %s)" % (ver, hp[0])) if len(hp) == 1 else "%d processes" % len(hp), bad=len(hp) != 1)
+    if hp:
+        e = environ_of(hp[0])
+        sub("env: " + "  ".join("%s=%s" % (k, e[k]) for k in ENV_ALLOW if k in e))
+    return hp
+
+
+def quickshell_warnings(qpid, n):
+    lines = [l for l in journal(["--user", "-t", "quickshell"], 400) if re.search(r"\b(WARN|ERROR|CRIT)", l)]
+    src = "journal"
+    if not lines and qpid:
+        try:
+            with open(os.path.realpath("%s/quickshell/by-pid/%d" % (RUNTIME, qpid)) + "/log.log") as f:
+                lines = [l.rstrip() for l in f if re.search(r"\b(WARN|ERROR|CRIT)", l)]
+            src = "runtime log"
+        except OSError:
+            pass
+    return lines[-n:], len(lines), src
+
+
+def section_shell():
+    desk = pids("quickshell", exact_cmdline="quickshell")
+    allq = pids("quickshell")
+    other = len(allq) - len(desk)
+    if len(desk) == 1:
+        out("Shell", "quickshell running (pid %d, parent %s)%s" % (desk[0], parent_name(desk[0]),
+                                                                  "  + %d other instance(s) (-p/-c test/harness)" % other if other else ""),
+            bad=parent_name(desk[0]) != "Hyprland")
+    else:
+        out("Shell", "desktop quickshell: %d processes (expected 1)" % len(desk), bad=True)
+    lines, count, src = quickshell_warnings(desk[0] if desk else None, 12 if FULL else 3)
+    errors = [l for l in lines if "ERROR" in l]
+    out("", "QML/runtime warnings this boot: %d (%s)%s" % (count, src, ", errors present" if errors else ""),
+        bad=bool(errors), name="Shell (QML errors)")
+    for l in lines:
+        sub(l[:220])
+    return desk
+
+
+def section_network():
+    a, e = unit_state("NetworkManager.service")
+    rc, o, _ = run(["nmcli", "-t", "-f", "STATE,CONNECTIVITY,WIFI", "general"])
+    f = o.split(":") if o else ["?", "?", "?"]
+    out("Network", "NetworkManager %s/%s, state %s, connectivity %s, wifi %s" % (a, e, *f[:3]) if len(f) >= 3 else "NetworkManager %s" % a,
+        bad=a != "active" or (len(f) > 1 and f[1] not in ("full",)))
+    rc, o, _ = run(["ip", "-j", "-4", "route", "show", "default"])
+    try:
+        routes = sorted(json.loads(o or "[]"), key=lambda r: r.get("metric", 0))
+    except ValueError:
+        routes = []
+    types = {}
+    rc, o, _ = run(["nmcli", "-t", "-f", "DEVICE,TYPE", "device"])
+    for l in o.splitlines():
+        d, _, t = l.partition(":")
+        types[d] = t
+    if routes:
+        r = routes[0]
+        sub("default route: %s (%s) via %s, metric %s%s" % (r.get("dev"), types.get(r.get("dev"), "?"), r.get("gateway", "-"),
+                                                         r.get("metric", 0), "; also: " + ", ".join("%s/%s" % (x.get("dev"), x.get("metric", 0)) for x in routes[1:]) if len(routes) > 1 else ""))
+    else:
+        issues.append("Network")
+        sub("!! no IPv4 default route")
+    rc, o, _ = run(["nmcli", "-t", "-f", "TYPE,DEVICE", "connection", "show", "--active"])
+    act = [l.split(":") for l in o.splitlines() if l and not l.startswith("loopback")]
+    vpn = [x for x in act if x[0] in ("vpn", "wireguard")]
+    sub("active: %s; VPN: %s" % (", ".join("%s(%s)" % (t, d) for t, d in act) or "none",
+                                  "%d active" % len(vpn) if vpn else "none active"))
+    if FULL:
+        rc, o, _ = run(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device"])
+        sub("devices: " + ", ".join(l.replace(":", " ", 1).replace(":", " ") for l in o.splitlines() if l))
+        rc, o, _ = run(["busctl", "get-property", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
+                        "org.freedesktop.NetworkManager", "ConnectivityCheckUri"])
+        sub("connectivity check: " + (o.split('"')[1] if '"' in o else "unknown"))
+
+
+def section_bluetooth():
+    a, e = unit_state("bluetooth.service")
+    ctrls = sorted(os.path.basename(p) for p in glob.glob("/sys/class/bluetooth/hci*"))
+    if not ctrls:
+        out("Bluetooth", "bluetooth.service %s/%s, no controller (service idles by design)" % (a, e))
+        return
+    rc, o, _ = run(["busctl", "get-property", "org.bluez", "/org/bluez/" + ctrls[0], "org.bluez.Adapter1", "Powered"])
+    powered = "on" if o.endswith("true") else "off" if o.endswith("false") else "unknown"
+    out("Bluetooth", "bluetooth.service %s/%s, controller %s, powered %s" % (a, e, ctrls[0], powered), bad=a != "active")
+
+
+def section_audio():
+    states = {u: unit_state(u, user=True)[0] for u in ("pipewire.service", "wireplumber.service", "pipewire-pulse.socket")}
+    bad = states["pipewire.service"] != "active" or states["wireplumber.service"] != "active"
+    rc, o, _ = run(["wpctl", "inspect", "@DEFAULT_AUDIO_SINK@"])
+    m = re.search(r'node\.description = "([^"]*)"', o)
+    out("Audio", "pipewire %s, wireplumber %s, pipewire-pulse.socket %s; default sink: %s" % (
+        states["pipewire.service"], states["wireplumber.service"], states["pipewire-pulse.socket"], m.group(1) if m else "none"), bad=bad)
+
+
+def section_power():
+    rc, o, _ = run(["busctl", "--json=short", "call", "org.freedesktop.UPower", "/org/freedesktop/UPower/devices/DisplayDevice",
+                    "org.freedesktop.DBus.Properties", "GetAll", "s", "org.freedesktop.UPower.Device"])
+    batt = "unknown (UPower not reachable)"
+    try:
+        p = json.loads(o)["data"][0]
+        if p["IsPresent"]["data"] and p["Type"]["data"] == 2:
+            st = {1: "charging", 2: "discharging", 3: "empty", 4: "fully charged", 5: "pending charge", 6: "pending discharge"}
+            batt = "%d%% %s" % (round(p["Percentage"]["data"]), st.get(p["State"]["data"], "unknown"))
+        else:
+            batt = "none (no laptop battery - widget hidden)"
+    except (ValueError, KeyError, IndexError, TypeError):
+        pass
+    a, _ = unit_state("power-profiles-daemon.service")
+    prof = run(["powerprofilesctl", "get"])[1] if a == "active" else ""
+    offered = re.findall(r"^\*?\s*([a-z-]+):\s*$", run(["powerprofilesctl", "list"])[1], re.M) if a == "active" else []
+    out("Power", "battery %s; profile %s%s" % (batt, prof or "n/a (power-profiles-daemon %s)" % a,
+                                                 " (offered: %s)" % ", ".join(offered) if offered else ""))
+
+
+def section_desktop(henv):
+    hi = pids("hypridle")
+    hl = pids("hyprlock")
+    pk = pids("hyprpolkitagent")
+    cw = pids("wl-paste")
+    out("Desktop", "hypridle %d%s, hyprlock %d (only while locked), polkit agent %d, clipboard watcher %d%s" % (
+        len(hi), "" if EXPECT["hypridle"] else " (lock_idle off)", len(hl), len(pk), len(cw),
+        "" if EXPECT["clipboard"] else " (clipboard_history off)"),
+        bad=len(hi) != (1 if EXPECT["hypridle"] else 0) or len(pk) != 1 or len(cw) != (1 if EXPECT["clipboard"] else 0))
+    rc, o, _ = run([HOME + "/.local/bin/theme", "current"])
+    state = dict(kv.split("=", 1) for kv in o.split() if "=" in kv)
+    if state:
+        cur = state.get(state.get("mode", ""), "?")
+        sub("theme %s (%s), wallpaper %s" % (cur, state.get("mode", "?"), state.get("wallpaper." + cur, "default/none")))
+    else:
+        issues.append("Desktop")
+        sub("!! theme helper: no state (%s)" % (run([HOME + "/.local/bin/theme", "current"])[2] or "not deployed?"))
+    try:
+        with open(HOME + "/.config/workstation/bar-layout.json") as f:
+            bg = json.load(f).get("settings", {}).get("background", "solid")
+        sub("bar layout ok, background %s" % bg)
+    except (OSError, ValueError) as e:
+        issues.append("Desktop")
+        sub("!! bar-layout.json unreadable: %s" % e.__class__.__name__)
+    a, e = unit_state("ly@tty2.service")
+    if EXPECT["display_manager"]:
+        if e != "enabled":
+            issues.append("Desktop")
+        sub("%slogin: ly@tty2 %s/%s" % ("" if e == "enabled" else "!! ", a, e))
+
+
+def started_at(pid):
+    """Process start as epoch seconds (from /proc), or None."""
+    try:
+        with open("/proc/%d/stat" % pid) as f:
+            ticks = int(f.read().rsplit(")", 1)[1].split()[19])
+        with open("/proc/stat") as f:
+            btime = int(next(l for l in f if l.startswith("btime")).split()[1])
+        return btime + ticks / os.sysconf("SC_CLK_TCK")
+    except (OSError, ValueError, StopIteration, IndexError):
+        return None
+
+
+def section_systemd(hp):
+    sysf = [l.split()[0] for l in run(["systemctl", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
+    usrf = [l.split()[0] for l in run(["systemctl", "--user", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
+    # A user unit that failed BEFORE this Hyprland started belongs to an
+    # earlier session (e.g. xdg-desktop-portal-gtk exits with "Broken pipe"
+    # when the compositor goes away at logout; D-Bus activation starts it
+    # again on next use) - shown, not counted as an issue.
+    since = started_at(hp[0]) if hp else None
+    old, cur = [], []
+    for u in usrf:
+        ts = run(["systemctl", "--user", "show", "-p", "StateChangeTimestampMonotonic", "--value", u])[1]
+        try:
+            with open("/proc/uptime") as f:
+                up = float(f.read().split()[0])
+            failed_at = time.time() - up + int(ts) / 1e6
+        except ValueError:
+            failed_at = None
+        (old if since and failed_at and failed_at < since else cur).append(u)
+    out("systemd", "failed system units: %s; failed user units: %s%s" % (
+        ", ".join(sysf) or "none", ", ".join(cur) or "none",
+        " (from an earlier session: %s)" % ", ".join(old) if old else ""), bad=bool(sysf or cur))
+    ut = [l for l in run(["systemctl", "--user", "list-timers", "--no-legend"])[1].splitlines() if l.strip()]
+    if ut or FULL:
+        sub("user timers: %d" % len(ut))
+
+
+def section_processes():
+    expect = {"Hyprland": 1, "hypridle": 1, "hyprpolkitagent": 1, "pipewire": 1, "wireplumber": 1}
+    dup = ["%s x%d" % (n, len(pids(n))) for n, k in expect.items() if len(pids(n)) > k]
+    desk = pids("quickshell", exact_cmdline="quickshell")
+    if len(desk) > 1:
+        dup.append("quickshell x%d" % len(desk))
+    watch = [p for p in pids("wl-paste")]
+    if len(watch) > 1:
+        dup.append("wl-paste (clipboard watcher) x%d" % len(watch))
+    out("Processes", "duplicates: %s" % (", ".join(dup) or "none"), bad=bool(dup))
+
+
+def section_logs(henv, hp):
+    n = 25 if FULL else 5
+    lines = sorted(set(journal(["-p", "err"], n) + journal(["--user", "-p", "err"], n)))[-n:]
+    out("Logs", "errors this boot: last %d of system+user journal (newest last)" % len(lines))
+    for l in lines:
+        sub(l[:220])
+    # Coredumps since boot (this coredumpctl has no -b). Session helpers
+    # (polkit agent, portal, hypridle, hyprlock) tend to abort when the
+    # compositor goes away at logout - those predate this session and are
+    # shown as such; only a crash during the current session is an issue.
+    with open("/proc/stat") as f:
+        btime = int(next(l for l in f if l.startswith("btime")).split()[1])
+    rc, o, _ = run(["coredumpctl", "list", "--no-pager", "--no-legend", "--since", "@%d" % btime], env=dict(os.environ, TZ="UTC"))
+    since = started_at(hp[0]) if hp else None
+    cur, old = [], []
+    for l in o.splitlines():
+        f = l.split()             # Day YYYY-MM-DD HH:MM:SS TZ PID UID GID SIG COREFILE EXE SIZE
+        if len(f) < 10:
+            continue
+        try:                      # listed in UTC (TZ=UTC above)
+            t = calendar.timegm(time.strptime(f[1] + " " + f[2], "%Y-%m-%d %H:%M:%S"))
+        except ValueError:
+            t = None
+        item = "%s %s (%s)" % (time.strftime("%H:%M:%S", time.localtime(t)) if t else f[2], os.path.basename(f[9]), f[7])
+        (old if since and t and t < since else cur).append(item)
+    if cur or old:
+        out("", "coredumps this boot: %d in this session%s" % (len(cur), ", %d before it (logout/earlier session)" % len(old) if old else ""),
+            bad=bool(cur), name="coredumps")
+        for item in cur[-5:]:
+            sub("this session: " + item)
+        if old:
+            sub("before: " + ", ".join(old[-6:]) + ("  (+%d more)" % (len(old) - 6) if len(old) > 6 else ""))
+    crash = sorted(glob.glob(HOME + "/.cache/hyprland/hyprlandCrashReport*.txt"), key=os.path.getmtime)
+    if crash:
+        out("", "Hyprland crash reports: %d, newest %s" % (len(crash), os.path.basename(crash[-1])), bad=True, name="Hyprland crash report")
+
+
+def section_full(henv, hp, desk):
+    print("\n--- full ---")
+    units = ["NetworkManager.service", "bluetooth.service", "power-profiles-daemon.service", "upower.service",
+             "systemd-logind.service", "sshd.service", "ly@tty2.service"]
+    print("system units: " + ", ".join("%s %s/%s" % ((u,) + unit_state(u)) for u in units))
+    uunits = ["pipewire.service", "wireplumber.service", "xdg-desktop-portal.service", "xdg-desktop-portal-hyprland.service",
+              "xdg-desktop-portal-gtk.service", "gnome-keyring-daemon.service", "localsearch-3.service"]
+    print("user units:   " + ", ".join("%s %s" % (u, unit_state(u, user=True)[0]) for u in uunits))
+    rc, o, _ = run(["systemctl", "--user", "show-environment"])
+    print("activation env: " + "  ".join(l for l in o.splitlines() if l.split("=", 1)[0] in ENV_ALLOW))
+    if desk:
+        e = environ_of(desk[0])
+        print("quickshell env: " + "  ".join("%s=%s" % (k, e[k]) for k in ENV_ALLOW if k in e))
+    rc, o, _ = run(["hyprctl", "monitors", "-j"], env=henv)
+    try:
+        for m in json.loads(o or "[]"):
+            print("monitor %s: %dx%d@%.0f scale %s" % (m["name"], m["width"], m["height"], m["refreshRate"], m["scale"]))
+    except (ValueError, KeyError):
+        pass
+    sig = henv.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+    hlog = "%s/hypr/%s/hyprland.log" % (RUNTIME, sig)
+    try:
+        with open(hlog, errors="replace") as f:
+            errs = [l.rstrip() for l in f if l.startswith("ERR") and "aquamarine" not in l]
+        print("hyprland.log errors (non-backend): %d" % len(errs))
+        for l in errs[-5:]:
+            print(redact("  " + l[:200]))
+    except OSError:
+        print("hyprland.log: not found (session not running?)")
+    for title, args in (("NetworkManager", ["-u", "NetworkManager", "-p", "warning"]),
+                        ("bluetooth", ["-u", "bluetooth", "-p", "warning"]),
+                        ("power-profiles-daemon/upower", ["-u", "power-profiles-daemon", "-u", "upower", "-p", "warning"]),
+                        ("pipewire/wireplumber", ["--user", "-u", "pipewire", "-u", "wireplumber", "-p", "warning"]),
+                        ("hypridle/hyprlock", ["--user", "-t", "hypridle"]),
+                        ("polkit (authentication)", ["-t", "polkitd", "-p", "notice"]),
+                        ("app launches (OS menu/popup handoff)", ["--user", "-t", "app-launch", "-t", "systemd-run"]),
+                        ("launched apps (systemd-run units)", ["--user", "-u", "run-*", "-p", "warning"])):
+        lines = journal(args, 8)
+        print("journal %s: %s" % (title, "%d line(s)" % len(lines) if lines else "nothing this boot"))
+        for l in lines:
+            print(redact("  " + l[:200]))
+    gpu = [l for l in run(["lspci", "-mm"])[1].splitlines() if re.search(r"VGA|3D|Display", l)]
+    print("hardware: gpu %s; backlight %s; battery-capable %s; bluetooth %s; wifi %s" % (
+        "; ".join(g.split('"')[5] if g.count('"') >= 6 else g for g in gpu) or "?",
+        ", ".join(os.path.basename(p) for p in glob.glob("/sys/class/backlight/*")) or "none",
+        "yes" if glob.glob("/sys/class/power_supply/BAT*") else "no",
+        ", ".join(os.path.basename(p) for p in glob.glob("/sys/class/bluetooth/hci*")) or "none",
+        ", ".join(os.path.basename(os.path.dirname(p)) for p in glob.glob("/sys/class/net/*/wireless")) or "none"))
+
+
+def main():
+    henv = hypr_env()
+    header()
+    hp = section_session(henv)
+    desk = section_shell()
+    section_network()
+    section_bluetooth()
+    section_audio()
+    section_power()
+    section_desktop(henv)
+    section_systemd(hp)
+    section_processes()
+    section_logs(henv, hp)
+    if FULL:
+        section_full(henv, hp, desk)
+    print("\n%s" % ("issues: " + ", ".join(dict.fromkeys(issues)) if issues else "no issues found"))
+    print("logs: journalctl --user -t quickshell | -t hypridle | -t app-launch; journalctl -u NetworkManager; ~/.local/state/ly-session.log")
+    return 1 if issues else 0
+
+
+if __name__ == "__main__":
+    if any(a not in ("--full",) for a in sys.argv[1:]):
+        print("usage: repo-diagnose [--full]", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(main())

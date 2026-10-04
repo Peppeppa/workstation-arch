@@ -101,7 +101,8 @@ BarPopup {
     }
 
     function openSettings() {
-        Quickshell.execDetached(["nm-connection-editor"]);
+        Quickshell.execDetached(["systemd-cat", "-t", "app-launch", "-p", "err", "--",
+                                 "systemd-run", "--user", "--quiet", "--collect", "--", "nm-connection-editor"]);
         popup.closeRequested();
     }
 
@@ -238,6 +239,8 @@ BarPopup {
         // before must not become "known" with a wrong password: forget it.
         function onConnectionFailed(reason) {
             const n = popup.pendingPsk;
+            Log.warn("network", "Wi-Fi \"" + n.name + "\": connecting with a new password failed ("
+                     + ConnectionFailReason.toString(reason) + ")");
             popup.pwError = reason === ConnectionFailReason.NoSecrets ? "Wrong password - try again"
                                                                       : "Could not connect - try again";
             if (!popup.pendingWasKnown && n.known) n.forget();
@@ -254,7 +257,9 @@ BarPopup {
                 let list = [];
                 try {
                     list = JSON.parse(text);
-                } catch (e) {}
+                } catch (e) {
+                    Log.warn("network", "`ip -j -d addr` returned no JSON - addresses not shown");
+                }
                 popup.addresses = list.filter(l => l.ifname !== "lo" && (l.addr_info || []).some(a => a.scope === "global"))
                     .map(l => {
                         const kindOf = popup.net.physical[l.ifname]
@@ -282,6 +287,7 @@ BarPopup {
                     popup.closeRequested();
                 } else {
                     popup.message = "NetworkManager has no connectivity check URL";
+                    Log.warn("network", "captive portal: NetworkManager reports no ConnectivityCheckUri - check /usr/lib/NetworkManager/conf.d/*connectivity*");
                 }
             }
         }
@@ -294,6 +300,7 @@ BarPopup {
         }
         onExited: exitCode => {
             if (exitCode !== 0) {
+                Log.warn("network", "wifi-qr exited " + exitCode + (exitCode === 2 ? " (no readable PSK for this network)" : ""));
                 popup.hideQr();
                 popup.message = exitCode === 2 ? "No QR code for this network (password not readable or enterprise)"
                                                : "QR code unavailable";
@@ -319,7 +326,10 @@ BarPopup {
             id: vpnErr
         }
         onExited: exitCode => {
-            if (exitCode !== 0) popup.message = "VPN: " + (vpnErr.text.split("\n").filter(l => l.startsWith("Error"))[0] || "failed");
+            if (exitCode !== 0) {
+                popup.message = "VPN: " + (vpnErr.text.split("\n").filter(l => l.startsWith("Error"))[0] || "failed");
+                Log.warn("network", "`" + command.slice(0, 3).join(" ") + "` (VPN) failed (exit " + exitCode + "): " + Log.firstLine(vpnErr.text));
+            }
             popup.vpnBusy = "";
             popup.refreshLists();
         }
@@ -403,6 +413,14 @@ BarPopup {
             anchors.fill: parent
             hoverEnabled: true
             onClicked: popup.activateNetwork(row.network)
+        }
+
+        Connections {
+            target: row.network
+            function onConnectionFailed(reason) {
+                if (popup.pendingPsk !== row.network)
+                    Log.warn("network", "Wi-Fi \"" + row.network.name + "\": connection failed (" + ConnectionFailReason.toString(reason) + ")");
+            }
         }
 
         Text {

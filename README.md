@@ -273,6 +273,36 @@ idle cost, like the screenshot feature itself.
 These are not the final Quickshell UX - just a genuinely usable set of
 defaults in the meantime.
 
+## Troubleshooting
+
+1. `repo-diagnose` - a compact health snapshot (session, shell, network,
+   Bluetooth, audio, power, desktop, failed units, duplicate processes,
+   recent errors, coredumps). Problems are marked `!!` and summarized as
+   `issues:` at the end; short enough to paste into a bug report.
+2. Look at the component it flags.
+3. `repo-diagnose --full` - more detail (unit states, allowlisted session
+   environment, monitors, bounded journal excerpts per service, hardware
+   capabilities). Still shareable: secrets are never collected and every
+   line is redacted (PSKs/passwords/keys/tokens, command-line arguments).
+4. Targeted logs (journald is the only log store):
+   - `journalctl --user -t quickshell` - shell/QML: our own failures are
+     one line each, `[network] ...`, `[bluetooth] ...`, `[theme] ...`,
+     `[wallpaper] ...`, `[brightness] ...`, `[power] ...`, `[osmenu] ...`,
+     `[appearance] ...`, `[bar] ...`
+   - `journalctl --user -t hypridle` (errors only; hyprlock too),
+     `journalctl --user -t app-launch -t systemd-run` (OS menu hand-offs)
+   - `journalctl -u NetworkManager`, `-u bluetooth`, `-u power-profiles-daemon`,
+     `journalctl --user -u pipewire -u wireplumber`
+   - Hyprland: `~/.local/state/ly-session.log` (stdout of the session) and
+     `$XDG_RUNTIME_DIR/hypr/<instance>/hyprland.log` (current session only)
+   - bootstrap: the `fatal:` task (role, file:line) in its own output;
+     rerun one role with `./bootstrap.sh --tags <role> -v`
+
+Known noise: at logout the session helpers (polkit agent, portal,
+hypridle, hyprlock) may dump core when the compositor goes away and
+`xdg-desktop-portal-gtk` ends "failed" - `repo-diagnose` lists these as
+"before this session", not as issues.
+
 ## Pacman / update policy
 
 Arch Linux is a rolling release; syncing the package database without

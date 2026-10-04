@@ -88,6 +88,9 @@ main() {
         log_done "bootstrap complete"
     else
         log_error "Ansible provisioning failed (exit ${ansible_exit})"
+        log_error "the failing task is the 'fatal:' one above (role : task, with its file:line);"
+        log_error "rerun just that role with details: ./bootstrap.sh --tags <role> -v"
+        log_error "desktop/runtime state: repo-diagnose (see README 'Troubleshooting')"
     fi
     exit "${ansible_exit}"
 }

@@ -13,6 +13,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 Scope {
     id: model
@@ -42,6 +43,7 @@ Scope {
             onStreamFinished: {
                 const v = parseFloat(text.trim());
                 if (!isNaN(v)) model.factor = v;
+                else Log.warn("appearance", "cannot read text-scaling-factor (GSettings) - showing Default");
                 model.ready = true;
             }
         }
@@ -49,5 +51,10 @@ Scope {
 
     Process {
         id: setProc
+        stderr: StdioCollector { id: setErr }
+        onExited: exitCode => {
+            if (exitCode !== 0)
+                Log.warn("appearance", "gsettings text-scaling-factor failed (exit " + exitCode + "): " + Log.firstLine(setErr.text));
+        }
     }
 }

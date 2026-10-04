@@ -30,6 +30,17 @@ BarPopup {
 
     panelWidth: 300
 
+    // power-profiles-daemon answers asynchronously; a switch it refused
+    // (polkit, platform) leaves the old profile - say so in the journal.
+    Timer {
+        id: profileCheck
+        property int wanted: -1
+        interval: 2000
+        onTriggered: if (PowerProfiles.profile !== wanted)
+            Log.warn("power", "switch to " + PowerProfile.toString(wanted) + " was not applied by power-profiles-daemon (still "
+                     + PowerProfile.toString(PowerProfiles.profile) + ")")
+    }
+
     ColumnLayout {
         id: content
         anchors.left: parent.left
@@ -128,7 +139,11 @@ BarPopup {
                         anchors.fill: parent
                         hoverEnabled: true
                         enabled: btn.usable && !btn.current
-                        onClicked: PowerProfiles.profile = btn.modelData.value
+                        onClicked: {
+                            PowerProfiles.profile = btn.modelData.value;
+                            profileCheck.wanted = btn.modelData.value;
+                            profileCheck.restart();
+                        }
                     }
                 }
             }
