@@ -29,7 +29,7 @@ Item {
     property bool interactive: true
     property real fixedWidth: -1
     property color contentColor: warning ? Colors.error : active ? Colors.accent
-                                : muted ? Colors.foregroundMuted : Colors.foreground
+                                : muted ? Colors.foregroundMuted : Colors.foregroundStrong
 
     // Popup protocol. A widget with a popup puts it in a Loader bound to
     // popupOpen; the coordinator makes sure only one is open.

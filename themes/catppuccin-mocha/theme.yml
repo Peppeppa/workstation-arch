@@ -7,6 +7,7 @@ colors:
   background:        "#1e1e2e"  # base
   surface:           "#181825"  # mantle
   foreground:        "#cdd6f4"  # text
+  foreground_strong: "#cdd6f4"  # text (already the palette's brightest text tone)
   foreground_muted:  "#a6adc8"  # subtext0
   accent:            "#89b4fa"  # blue
   accent_foreground: "#1e1e2e"  # base

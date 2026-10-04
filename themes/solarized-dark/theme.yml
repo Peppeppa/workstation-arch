@@ -7,6 +7,7 @@ colors:
   background:        "#002b36"  # base03
   surface:           "#073642"  # base02
   foreground:        "#839496"  # base0 (body text)
+  foreground_strong: "#eee8d5"  # base2 (warm light tone; base0 body text is too grey for the bar)
   foreground_muted:  "#586e75"  # base01 (secondary content)
   accent:            "#268bd2"  # blue
   accent_foreground: "#fdf6e3"  # base3

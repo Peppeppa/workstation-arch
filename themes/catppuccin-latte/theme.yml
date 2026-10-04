@@ -7,6 +7,7 @@ colors:
   background:        "#eff1f5"  # base
   surface:           "#e6e9ef"  # mantle
   foreground:        "#4c4f69"  # text
+  foreground_strong: "#4c4f69"  # text (= foreground: already full contrast on a light base)
   foreground_muted:  "#6c6f85"  # subtext0
   accent:            "#1e66f5"  # blue
   accent_foreground: "#eff1f5"  # base

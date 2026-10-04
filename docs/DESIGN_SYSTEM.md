@@ -24,7 +24,7 @@ Serif stays the distro default (documents). Quickshell components use
 ```
 themes/<id>/            directory name = stable theme id ([a-z0-9-])
   dark  | light         empty marker file - exactly one; the ONLY source of the mode
-  theme.yml             data only: name, the 9 semantic colors, the 16 terminal colors
+  theme.yml             data only: name, the 10 semantic colors, the 16 terminal colors
                         (+ source comments)
   backgrounds/          wallpapers for this theme (may be empty; .gitkeep keeps it in git)
 ```
@@ -130,6 +130,7 @@ semantic roles. Omarchy-style compact bar:
 | Icon widget slot / glyph | 27 px / 14 px (`Fonts.icons`) |
 | Labels | 12 px `Fonts.family`, 8 px padding each side |
 | Hover | `surface` plate, inset 3 px, radius 4 |
+| Normal text / icons | `foreground_strong` (bright in dark themes, full-contrast dark in light themes) |
 | Active (on / connected / focused) | `accent` |
 | Muted (off / nothing happening) | `foreground_muted` |
 | Warning (battery low) | `error` |
@@ -137,7 +138,10 @@ semantic roles. Omarchy-style compact bar:
 | Popups | `background`, 1 px `border_active`, radius 8, padding 10, 4 px below the bar |
 | Drag | lifted widget on a `surface` plate with `border_active`; landing place outlined in `accent`; neighbours slide 120 ms (only during a drag) |
 
-No blur, no transparency, no permanent animation.
+Background: `solid` (`background`, default) or `transparent` (bar
+setting, `qs ipc call bar setBackground ...` - see
+`docs/feature-architecture.md` "Bar"); transparent drops only the bar's
+own fill, never adds blur or shadow. No permanent animation.
 
 ### Launcher
 
@@ -183,6 +187,7 @@ application glyph when the theme has none; then name + generic name
 | `background` | `background` | base layer | bar, launcher, power menu, toasts, theme dialog, lockscreen |
 | `surface` | `surface` | element on the base | launcher search field, dropdown buttons, lockscreen input |
 | `foreground` | `foreground` | primary text | everywhere |
+| `foreground_strong` | `foregroundStrong` | high-emphasis text/icons (bright in dark themes) | bar widgets' normal state |
 | `foreground_muted` | `foregroundMuted` | secondary text | hints, labels, coffee hover, lockscreen date |
 | `accent` | `accent` | selection/focus fill | focused workspace, selected rows, lockscreen check |
 | `accent_foreground` | `accentForeground` | text on `accent` | same places |

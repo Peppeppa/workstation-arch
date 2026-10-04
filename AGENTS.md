@@ -100,7 +100,7 @@ direct upstream dependency.
 | Power profiles | power-profiles-daemon (systemd system service, `roles/power`, feature `power_profiles`); switched over its D-Bus API from Quickshell |
 | Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
-| Bar layout (widget order/zones) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout`); Ansible creates it once if missing |
+| Bar layout (widget order/zones) + bar settings (background solid/transparent) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout` / `qs ipc call bar setBackground`); Ansible creates it once if missing |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
 | Provisioning / desired state | Ansible |
@@ -812,7 +812,7 @@ history for that milestone's own record):
   Nerd Font Mono (names only in `group_vars/all.yml`).
 - **Theme Architecture v1**: themes are data (`themes/*.yml`, 5 shipped:
   Retro 82, Solarized Dark, Catppuccin Mocha / Rosé Pine Dawn,
-  Catppuccin Latte), one 9-role contract validated by `roles/theme`,
+  Catppuccin Latte), one semantic-role contract (10 roles since `foreground_strong`) validated by `roles/theme`,
   adapters for Quickshell, Hyprland borders, hyprlock, GTK mode.
 - **Theme Switcher v1**: theme directories with dark/light markers as the
   only registry, `theme` helper (state, discovery, render, live apply -

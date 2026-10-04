@@ -7,6 +7,7 @@ colors:
   background:        "#00172E"  # base00 (bg0 / base)
   surface:           "#0A3A45"  # base02 (author alias: surface)
   foreground:        "#A7C9C6"  # base06 (author alias: text / fg0)
+  foreground_strong: "#FFF1DA"  # fg1 (the palette's bright warm foreground; terminal bright_white)
   foreground_muted:  "#5F8F96"  # base05 (author alias: fg_dim) - base04 'text_muted' is too low-contrast on bg0 for UI text
   accent:            "#FAA968"  # base0A (keyword/func - the 'warm sunset' accent)
   accent_foreground: "#00172E"  # base00 - dark text on the light accent

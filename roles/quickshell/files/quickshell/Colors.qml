@@ -33,6 +33,7 @@ Singleton {
     readonly property color background: c.background || "black"
     readonly property color surface: c.surface || "black"
     readonly property color foreground: c.foreground || "white"
+    readonly property color foregroundStrong: c.foreground_strong || foreground
     readonly property color foregroundMuted: c.foreground_muted || "gray"
     readonly property color accent: c.accent || "gray"
     readonly property color accentForeground: c.accent_foreground || "white"

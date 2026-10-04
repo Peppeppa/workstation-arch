@@ -7,6 +7,7 @@ colors:
   background:        "#faf4ed"  # base
   surface:           "#fffaf3"  # surface
   foreground:        "#464261"  # text
+  foreground_strong: "#464261"  # text (= foreground: already full contrast on a light base)
   foreground_muted:  "#797593"  # subtle
   accent:            "#286983"  # pine
   accent_foreground: "#faf4ed"  # base
