@@ -3,8 +3,9 @@
 //
 // Rendered from roles/quickshell/templates/shell.qml.j2. Owns: one bar per
 // monitor (bar/Bar.qml - the bar host; its widgets, their layout and
-// popups live in bar/, see docs/feature-architecture.md "Bar"), the app
-// launcher (Launcher.qml, `qs ipc call launcher toggle`), the low-battery
+// popups live in bar/, see docs/feature-architecture.md "Bar"), the OS
+// menu (osmenu/, `qs ipc call osmenu toggle`: Applications, Appearance,
+// Network, Settings, System), the Appearance window (appearance/), the low-battery
 // warning, and the optional features composed below (power menu,
 // notifications, clipboard history, wallpaper - each inside a Jinja
 // if-block on its <name>_enabled flag, so a disabled feature is not even
@@ -15,7 +16,9 @@
 
 import QtQuick
 import Quickshell
+import qs.appearance
 import qs.bar
+import qs.osmenu
 
 ShellRoot {
     id: root
@@ -34,8 +37,18 @@ ShellRoot {
     // Low-battery warning (core): one instance, not per bar.
     BatteryWatcher {}
 
-    // One launcher instance, placed by the compositor on the focused output.
-    Launcher {
+    // The OS menu (mainMod+Space), placed by the compositor on the focused
+    // output. It only navigates; destinations are handed the objects below.
+    OsMenu {
+        fontSize: root.fontSize
+        appearance: appearanceWindow
+        powerMenu: {{ 'powerMenu' if power_menu_enabled else 'null' }}
+    }
+
+    // Appearance (opened from the OS menu): theme, wallpaper, brightness,
+    // text size, display.
+    AppearanceWindow {
+        id: appearanceWindow
         fontSize: root.fontSize
     }
 {% if wallpaper_enabled %}
@@ -52,6 +65,7 @@ ShellRoot {
     // provisioning time (roles/quickshell/tasks/main.yml) - static, no
     // runtime capability check.
     PowerMenu {
+        id: powerMenu
         fontSize: root.fontSize
         hibernateAvailable: {{ 'true' if power_menu_hibernate_available | default(false) | bool else 'false' }}
         // Lock works only with the lock_idle feature (hypridle answers

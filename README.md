@@ -213,7 +213,7 @@ misbehaves: `sudo systemctl disable --now ly@tty2` (or
 Hyprland's own session
 lifecycle (`hl.on("hyprland.start", ...)`) now also starts Quickshell
 (`roles/quickshell`), which owns the top bar (workspaces/clock/network/
-volume/battery) and the app launcher (`mainMod+Space` - see below);
+volume/battery) and the OS menu (`mainMod+Space` - see below);
 Quickshell also shows notifications (toasts top-right; mako is
 retired) - see `AGENTS.md`. After provisioning and a reboot:
 
@@ -233,7 +233,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | Keybind                | Action                                      |
 |-------------------------|---------------------------------------------|
 | `Super + Return`         | open a terminal (Ghostty)                    |
-| `Super + Space`          | toggle the Quickshell app launcher            |
+| `Super + Space`          | OS menu: Applications (search), Appearance, Network (connection editor), Settings, System (power menu); Escape closes |
 | `Super + Q`              | close the focused window                     |
 | `Super + [1-9]`          | switch to workspace 1-9                      |
 | `Super + Shift + [1-9]`  | move the focused window to workspace 1-9     |

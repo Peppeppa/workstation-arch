@@ -28,3 +28,12 @@ hibernate_swap_priority: 0
 # rebuilt into the UKI by mkinitcpio -P. Another bootloader layout is not
 # handled here - the role stops with an explanation instead of guessing.
 hibernate_kernel_cmdline_file: /etc/kernel/cmdline
+
+# Host's preferred power-profiles-daemon profile (power_profiles_enabled):
+# "" = leave the daemon alone (its own default/state), or power-saver /
+# balanced / performance. Applied ONCE per value (marker
+# /var/lib/workstation/power-profile-default): a profile picked later at
+# runtime (bar popup / powerprofilesctl) is never reset by bootstrap.
+# Skipped with a note when the platform does not offer that profile.
+# The workstation (no battery, no profile UI in the bar) sets performance.
+power_profile_default: ""

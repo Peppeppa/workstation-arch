@@ -19,6 +19,14 @@ network_packages:
                      # ...`) once a real, private profile exists (from
                      # the separate private-config repository, never
                      # this one) - see AGENTS.md Networking Rules.
+  - nm-connection-editor  # NetworkManager's own GTK connection editor
+                     # (official extra, split from network-manager-applet):
+                     # the OS menu's "Network" entry opens it on demand for
+                     # everything administrative - VPN add/import/edit/
+                     # delete, Ethernet/Wi-Fi profiles incl. WPA-Enterprise
+                     # (eduroam), DHCP vs static IPv4, DNS. No tray applet
+                     # (network-manager-applet stays out), no autostart;
+                     # the bar's network popup is quick control only.
 
 # Uni-VPN (eduroam-adjacent institutional VPN) is a deliberately open
 # point: the actual protocol (possibly Fortinet/FortiGate/FortiClient,

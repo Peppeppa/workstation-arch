@@ -20,15 +20,10 @@ return function(v)
     hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
 {% endif %}
 
-    -- App launcher (roles/quickshell's Launcher.qml). This does not start
-    -- a new process - Quickshell is already running (see the hyprland.start
-    -- block above) - it sends one one-shot IPC call to the already-running
-    -- instance's "launcher" IpcHandler target, which just toggles that
-    -- instance's own visibility. `qs` here is the same quickshell binary
-    -- already installed by roles/quickshell (`qs` is its own CLI name for
-    -- its own `ipc call` subcommand - see Launcher.qml), not a separate
-    -- launcher process or a second Quickshell lifecycle owner.
-    hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+    -- OS menu (roles/quickshell osmenu/: Applications, Appearance, Network,
+    -- Settings, System). No new process: one one-shot IPC call to the
+    -- running Quickshell's "osmenu" target, which toggles the menu.
+    hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call osmenu toggle"))
 {% if power_menu_enabled %}
 
     -- FEATURE: power_menu (group_vars/all.yml power_menu_enabled): toggle the

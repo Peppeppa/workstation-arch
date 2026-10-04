@@ -13,60 +13,49 @@
 // With the wallpaper feature (WallpaperPicker.qml, loaded only then) the
 // popup also shows the active theme's wallpapers as thumbnails.
 //
+// Top control: display brightness (services/BrightnessModel) - only where a
+// controllable backlight exists. Theme/wallpaper state comes from the shared
+// services/ThemeModel (also used by the Appearance window).
+//
 // A BarPopup: exists only while open - no process, no timer while closed.
 
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import qs
 import qs.bar
+import qs.services
+import qs.ui
 
 BarPopup {
     id: dialog
 
     readonly property bool wallpaperEnabled: BarFeatures.wallpaper
 
-    readonly property string helper: Quickshell.env("HOME") + "/.local/bin/theme"
+    ThemeModel {
+        id: themeModel
+    }
 
-    // `theme status --json`: {state: {dark, light, mode}, dark: [{id, name}], light: [...], invalid: {...}}
-    property var status: null
+    BrightnessModel {
+        id: brightness
+    }
+
+    // The interface WallpaperPicker.qml uses: status, setWallpaper, fontSize.
+    readonly property var status: themeModel.status
     property string openSlot: ""      // "", "dark" or "light": which dropdown is expanded
     property int highlighted: -1      // keyboard/hover row in the open dropdown
-    property string errorText: ""
-
-    // A request while a status run is in flight is not dropped: that run may
-    // have read the state before the change, so one more run follows it.
-    property bool refreshPending: false
-
-    function refresh() {
-        if (statusProc.running) refreshPending = true;
-        else statusProc.running = true;
-    }
-
-    // Every applied change - mode toggle from the bar icon, `theme` on the
-    // CLI, a pick in this dialog - ends in the helper's
-    // `qs ipc call theme reload`, which reloads Colors from colors.json.
-    // That is the event: re-read the status (wallpaper list + selection of
-    // the now active theme). No watcher, no timer.
-    Connections {
-        target: Colors
-        function onDataChanged() {
-            dialog.refresh();
-        }
-    }
+    readonly property string errorText: themeModel.errorText
 
     function options(slot) {
-        return status ? status[slot] : [];
+        return themeModel.options(slot);
     }
 
     function selectedId(slot) {
-        return status && status.state ? status.state[slot] : "";
+        return themeModel.selectedId(slot);
     }
 
     function nameOf(slot, id) {
-        const hit = options(slot).find(t => t.id === id);
-        return hit ? hit.name : id;
+        return themeModel.nameOf(slot, id);
     }
 
     function toggleDropdown(slot) {
@@ -80,15 +69,11 @@ BarPopup {
 
     function choose(slot, id) {
         openSlot = "";
-        if (id === selectedId(slot) || actionProc.running) return;
-        actionProc.command = [helper, "select", slot, id];
-        actionProc.running = true;
+        themeModel.select(slot, id);
     }
 
     function setWallpaper(file) {
-        if (actionProc.running) return;
-        actionProc.command = [helper, "wallpaper", "set", file];
-        actionProc.running = true;
+        themeModel.setWallpaper(file);
     }
 
     function handleKey(key) {
@@ -110,44 +95,44 @@ BarPopup {
         return false;
     }
 
-    Process {
-        id: statusProc
-        command: [dialog.helper, "status", "--json"]
-        onExited: {
-            if (dialog.refreshPending) {
-                dialog.refreshPending = false;
-                running = true;
-            }
-        }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    dialog.status = JSON.parse(text);
-                } catch (e) {
-                    dialog.errorText = "theme helper returned no status";
-                }
-            }
-        }
-    }
-
-    Process {
-        id: actionProc
-        stderr: StdioCollector { id: actionErr }
-        onExited: exitCode => {
-            dialog.errorText = exitCode === 0 ? "" : actionErr.text.trim();
-            dialog.refresh();
-        }
-    }
-
     panelWidth: wallpaperEnabled ? 340 : 280
     keyFilter: event => dialog.handleKey(event.key)
-    Component.onCompleted: refresh()
 
     ColumnLayout {
         id: content
         anchors.left: parent.left
         anchors.right: parent.right
         spacing: 6
+
+        // Display brightness - first control, only with a real backlight.
+        RowLayout {
+            visible: brightness.available
+            Layout.fillWidth: true
+            Layout.bottomMargin: 4
+            spacing: 8
+
+            Text {
+                text: "\u{F00DF}"          // brightness
+                color: Colors.foreground
+                font.family: Fonts.icons
+                font.pixelSize: dialog.fontSize + 2
+            }
+
+            LevelSlider {
+                Layout.fillWidth: true
+                value: brightness.value
+                onMoved: v => brightness.set(v)
+            }
+
+            Text {
+                Layout.preferredWidth: 40
+                horizontalAlignment: Text.AlignRight
+                text: Math.round(brightness.value * 100) + "%"
+                color: Colors.foreground
+                font.family: Fonts.family
+                font.pixelSize: dialog.fontSize - 1
+            }
+        }
 
         Repeater {
             model: ["dark", "light"]

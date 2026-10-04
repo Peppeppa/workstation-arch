@@ -89,7 +89,9 @@ direct upstream dependency.
 | Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |
 | Login (display manager) | Ly - `ly@tty2.service` (package unit + PAM), `roles/display_manager`, feature `display_manager_enabled`; starts the hyprland package's `hyprland.desktop` (`start-hyprland`); tty1 keeps its getty for recovery/manual start |
 | Compositor / window manager | Hyprland |
-| App launcher | Quickshell (`Launcher.qml`, toggled via `qs ipc call launcher toggle` - fuzzel retired as of Core Desktop v1) |
+| OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/System hand over to their owners |
+| Appearance (theme/wallpaper/brightness/text size/display view) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, text size = GSettings `text-scaling-factor`, brightness = `brightnessctl` (backlight only) |
+| Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
@@ -97,7 +99,7 @@ direct upstream dependency.
 | Idle handling, lock-on-sleep (logind Lock/PrepareForSleep) | hypridle (session lifecycle, started once by Hyprland; feature `lock_idle`) |
 | Screen locker | hyprlock (on demand only - spawned by hypridle on logind Lock, exits on unlock) |
 | System tray host (`org.kde.StatusNotifierWatcher`) | Quickshell `SystemTray` (feature `tray`) |
-| Shell presentation / integration | Quickshell (top bar + app launcher - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
+| Shell presentation / integration | Quickshell (top bar, OS menu, Appearance - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Power profiles | power-profiles-daemon (systemd system service, `roles/power`, feature `power_profiles`); switched over its D-Bus API from Quickshell |
 | Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |

@@ -95,6 +95,26 @@ BarPopup {
         return d.name || d.address;
     }
 
+    // Device type from BlueZ's own Icon property (derived by BlueZ from the
+    // device class / appearance) -> a monochrome Nerd Font glyph, drawn in
+    // theme colors like every other icon. Never guessed from the name;
+    // unknown or missing -> the Bluetooth glyph.
+    function deviceGlyph(d) {
+        const icon = d.icon || "";
+        if (icon === "audio-headphones") return "\u{F02CB}";           // headphones
+        if (icon === "audio-headset") return "\u{F02CE}";              // headset
+        if (icon.startsWith("audio") || icon === "multimedia-player") return "\u{F04C3}"; // speaker
+        if (icon === "input-keyboard") return "\u{F030C}";             // keyboard
+        if (icon === "input-mouse" || icon === "input-tablet") return "\u{F037D}"; // mouse
+        if (icon === "input-gaming") return "\u{F0297}";               // gamepad
+        if (icon === "phone" || icon === "modem") return "\u{F011C}";  // cellphone
+        if (icon === "computer") return "\u{F0322}";                   // laptop
+        if (icon === "video-display") return "\u{F0379}";              // monitor
+        if (icon === "printer" || icon === "scanner") return "\u{F042A}"; // printer
+        if (icon.startsWith("camera")) return "\u{F0100}";             // camera
+        return "\u{F00AF}";                                            // bluetooth
+    }
+
     function batteryText(d) {
         if (!d.batteryAvailable) return "";
         return Math.round(d.battery <= 1 ? d.battery * 100 : d.battery) + "%";
@@ -189,88 +209,127 @@ BarPopup {
         font.pixelSize: popup.fontSize - 2
     }
 
+    // Row click = the action: disconnect (connected), connect (known),
+    // pair (new; click again while pairing cancels). Right side: a state
+    // icon - for a known (paired) device an X replaces it while hovered:
+    // forget, in its own click area, never the row action.
+    function rowAction(d) {
+        if (d.connected) d.disconnect();
+        else if (d.paired) d.connect();
+        else if (pairingDevice === d) { d.cancelPair(); finishPairing(""); }
+        else startPair(d);
+    }
+
     component DeviceRow: Rectangle {
         id: row
         required property var device
-        property bool confirmForget: false
+        readonly property bool hovered: rowMouse.containsMouse || forgetMouse.containsMouse
+        readonly property bool busy: device.state === BluetoothDeviceState.Connecting
+                                     || device.state === BluetoothDeviceState.Disconnecting || device.pairing
 
         Layout.fillWidth: true
-        implicitHeight: 34
+        implicitHeight: 36
         radius: 4
-        color: rowMouse.containsMouse ? Colors.surface : "transparent"
+        color: row.device.connected || row.hovered ? Colors.surface : "transparent"
+        border.color: row.device.connected ? Colors.accent : "transparent"
+        border.width: row.device.connected ? 1 : 0
+        opacity: popup.pairingDevice !== null && popup.pairingDevice !== row.device ? 0.5 : 1
 
         MouseArea {
             id: rowMouse
             anchors.fill: parent
             hoverEnabled: true
-            onExited: row.confirmForget = false
+            enabled: popup.pairingDevice === null || popup.pairingDevice === row.device
+            onClicked: popup.rowAction(row.device)
         }
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 6
-            anchors.rightMargin: 6
-            spacing: 8
+        Text {
+            id: devIcon
+            anchors.left: parent.left
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: 18
+            horizontalAlignment: Text.AlignHCenter
+            text: popup.deviceGlyph(row.device)
+            color: row.device.connected ? Colors.accent : Colors.foreground
+            font.family: Fonts.icons
+            font.pixelSize: popup.fontSize + 2
+        }
 
-            Image {
-                Layout.preferredWidth: 18
-                Layout.preferredHeight: 18
-                sourceSize.width: 18
-                sourceSize.height: 18
-                visible: source != ""
-                source: row.device.icon ? Quickshell.iconPath(row.device.icon, true) : ""
+        Column {
+            anchors.left: devIcon.right
+            anchors.leftMargin: 8
+            anchors.right: right.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+                width: parent.width
+                text: popup.deviceLabel(row.device)
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Colors.foreground
+                font.family: Fonts.family
+                font.pixelSize: popup.fontSize - 1
             }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
+            Text {
+                readonly property string stateText:
+                    row.device.state === BluetoothDeviceState.Connecting ? "Connecting…"
+                    : row.device.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…"
+                    : row.device.pairing || popup.pairingDevice === row.device ? "Pairing…"
+                    : row.device.connected ? "Connected" : ""
+                readonly property string battery: popup.batteryText(row.device)
+                visible: text !== ""
+                text: [stateText, battery !== "" ? "\u{F0079} " + battery : ""].filter(s => s !== "").join("   ")
+                color: row.device.connected ? Colors.accent : Colors.foregroundMuted
+                font.family: Fonts.family
+                font.pixelSize: popup.fontSize - 3
+            }
+        }
+
+        Item {
+            id: right
+            anchors.right: parent.right
+            anchors.rightMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            width: 24
+            height: 24
+
+            Text {
+                anchors.centerIn: parent
+                visible: !(row.device.paired && row.hovered)
+                text: row.busy ? "…"
+                    : row.device.connected ? "\u{F00B1}"           // bluetooth-connect
+                    : row.device.paired ? "\u{F00AF}"              // bluetooth
+                    : "\u{F0415}"                                  // plus: pair
+                color: row.device.connected ? Colors.accent : Colors.foregroundMuted
+                font.family: Fonts.icons
+                font.pixelSize: popup.fontSize
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: row.device.paired && row.hovered
+                radius: 4
+                color: forgetMouse.containsMouse ? Colors.error : "transparent"
 
                 Text {
-                    Layout.fillWidth: true
-                    text: popup.deviceLabel(row.device)
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    color: Colors.foreground
-                    font.family: Fonts.family
+                    anchors.centerIn: parent
+                    text: "\u{F0156}"                               // close (X)
+                    color: forgetMouse.containsMouse ? Colors.background : Colors.error
+                    font.family: Fonts.icons
                     font.pixelSize: popup.fontSize
                 }
-
-                Text {
-                    readonly property string stateText:
-                        row.device.state === BluetoothDeviceState.Connecting ? "Connecting…"
-                        : row.device.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…"
-                        : row.device.pairing ? "Pairing…" : ""
-                    visible: text !== ""
-                    text: [stateText, popup.batteryText(row.device)].filter(s => s !== "").join("  ·  ")
-                    color: Colors.foregroundMuted
-                    font.family: Fonts.family
-                    font.pixelSize: popup.fontSize - 3
-                }
             }
 
-            // Forget: explicit, needs a second click (paired devices only).
-            PopupButton {
-                visible: row.device.paired
-                label: row.confirmForget ? "Forget?" : ""
-                danger: true
-                onClicked: {
-                    if (row.confirmForget) row.device.forget();
-                    else row.confirmForget = true;
-                }
-            }
-
-            PopupButton {
-                visible: popup.pairingDevice === null || popup.pairingDevice === row.device
-                label: row.device.connected ? "Disconnect"
-                     : row.device.paired ? "Connect"
-                     : popup.pairingDevice === row.device ? "Cancel" : "Pair"
-                onClicked: {
-                    const d = row.device;
-                    if (d.connected) d.disconnect();
-                    else if (d.paired) d.connect();
-                    else if (popup.pairingDevice === d) { d.cancelPair(); popup.finishPairing(""); }
-                    else popup.startPair(d);
-                }
+            // Above the row's own MouseArea: forget, nothing else.
+            MouseArea {
+                id: forgetMouse
+                anchors.fill: parent
+                enabled: row.device.paired
+                hoverEnabled: true
+                onClicked: row.device.forget()
             }
         }
     }
@@ -448,7 +507,7 @@ BarPopup {
                 SectionTitle { visible: popup.connectedDevices.length > 0; text: "Connected" }
                 Repeater { model: popup.connectedDevices; DeviceRow { required property var modelData; device: modelData } }
 
-                SectionTitle { visible: popup.pairedDevices.length > 0; text: "Paired" }
+                SectionTitle { visible: popup.pairedDevices.length > 0; text: "Known devices" }
                 Repeater { model: popup.pairedDevices; DeviceRow { required property var modelData; device: modelData } }
 
                 SectionTitle { visible: popup.availableDevices.length > 0; text: "Available" }

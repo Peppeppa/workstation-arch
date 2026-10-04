@@ -186,12 +186,12 @@ third-party API.
 | `workspaces` | core | - |
 | `clock` | core (center anchor) | - |
 | `tray` | `tray_enabled` (whole widget) | item context menu |
-| `connectivity` | core icon | `connectivity_enabled`: Connectivity Center |
+| `connectivity` | core icon (interface of the active default route) | `connectivity_enabled`: network quick control (status, VPN, Wi-Fi) |
 | `bluetooth` | `bluetooth_enabled` (whole widget; hidden without adapter) | Bluetooth popup |
 | `audio` | core icon + percent (wheel volume, right click mute) | `audio_popup_enabled`: devices/volume (without it left click mutes) |
-| `power` | core battery (only with a battery) | `power_profiles_enabled`: profiles (+ profile icon without battery) |
+| `power` | core battery - only where a laptop battery exists (else invisible, no space, layout untouched) | battery popup (charge, UPower estimate; profiles with `power_profiles_enabled`) |
 | `coffee` | `lock_idle_enabled` | - |
-| `theme` | core | themes + wallpapers |
+| `theme` | core | brightness (only with a backlight) + themes + wallpapers |
 
 - **Interface**: a widget gets `bar` (barHeight, screen, dragging,
   showTooltip/hideTooltip, openWidgetPopup) - nothing else. Core widgets
@@ -254,6 +254,67 @@ third-party API.
   coordinator closes the previous popup on `request()`.
 - **Cost**: no process, no watcher, no timer except one short one-shot
   settle timer per drop.
+
+## OS menu
+
+Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
+(`roles/hyprland` binds). Replaces the standalone launcher.
+
+```
+~/.config/quickshell/osmenu/
+  OsMenu.qml       host: window, page state, keyboard, destination hand-over
+  RootPage.qml     root list: Applications, Appearance, Network, Settings, System
+  AppsPage.qml     Applications: search + results (the former launcher view)
+  AppModel.qml     the app model/filter (moved unchanged from Launcher.qml)
+  SettingsPage.qml reserved placeholder ("No additional settings yet")
+  PageHeader.qml   back chevron + title of a page below the root
+```
+
+| Root entry | Action |
+|---|---|
+| Applications | page inside the menu (selected on every open) |
+| Appearance | close the menu, open the Appearance window |
+| Network | close the menu, start `nm-connection-editor` (on demand) |
+| Settings | page inside the menu - reserved; a real destination replaces it via `OsMenu.activate("settings")` |
+| System | close the menu, open the existing Power Menu (sole owner of lock/suspend/hibernate/logout/reboot/shutdown; entry hidden without `power_menu_enabled`) |
+
+Keyboard on list pages: `j`/Down next, `k`/Up previous, `l`/Right/Enter
+open, `h`/Left back; no wrap-around. Applications: the search field has
+the focus, every letter is search input (no Vim keys), Up/Down/Enter.
+**Escape always closes the whole OS menu** - from any page, never "back".
+Mouse: hover selects, click opens, the page header goes back, a click
+outside the panel closes. Surface: overlay on the focused output below the
+bar strip, only while open (unmapped when closed). IPC `osmenu`:
+`toggle`, `close`, `openPage <root|apps|settings>`, `state` (JSON, tests).
+
+## Appearance
+
+Core. Opened from the OS menu (IPC `appearance`: `toggle`, `close`,
+`state`). `~/.config/quickshell/appearance/` (window, content, theme
+selector, wallpaper picker) on top of shared, non-visual models in
+`services/` and one neutral control in `ui/`:
+
+| Model | Owner of | Used by |
+|---|---|---|
+| `services/ThemeModel.qml` | QML side of the `theme` helper: `status --json`, `select`, `wallpaper set`; refreshes on the Colors reload the helper triggers (no watcher) | bar theme popup, Appearance |
+| `services/BrightnessModel.qml` | backlight via `brightnessctl -c backlight` (read once per open, coalesced writes); `available` false without a backlight -> control hidden/"Not available" (nothing faked) | bar theme popup (first control), Appearance |
+| `services/TextScaleModel.qml` | GSettings `org.gnome.desktop.interface text-scaling-factor` (Small 0.9 ... Largest 1.5) - native runtime setting GTK3/GTK4 follow live; Ansible sets only font names, never this key | Appearance |
+| `ui/LevelSlider.qml` | a 0..1 slider (the volume slider's look) | both |
+
+Sections: Theme (Dark and Light selectors, each listing only themes with
+that marker; picking = `theme select`, applied at once when that mode is
+active), Wallpaper (current preview -> picker: previews of the ACTIVE
+theme's `backgrounds/`, click = `theme wallpaper set` + close, Cancel /
+Escape / outside click = no change; GIFs show their first frame + badge),
+Brightness, Text size (GTK apps; the shell keeps its own pixel sizes -
+scaling Quickshell itself needs one size owner across bar/popups/menus,
+left for a later pass), Display (every output as `hyprctl monitors -j`
+reports it now: resolution, refresh, scale). Display is read-only on
+purpose: resolution/scale are owned per output by `hyprland_monitors`
+(host_vars); a runtime change would be lost on the next config reload and
+compete with that owner - per-output editing needs the real laptop/
+workstation outputs first. Everything inside exists only while the window
+is open (Loader): no process, no timer when closed.
 
 ## Ansible structure
 
@@ -536,40 +597,42 @@ handler), so splitting them would buy nothing.
 | Persistent user data | none |
 | Test | `scripts/sni-test-client.py` (on demand, python-gobject only) |
 
-## Bluetooth v1
+## Bluetooth v1 (+ v2 rows)
 
-`bluetooth_enabled` (`group_vars/all.yml`, default `true`).
+`bluetooth_enabled` (`group_vars/all.yml`, default `true`). Bluetooth stays
+its own bar widget - not part of the network popup or the OS menu.
 
 | Contract | |
 |---|---|
-| Scope | `roles/bluetooth` (packages, `bluetooth.service`); `roles/quickshell/files/bluetooth/` (`BluetoothButton.qml`, `BluetoothPopup.qml` loaded by `Bar.qml`; `bluetooth-agent.py` -> `~/.local/libexec/workstation/bluetooth-agent`) |
+| Scope | `roles/bluetooth` (packages, `bluetooth.service`); `roles/quickshell/files/bluetooth/` (`Widget.qml`, `Popup.qml` -> `bar/widgets/Bluetooth/`; `bluetooth-agent.py` -> `~/.local/libexec/workstation/bluetooth-agent`) |
 | Packages | `bluez`, `python-gobject` (audio: PipeWire's bluez5 plugin is already in `pipewire-audio`; no `bluez-utils`) |
 | Lifecycle | `bluetoothd`: systemd system service, enabled; it carries `ConditionPathIsDirectory=/sys/class/bluetooth`, so without an adapter it never runs (zero cost) and udev's `bluetooth.target` starts it when one appears. UI: the existing Quickshell instance. Agent: Quickshell child, only during a user-started pairing |
 | API | Quickshell 0.3.1 `Quickshell.Bluetooth` (BlueZ D-Bus, event-driven): `adapter.enabled` = Powered (runtime on/off, never `systemctl`), `adapter.discovering`, `device.connect/disconnect/pair/cancelPair/forget`, `trusted`, `battery` |
-| UI | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip; popup: power, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), Connected/Paired/Available, Scan, two-click Forget, in-popup pairing dialogs |
+| UI (v2) | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip. Popup: on/off, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), sections Connected / Known devices / Available, Scan, in-popup pairing dialogs. Row = monochrome device glyph (Nerd Font, theme colors) chosen from BlueZ's own `Icon` property - headphones/headset, speaker, keyboard, mouse, gamepad, phone, computer, display, printer, camera; anything else the Bluetooth glyph, never guessed from the name - then name, state + battery (when BlueZ reports one); **click the row** = disconnect (connected) / connect (known) / pair (new; click again cancels). Right side: state icon; for a known device an **X replaces it while hovered** - its own click area: forget, never connect/disconnect. New devices have no X |
 | Scanning | user-started only, auto-stop after 30 s, stopped on popup close if we started it |
 | Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected |
 | Privileges / Secrets / Network | none at runtime (no sudo; `rfkill unblock` as the session user) / no codes stored or logged / Bluetooth radio only |
 | Disable | no UI (Loader inactive), `bluetooth.service` disabled + stopped; `/var/lib/bluetooth` pairings and packages kept |
 | Persistent user data | BlueZ's own pairing store (`/var/lib/bluetooth`), never touched by us |
-| Hardware-only validation | real pairing/agent prompts, connect/disconnect, battery, BT audio via WirePlumber, rfkill soft/hard + unblock (arch-dev has no adapter) |
+| Hardware-only validation | real pairing/agent prompts, connect/disconnect, hover-X forget, battery, BT audio via WirePlumber, rfkill soft/hard + unblock (arch-dev has no adapter) |
 
+## Battery / power widget v2 (+ power profiles, lid)
 
-## Power profiles v1 (+ core battery, lid)
-
-`power_profiles_enabled` (`group_vars/all.yml`, default `true`).
+Battery: core. Profiles: `power_profiles_enabled` (`group_vars/all.yml`,
+default `true`).
 
 | Contract | |
 |---|---|
-| Scope | `roles/power` (PPD, logind lid drop-in); `roles/quickshell/files/power/` (`PowerControl.qml`, `PowerPopup.qml`, loaded by `Bar.qml`) |
-| Core (no flag) | `BatteryIndicator.qml` (hidden without battery; UPower `displayDevice`, percentage 0-1 -> %), `BatteryWatcher.qml` (one critical notification at <= 10 % per discharge cycle, re-armed when charging), lid: `HandleLidSwitch=suspend`, `...ExternalPower=suspend`, `...Docked=ignore` (logind drop-in, SIGHUP, no restart); hypridle locks before sleep |
+| Scope | `roles/power` (PPD, logind lid drop-in, host default profile); `roles/quickshell/files/quickshell/bar/widgets/Power/` (`Model.qml`, `Widget.qml`, `Popup.qml` - core) and `BatteryWatcher.qml` |
+| Capability | the widget exists only where UPower's `displayDevice` is a present laptop battery (`isPresent && isLaptopBattery` - hardware data, not the hostname). Without one it is invisible with width 0: no empty slot, the persisted layout keeps its `power` entry untouched, no popup, nothing extra watched |
+| Icon | on external power: plug; discharging: battery filled in 10 % steps; <= 15 % while discharging: the theme's `error` color |
+| Low battery | `BatteryWatcher.qml`: one critical notification on crossing <= 15 % while discharging; re-armed only by external power or once back >= 20 % (no spam around the threshold). Event-driven (UPower signals), no timer |
+| Popup | "Battery" + percentage on one row, a wide charge bar (error color when low), below it UPower's own estimate ("3h 42m remaining" / "1h 08m until full") only when UPower has one - never computed by us; then "Power profile": Power Saver / Balanced / Performance, active one highlighted, Performance disabled where PPD does not offer it (`hasPerformanceProfile`) |
+| Profiles API | Quickshell `PowerProfiles` (PPD D-Bus, event-driven): `profile` set = switch; PPD's polkit allows the active local session - no sudo, no Ansible at runtime |
+| Host default | `power_profile_default` (roles/power, "" = leave PPD alone); the workstation (no battery, so no profile switch in the bar) sets `performance`. Applied once per value (`powerprofilesctl set` + marker `/var/lib/workstation/power-profile-default`), skipped with a note when the platform lacks it - a later runtime choice is never reset, no helper keeps forcing it |
+| Lid (core) | `HandleLidSwitch=suspend`, `...ExternalPower=suspend`, `...Docked=ignore` (logind drop-in, SIGHUP, no restart); hypridle locks before sleep |
 | Packages | `power-profiles-daemon` |
-| Lifecycle | `power-profiles-daemon.service` (systemd, enabled); UI in the existing Quickshell |
-| API | Quickshell `PowerProfiles` (PPD D-Bus, event-driven): `profile` set = switch; `hasPerformanceProfile` decides whether Performance is offered; `degradationReason` shown |
-| UI | bar widget `power`: battery icon + percent (laptop) or profile icon (no battery) opens the popup: battery state/time, available profiles |
-| Privileges | PPD's own polkit policy: switching is allowed for the active local session (not from SSH) - no rule added |
-| Secrets / Network | none / none |
-| Disable | no popup/profile icon; PPD disabled + stopped; package stays |
+| Disable (profiles) | no profile row; PPD disabled + stopped; package stays |
 | Persistent user data | none (PPD keeps its own last profile) |
 
 ## Audio popup v1
@@ -587,24 +650,35 @@ handler), so splitting them would buy nothing.
 | Disable | no popup, no mic icon; the core label stays |
 | Persistent user data | none (WirePlumber's own default-node state) |
 
-## Connectivity Center v1
+## Network (connectivity) v2
 
-`connectivity_enabled` (`group_vars/all.yml`, default `true`).
+Bar icon: core. Popup: `connectivity_enabled` (`group_vars/all.yml`,
+default `true`). NetworkManager stays the only network owner.
 
 | Contract | |
 |---|---|
-| Scope | `roles/quickshell/files/connectivity/` (`ConnectivityControl.qml`, `ConnectivityPopup.qml` loaded by `Bar.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
-| Packages | `qrencode`, `python-gobject` |
-| Owner | NetworkManager (`roles/network`) is the only network owner; nothing else manages Wi-Fi/VPN |
-| UI | click on the bar widget `connectivity` (core icon, details in the popup): Wi-Fi (radio on/off, hardware block note, current + available networks with signal/secured/known, connect/disconnect, two-click forget, password field for WPA/WPA2/WPA3-Personal), QR share, Bluetooth summary (on/off, connected; "More" opens the Bluetooth popup, `bluetooth_enabled` only), VPN list |
-| Wi-Fi API | Quickshell `Networking` (NM D-Bus): `wifiEnabled`, `scannerEnabled` (only while the popup is open), `connect()`, `connectWithPsk()`, `disconnect()`, `forget()`; the client radio is preferred over a hotspot radio. Enterprise/WEP/hidden networks: `nmtui` |
-| Wi-Fi password | typed into a password field, handed to NM (`connectWithPsk`), field cleared; never logged, never stored outside NM |
-| QR | only on request, for the active network: `wifi-qr <iface>` reads the PSK via NM `GetSecrets` (NM/polkit decide), pipes the `WIFI:` payload to `qrencode` on stdin (never argv/log/disk), prints SVG; the SVG lives in popup memory and is dropped on network change/close. Exit 2 (enterprise/WEP/OWE/secret not readable, e.g. agent-owned) -> no QR |
-| VPN | NM `vpn`/`wireguard` profiles: one `nmcli -t` listing on open and after each action; `nmcli connection up|down uuid <uuid>` (fixed argv). No monitor process: changes made elsewhere show on the next open. VPNs needing interactive secrets (no NM secret agent in this session) report the NM error; university VPN is out of scope for v1 |
+| Scope | `bar/widgets/Connectivity/Model.qml` (core), `roles/quickshell/files/connectivity/` (`Popup.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
+| Bar icon | the interface carrying the **active default route**: kernel routes (`/proc/net/route`, `/proc/net/ipv6_route` via FileView), lowest metric among NM's physical devices (Wi-Fi with signal level / Ethernet), else disconnected. Ethernet + Wi-Fi both up -> whichever owns the default route; cable gone -> follows the route. A VPN holding the default route keeps the physical uplink as icon (`vpnDefault`, "via VPN" in the popup). Re-read on NM events (device states, active networks, connectivity) + one 1.5 s one-shot re-read for routes that settle late - no poller, no process. A pure route change NM raises no event for (e.g. `nmcli device reapply` with a new metric) reaches the bar on the next NM event or as soon as the popup opens (its 1 s timer re-reads the routes too) |
+| Popup: status | NM connectivity: Full / "Login required" (portal: button opens NM's own `ConnectivityCheckUri` in Chromium, so the portal redirects - no probing of ours) / Limited / No internet; global addresses per interface with type icon (`ip -j -d addr`, on open + on NM events; no loopback/link-local; at most one stable IPv6 per interface, dimmed); default gateway with its interface type |
+| Traffic | the ONLY sampling: ↓/↑ of the default-route interface, a 1 s Timer reading `/sys/class/net/<if>/statistics/{rx,tx}_bytes` (FileView, no process). It lives inside the popup (exists only while open): starts when the popup appears, gone when it closes - zero wakeups afterwards; follows the interface when the default route moves |
+| Popup: VPN (before Wi-Fi) | NM `vpn`/`wireguard` profiles (`nmcli -t` on open, on NM events, after each action): row click = up/down by UUID. No create/import/edit/delete here |
+| Popup: Wi-Fi | radio on/off; **Known networks** = saved NM profiles (`known`), connected one highlighted with "Connected"; **Other networks** = visible, not saved. Signal icon before the SSID, lock on the right if secured; on a known row an X replaces the lock (or appears) while hovered - forget, in its own click area. Row click: known -> connect (connected -> disconnect), open -> connect, WPA/WPA2/WPA3-Personal -> inline password; wrong password -> box stays with an error; success -> NM stores it, it moves to Known. Enterprise/WEP -> note + "Open" (nm-connection-editor). Scanning only while open. QR share of the current network (unchanged) |
+| Secrets | passwords go straight to NM (`connectWithPsk`), never logged or stored by us; QR only in memory |
+| Administration | `nm-connection-editor` (roles/network, official `extra`), started on demand from the OS menu (and the enterprise note): VPN add/import/edit/delete, Ethernet/Wi-Fi profiles, WPA-Enterprise/eduroam, DHCP vs static IPv4, gateway, DNS. No `network-manager-applet`, no tray applet, no autostart |
 | Privileges | NM's own polkit policy for the active session; no sudo |
-| Network | none of its own |
-| Disable | no popup; the core network label stays; files stay unreferenced |
-| Persistent user data | NM connection profiles (created by NM on connect; `forget` deletes on request) |
+| Disable | no popup; the core icon stays |
+| Persistent user data | NM connection profiles (created by NM on connect; forget deletes on request) |
+
+Real-world items that need real hardware/networks: captive portals
+(e.g. BayernWLAN - "Login required" + browser login), eduroam/802.1X
+(profile in nm-connection-editor; credentials/CA never in this repo),
+Ethernet/Wi-Fi default-route failover. University Fortinet VPN: pending
+the university's actual FortiGate configuration - official Arch has
+`openfortivpn` (CLI) and `networkmanager-openconnect`/`openconnect`
+(OpenConnect speaks Fortinet's protocol in recent versions), while
+`networkmanager-fortisslvpn` is AUR-only; nothing is installed until the
+real setup (incl. MFA/SAML) is known. Whatever NM ends up managing appears
+in the popup's VPN list automatically.
 
 ## Clipboard history v1
 
@@ -651,13 +725,18 @@ software rendering) cannot prove - to check once on `laptop` and
 | Monitors | laptop panel + external monitor (hotplug, `hyprland_monitors` explicit entry with scale), bar/wallpaper on every output |
 | Lid | closed on battery -> locked, then suspended; on AC -> same; docked (external monitor) -> ignored; resume shows hyprlock, unlock works, displays on |
 | Hardware keys | volume +/-/mute, mic mute (+ bar mic icon), brightness +/- (`brightnessctl`, laptop backlight), play/pause/next/prev with a real player; all also while locked |
-| Battery | percentage/icon, charging state, time to empty/full in the popup, low-battery notification once at 10 % (and again after a charge cycle) |
-| Power profiles | Performance offered only where PPD has it, switching from the popup, degradation note (lap/temperature) |
+| Battery (v2) | widget only on the laptop; plug icon on AC, level icons while discharging, <= 15 % error color, one low-battery notification + re-arm after charging / >= 20 %, percentage + charge bar, UPower time remaining / until full, state after suspend/resume |
+| Power profiles | Power Saver / Balanced / Performance availability per platform, switching from the battery popup; workstation: no battery widget, default profile `performance` applied once |
+| Brightness | backlight slider (bar theme popup + Appearance) moves the real panel; keys and slider agree on the next open |
+| Display | Appearance shows each real output (laptop panel + external) with resolution/refresh/scale |
 | Audio | real outputs/inputs (speakers, headset, HDMI, Bluetooth headset), default switching moves playing streams, mic mute LED |
-| Wi-Fi | scan, connect to a new WPA2/WPA3 network via password, known network reconnect, wrong password -> re-asked, disconnect, forget, radio off/on, rfkill hardware switch note |
+| Wi-Fi | scan, Known/Other split, connect to a new WPA2/WPA3 network via password (moves to Known), wrong password -> box stays with error, known reconnect, hover-X forget (reappears under Other only if visible), radio off/on, rfkill hardware switch note |
+| Network routing | Ethernet + Wi-Fi: icon follows the default route (unplug -> Wi-Fi, replug -> Ethernet); addresses/gateway/traffic follow; VPN up -> "via VPN" |
+| Captive portal | public Wi-Fi with a login page (e.g. BayernWLAN): "Login required" + Log in opens Chromium, after login back to full |
+| eduroam / 802.1X | profile set up in nm-connection-editor, connects, reconnects after resume |
 | Wi-Fi QR | phone scans the QR and joins; no QR for enterprise networks |
-| VPN | real WireGuard profile up/down from the popup; Uni-VPN still out of scope |
-| Bluetooth | (from Bluetooth v1) pairing dialogs, connect, battery, audio; plus the Connectivity Center summary and "More" |
+| VPN | real WireGuard profile up/down from the popup; profiles added/imported in nm-connection-editor appear automatically; university Fortinet VPN pending its real configuration |
+| Bluetooth | pairing dialogs, row-click connect/disconnect, hover-X forget (no connect), battery %, audio |
 | Clipboard | browser/terminal/password-manager copies (KeePassXC/Bitwarden must not appear), paste after selecting |
 | Wallpaper | real 4K images, multi-monitor, GIF CPU cost with a real GPU (arch-dev: ~13 % of one core under llvmpipe) |
 | Idle baseline | fresh login: process list, RSS/CPU of Quickshell, PPD, clipboard watcher, hypridle; no timers added |

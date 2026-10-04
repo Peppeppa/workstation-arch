@@ -145,9 +145,17 @@ exists: right click on free bar space flips it - see
 `docs/feature-architecture.md` "Bar"); transparent drops only the bar's
 own fill, never adds blur or shadow. No permanent animation.
 
-### Launcher
+### OS menu and Applications
 
-`Launcher.qml` (`mainMod+Space`) lists `DesktopEntries.applications`
+`mainMod+Space` opens the OS menu (`osmenu/`, see
+`docs/feature-architecture.md` "OS menu"): a plain vertical list
+(Applications, Appearance, Network, Settings, System) in the launcher's
+panel style - 34 px rows, `accent` fill + `accent_foreground` on the
+selected row, a chevron on entries that open a page. Escape always closes
+the whole menu.
+
+Applications (`osmenu/AppsPage.qml` + `osmenu/AppModel.qml`, the former
+`Launcher.qml`) lists `DesktopEntries.applications`
 (Quickshell's own XDG parser) - no app list of our own. Shown is an entry
 that passes, in this order:
 
@@ -174,9 +182,13 @@ theme has none; then the name (`accent_foreground` on the selected row).
 No generic name/comment is shown - the search still matches name, generic
 name and keywords.
 
-Open, the launcher's transparent surface covers the focused output below
-the bar strip (like the bar popups): a click outside the panel closes it,
+Open, the menu's transparent surface covers the focused output below the
+bar strip (like the bar popups): a click outside the panel closes it,
 Escape too. Closed, the window is unmapped - no surface, no input region.
+The Appearance window and its wallpaper picker follow the same pattern.
+
+Hover affordances inside popup rows (the X that forgets a known Wi-Fi
+network or Bluetooth device) are part of the row, not tooltips.
 
 Icon theme: Papirus (`papirus-icon-theme`, official `extra`;
 `group_vars/all.yml` `desktop_icon_theme`) - one consistent style that
@@ -200,8 +212,8 @@ icon copies of our own, no per-app overrides. GTK keeps Adwaita.
 
 | Role (`theme.yml`) | QML (`Colors.`) | Meaning | Consumers |
 |---|---|---|---|
-| `background` | `background` | base layer | bar, launcher, power menu, toasts, theme dialog, lockscreen |
-| `surface` | `surface` | element on the base | launcher search field, dropdown buttons, lockscreen input |
+| `background` | `background` | base layer | bar, OS menu, Appearance, power menu, toasts, theme dialog, lockscreen |
+| `surface` | `surface` | element on the base | search field, dropdown buttons, highlighted connected rows, lockscreen input |
 | `foreground` | `foreground` | primary text | everywhere |
 | `foreground_strong` | `foregroundStrong` | high-emphasis text/icons (bright in dark themes) | bar widgets' normal state |
 | `foreground_muted` | `foregroundMuted` | secondary text | hints, labels, coffee hover, lockscreen date |

@@ -227,3 +227,66 @@
     state: absent
   notify: Rebuild the initramfs and UKI
   tags: power
+
+# Host default power profile (power_profile_default, see defaults). Only
+# with power_profiles; only once per configured value; only if the daemon
+# offers it on this platform - no repeated forcing, no helper.
+- name: Power profile default - already applied? (power_profile_default)
+  when: power_profiles_enabled and power_profile_default != ""
+  ansible.builtin.slurp:
+    src: /var/lib/workstation/power-profile-default
+  register: power_profile_marker
+  failed_when: false
+  tags: power
+
+- name: Power profile default - profiles this platform offers (power_profile_default)
+  when: >-
+    power_profiles_enabled and power_profile_default != ""
+    and (power_profile_marker.content | default('') | b64decode | trim) != power_profile_default
+  ansible.builtin.command:
+    cmd: powerprofilesctl list
+  register: power_profile_list
+  changed_when: false
+  check_mode: false
+  tags: power
+
+- name: Power profile default - not offered here (power_profile_default)
+  when: >-
+    power_profile_list is not skipped
+    and not (power_profile_list.stdout is search('(^|\s)' + power_profile_default + ':', multiline=True))
+  ansible.builtin.debug:
+    msg: "power_profile_default '{{ power_profile_default }}' is not offered by power-profiles-daemon on this machine - left as is"
+  tags: power
+
+- name: Power profile default - apply once (power_profile_default)
+  when: >-
+    power_profile_list is not skipped
+    and (power_profile_list.stdout is search('(^|\s)' + power_profile_default + ':', multiline=True))
+  become: true
+  ansible.builtin.command:
+    cmd: powerprofilesctl set {{ power_profile_default }}
+  tags: power
+
+- name: Power profile default - marker directory (power_profile_default)
+  when: power_profile_list is not skipped
+  become: true
+  ansible.builtin.file:
+    path: /var/lib/workstation
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: power
+
+- name: Power profile default - remember it was applied (power_profile_default)
+  when: >-
+    power_profile_list is not skipped
+    and (power_profile_list.stdout is search('(^|\s)' + power_profile_default + ':', multiline=True))
+  become: true
+  ansible.builtin.copy:
+    dest: /var/lib/workstation/power-profile-default
+    content: "{{ power_profile_default }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: power
