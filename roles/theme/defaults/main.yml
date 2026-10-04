@@ -11,5 +11,14 @@ theme_dir: "{{ playbook_dir }}/themes"
 
 # python-yaml: the helper parses theme.yml with it (already present as an
 # Ansible dependency - listed so the helper's dependency is explicit).
+#
+# gnome-themes-extra: the GTK adapter writes gtk-theme='Adwaita-dark' in
+# dark mode, and GTK3 only knows that name through this package's
+# /usr/share/themes/Adwaita-dark/gtk-3.0/gtk.css (a one-line @import of
+# GTK3's own built-in dark stylesheet - no custom CSS). Without it GTK3
+# silently falls back to light Adwaita and ignores color-scheme
+# (libadwaita/GTK4 only) - found on arch-dev: a fresh Thunar stayed light
+# in dark mode.
 theme_packages:
   - python-yaml
+  - gnome-themes-extra
