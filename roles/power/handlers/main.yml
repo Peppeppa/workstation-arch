@@ -4,3 +4,10 @@
   become: true
   ansible.builtin.command:
     cmd: systemctl kill --signal=SIGHUP systemd-logind.service
+
+# Hibernate: the UKI embeds the cmdline and the initramfs - rebuild all
+# presets once after either changed. Takes effect at the next boot.
+- name: Rebuild the initramfs and UKI
+  become: true
+  ansible.builtin.command:
+    cmd: mkinitcpio -P

@@ -58,3 +58,172 @@
     state: stopped
   tags: power
 
+
+# HOST CAPABILITY: hibernate (group_vars hibernate_enabled, default false;
+# knobs in defaults/main.yml). A disk swapfile as the persistent resume
+# target next to zram, the kernel told where it is (resume=/resume_offset=
+# in the UKI cmdline), an initramfs that resumes from it. logind then
+# decides CanHibernate on its own - nothing here fakes it. Disabling later
+# changes nothing on disk (Disable vs. Purge).
+- name: Hibernate - look at the swapfile and the kernel cmdline file (hibernate_enabled)
+  when: hibernate_enabled
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ hibernate_swapfile_path }}"
+    - "{{ hibernate_kernel_cmdline_file }}"
+  register: hibernate_paths
+  tags: power
+
+- name: Hibernate - filesystem and free space where the swapfile goes (hibernate_enabled)
+  when: hibernate_enabled
+  ansible.builtin.command:
+    cmd: findmnt -no FSTYPE,AVAIL --bytes -T {{ hibernate_swapfile_path | dirname | quote }}
+  register: hibernate_fs
+  changed_when: false
+  check_mode: false
+  tags: power
+
+- name: Hibernate - stop on a layout this role does not handle (hibernate_enabled)
+  when: hibernate_enabled
+  ansible.builtin.assert:
+    that:
+      - hibernate_paths.results[1].stat.exists
+      - hibernate_fs.stdout.split()[0] in ['ext4', 'xfs', 'btrfs']
+      - hibernate_paths.results[0].stat.exists or
+        (hibernate_fs.stdout.split()[1] | int) > ((hibernate_swapfile_size_mib | int) + 2048) * 1048576
+    fail_msg: >-
+      Hibernate needs: the UKI cmdline file {{ hibernate_kernel_cmdline_file }}
+      (systemd-boot + UKI as installed by archinstall; other bootloaders are
+      not handled), the swapfile on ext4/xfs/btrfs (found:
+      {{ hibernate_fs.stdout.split()[0] }}), and {{ hibernate_swapfile_size_mib }} MiB
+      + 2 GiB free there. Fix the host or set hibernate_enabled: false.
+    quiet: true
+  tags: power
+
+- name: Hibernate - create the swapfile (hibernate_enabled)
+  when: hibernate_enabled and not hibernate_paths.results[0].stat.exists
+  become: true
+  # mkswap --file: allocates the file without holes, mode 0600, and on
+  # btrfs sets No_COW first - what a swapfile needs on each filesystem.
+  ansible.builtin.command:
+    cmd: mkswap --size {{ hibernate_swapfile_size_mib }}M --file {{ hibernate_swapfile_path | quote }}
+    creates: "{{ hibernate_swapfile_path }}"
+  tags: power
+
+- name: Hibernate - swapfile in /etc/fstab, below zram's priority (hibernate_enabled)
+  when: hibernate_enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^{{ hibernate_swapfile_path | regex_escape }}\s'
+    line: "{{ hibernate_swapfile_path }} none swap defaults,pri={{ hibernate_swap_priority }} 0 0"
+  tags: power
+
+- name: Hibernate - active swap areas (hibernate_enabled)
+  when: hibernate_enabled
+  ansible.builtin.command:
+    cmd: swapon --show=NAME --noheadings
+  register: hibernate_swaps
+  changed_when: false
+  check_mode: false
+  tags: power
+
+- name: Hibernate - activate the swapfile (hibernate_enabled)
+  when: hibernate_enabled and hibernate_swapfile_path not in hibernate_swaps.stdout_lines
+  become: true
+  ansible.builtin.command:
+    cmd: swapon {{ hibernate_swapfile_path | quote }}
+  tags: power
+
+# Read-only: where the swapfile's first block is. resume= is the
+# filesystem's UUID (on an encrypted root: the unlocked filesystem - the
+# initramfs unlocks it before resuming), resume_offset= its first physical
+# block (filefrag on ext4/xfs, btrfs' own map-swapfile on btrfs).
+- name: Hibernate - resume device and offset of the swapfile (hibernate_enabled)
+  when: hibernate_enabled and (hibernate_paths.results[0].stat.exists or not ansible_check_mode)
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      f={{ hibernate_swapfile_path | quote }}
+      uuid=$(findmnt -no UUID -T "$f")
+      if [ "$(findmnt -no FSTYPE -T "$f")" = btrfs ]; then
+        off=$(btrfs inspect-internal map-swapfile -r "$f")
+      else
+        off=$(filefrag -v "$f" | awk '$1 == "0:" { sub(/\.\./, "", $4); print $4 + 0; exit }')
+      fi
+      [ -n "$uuid" ] && [ -n "$off" ]
+      echo "resume=UUID=$uuid resume_offset=$off"
+  register: hibernate_resume
+  changed_when: false
+  check_mode: false
+  tags: power
+
+- name: Hibernate - read the kernel cmdline (hibernate_enabled)
+  when: hibernate_enabled and hibernate_resume is not skipped
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ hibernate_kernel_cmdline_file }}"
+  register: hibernate_cmdline
+  tags: power
+
+# Every other parameter stays as it is; only resume=/resume_offset= are
+# (re)set - so re-running is a no-op and a recreated swapfile updates the
+# offset.
+- name: Hibernate - resume= and resume_offset= in the kernel cmdline (hibernate_enabled)
+  when: hibernate_enabled and hibernate_resume is not skipped
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ hibernate_kernel_cmdline_file }}"
+    content: >-
+      {{ ((hibernate_cmdline.content | b64decode).split()
+          | reject('match', '^resume(_offset)?=') | list
+          + hibernate_resume.stdout.split()) | join(' ') }}{{ '\n' }}
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Rebuild the initramfs and UKI
+  tags: power
+
+# A systemd-based initramfs (HOOKS with `systemd`) resumes from resume= on
+# its own; the busybox one (archinstall's default, as on arch-dev) needs
+# the `resume` hook - appended, so it runs after udev and any `encrypt`.
+- name: Hibernate - initramfs hooks configured on this host (hibernate_enabled)
+  when: hibernate_enabled
+  ansible.builtin.shell:
+    cmd: >-
+      grep -hE '^[[:space:]]*HOOKS' /etc/mkinitcpio.conf
+      $(ls /etc/mkinitcpio.conf.d/*.conf 2>/dev/null | grep -v '/50-workstation-resume.conf$') || true
+  register: hibernate_hooks
+  changed_when: false
+  check_mode: false
+  tags: power
+
+- name: Hibernate - resume hook for a busybox initramfs (hibernate_enabled)
+  when: >-
+    hibernate_enabled and not (hibernate_hooks.stdout is search('\\bsystemd\\b'))
+    and not (hibernate_hooks.stdout is search('\\bresume\\b'))
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/mkinitcpio.conf.d/50-workstation-resume.conf
+    content: |
+      # Managed by Ansible (roles/power, hibernate_enabled) - do not edit.
+      HOOKS+=(resume)
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Rebuild the initramfs and UKI
+  tags: power
+
+- name: Hibernate - no extra resume hook where the initramfs has one (hibernate_enabled)
+  when: >-
+    hibernate_enabled and ((hibernate_hooks.stdout is search('\\bsystemd\\b'))
+    or (hibernate_hooks.stdout is search('\\bresume\\b')))
+  become: true
+  ansible.builtin.file:
+    path: /etc/mkinitcpio.conf.d/50-workstation-resume.conf
+    state: absent
+  notify: Rebuild the initramfs and UKI
+  tags: power

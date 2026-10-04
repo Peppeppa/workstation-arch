@@ -5,3 +5,26 @@
 # roles/quickshell).
 power_profiles_packages:
   - power-profiles-daemon
+
+# Hibernate foundation (group_vars hibernate_enabled - host capability,
+# default false). Only used when that flag is true for the host.
+#
+# Swapfile = the resume target. zram stays the primary swap (priority 100
+# from zram-generator); systemd never hibernates to zram, it picks this
+# file. A swapfile instead of a partition: no repartitioning ever, and it
+# lives inside the root filesystem - on an encrypted root it is encrypted
+# too, and the initramfs unlocks the root before it resumes.
+#   ext4/xfs root: the default path works.
+#   btrfs root: the file must be on a subvolume that is never snapshotted
+#   (e.g. @swap mounted at /swap -> hibernate_swapfile_path: /swap/swapfile);
+#   this role does not create subvolumes or partitions.
+hibernate_swapfile_path: /swapfile
+# Size: the RAM size rounded up to whole GiB - enough for a worst-case
+# image (the kernel compresses it to ~2/5 of RAM by default).
+hibernate_swapfile_size_mib: "{{ ((ansible_facts.memtotal_mb | int) / 1024) | round(0, 'ceil') | int * 1024 }}"
+hibernate_swap_priority: 0
+# The kernel command line the boot entry is built from. archinstall's
+# systemd-boot + UKI layout (as on arch-dev): /etc/kernel/cmdline,
+# rebuilt into the UKI by mkinitcpio -P. Another bootloader layout is not
+# handled here - the role stops with an explanation instead of guessing.
+hibernate_kernel_cmdline_file: /etc/kernel/cmdline

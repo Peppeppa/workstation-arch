@@ -173,3 +173,17 @@ gaming_enabled: false
 # roles/gaming refuses to run (ansible.builtin.assert) if gaming_enabled
 # is true but this is still empty for the host being provisioned.
 gaming_gpu_vulkan_packages: []
+
+# Hibernate is an OPT-IN host capability like gaming: it needs a real,
+# persistent resume target on that host's disk, which a common role must
+# never assume (zram - the installer's default swap - lives in RAM and
+# cannot hold a hibernation image). true for a host (host_vars) makes
+# roles/power create a disk swapfile next to zram (lower priority, so
+# zram keeps doing day-to-day swapping), point the kernel at it
+# (resume= + resume_offset= in the UKI cmdline), make the initramfs
+# resume from it and rebuild the UKI. The power menu shows Hibernate only
+# where logind's CanHibernate then answers yes (after a reboot into the
+# new cmdline + the next bootstrap). See roles/power/defaults/main.yml
+# for the knobs and docs/feature-architecture.md "Hibernate" for the
+# real-hardware bring-up checklist. Default false: no host is set up yet.
+hibernate_enabled: false
