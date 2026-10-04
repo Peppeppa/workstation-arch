@@ -44,6 +44,14 @@ choice, else the first file in sorted order, else none = the theme's
 GIFs play animated. Own images can simply be dropped into the directory
 (untracked files are never touched by git pull/bootstrap).
 
+Every shipped theme carries two plain test wallpapers (1920x1080 PNG,
+one solid color each, no alpha) for exercising the picker and per-theme
+persistence - derived from the theme's own roles, not a second palette:
+`test-01.png` = `colors.background`, `test-02.png` = `colors.border` (the
+one role clearly distinct from `background` in every theme; `surface` is
+nearly identical to it in several). Regenerate them from `theme.yml`
+when those two colors change.
+
 ### One implementation: the `theme` helper
 
 `~/.local/bin/theme` (`roles/theme/templates/theme.j2`, Python, user
@@ -76,7 +84,7 @@ includes its file instead of being re-templated:
 | Hyprland | `hyprland.lua` | `dofile` in `hyprland.lua` (pcall: missing -> Hyprland defaults) | `hyprctl reload` |
 | hyprlock | `hyprlock.conf` | `source =` in `hyprlock.conf` | read at every lock |
 | Ghostty | `ghostty` | `config-file = ?...` in `config.ghostty` | `SIGUSR2` to Ghostty: every open window recolors, no restart |
-| GTK | - | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`), no CSS | immediate for GTK4/libadwaita; GTK3 apps on restart |
+| GTK | - | GSettings `color-scheme` + `gtk-theme` (`Adwaita`/`Adwaita-dark`), no CSS; GTK3 resolves the name `Adwaita-dark` only via `gnome-themes-extra` (`roles/theme`) - without it GTK3 apps fall back to light | immediate for GTK4/libadwaita; GTK3 apps on restart |
 
 A switch validates the target first, renders every output in memory,
 stages all changed outputs *and* the state as temp files, and renames
