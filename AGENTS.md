@@ -301,6 +301,12 @@ Rules that apply regardless of source:
 - One full `pacman -Syu` per provisioning run, done centrally (see
   Provisioning Model above). Never repeat it in a role.
 - Roles install only their own packages via `state: present`.
+- Known, accepted cosmetic: that central task can report `changed=1` on
+  an otherwise unchanged re-run when the mirror's package databases
+  changed since the last sync (`community.general.pacman` counts the
+  refresh itself; `pacman.log` then shows only "synchronizing package
+  lists", nothing upgraded). Idempotency means every *role* reports 0
+  changes - don't restructure the sync to hide this.
 - `sudo pacman -Syu` between provisioning runs remains the user's own
   responsibility; Ansible is not a substitute for routine maintenance.
 
