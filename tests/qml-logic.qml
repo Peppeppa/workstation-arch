@@ -80,12 +80,17 @@ QtObject {
         row(pairing);
         eq("bluetooth row actions", calls, ["disconnect", "connect", "pair", "cancelPair", "finish"]);
 
-        // After pairing: trust, and connect only if the pairing did not
-        // already connect (a second connect() logs an ERROR).
-        for (const [connected, want] of [[true, []], [false, ["connect"]]]) {
+        // After pairing: trust, then exactly one connect - Quickshell's
+        // connect() without a link, else one BlueZ Device1.Connect (busctl):
+        // Quickshell refuses connect() while the pairing link is up.
+        for (const [connected, want] of [[true, ["busctl Connect /org/bluez/hci0/dev_X"]], [false, ["connect"]]]) {
             const done = [];
-            const d = { paired: true, connected: connected, trusted: false, connect: () => done.push("connect") };
-            make(bt, "onPairedChanged", { popup: { pairingDevice: d, finishPairing: () => {} } })();
+            const d = { paired: true, connected: connected, trusted: false, dbusPath: "/org/bluez/hci0/dev_X",
+                        connect: () => done.push("connect") };
+            const proc = { set running(v) { if (v) done.push("busctl " + this.command[6] + " " + this.command[4]); }, command: [] };
+            const scope = { postPairDevice: null, postPairConnect: proc };
+            make(bt, "onPairedChanged", { popup: { pairingDevice: d, finishPairing: () => {},
+                                                   connectAfterPairing: make(bt, "connectAfterPairing", scope) } })();
             eq("bluetooth after pairing (connected=" + connected + ")", [d.trusted, done], [true, want]);
         }
     }
@@ -106,6 +111,30 @@ QtObject {
         st.warned = false; st.discharging = true; st.percent = 9; check();
         eq("low battery: start already low (Component.onCompleted check)", notes.length, 4);
 
+        // AC/battery policy: AC = Performance without touching the battery
+        // choice; unplug restores it; equal profile = no set at all.
+        const pp = read("quickshell/PowerPolicy.qml");
+        const PP = { PowerSaver: 0, Balanced: 1, Performance: 2 };
+        const sets = [];
+        const ppd = { _p: 0, get profile() { return this._p; }, set profile(v) { sets.push(v); this._p = v; } };
+        const pol = { ready: true, laptop: true, onAc: false, acProfile: PP.Performance, batteryProfile: PP.PowerSaver,
+                      PowerProfiles: ppd, PowerProfile: PP, store: { setText: () => {} } };
+        pol.wanted = make(pp, "wanted", pol);
+        pol.nameOf = make(pp, "nameOf", pol);
+        const apply = make(pp, "apply", pol), remember = make(pp, "remember", pol);
+        apply();
+        eq("power policy: battery profile already active -> no set", sets, []);
+        pol.onAc = true; apply(); remember();
+        eq("power policy: AC -> Performance", [ppd.profile, pol.batteryProfile], [PP.Performance, PP.PowerSaver]);
+        apply();
+        eq("power policy: duplicate AC event sets nothing", sets.length, 1);
+        pol.onAc = false; apply(); remember();
+        eq("power policy: unplug restores the battery choice", ppd.profile, PP.PowerSaver);
+        ppd._p = PP.Balanced; remember();
+        eq("power policy: a choice on battery is remembered", pol.batteryProfile, PP.Balanced);
+        pol.laptop = false; pol.onAc = true; sets.length = 0; apply();
+        eq("power policy: no laptop battery -> left alone", sets, []);
+
         const model = read("quickshell/bar/widgets/Power/Model.qml");
         const est = o => make(model, "estimateText", o)();
         eq("estimate without battery", est({ hasBattery: false }), "");
@@ -118,21 +147,46 @@ QtObject {
     }
 
     function network() {
-        // Network popup: the network being authenticated stays under "Other"
-        // (in place) until the connect succeeded; "Other" keeps its order
-        // while the inline password box is open.
+        // Network popup, Other networks: a ListModel keyed by SSID, synced by
+        // moves/inserts/removes (rows keep their identity), frozen while the
+        // password box is open - the box's TextInput is never recreated.
         const pop = read("connectivity/Popup.qml");
-        const a = { name: "A", signalStrength: 0.9 }, b = { name: "B", signalStrength: 0.5 }, c = { name: "C", signalStrength: 0.2 };
-        const scope = { authNetwork: b, pendingWasKnown: false };
-        const hold = make(pop, "holdInOther", scope);
-        eq("network: auth network held in Other", [hold(b), hold(a)], [true, false]);
-        scope.pendingWasKnown = true;
-        eq("network: an already known network is not held", hold(b), false);
-        const order = make(pop, "orderOther", {});
-        eq("network: Other by signal", order([c, a, b], []).map(n => n.name), ["A", "B", "C"]);
-        b.signalStrength = 0.95; const d = { name: "D", signalStrength: 1 };
-        eq("network: Other frozen while the box is open, new ones at the end",
-           order([c, a, b, d], ["A", "B", "C"]).map(n => n.name), ["A", "B", "C", "D"]);
+        const rows = [];
+        const created = [];
+        const lm = {
+            get count() { return rows.length; },
+            get: i => rows[i],
+            insert: (i, o) => { const r = { ssid: o.ssid, uid: created.length }; created.push(r); rows.splice(i, 0, r); },
+            move: (from, to, n) => rows.splice(to, 0, ...rows.splice(from, n)),
+            remove: (i, n) => rows.splice(i, n)
+        };
+        const st = { authActive: false, otherWanted: ["A", "B", "C"], otherModel: lm, otherSel: -1 };
+        const sync = make(pop, "syncOther", st);
+        sync();
+        eq("network: Other in signal order", rows.map(r => r.ssid), ["A", "B", "C"]);
+        const uidB = rows[1].uid;
+        st.otherWanted = ["C", "B", "A", "D"]; sync();
+        eq("network: re-sorted + new one", rows.map(r => r.ssid), ["C", "B", "A", "D"]);
+        eq("network: a re-sorted row is the same row (not recreated)", rows[1].uid, uidB);
+        st.authActive = true;
+        st.otherWanted = ["D", "A"]; sync();
+        eq("network: frozen while the password box is open", rows.map(r => r.ssid), ["C", "B", "A", "D"]);
+        eq("network: the box's row survives scans", rows[1].uid, uidB);
+        st.authActive = false; sync();
+        eq("network: applied once the box closed", rows.map(r => r.ssid), ["D", "A"]);
+        eq("network: rows created only for new SSIDs", created.length, 4);
+
+        // Submit: a network gone from the scan keeps the box and the text.
+        const sub = { authSsid: "X", byName: {}, pwError: "", passwordFor: null, pendingPsk: null, pendingWasKnown: false };
+        const submit = make(pop, "submitPassword", sub);
+        eq("network: short password not sent", submit("1234567"), false);
+        eq("network: out of range keeps the text", [submit("12345678"), sub.pwError], [false, "Network out of range"]);
+        let sent = 0;
+        sub.byName = { X: { known: false, connectWithPsk: () => sent++ } };
+        eq("network: sent once", [submit("12345678"), sent, sub.pendingPsk === sub.byName.X], [true, 1, true]);
+        const cancel = { passwordFor: 1, pendingPsk: 1, pwError: "x", authSsid: "X" };
+        make(pop, "cancelPassword", cancel)();
+        eq("network: cancel clears the interaction", [cancel.passwordFor, cancel.pendingPsk, cancel.pwError, cancel.authSsid], [null, null, "", ""]);
 
         // Closing the Share view drops the password (and the QR) from memory.
         const qr = { qrRequested: true, qrSvg: "<svg/>", qrPassword: "secret", qrCopied: true };
