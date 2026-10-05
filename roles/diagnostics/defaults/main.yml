@@ -6,3 +6,7 @@
 # also a TTY recovery login or SSH); it always reports on the CALLING
 # user's session and state. See README "Troubleshooting".
 diagnostics_bin: /usr/local/bin/repo-diagnose
+
+# repo-healthcheck: read-only PASS/WARN/FAIL of the system's invariants
+# (exit 0 = healthy); same zero-idle-cost rules as repo-diagnose.
+diagnostics_healthcheck_bin: /usr/local/bin/repo-healthcheck

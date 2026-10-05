@@ -1,0 +1,360 @@
+#!/usr/bin/env python3
+# Managed by Ansible (roles/diagnostics/templates/repo-healthcheck.j2) - do not edit by hand.
+#
+# repo-healthcheck - do this workstation's invariants hold right now?
+# One PASS/WARN/FAIL line per invariant, then HEALTHY or UNHEALTHY.
+# Exit 0 = every required invariant passes (WARN does not fail), 1 = at
+# least one FAIL, 2 = usage. Details/troubleshooting: repo-diagnose.
+#
+# Read-only and on demand: starts nothing, writes nothing (theme/bar state
+# is only parsed), no daemon, no timer. Expectations come from the feature
+# flags this host was provisioned with (templated below) and from the
+# architecture's one-owner-per-responsibility table (AGENTS.md). Hardware
+# that is simply absent (battery, backlight, Bluetooth controller, Wi-Fi)
+# is never a failure.
+
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+import yaml
+
+REPO = "{{ playbook_dir }}"
+THEMES_DIR = "{{ theme_dir | default(playbook_dir ~ '/themes') }}"
+LY_UNIT = "ly@{{ display_manager_tty | default('tty2') }}.service"
+F = {"lock_idle": {{ lock_idle_enabled | bool }}, "clipboard": {{ clipboard_history_enabled | bool }},
+     "notifications": {{ notifications_enabled | bool }}, "tray": {{ tray_enabled | bool }},
+     "bluetooth": {{ bluetooth_enabled | bool }}, "power_profiles": {{ power_profiles_enabled | bool }},
+     "display_manager": {{ display_manager_enabled | bool }}, "wallpaper": {{ wallpaper_enabled | bool }}}
+UID = os.getuid()
+HOME = os.path.expanduser("~")
+CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
+RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % UID
+# One owner per responsibility: processes that must not run next to it.
+FORBIDDEN = {"notifications": ["mako", "dunst", "swaync", "fnott"], "network": ["nm-applet", "connmand", "iwd", "dhcpcd"],
+             "audio": ["pulseaudio"], "idle": ["swayidle", "xidlehook"], "wallpaper": ["hyprpaper", "swaybg", "swww-daemon"],
+             "launcher": ["fuzzel", "wofi", "rofi"], "bar": ["waybar"]}
+# QML problems that mean a broken component, not a missing capability.
+QML_BROKEN = re.compile(r"\b(ERROR|CRIT)\b|TypeError|ReferenceError|RangeError|SyntaxError|Binding loop|is not a function|Cannot (read|assign)")
+
+results = []
+
+
+def check(name, ok, detail="", warn=False):
+    results.append(("PASS" if ok else ("WARN" if warn else "FAIL"), name, detail))
+
+
+def run(argv, timeout=5, env=None):
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env=env)
+        return r.returncode, r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return 127, ""
+
+
+def procs():
+    """[(pid, ppid, uid, comm, cmdline)] of all processes."""
+    out = []
+    for p in glob.glob("/proc/[0-9]*"):
+        try:
+            with open(p + "/stat") as f:
+                stat = f.read()
+            with open(p + "/cmdline", "rb") as f:
+                cmd = f.read().replace(b"\0", b" ").strip().decode(errors="replace")
+            comm = stat[stat.index("(") + 1:stat.rindex(")")]
+            ppid = int(stat.rsplit(")", 1)[1].split()[1])
+            out.append((int(p[6:]), ppid, os.stat(p).st_uid, comm, cmd))
+        except (OSError, ValueError):
+            pass
+    return out
+
+
+def started_at(pid):
+    try:
+        with open("/proc/%d/stat" % pid) as f:
+            ticks = int(f.read().rsplit(")", 1)[1].split()[19])
+        with open("/proc/stat") as f:
+            btime = int(next(l for l in f if l.startswith("btime")).split()[1])
+        return btime + ticks / os.sysconf("SC_CLK_TCK")
+    except (OSError, ValueError, StopIteration, IndexError):
+        return None
+
+
+def environ_of(pid):
+    try:
+        with open("/proc/%d/environ" % pid, "rb") as f:
+            return dict(kv.decode(errors="replace").split("=", 1) for kv in f.read().split(b"\0") if b"=" in kv)
+    except OSError:
+        return {}
+
+
+def units(state, user=False):
+    rc, o = run(["systemctl"] + (["--user"] if user else []) + ["list-units", "--state=" + state, "--no-legend", "--plain", "--all"])
+    return [l.split()[0] for l in o.splitlines() if l.strip()]
+
+
+def active(unit, user=False):
+    return run(["systemctl"] + (["--user"] if user else []) + ["is-active", "-q", unit])[0] == 0
+
+
+def bus_owner_pid(name, user=True):
+    rc, o = run(["busctl", "--user" if user else "--system", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus",
+                 "org.freedesktop.DBus", "GetConnectionUnixProcessID", "s", name])
+    m = re.match(r"u (\d+)", o)
+    return int(m.group(1)) if rc == 0 and m else None
+
+
+# --- session / lifecycle ---------------------------------------------------
+
+def session_checks(ps):
+    rc, o = run(["loginctl", "list-sessions", "--no-legend"])
+    sid = next((f[0] for f in (l.split() for l in o.splitlines()) if len(f) >= 4 and f[1] == str(UID) and f[3] == "seat0"), None)
+    props = {}
+    if sid:
+        props = dict(l.split("=", 1) for l in run(["loginctl", "show-session", sid, "-p", "Type", "-p", "State", "-p", "Service"])[1].splitlines() if "=" in l)
+    check("graphical session", props.get("Type") == "wayland" and props.get("State") in ("active", "online"),
+          "%s via %s, %s" % (props.get("Type"), props.get("Service"), props.get("State")) if sid else "no seat0 session of this user")
+    if F["display_manager"]:
+        en = run(["systemctl", "is-enabled", LY_UNIT])[1]
+        check("login manager", en == "enabled" and (not sid or props.get("Service") == "ly"),
+              "%s %s, session via %s" % (LY_UNIT, en, props.get("Service", "-")))
+
+    mine = [p for p in ps if p[2] == UID]
+    hypr = [p for p in mine if p[3] == "Hyprland"]
+    check("Hyprland", len(hypr) == 1, "1 process" if len(hypr) == 1 else "%d processes" % len(hypr))
+    if len(hypr) != 1:
+        return None
+    hp = hypr[0][0]
+    env = environ_of(hp)
+    bad = [k for k, v in (("XDG_SESSION_TYPE", "wayland"), ("XDG_CURRENT_DESKTOP", "Hyprland")) if env.get(k) != v]
+    act = dict(l.split("=", 1) for l in run(["systemctl", "--user", "show-environment"])[1].splitlines() if "=" in l)
+    bad += ["activation " + k for k in ("WAYLAND_DISPLAY", "XDG_SESSION_TYPE", "XDG_CURRENT_DESKTOP") if not act.get(k)]
+    if act.get("WAYLAND_DISPLAY") and not os.path.exists(os.path.join(RUNTIME, act["WAYLAND_DISPLAY"])):
+        bad.append("activation WAYLAND_DISPLAY=%s has no socket" % act["WAYLAND_DISPLAY"])
+    check("session environment", not bad, "missing/wrong: " + ", ".join(bad) if bad else "wayland, Hyprland, activation env imported")
+
+    desk = [p for p in mine if p[3] == "quickshell" and p[4] == "quickshell"]
+    others = [p for p in mine if p[3] == "quickshell" and p[4] != "quickshell"]
+    check("Quickshell", len(desk) == 1 and desk[0][1] == hp,
+          ("1 desktop instance, child of Hyprland" if len(desk) == 1 and desk[0][1] == hp else
+           "%d desktop instance(s)%s" % (len(desk), ", not Hyprland's child" if desk else "")))
+    if others:
+        check("Quickshell (extra instances)", False, "%d test/-p instance(s) running" % len(others), warn=True)
+
+    def kids(comm):
+        return [p for p in mine if p[3] == comm and p[1] == hp]
+    want = [("hyprpolkitagent", 1), ("hypridle", 1 if F["lock_idle"] else 0)]
+    got = {c: len(kids(c)) for c, _ in want}
+    got["clipboard watcher"] = len([p for p in mine if p[3] == "wl-paste" and "--watch cliphist" in p[4] and p[1] == hp])
+    want.append(("clipboard watcher", 1 if F["clipboard"] else 0))
+    stray = [c for c in ("hyprpolkitagent", "hypridle") if len([p for p in mine if p[3] == c]) != got[c]]
+    lockers = len([p for p in mine if p[3] == "hyprlock"])
+    bad = ["%s %d (want %d)" % (c, got[c], n) for c, n in want if got[c] != n]
+    bad += ["%s outside this Hyprland" % c for c in stray]
+    if lockers > 1:
+        bad.append("hyprlock %d" % lockers)
+    check("session helpers", not bad, ", ".join(bad) if bad else ", ".join("%s %d" % (c, got[c]) for c, _ in want)
+          + ("; locked" if lockers else ""))
+    return hp, desk[0][0] if len(desk) == 1 else None
+
+
+# --- systemd ---------------------------------------------------------------
+
+def systemd_checks():
+    sysf, usrf = units("failed"), units("failed", user=True)
+    check("failed system units", not sysf, ", ".join(sysf) or "none")
+    check("failed user units", not usrf, ", ".join(usrf) or "none")
+    rc, o = run(["systemctl", "--user", "list-timers", "--all", "--no-legend", "--plain"])
+    ut = [l.split()[-2] for l in o.splitlines() if l.strip()]
+    local = sorted(os.path.basename(p) for p in glob.glob("/etc/systemd/system/*.timer") + glob.glob(CONFIG + "/systemd/user/*.timer"))
+    check("timers", not ut and not local, "no user timers, no locally defined timers" if not ut and not local
+          else "user: %s; local: %s" % (", ".join(ut) or "-", ", ".join(local) or "-"))
+    need = [("NetworkManager.service", False), ("systemd-logind.service", False), ("upower.service", False),
+            ("pipewire.service", True), ("wireplumber.service", True)]
+    if F["power_profiles"]:
+        need.append(("power-profiles-daemon.service", False))
+    down = [u for u, user in need if not active(u, user)]
+    check("core services", not down, "inactive: " + ", ".join(down) if down else "%d active" % len(need))
+
+
+# --- ownership -------------------------------------------------------------
+
+def ownership_checks(ps, qs_pid):
+    names = {p[3] for p in ps}
+    bad = ["%s (%s)" % (c, r) for r, cs in FORBIDDEN.items() for c in cs if c in names]
+    for unit in ("systemd-networkd.service", "iwd.service"):
+        if active(unit):
+            bad.append("%s (network)" % unit)
+    check("one owner per responsibility", not bad, "second owner running: " + ", ".join(bad) if bad
+          else "no competing network/audio/notification/idle/wallpaper/bar/launcher process")
+    audio = {c: len([p for p in ps if p[2] == UID and p[3] == c]) for c in ("pipewire", "wireplumber")}
+    pulse = active("pipewire-pulse.socket", True) or active("pipewire-pulse.service", True)
+    check("audio stack", audio == {"pipewire": 1, "wireplumber": 1} and pulse,
+          "pipewire %(pipewire)d, wireplumber %(wireplumber)d" % audio + ", pipewire-pulse %s" % ("on" if pulse else "off"))
+    for flag, bus, label in (("notifications", "org.freedesktop.Notifications", "notification server"),
+                             ("tray", "org.kde.StatusNotifierWatcher", "tray watcher")):
+        if F[flag]:
+            owner = bus_owner_pid(bus)
+            check(label, qs_pid is not None and owner == qs_pid,
+                  "%s owned by Quickshell" % bus if owner == qs_pid and qs_pid else "%s owner pid %s" % (bus, owner))
+    agents = [p for p in ps if p[2] == UID and p[3] == "bluetooth-agent"]
+    old = [p for p in agents if (time.time() - (started_at(p[0]) or time.time())) > 75]
+    check("on-demand helpers", not old, "bluetooth-agent outlived its 60 s limit (pid %s)" % old[0][0] if old
+          else "no lingering pairing agent")
+
+
+# --- network / bluetooth / power -----------------------------------------
+
+def network_checks():
+    rc, o = run(["nmcli", "-t", "-f", "STATE", "general"])
+    state = o or "unknown"
+    routes = routes6 = False
+    try:
+        with open("/proc/net/route") as f:
+            routes = any(l.split()[1] == "00000000" for l in f.readlines()[1:])
+        with open("/proc/net/ipv6_route") as f:
+            routes6 = any(l.split()[0] == "0" * 32 and l.split()[1] == "00" and l.split()[9] != "lo" for l in f)
+    except (OSError, IndexError):
+        pass
+    connected = state.startswith("connected")
+    check("network", rc == 0 and (routes or routes6 or not connected),
+          "NetworkManager %s, default route %s" % (state, "yes" if routes or routes6 else "none"))
+    ctrls = glob.glob("/sys/class/bluetooth/hci*")
+    if F["bluetooth"]:
+        check("bluetooth", not ctrls or active("bluetooth.service"),
+              "controller present, bluetooth.service %s" % ("active" if active("bluetooth.service") else "inactive")
+              if ctrls else "no controller (nothing to run)")
+
+
+# --- persistent user/runtime state ----------------------------------------
+
+def bar_checks():
+    path = os.path.join(CONFIG, "workstation", "bar-layout.json")
+    try:
+        with open(os.path.join(CONFIG, "quickshell", "bar", "default-layout.json")) as f:
+            known = {e["id"] for z in json.load(f)["layout"].values() for e in z}
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        check("bar layout", False, "%s: %s" % (os.path.basename(path), e.__class__.__name__))
+        return
+    lay = data.get("layout") if isinstance(data, dict) else None
+    zones_ok = isinstance(lay, dict) and all(isinstance(lay.get(z), list) for z in ("left", "center", "right"))
+    bg = (data.get("settings") or {}).get("background", "solid") if isinstance(data, dict) else None
+    ok = data.get("version") == 1 and zones_ok and bg in ("solid", "transparent")
+    if not ok:
+        check("bar layout", False, "structure: version %r, zones %s, background %r" % (data.get("version"), "ok" if zones_ok else "bad", bg))
+        return
+    ids = [e.get("id") if isinstance(e, dict) else e for z in ("left", "center", "right") for e in lay[z]]
+    unknown = sorted({str(i) for i in ids if i not in known})
+    dup = sorted({i for i in ids if ids.count(i) > 1 and i in known})
+    check("bar layout", True, "valid, background %s, %d widgets" % (bg, len(ids)))
+    if unknown or dup:
+        check("bar layout ids", False, "ignored by the bar - unknown: %s; duplicate: %s" % (", ".join(unknown) or "-", ", ".join(dup) or "-"), warn=True)
+
+
+def theme_checks():
+    rc, o = run([os.path.join(HOME, ".local/bin/theme"), "status", "--json"])
+    try:
+        st = json.loads(o)
+    except ValueError:
+        check("theme registry", False, "theme status failed (rc %d)" % rc)
+        return
+    valid = {t["id"]: m for m in ("dark", "light") for t in st[m]}
+    dirs = sorted(d for d in os.listdir(THEMES_DIR) if not d.startswith(".") and os.path.isdir(os.path.join(THEMES_DIR, d)))
+    names = [t["name"] for m in ("dark", "light") for t in st[m]]
+    dupn = sorted({n for n in names if names.count(n) > 1})
+    check("theme registry", not st["invalid"] and st["dark"] and st["light"] and not dupn,
+          "%d themes valid (%d dark, %d light)" % (len(valid), len(st["dark"]), len(st["light"])) if not st["invalid"] and not dupn
+          else "invalid: %s%s" % (", ".join(sorted(st["invalid"])) or "-", "; duplicate names: " + ", ".join(dupn) if dupn else ""))
+    s = st.get("state")
+    if not s:
+        check("theme state", False, "no ~/.config/workstation/theme-state")
+        return
+    bad = ["mode %r" % s["mode"]] if s["mode"] not in ("dark", "light") else []
+    bad += ["%s=%r" % (m, s[m]) for m in ("dark", "light") if valid.get(s[m]) != m]
+    stale = ["%s:%s" % (t, f) for t, f in s.get("wallpapers", {}).items()
+             if t in valid and not os.path.isfile(os.path.join(THEMES_DIR, t, "backgrounds", f))]
+    check("theme state", not bad, "invalid: " + ", ".join(bad) if bad else "dark=%s light=%s mode=%s" % (s["dark"], s["light"], s["mode"]))
+    if stale:
+        check("wallpaper choices", False, "file gone, first background used instead: " + ", ".join(stale), warn=True)
+    if bad:
+        return
+    out = os.path.join(CONFIG, "workstation", "theme")
+    missing = [n for n in ("colors.json", "hyprland.lua", "hyprlock.conf", "ghostty") if not os.path.isfile(os.path.join(out, n))]
+    problem = ""
+    try:
+        with open(os.path.join(out, "colors.json")) as f:
+            cj = json.load(f)
+        active_id = s[s["mode"]]
+        with open(os.path.join(THEMES_DIR, active_id, "theme.yml")) as f:
+            want = yaml.safe_load(f)["colors"]
+        if cj.get("id") != active_id or cj.get("colors") != want:
+            problem = "colors.json is %r, active theme is %r (or its colors changed)" % (cj.get("id"), active_id)
+        elif F["wallpaper"] and cj.get("wallpaper") and not os.path.isfile(cj["wallpaper"].get("path", "")):
+            problem = "wallpaper file missing: %s" % cj["wallpaper"].get("path")
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        problem = "colors.json unreadable (%s)" % e.__class__.__name__
+    check("theme outputs", not missing and not problem,
+          problem or ("missing: " + ", ".join(missing) if missing else "generated files current for %s" % s[s["mode"]]))
+
+
+# --- crashes / errors in the current session ------------------------------
+
+def crash_checks(hp, qs_pid):
+    since = started_at(hp) if hp else None
+    with open("/proc/stat") as f:
+        btime = int(next(l for l in f if l.startswith("btime")).split()[1])
+    rc, o = run(["coredumpctl", "--no-pager", "--no-legend", "-q", "--json=short", "list", "--since", "@%d" % btime], timeout=10)
+    try:
+        dumps = json.loads(o) if o else []
+    except ValueError:
+        dumps = []
+    cur = [d for d in dumps if since and d.get("time", 0) / 1e6 >= since]
+    old = [d for d in dumps if d not in cur]
+    check("coredumps (this session)", not cur, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in cur})) or "none")
+    if old:
+        check("coredumps (earlier this boot)", False, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in old})), warn=True)
+    if hp:
+        args = ["journalctl", "--user", "-q", "--no-pager", "-o", "cat", "-t", "quickshell", "--since", "@%d" % int(since)]
+        broken = [l for l in run(args, timeout=10)[1].splitlines() if QML_BROKEN.search(l)]
+        check("QML runtime", not broken, broken[-1].strip()[:150] if broken else "no exceptions/binding loops this session")
+        env = dict(os.environ, XDG_RUNTIME_DIR=RUNTIME)
+        sig = environ_of(qs_pid).get("HYPRLAND_INSTANCE_SIGNATURE") if qs_pid else None
+        if sig:
+            env["HYPRLAND_INSTANCE_SIGNATURE"] = sig
+        rc, o = run(["hyprctl", "configerrors"], env=env)
+        errs = [l for l in o.splitlines() if l.strip()]
+        check("Hyprland config", rc == 0 and not errs, errs[0][:150] if errs else "no config errors")
+
+
+def main():
+    ps = procs()
+    sess = session_checks(ps)
+    hp, qs_pid = sess if sess else (None, None)
+    systemd_checks()
+    ownership_checks(ps, qs_pid)
+    network_checks()
+    bar_checks()
+    theme_checks()
+    crash_checks(hp, qs_pid)
+    for status, name, detail in results:
+        print("%-4s  %-30s %s" % (status, name, detail))
+    failed = [r for r in results if r[0] == "FAIL"]
+    print()
+    if failed:
+        print("UNHEALTHY: %d check%s failed - details: repo-diagnose (--full)" % (len(failed), "" if len(failed) == 1 else "s"))
+        return 1
+    print("HEALTHY")
+    return 0
+
+
+if __name__ == "__main__":
+    if sys.argv[1:]:
+        print("usage: repo-healthcheck", file=sys.stderr)
+        sys.exit(2)
+    sys.exit(main())

@@ -9,6 +9,18 @@
     mode: "0755"
   tags: diagnostics
 
+# repo-healthcheck: the PASS/FAIL view of the same system (invariants,
+# exit code) - repo-diagnose stays the place for details.
+- name: Deploy repo-healthcheck (/usr/local/bin/repo-healthcheck)
+  become: true
+  ansible.builtin.template:
+    src: repo-healthcheck.j2
+    dest: "{{ diagnostics_healthcheck_bin }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: diagnostics
+
 # A first deployment put it into ~/.local/bin, which is on nobody's PATH.
 - name: Remove the retired per-user copy (~/.local/bin/repo-diagnose)
   ansible.builtin.file:
