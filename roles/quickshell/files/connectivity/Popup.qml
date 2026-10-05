@@ -1143,7 +1143,7 @@ BarPopup {
                     width: 4
                     height: Math.max(16, otherView.visibleArea.heightRatio * otherView.height)
                     radius: 2
-                    color: barDrag.drag.active || barMouse.containsMouse ? Colors.accent : Colors.foregroundMuted
+                    color: barDrag.active || barMouse.containsMouse ? Colors.accent : Colors.foregroundMuted
 
                     MouseArea {
                         id: barMouse

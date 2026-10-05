@@ -85,7 +85,10 @@ BarPopup {
                     font.pixelSize: popup.fontSize
                     maximumLength: 6
                     inputMethodHints: Qt.ImhDigitsOnly
-                    Component.onCompleted: { forceActiveFocus(); selectAll(); }
+                    // Deferred: BarPopup's own onCompleted runs after this
+                    // one and gives the keyboard to its key handler (the
+                    // field then never got the typing - measured).
+                    Component.onCompleted: Qt.callLater(() => { forceActiveFocus(); selectAll(); })
                     onTextEdited: popup.error = ""
                     Keys.onReturnPressed: popup.startFromInput()
                     Keys.onEnterPressed: popup.startFromInput()
