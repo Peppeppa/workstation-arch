@@ -90,7 +90,13 @@ direct upstream dependency.
 | Login (display manager) | Ly - `ly@tty2.service` (package unit + PAM), `roles/display_manager`, feature `display_manager_enabled`; starts the hyprland package's `hyprland.desktop` (`start-hyprland`); tty1 keeps its getty for recovery/manual start |
 | Compositor / window manager | Hyprland |
 | OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/System hand over to their owners |
-| Appearance (theme/wallpaper/brightness/text size/display view) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, text size = GSettings `text-scaling-factor`, brightness = `brightnessctl` (backlight only) |
+| Appearance (theme/wallpaper/bar background/brightness/text size/display) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, bar background = BarLayout's setting, brightness = `brightnessctl` (backlight only) |
+| Desktop text size (one preference: shell, Ghostty, GTK `text-scaling-factor`) | the `theme` helper (state `text-size`, `theme text-size <px>`); Quickshell derives sizes via `Fonts.px` |
+| Display scale picked at runtime | `~/.config/workstation/display-scale.lua`, written only by Appearance (`services/DisplayModel.qml`), read by `monitors.lua`; mode/position/default scale stay `hyprland_monitors` (host_vars) |
+| Night light (Day/Night) | `hyprsunset`, child of Quickshell only while Night is on (`NightLight.qml`, Visuals widget) |
+| Timer / reminder | Quickshell `Countdown.qml` (Visuals widget) - a deadline + tick only while a timer runs |
+| AC/battery power-profile policy (laptops) | Quickshell `PowerPolicy.qml` (feature `power_profiles`): AC = Performance, battery = remembered battery choice (`~/.config/workstation/power-battery-profile`) |
+| Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand |
 | Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
@@ -755,11 +761,8 @@ is still genuinely not started.
   should live in this repo or follow that same dotfiles-stow pattern,
   to avoid silently conflicting with however the real hosts already
   handle it.
-- **WebCord**: not in official Arch repos; its own Flathub packaging
-  was marked EOL/archived by WebCord's maintainer (fails the "clean,
-  updatable" bar); the AUR package would require installing an AUR
-  helper, which the Package Source Policy forbids by default. Use
-  Discord's web app via Chromium until this is resolved.
+- **WebCord**: resolved - Flathub (`io.github.spacingbat3.webcord`,
+  maintained again, no EOL marker as of 2026-10), roles/apps.
 - **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: neither is set
   for `laptop` or `workstation` — real GPU hardware was not provided
   and must not be guessed. Gaming stays disabled on both real hosts
@@ -767,14 +770,13 @@ is still genuinely not started.
   together in the relevant `host_vars/<hostname>.yml` (see
   `group_vars/all.yml` and the comments in both `host_vars/*.yml`).
 - **Uni-VPN**: protocol not confirmed — see Networking Rules.
-- **Webapp management** (GeForce NOW, WhatsApp, Overleaf, draw.io): all
-  via Chromium as plain web pages for now. A declarative webapp list
-  generating `.desktop` entries (so Quickshell's launcher can later show
-  them like native apps) is a documented future idea, not built.
+- **Webapp management**: `apps_webapps` (roles/apps) renders launcher
+  entries for Chromium web apps (WhatsApp so far); GeForce NOW,
+  Overleaf, draw.io are plain pages until added there.
 
 **Documentation gaps found during the prior audit, still open:**
-- `docs/DESIGN_SYSTEM.md` now covers colors (Central Color System v1);
-  sizes/spacing/typography are still just constants in `shell.qml`.
+- `docs/DESIGN_SYSTEM.md` covers colors and typography incl. the one
+  text size (`Fonts.px`); spacing is still per-component constants.
 - `config/`, `systemd/`, `hardware/`, and `scripts/diagnostics/` appear
   in `README.md`'s repository-structure diagram but hold no tracked
   files (git does not track empty directories) — a fresh clone will not
@@ -852,6 +854,18 @@ history for that milestone's own record):
   (cliphist), `wallpaper` (theme backgrounds, per-theme choice) - see
   their contracts in `docs/feature-architecture.md`. Bootstrap now also
   brings back a stopped desktop Quickshell.
+
+- **Daily Driver Polish batch** (laptop, real-hardware-tested - details in
+  the commit messages and `docs/feature-architecture.md`): network
+  password survives Wi-Fi scans (Other networks = SSID-keyed ListModel,
+  frozen during the password interaction) + eye toggle + own 10-row
+  scroll area; Bluetooth pair -> exactly one connect; AC = Performance
+  policy; one desktop text size; display scale presets + Change; bar
+  transparency in Appearance; Visuals bar widget (Timer, Day/Night via
+  hyprsunset with a 1 s fade, Light/Dark, Coffee); Share view masks the saved Wi-Fi password; new apps (Anki, Disks, Loupe,
+  Planify, LocalSend + WebCord via Flathub, WhatsApp web app) and
+  `roles/development` (gh, lazygit, JDK 25, Python/uv, Docker on demand);
+  the user's wallpapers.
 
 - **RICE v1 step 1 - modular bar**: Omarchy-style bar host + widgets
   (`bar/`), layout as user state with drag & drop (also across zones),

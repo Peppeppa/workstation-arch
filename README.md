@@ -187,7 +187,8 @@ first - see the `gaming` row below.
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
-| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, ...); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
+| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ via Flathub; WhatsApp as Chromium web app); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
+| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker") |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 | `recovery`       | `recovery`      | Btrfs snapshots (snapper), recovery boot slots, `system-update`/`-snapshot`/`-rollback` (`recovery_enabled`) |
@@ -339,6 +340,36 @@ the systemd-boot menu (it boots the saved system, `/home` is the normal
 one), look around, then `sudo system-rollback <slot>` and reboot. The old
 system is kept as `@broken-<date>` at the Btrfs top level until deleted
 by hand.
+
+## Docker (on demand)
+
+Docker is installed (`roles/development`) but never runs by itself - no
+daemon, no socket, no containerd at boot. Your user is in the `docker`
+group (after the next login), so `docker` works without sudo while the
+daemon runs.
+
+```sh
+sudo systemctl start docker                                        # start (socket, daemon, containerd)
+docker compose up -d                                               # ... work ...
+sudo systemctl stop docker.socket docker.service containerd.service   # stop everything again
+systemctl is-active docker docker.socket containerd                 # check: inactive x3
+```
+
+Stop the socket too: while `docker.socket` listens, the next `docker`
+call (or an IDE probing it) starts the daemon again. Containers, images,
+volumes and databases (e.g. a MySQL container for a course) are yours -
+the repository creates none.
+
+## Text size and display scale
+
+Main menu -> Appearance. **Text size** (9-18 px, default 11) is one
+preference for the whole desktop: the shell, Ghostty (and Neovim in it)
+and GTK apps follow at once (`theme text-size 14` does the same from a
+terminal). **Display** scale (1x 1.25x 1.6x 2x 4x per output) applies
+at once and is remembered in `~/.config/workstation/display-scale.lua`;
+"Use the host default" returns to `hyprland_monitors`. **Change** opens
+this host's `host_vars/<host>.yml` in Neovim for resolution/position -
+run `./bootstrap.sh` after editing.
 
 ## Pacman / update policy
 

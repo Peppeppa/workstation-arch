@@ -1,7 +1,7 @@
 # Design System
 
-Deliberately small: one theme architecture (colors) and a handful of
-font roles. Sizes/spacing are still a couple of constants in `shell.qml`.
+Deliberately small: one theme architecture (colors), a handful of font
+roles and one text size.
 
 ## Typography
 
@@ -16,6 +16,14 @@ Font names are defined once in `group_vars/all.yml`, by role:
 
 Serif stays the distro default (documents). Quickshell components use
 `font.family: Fonts.family` / `Fonts.icons` - never a font name literal.
+
+Sizes: ONE desktop text size (presets 9-18 px, default 11), owned by the
+`theme` helper (`theme text-size`, Appearance -> Text size). Quickshell
+sizes are written for the default size and pass through `Fonts.px(n)`
+(BarStyle for the bar, the `fontSize` handed down by shell.qml for the
+overlays, `Fonts.px()` for rows/panels that hold text) - never a raw
+pixel size for text. Ghostty and GTK follow through the helper (see
+`docs/feature-architecture.md` "Appearance").
 
 ## Themes
 

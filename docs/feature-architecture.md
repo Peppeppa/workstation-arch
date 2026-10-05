@@ -196,8 +196,7 @@ third-party API.
 | `bluetooth` | `bluetooth_enabled` (whole widget; hidden without adapter) | Bluetooth popup |
 | `audio` | core icon + percent (wheel volume, right click mute) | `audio_popup_enabled`: devices/volume (without it left click mutes) |
 | `power` | core battery - only where a laptop battery exists (else invisible, no space, layout untouched) | battery popup (charge, UPower estimate; profiles with `power_profiles_enabled`) |
-| `coffee` | `lock_idle_enabled` | - |
-| `theme` | core | brightness (only with a backlight) + themes + wallpapers |
+| `visuals` | core - four icon frames, one layout item: Timer, Day/Night, Light/Dark, Coffee (Coffee only with `lock_idle_enabled`) - see "Visuals" | Timer: MM:SS countdown; Light/Dark right click: brightness (only with a backlight) + themes + wallpapers |
 
 - **Interface**: a widget gets `bar` (barHeight, screen, dragging,
   showTooltip/hideTooltip, openWidgetPopup) - nothing else. Core widgets
@@ -217,7 +216,9 @@ third-party API.
   keep their place; a widget missing from the file is appended to its
   default zone. Ansible only creates the file if missing (`force: false`);
   `qs ipc call bar resetLayout` restores `default-layout.json`'s
-  arrangement (settings stay).
+  arrangement (settings stay). Migration: the former standalone `coffee`
+  and `theme` ids become one `visuals` at the place of the first of
+  them (the other is dropped, everything else stays), written once.
 - **Tooltips**: none by default - bar widgets do not show hover tooltips
   (`docs/DESIGN_SYSTEM.md` "Bar look"); `BarWidget.tooltip` is an opt-in
   for a widget explicitly meant to have one.
@@ -228,10 +229,11 @@ third-party API.
   Quickshell restart, written atomically into the same file) and
   `qs ipc call bar getBackground`. A file without `settings` means
   `solid`; Ansible never rewrites an existing file.
-  Until a settings menu exists, a right click on free bar space (no
-  widget under the pointer - a widget's own right click keeps its
-  function, the passive clock is not free space) flips it through the
-  same `BarLayout.setBackground()`.
+  Appearance -> Bar "Transparent bar background" and a right click on
+  free bar space (no widget under the pointer - a widget's own right
+  click keeps its function, the passive clock is not free space) both
+  flip it through the same `BarLayout.setBackground()` - one value, so
+  the checkbox and the right click always agree.
 - **Drag & drop**: a `DragHandler` per slot (threshold 6 px) takes the
   pointer over from the widget - the widget's click is cancelled, so a
   drag never clicks. The widget follows the pointer, the landing place is
@@ -245,8 +247,8 @@ third-party API.
   anchor. The outline appears right at the widget (its first placement
   is never animated - only later moves are). Drag corridor: only while
   a drag is active the bar's transparent surface grows
-  `BarStyle.dragCorridor` (100 px) below the visible 26 px bar (exclusive
-  zone stays 26 px - windows never move; back to 26 px right after the
+  `BarStyle.dragCorridor` (100 px) below the visible bar (26 px at the
+  default text size; exclusive zone = the bar height - windows never move; back to 26 px right after the
   drop). Needed because Hyprland keeps the pointer on the bar below it
   only while a window lies there - on an empty desktop the bar got a
   leave and Qt cancelled the drag (measured on arch-dev). Release within
@@ -266,6 +268,21 @@ third-party API.
   password box, Bluetooth PIN), so Escape keeps closing the popup.
 - **Cost**: no process, no watcher, no timer except one short one-shot
   settle timer per drop.
+
+## Visuals (bar widget)
+
+Core bar widget `visuals` (`bar/widgets/Visuals/`): four permanently
+visible icon frames - **Timer | Day/Night | Light/Dark | Coffee** - that
+form one layout item (one id, one drag handle; dragging moves all four)
+but stay separately clickable. Each is a plain `BarWidget` frame: same
+icon size, hitbox, hover, active (accent) / muted look as every bar icon.
+
+| Control | Implementation | Runtime cost |
+|---|---|---|
+| Timer | `Countdown.qml` (singleton): MM:SS input (minutes may exceed 59) in `TimerPopup.qml`; state = an absolute wall-clock deadline, remaining = deadline - now (never a decremented counter); a single-shot tick, only while a timer runs, aligned to the next full second; the remaining time stands next to the icon. Done: notification (`notify-send` -> our notification server) + `alarm-clock-elapsed.oga` via `pw-play`, then idle. Suspend: Qt timers use the monotonic clock (stops while asleep) but the deadline is wall time - the first tick after resume rings at once. No history, repeat, persistence | nothing while idle |
+| Day/Night | `NightLight.qml` (singleton): Night = `hyprsunset` (hyprwm's blue-light filter, official `extra`, Hyprland's `hyprland-ctm-control` protocol) as a child of Quickshell, 4500 K; Day = the process ends and Hyprland drops the color transform. 1 s fade: hyprsunset starts neutral (`--identity`) and is stepped 6500 <-> 4500 K in 10 steps over its IPC (`hyprctl hyprsunset temperature`, one call at a time, overlapping steps replaced - no queue); clicks during a fade do nothing. Not persisted (every start is Day), no schedule, no slider; if hyprsunset dies, the toggle shows Day again | one small process only while Night is on; a step timer only during the 1 s fade |
+| Light/Dark | the existing theme system: left click `theme toggle`, right click the theme popup (`bar/widgets/Theme/Popup.qml`) | none |
+| Coffee | the existing `CoffeeMode` + the bar's Wayland `IdleInhibitor` (only with `lock_idle_enabled`) | none |
 
 ## OS menu
 
@@ -310,9 +327,9 @@ selector, wallpaper picker) on top of shared, non-visual models in
 
 | Model | Owner of | Used by |
 |---|---|---|
-| `services/ThemeModel.qml` | QML side of the `theme` helper: `status --json`, `select`, `wallpaper set`; refreshes on the Colors reload the helper triggers (no watcher) | bar theme popup, Appearance |
+| `services/ThemeModel.qml` | QML side of the `theme` helper: `status --json`, `select`, `wallpaper set`, `text-size`; refreshes on the Colors reload the helper triggers (no watcher) | bar theme popup, Appearance |
 | `services/BrightnessModel.qml` | backlight via `brightnessctl -c backlight` (read once per open, coalesced writes); `available` false without a backlight -> control hidden/"Not available" (nothing faked) | bar theme popup (first control), Appearance |
-| `services/TextScaleModel.qml` | GSettings `org.gnome.desktop.interface text-scaling-factor` (Small 0.9 ... Largest 1.5) - native runtime setting GTK3/GTK4 follow live; Ansible sets only font names, never this key | Appearance |
+| `services/DisplayModel.qml` | outputs (`hyprctl monitors -j`, per open and after a change), the runtime display scale (`~/.config/workstation/display-scale.lua`), "Change" (host_vars in Neovim) | Appearance |
 | `ui/LevelSlider.qml` | a 0..1 slider (the volume slider's look) | both |
 
 Sections: Theme (Dark and Light selectors, each listing only themes with
@@ -320,15 +337,45 @@ that marker; picking = `theme select`, applied at once when that mode is
 active), Wallpaper (current preview -> picker: previews of the ACTIVE
 theme's `backgrounds/`, click = `theme wallpaper set` + close, Cancel /
 Escape / outside click = no change; GIFs show their first frame + badge),
-Brightness, Text size (GTK apps; the shell keeps its own pixel sizes -
-scaling Quickshell itself needs one size owner across bar/popups/menus,
-left for a later pass), Display (every output as `hyprctl monitors -j`
-reports it now: resolution, refresh, scale). Display is read-only on
-purpose: resolution/scale are owned per output by `hyprland_monitors`
-(host_vars); a runtime change would be lost on the next config reload and
-compete with that owner - per-output editing needs the real laptop/
-workstation outputs first. Everything inside exists only while the window
-is open (Loader): no process, no timer when closed.
+Bar (Transparent bar background - BarLayout's own setting, see "Bar"),
+Brightness, Text size, Display. Everything inside exists only while the
+window is open (Loader): no process, no timer when closed.
+
+**Text size** - ONE desktop typography preference, presets 9 10 11 12
+14 16 18 px, default 11 (= the GTK font size, `desktop_ui_font_size`).
+Owner: the `theme` helper (state key `text-size`, `theme text-size
+<px>`), because it already owns the runtime appearance state, its
+outputs and the live apply - no second state file. Each consumer derives
+its size from it, relative to the default (at 11 everything is as before):
+
+| Consumer | How |
+|---|---|
+| Quickshell (bar, popups, OS menu, Appearance, notifications, power menu, clipboard, tray menus) | `colors.json` `text_size` -> `Fonts.size`; every size is written for the default and goes through `Fonts.px()` - text and the rows/panels holding text; the bar never shrinks below its default height. Images, borders, the QR code do not scale |
+| Ghostty (and Neovim inside it) | `font-size` in the helper's Ghostty include (12 pt default scaled, 0.5 pt steps), live via SIGUSR2 |
+| GTK3/GTK4/libadwaita | GSettings `text-scaling-factor` = size / 11, written only by the helper |
+| Chromium, IntelliJ, web pages | not forced - they keep their own zoom |
+
+Text size and display scale are independent: one is typography, the
+other the output scale.
+
+**Display** - per output (as `hyprctl monitors -j` reports it):
+resolution/refresh, the scale presets 1x 1.25x 1.6x 2x 4x (active one
+marked) and **Change**. Ownership:
+
+| What | Owner |
+|---|---|
+| mode, position, default scale per output | `hyprland_monitors` in `host_vars/<host>.yml` (declarative) -> Ansible renders `~/.config/hypr/conf/monitors.lua` |
+| the scale picked in Appearance | runtime state `~/.config/workstation/display-scale.lua` (`return { ["eDP-1"] = 1.25 }`), written only by Appearance (atomic; output names checked against `[A-Za-z0-9._-]`), never by Ansible |
+
+`monitors.lua` loads the runtime file with `pcall` (missing/broken = host
+defaults) and lets its scale win for that output; an output that is not
+in `hyprland_monitors` gets the catch-all rule's mode/position with it.
+Applying = rewrite the file + `hyprctl reload` (Hyprland re-runs its
+config); "Use the host default" removes the output's line. **Change**
+opens the persistent source, `host_vars/<host>.yml` in the repository
+checkout (path rendered by Ansible), in Neovim at `hyprland_monitors`
+(the host's `hyprland_terminal`); `./bootstrap.sh` applies an edit. No
+graphical resolution editor.
 
 ## Diagnostics and logging
 
@@ -706,7 +753,7 @@ its own bar widget - not part of the network popup or the OS menu.
 | API | Quickshell 0.3.1 `Quickshell.Bluetooth` (BlueZ D-Bus, event-driven): `adapter.enabled` = Powered (runtime on/off, never `systemctl`), `adapter.discovering`, `device.connect/disconnect/pair/cancelPair/forget`, `trusted`, `battery` |
 | UI (v2) | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip. Popup: on/off, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), sections Connected / Known devices / Available, Scan, in-popup pairing dialogs. Row = monochrome device glyph (Nerd Font, theme colors) chosen from BlueZ's own `Icon` property - headphones/headset, speaker, keyboard, mouse, gamepad, phone, computer, display, printer, camera; anything else the Bluetooth glyph, never guessed from the name - then name, state + battery (when BlueZ reports one); **click the row** = disconnect (connected) / connect (known) / pair (new; click again cancels). Right side: state icon; for a known device an **X replaces it while hovered** - its own click area: forget, never connect/disconnect. New devices have no X |
 | Scanning | user-started only, auto-stop after 30 s, stopped on popup close if we started it |
-| Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected |
+| Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected: **one click on an Available device = pair, then exactly one connect** - Quickshell's `connect()` when no link is up; when the pairing's own baseband link is still up (BlueZ already says Connected, no profile is), one `busctl call org.bluez <path> org.bluez.Device1 Connect` (Quickshell refuses `connect()` on a "connected" device); "Already Connected" = fine. A failed connect leaves the device paired + disconnected (click to retry) |
 | Privileges / Secrets / Network | none at runtime (no sudo; `rfkill unblock` as the session user) / no codes stored or logged / Bluetooth radio only |
 | Disable | no UI (Loader inactive), `bluetooth.service` disabled + stopped; `/var/lib/bluetooth` pairings and packages kept |
 | Persistent user data | BlueZ's own pairing store (`/var/lib/bluetooth`), never touched by us |
@@ -723,13 +770,14 @@ default `true`).
 | Capability | the widget exists only where UPower's `displayDevice` is a present laptop battery (`isPresent && isLaptopBattery` - hardware data, not the hostname). Without one it is invisible with width 0: no empty slot, the persisted layout keeps its `power` entry untouched, no popup, nothing extra watched |
 | Icon | on external power: plug; discharging: battery filled in 10 % steps; <= 15 % while discharging: the theme's `error` color |
 | Low battery | `BatteryWatcher.qml`: one critical notification on crossing <= 15 % while discharging; re-armed only by external power or once back >= 20 % (no spam around the threshold). Event-driven (UPower signals), no timer |
-| Popup | "Battery" + percentage on one row, a wide charge bar (error color when low), below it UPower's own estimate ("3h 42m remaining" / "1h 08m until full") only when UPower has one - never computed by us; then "Power profile": Power Saver / Balanced / Performance, active one highlighted, Performance disabled where PPD does not offer it (`hasPerformanceProfile`) |
+| Popup | "Battery" + percentage on one row, a wide charge bar (error color when low), below it UPower's own estimate ("3h 42m remaining" / "1h 08m until full") only when UPower has one - never computed by us; then, **on battery only**, "Power profile": Power Saver / Balanced / Performance, active one highlighted, Performance disabled where PPD does not offer it (`hasPerformanceProfile`); on external power one line names the profile the AC policy holds |
+| AC policy (laptops, `power_profiles_enabled`) | `PowerPolicy.qml`, one instance (shell.qml): external power -> Performance (Balanced where the platform has none); battery -> the profile last chosen ON BATTERY, remembered in `~/.config/workstation/power-battery-profile` (written only by the policy - AC Performance never overwrites it). Event-driven (UPower `OnBattery`, PPD `ActiveProfile`), sets a profile only when it differs (duplicate events/resume set nothing). No laptop battery (workstation): does nothing |
 | Profiles API | Quickshell `PowerProfiles` (PPD D-Bus, event-driven): `profile` set = switch; PPD's polkit allows the active local session - no sudo, no Ansible at runtime |
 | Host default | `power_profile_default` (roles/power, "" = leave PPD alone); the workstation (no battery, so no profile switch in the bar) sets `performance`. Applied once per value (`powerprofilesctl set` + marker `/var/lib/workstation/power-profile-default`), skipped with a note when the platform lacks it - a later runtime choice is never reset, no helper keeps forcing it |
 | Lid (core) | `HandleLidSwitch=suspend`, `...ExternalPower=suspend`, `...Docked=ignore` (logind drop-in, SIGHUP, no restart); hypridle locks before sleep |
 | Packages | `power-profiles-daemon` |
 | Disable (profiles) | no profile row; PPD disabled + stopped; package stays |
-| Persistent user data | none (PPD keeps its own last profile) |
+| Persistent user data | `~/.config/workstation/power-battery-profile` (the battery choice); PPD keeps its own last profile |
 
 ## Audio popup v1
 
@@ -755,10 +803,10 @@ default `true`). NetworkManager stays the only network owner.
 |---|---|
 | Scope | `bar/widgets/Connectivity/Model.qml` (core), `roles/quickshell/files/connectivity/` (`Popup.qml`; `wifi-qr.py` -> `~/.local/libexec/workstation/wifi-qr`) |
 | Bar icon | the interface carrying the **active default route**: kernel routes (`/proc/net/route`, `/proc/net/ipv6_route` via FileView), lowest metric among NM's physical devices (Wi-Fi with signal level / Ethernet), else disconnected. Ethernet + Wi-Fi both up -> whichever owns the default route; cable gone -> follows the route. A VPN holding the default route keeps the physical uplink as icon (`vpnDefault`, "via VPN" in the popup). Re-read on NM events (device states, active networks, connectivity) + one 1.5 s one-shot re-read for routes that settle late - no poller, no process. A pure route change NM raises no event for (e.g. `nmcli device reapply` with a new metric) reaches the bar on the next NM event or as soon as the popup opens (its 1 s timer re-reads the routes too) |
-| Popup: status | NM connectivity: Full / "Login required" (portal: button opens NM's own `ConnectivityCheckUri` in Chromium, so the portal redirects - no probing of ours) / Limited / No internet; global addresses per interface with type icon (`ip -j -d addr`, on open + on NM events; no loopback/link-local; at most one stable IPv6 per interface, dimmed); default gateway with its interface type |
+| Popup: status | NM connectivity: Full / "Login required" (portal: button opens NM's own `ConnectivityCheckUri` in Chromium, so the portal redirects - no probing of ours) / Limited / No internet; global addresses per interface with type icon (`ip -j -d addr`, on open + on NM events; only links that are up - a stopped Docker's `docker0` keeps its address while DOWN; no loopback/link-local; at most one stable IPv6 per interface, dimmed); default gateway with its interface type |
 | Traffic | the ONLY sampling: ↓/↑ of the default-route interface, a 1 s Timer reading `/sys/class/net/<if>/statistics/{rx,tx}_bytes` (FileView, no process). It lives inside the popup (exists only while open): starts when the popup appears, gone when it closes - zero wakeups afterwards; follows the interface when the default route moves |
 | Popup: VPN (before Wi-Fi) | NM `vpn`/`wireguard` profiles (`nmcli -t` on open, on NM events, after each action): row click = up/down by UUID. No create/import/edit/delete here. "via VPN" also for NM's WireGuard full tunnel, which routes by policy (default route in its own table behind an ip rule; the main table and NM's `Default` flag still show the physical uplink): `ip -j route get 203.0.113.1` (FIB lookup, nothing sent) at the same moments as the address list |
-| Popup: Wi-Fi | radio on/off; **Known networks** = saved NM profiles (`known`), connected one highlighted with "Connected"; **Other networks** = visible, not saved. Signal icon before the SSID, lock on the right if secured; on a known row an X replaces the lock (or appears) while hovered - forget, in its own click area. Row click: known -> connect (connected -> disconnect), open -> connect, WPA/WPA2/WPA3-Personal -> inline password; wrong password -> box stays with an error; success -> NM stores it, it moves to Known. Enterprise/WEP -> note + "Open" (nm-connection-editor). Scanning only while open. QR share of the current network (unchanged) |
+| Popup: Wi-Fi | radio on/off; **Known networks** = saved NM profiles (`known`), connected one highlighted with "Connected"; **Other networks** = visible, not saved. Signal icon before the SSID, lock on the right if secured; on a known row an X replaces the lock (or appears) while hovered - forget, in its own click area. Row click: known -> connect (connected -> disconnect), open -> connect, WPA/WPA2/WPA3-Personal -> inline password (eye toggle: shows/hides the same field, starts concealed; Copy/Cut blocked); wrong password -> box stays with an error; success -> NM stores it, it moves to Known. **Other networks** is a ListModel keyed by SSID (synced by move/insert/remove - rows keep their identity; a Repeater over a recomputed array recreated every row on each scan and lost the typed password) and is **frozen while a password is typed or sent**: the wanted order is applied once when the box closes (cancel, success, popup closed). Its own scroll area: up to 10 rows (+ the open box), scrollbar only when longer, heading and other sections fixed; Up/Down/Enter select/connect with the selection scrolled into view. Enterprise/WEP -> note + "Open" (nm-connection-editor). Scanning only while open. QR share of the current network: QR + a fixed 12-bullet mask (never the saved password itself, no reveal) + Copy (real password via `wl-copy --sensitive` stdin, not in cliphist) |
 | Secrets | passwords go straight to NM (`connectWithPsk`), never logged or stored by us; QR only in memory |
 | Administration | `nm-connection-editor` (roles/network, official `extra`), started on demand from the OS menu (and the enterprise note): VPN add/import/edit/delete, Ethernet/Wi-Fi profiles, WPA-Enterprise/eduroam, DHCP vs static IPv4, gateway, DNS. No `network-manager-applet`, no tray applet, no autostart |
 | Privileges | NM's own polkit policy for the active session; no sudo |
