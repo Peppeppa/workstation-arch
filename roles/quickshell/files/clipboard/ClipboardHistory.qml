@@ -243,7 +243,7 @@ Scope {
                             readonly property bool selected: index === popup.selectedIndex
 
                             width: ListView.view.width
-                            height: 32
+                            height: Fonts.px(32)
                             radius: 4
                             color: selected ? Colors.accent : entryMouse.containsMouse ? Colors.surface : "transparent"
 

@@ -28,7 +28,7 @@ BarPopup {
         { value: PowerProfile.Performance, label: "Performance", available: PowerProfiles.hasPerformanceProfile }
     ]
 
-    panelWidth: 300
+    panelWidth: Fonts.px(300)
 
     // power-profiles-daemon answers asynchronously; a switch it refused
     // (polkit, platform) leaves the old profile - say so in the journal.

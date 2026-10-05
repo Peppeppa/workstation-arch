@@ -81,7 +81,7 @@ FocusScope {
                     anchors.left: parent.left
                     anchors.leftMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 22
+                    width: Fonts.px(22)
                     horizontalAlignment: Text.AlignHCenter
                     text: row.modelData.icon
                     color: row.selected ? Colors.accentForeground : Colors.foreground

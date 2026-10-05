@@ -96,7 +96,7 @@ BarPopup {
         return false;
     }
 
-    panelWidth: wallpaperEnabled ? 340 : 280
+    panelWidth: Fonts.px(wallpaperEnabled ? 340 : 280)
     keyFilter: event => dialog.handleKey(event.key)
 
     ColumnLayout {

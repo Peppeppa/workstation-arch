@@ -294,7 +294,7 @@ BarPopup {
             anchors.left: parent.left
             anchors.leftMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            width: 18
+            width: Fonts.px(18)
             horizontalAlignment: Text.AlignHCenter
             text: popup.deviceGlyph(row.device)
             color: row.device.connected ? Colors.accent : Colors.foreground
