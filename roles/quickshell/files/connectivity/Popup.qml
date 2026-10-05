@@ -46,10 +46,31 @@ BarPopup {
     readonly property bool wifiOn: Networking.wifiEnabled && Networking.wifiHardwareEnabled
     readonly property var networks: wifiDevice === null ? []
         : wifiDevice.networks.values.filter(n => n.name !== "")
-    readonly property var knownNetworks: networks.filter(n => n.known)
+    readonly property var knownNetworks: networks.filter(n => n.known && !holdInOther(n))
         .sort((a, b) => (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
-    readonly property var otherNetworks: networks.filter(n => !n.known)
-        .sort((a, b) => b.signalStrength - a.signalStrength)
+    readonly property var otherNetworks: orderOther(networks.filter(n => !n.known || holdInOther(n)), otherOrder)
+
+    // The password box opens inline below its network (NetworkEntry). While
+    // it is open the network keeps its place: it stays under "Other" until
+    // the connect succeeded (NM saves a profile - known - already while
+    // connecting), and "Other" keeps the order it had when the box opened
+    // (otherwise it is re-sorted by signal on every scan). New networks go
+    // to the end. Cleared on success/cancel -> the network moves to Known.
+    readonly property var authNetwork: passwordFor || pendingPsk
+    property var otherOrder: []          // SSIDs, frozen while authNetwork is set
+    onAuthNetworkChanged: otherOrder = authNetwork
+        ? orderOther(networks.filter(n => !n.known || n === authNetwork), []).map(n => n.name) : []
+
+    function holdInOther(n) {
+        return n === authNetwork && !pendingWasKnown;
+    }
+
+    function orderOther(list, order) {
+        const bySignal = list.slice().sort((a, b) => b.signalStrength - a.signalStrength);
+        if (order.length === 0) return bySignal;
+        const rank = n => { const i = order.indexOf(n.name); return i < 0 ? order.length : i; };
+        return bySignal.sort((a, b) => rank(a) - rank(b));
+    }
     readonly property var currentNetwork: networks.find(n => n.connected) || null
 
     property var passwordFor: null      // network waiting for a password
@@ -436,6 +457,108 @@ BarPopup {
         }
     }
 
+    // Password for a protected network (WPA/WPA2/WPA3-Personal), inline
+    // below its row (one instance per row, visible only for authNetwork).
+    component PasswordBox: Rectangle {
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        implicitHeight: pwBox.implicitHeight + 16
+        radius: 6
+        color: Colors.surface
+        border.color: popup.pwError !== "" ? Colors.error : Colors.borderActive
+        border.width: 1
+
+        ColumnLayout {
+            id: pwBox
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 8
+            spacing: 6
+
+            Text {
+                Layout.fillWidth: true
+                readonly property var n: popup.passwordFor || popup.pendingPsk
+                text: popup.pendingPsk !== null ? "Connecting to " + (n ? n.name : "") + "…"
+                                                : "Password for " + (n ? n.name : "")
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: Colors.foreground
+                font.family: Fonts.family
+                font.pixelSize: popup.fontSize - 1
+            }
+
+            Rectangle {
+                visible: popup.pendingPsk === null
+                Layout.fillWidth: true
+                implicitHeight: 28
+                radius: 4
+                color: Colors.background
+                border.color: Colors.border
+                border.width: 1
+
+                TextInput {
+                    id: pwInput
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    echoMode: TextInput.Password
+                    color: Colors.foreground
+                    font.family: Fonts.family
+                    font.pixelSize: popup.fontSize
+                    maximumLength: 63
+                    onVisibleChanged: {
+                        text = "";
+                        if (visible) forceActiveFocus();
+                        else popup.restoreKeyFocus();
+                    }
+                    Keys.onReturnPressed: { popup.submitPassword(text); text = ""; }
+                    Keys.onEscapePressed: { text = ""; popup.passwordFor = null; popup.pwError = ""; }
+                }
+            }
+
+            Text {
+                visible: popup.pwError !== ""
+                text: popup.pwError
+                color: Colors.error
+                font.family: Fonts.family
+                font.pixelSize: popup.fontSize - 2
+            }
+
+            RowLayout {
+                visible: popup.pendingPsk === null
+                Layout.alignment: Qt.AlignRight
+                spacing: 6
+
+                PopupButton {
+                    label: "Cancel"
+                    onClicked: { pwInput.text = ""; popup.passwordFor = null; popup.pwError = ""; }
+                }
+
+                PopupButton {
+                    primary: true
+                    label: "Connect"
+                    onClicked: { popup.submitPassword(pwInput.text); pwInput.text = ""; }
+                }
+            }
+        }
+    }
+
+    // A network row plus its inline password box.
+    component NetworkEntry: ColumnLayout {
+        id: entry
+        required property var network
+        Layout.fillWidth: true
+        spacing: 2
+
+        NetworkRow {
+            network: entry.network
+        }
+
+        PasswordBox {
+            visible: popup.authNetwork !== null && popup.authNetwork === entry.network
+        }
+    }
+
     // A Wi-Fi network row. Right side: lock (secured) - for a known network
     // an X replaces it while hovered: forget, without triggering the row.
     component NetworkRow: Rectangle {
@@ -737,7 +860,7 @@ BarPopup {
 
             Repeater {
                 model: popup.wifiOn ? popup.knownNetworks : []
-                delegate: NetworkRow {
+                delegate: NetworkEntry {
                     required property var modelData
                     network: modelData
                 }
@@ -783,7 +906,7 @@ BarPopup {
 
             Repeater {
                 model: popup.wifiOn ? popup.otherNetworks : []
-                delegate: NetworkRow {
+                delegate: NetworkEntry {
                     required property var modelData
                     network: modelData
                 }
@@ -792,92 +915,6 @@ BarPopup {
             SubTitle {
                 visible: popup.wifiOn && popup.wifiDevice !== null && popup.networks.length === 0
                 text: "Searching…"
-            }
-
-            // Password for a protected network (WPA/WPA2/WPA3-Personal).
-            Rectangle {
-                visible: popup.passwordFor !== null || popup.pendingPsk !== null
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                implicitHeight: pwBox.implicitHeight + 16
-                radius: 6
-                color: Colors.surface
-                border.color: popup.pwError !== "" ? Colors.error : Colors.borderActive
-                border.width: 1
-
-                ColumnLayout {
-                    id: pwBox
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 8
-                    spacing: 6
-
-                    Text {
-                        Layout.fillWidth: true
-                        readonly property var n: popup.passwordFor || popup.pendingPsk
-                        text: popup.pendingPsk !== null ? "Connecting to " + (n ? n.name : "") + "…"
-                                                        : "Password for " + (n ? n.name : "")
-                        textFormat: Text.PlainText
-                        elide: Text.ElideRight
-                        color: Colors.foreground
-                        font.family: Fonts.family
-                        font.pixelSize: popup.fontSize - 1
-                    }
-
-                    Rectangle {
-                        visible: popup.pendingPsk === null
-                        Layout.fillWidth: true
-                        implicitHeight: 28
-                        radius: 4
-                        color: Colors.background
-                        border.color: Colors.border
-                        border.width: 1
-
-                        TextInput {
-                            id: pwInput
-                            anchors.fill: parent
-                            anchors.margins: 6
-                            echoMode: TextInput.Password
-                            color: Colors.foreground
-                            font.family: Fonts.family
-                            font.pixelSize: popup.fontSize
-                            maximumLength: 63
-                            onVisibleChanged: {
-                                text = "";
-                                if (visible) forceActiveFocus();
-                                else popup.restoreKeyFocus();
-                            }
-                            Keys.onReturnPressed: { popup.submitPassword(text); text = ""; }
-                            Keys.onEscapePressed: { text = ""; popup.passwordFor = null; popup.pwError = ""; }
-                        }
-                    }
-
-                    Text {
-                        visible: popup.pwError !== ""
-                        text: popup.pwError
-                        color: Colors.error
-                        font.family: Fonts.family
-                        font.pixelSize: popup.fontSize - 2
-                    }
-
-                    RowLayout {
-                        visible: popup.pendingPsk === null
-                        Layout.alignment: Qt.AlignRight
-                        spacing: 6
-
-                        PopupButton {
-                            label: "Cancel"
-                            onClicked: { pwInput.text = ""; popup.passwordFor = null; popup.pwError = ""; }
-                        }
-
-                        PopupButton {
-                            primary: true
-                            label: "Connect"
-                            onClicked: { popup.submitPassword(pwInput.text); pwInput.text = ""; }
-                        }
-                    }
-                }
             }
 
             // Enterprise (802.1X/eduroam) or WEP: configured in the editor.

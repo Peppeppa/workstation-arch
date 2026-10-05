@@ -118,6 +118,22 @@ QtObject {
     }
 
     function network() {
+        // Network popup: the network being authenticated stays under "Other"
+        // (in place) until the connect succeeded; "Other" keeps its order
+        // while the inline password box is open.
+        const pop = read("connectivity/Popup.qml");
+        const a = { name: "A", signalStrength: 0.9 }, b = { name: "B", signalStrength: 0.5 }, c = { name: "C", signalStrength: 0.2 };
+        const scope = { authNetwork: b, pendingWasKnown: false };
+        const hold = make(pop, "holdInOther", scope);
+        eq("network: auth network held in Other", [hold(b), hold(a)], [true, false]);
+        scope.pendingWasKnown = true;
+        eq("network: an already known network is not held", hold(b), false);
+        const order = make(pop, "orderOther", {});
+        eq("network: Other by signal", order([c, a, b], []).map(n => n.name), ["A", "B", "C"]);
+        b.signalStrength = 0.95; const d = { name: "D", signalStrength: 1 };
+        eq("network: Other frozen while the box is open, new ones at the end",
+           order([c, a, b, d], ["A", "B", "C"]).map(n => n.name), ["A", "B", "C", "D"]);
+
         const m = read("quickshell/bar/widgets/Connectivity/Model.qml");
         const v4 = make(m, "v4", {}), v6 = make(m, "v6", {});
         eq("route v4", v4("0202000A"), "10.0.2.2");
