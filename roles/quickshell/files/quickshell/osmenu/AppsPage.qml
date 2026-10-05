@@ -89,9 +89,13 @@ FocusScope {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            interactive: false
+            // The empty search lists every app: wheel scrolling, and the
+            // keyboard selection is kept in view.
+            interactive: true
+            boundsBehavior: Flickable.StopAtBounds
             model: page.results
             currentIndex: page.selectedIndex
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
             delegate: Rectangle {
                 id: resultDelegate

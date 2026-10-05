@@ -166,7 +166,26 @@ QtObject {
         }
     }
 
+    function launcher() {
+        // Empty search = every shown app, alphabetical, not cut to the page
+        // height; a search keeps the at-most-maxResults behaviour.
+        const names = ["Thunderbird", "Chromium", "Ghostty", "Files", "Bitwarden", "Obsidian", "Steam",
+                       "Lutris", "IntelliJ IDEA Ultimate", "Zathura", "mpv", "Neovim", "Yazi", "imv"];
+        const apps = names.map(n => ({ name: n, genericName: "", keywords: [] }));
+        const scope = { DesktopEntries: { applications: { values: apps } }, maxResults: 8,
+                        model: { shown: () => true } };
+        const search = make(read("quickshell/osmenu/AppModel.qml"), "search", scope);
+        const all = search("");
+        eq("launcher: empty search lists all apps", all.length, names.length);
+        eq("launcher: empty search is alphabetical", all.map(e => e.name),
+           names.slice().sort((a, b) => a.localeCompare(b)));
+        eq("launcher: Thunderbird without typing", all.some(e => e.name === "Thunderbird"), true);
+        eq("launcher: a search still returns at most maxResults", search("i").length <= 8, true);
+        eq("launcher: a search finds by name", search("thun").map(e => e.name), ["Thunderbird"]);
+    }
+
     Component.onCompleted: {
+        launcher();
         hover();
         bluetooth();
         battery();

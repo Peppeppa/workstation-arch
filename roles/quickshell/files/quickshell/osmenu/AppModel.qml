@@ -21,6 +21,9 @@ import Quickshell
 Scope {
     id: model
 
+    // Rows the page is tall; a search shows at most this many matches. The
+    // empty search lists EVERY shown app (scrollable) - it was cut to the
+    // first 8 alphabetically, so e.g. Thunderbird only appeared after typing.
     readonly property int maxResults: 8
 
     // Rule 2: entries in any of these categories are system configuration
@@ -43,11 +46,12 @@ Scope {
     }
 
     // Name matches first, then generic name, then keywords; empty query:
-    // alphabetical. Only the name is shown - the rest only helps finding.
+    // all shown apps, alphabetical. Only the name is shown - the rest only
+    // helps finding.
     function search(q) {
         const apps = DesktopEntries.applications.values.filter(e => model.shown(e));
         if (q.length === 0) {
-            return apps.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, maxResults);
+            return apps.slice().sort((a, b) => a.name.localeCompare(b.name));
         }
 
         const needle = q.toLowerCase();
