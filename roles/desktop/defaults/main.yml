@@ -57,8 +57,14 @@ desktop_packages:
   #                       listed explicitly, not left as a GTK dependency
   #   ttf-firacode-nerd - shell (Quickshell/hyprlock), monospace and Nerd
   #                       Font icon glyphs (power menu, coffee toggle)
+  #   noto-fonts-emoji  - color emoji as fontconfig's fallback (no family
+  #                       of ours, never set as a desktop font): without it
+  #                       every emoji was a hex box - first seen in
+  #                       Hyprland's update window on the real laptop, the
+  #                       same in browsers, mail, notifications, terminals
   - adwaita-fonts
   - ttf-firacode-nerd
+  - noto-fonts-emoji
 
   # GTK's icon theme (Adwaita) - listed explicitly instead of riding along
   # as a GTK dependency; the legacy set adds full-color app/status icons.
