@@ -340,9 +340,10 @@ def section_systemd(hp):
     sysf = [l.split()[0] for l in run(["systemctl", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
     usrf = [l.split()[0] for l in run(["systemctl", "--user", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
     # A user unit that failed BEFORE this Hyprland started belongs to an
-    # earlier session (e.g. xdg-desktop-portal-gtk exits with "Broken pipe"
-    # when the compositor goes away at logout; D-Bus activation starts it
-    # again on next use) - shown, not counted as an issue.
+    # earlier session - shown, not counted as an issue. A normal logout or
+    # power-menu reboot no longer leaves one (session-stop ends the portals
+    # while the display exists); a session killed from outside (SIGTERM to
+    # Hyprland, `loginctl terminate-session`) still can.
     since = started_at(hp[0]) if hp else None
     old, cur = [], []
     for u in usrf:
@@ -380,10 +381,11 @@ def section_logs(henv, hp):
     out("Logs", "errors this boot: last %d of system+user journal (newest last)" % len(lines))
     for l in lines:
         sub(l[:220])
-    # Coredumps since boot (this coredumpctl has no -b). Session helpers
-    # (polkit agent, portal, hypridle, hyprlock) tend to abort when the
-    # compositor goes away at logout - those predate this session and are
-    # shown as such; only a crash during the current session is an issue.
+    # Coredumps since boot (this coredumpctl has no -b). Only a crash during
+    # the current session is an issue; earlier ones are listed as such - a
+    # normal logout no longer produces any (roles/hyprland session-stop), a
+    # session ended from outside by SIGTERM still lets the session helpers
+    # abort against the vanished compositor.
     with open("/proc/stat") as f:
         btime = int(next(l for l in f if l.startswith("btime")).split()[1])
     rc, o, _ = run(["coredumpctl", "list", "--no-pager", "--no-legend", "--since", "@%d" % btime], env=dict(os.environ, TZ="UTC"))

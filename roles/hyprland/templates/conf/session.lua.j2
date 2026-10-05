@@ -75,4 +75,30 @@ return function(v)
         hl.exec_cmd("{{ clipboard_watch_cmd }}")
 {% endif %}
     end)
+
+    -- The stop half of the same lifecycle: end the helpers started above
+    -- (and the Wayland-bound portal services) while the display still
+    -- exists - left alone they crashed in their own exit path once the
+    -- compositor was gone (coredumps on every logout; details and the
+    -- bounded waits in session-stop). os.execute blocks Hyprland until it
+    -- returns (~0.1 s), which is the point: shutdown continues afterwards.
+    --
+    -- Hyprland raises hyprland.shutdown only for its own exit (exit
+    -- dispatcher), not for SIGTERM - and a plain `systemctl reboot`/
+    -- `poweroff` ends the session with SIGTERM to the whole session scope
+    -- at once (the same crashes, the portals' even before coredumps are
+    -- stored). So the power menu's reboot/shutdown come through here: end
+    -- the session like a logout, then ask logind (still the active session
+    -- at that point). A refused request leaves the user at the login
+    -- screen, which offers reboot/shutdown itself.
+    local after_exit = nil
+    function workstation_end_session(verb)
+        if verb == "reboot" or verb == "poweroff" then after_exit = verb end
+        return hl.dsp.exit()
+    end
+
+    hl.on("hyprland.shutdown", function()
+        os.execute("{{ ansible_facts.user_dir }}/.local/libexec/workstation/session-stop {{ hyprland_session_helpers | join(' ') }}")
+        if after_exit then os.execute("systemctl " .. after_exit) end
+    end)
 end

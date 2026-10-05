@@ -12,8 +12,13 @@
 // Actions are a fixed table mapped to fixed argv lists / one fixed
 // Hyprland dispatch (see commandFor) - no shell, no string built from
 // input, and the IPC handler exposes only toggle/close, never an action.
-//   suspend/hibernate/reboot/shutdown: `systemctl <verb>` - logind's own
-//     polkit rules allow these for the active local session, no sudo
+//   suspend/hibernate: `systemctl <verb>` - logind's own polkit rules
+//     allow these for the active local session, no sudo
+//   reboot/shutdown: the same `systemctl reboot|poweroff`, but issued by
+//     Hyprland's shutdown hook after the session ended like a logout
+//     (`workstation_end_session`, roles/hyprland session.lua) - a direct
+//     systemctl call killed the session scope at once and its helpers
+//     crashed (coredumps)
 //   logout: Hyprland's own exit dispatcher (same as mainMod+SHIFT+E)
 //   lock: `loginctl lock-session` - the one lock path of the lock_idle
 //     feature (logind Lock -> hypridle -> hyprlock); this menu never
@@ -97,8 +102,8 @@ PanelWindow {
         case "lock":      return { argv: ["loginctl", "lock-session"] };
         case "suspend":   return { argv: ["systemctl", "suspend"] };
         case "hibernate": return { argv: ["systemctl", "hibernate"] };
-        case "reboot":    return { argv: ["systemctl", "reboot"] };
-        case "shutdown":  return { argv: ["systemctl", "poweroff"] };
+        case "reboot":    return { dispatch: "workstation_end_session(\"reboot\")" };
+        case "shutdown":  return { dispatch: "workstation_end_session(\"poweroff\")" };
         case "logout":    return { dispatch: "hl.dsp.exit()" };
         default:          return null;
         }

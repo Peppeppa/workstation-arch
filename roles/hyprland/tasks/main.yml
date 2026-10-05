@@ -56,6 +56,26 @@
     mode: "0755"
   tags: hyprland
 
+# The stop half of the session lifecycle (session.lua hyprland.shutdown);
+# before the modules, which reference it.
+- name: Ensure ~/.local/libexec/workstation exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/libexec/workstation"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy session-stop (~/.local/libexec/workstation/session-stop)
+  ansible.builtin.copy:
+    src: session-stop.sh
+    dest: "{{ ansible_facts.user_dir }}/.local/libexec/workstation/session-stop"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
 # Modules first, entry point last: Hyprland reloads on changes to
 # hyprland.lua, which then loads complete, current modules.
 - name: Ensure ~/.config/hypr/conf exists

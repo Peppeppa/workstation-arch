@@ -183,3 +183,12 @@ clipboard_start_script: |
 # systemd user manager's environment, not Hyprland's. Set per host only
 # for a real, confirmed need (see host_vars/arch-dev.yml); empty here.
 hyprland_activation_environment: {}
+
+# Internal: process names of the helpers session.lua's hyprland.start
+# runs (systemd-cat execs, so Quickshell/hypridle keep their own names).
+# session-stop ends exactly these - as children of the exiting Hyprland -
+# from hyprland.shutdown, before the display goes away.
+hyprland_session_helpers: >-
+  {{ ['hyprpolkitagent', 'quickshell']
+     + (['hypridle'] if lock_idle_enabled else [])
+     + (['wl-paste'] if clipboard_history_enabled else []) }}
