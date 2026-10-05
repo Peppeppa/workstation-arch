@@ -42,6 +42,26 @@ for f in sys.argv[1:]:
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 ' host_vars/*.yml group_vars/*.yml
+# Inside an inline Component, `power: power` binds the new object's own
+# (undefined) property, not the outer id - the battery popup showed nothing.
+step "no self-binding (name: name) inside a Component" python3 -c '
+import re, sys
+bad = []
+for f in sys.argv[1:]:
+    depth, comp = 0, []
+    for n, line in enumerate(open(f), 1):
+        code = line.split("//")[0]
+        if re.search(r"sourceComponent:|\bComponent\s*\{|delegate:", code):
+            comp.append(depth)
+        m = re.match(r"\s*([a-z]\w*):\s*\1\s*$", code)
+        if m and comp:
+            bad.append("%s:%d: %s" % (f, n, code.strip()))
+        depth += code.count("{") - code.count("}")
+        while comp and depth <= comp[-1]:
+            comp.pop()
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+' $(git ls-files "roles/quickshell/*.qml" "roles/quickshell/*.qml.j2")
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 if command -v qml6 >/dev/null; then
     step "tests/qml-logic.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \

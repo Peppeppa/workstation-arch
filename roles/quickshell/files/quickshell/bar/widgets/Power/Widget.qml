@@ -14,20 +14,24 @@ import qs.bar
 BarWidget {
     id: root
 
+    // Not `id: power`: the popup's `power: power` below would then bind
+    // the popup's own (undefined) property - QML resolves the right-hand
+    // name inside the object first. Real-hardware finding: the popup showed
+    // no percentage and an empty charge bar (TypeError on every binding).
     Model {
-        id: power
+        id: batteryModel
     }
 
-    visible: power.hasBattery
-    icon: power.batteryIcon
-    warning: power.low
+    visible: batteryModel.hasBattery
+    icon: batteryModel.batteryIcon
+    warning: batteryModel.low
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 
     Loader {
-        active: root.popupOpen && power.hasBattery
+        active: root.popupOpen && batteryModel.hasBattery
         sourceComponent: Popup {
             owner: root
-            power: power
+            power: batteryModel
             onCloseRequested: root.closePopup()
         }
     }
