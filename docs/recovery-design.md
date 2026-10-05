@@ -501,7 +501,10 @@ Deviations from sections 1-20:
 - **Number limit counts a pre/post pair once**: `NUMBER_LIMIT=10` keeps
   10 pairs (measured: after 11 update runs the oldest pair went, pinned slot
   snapshots and `known-good` stayed).
-- **Nested `var/lib/machines`/`portables` kept** (section 3).
+- **Nested `var/lib/machines`/`portables` kept** (section 3). They stay in
+  the `@broken-<date>` a rollback leaves behind, inside a read-only parent:
+  removing it needs `btrfs property set ... ro false` and `btrfs subvolume
+  delete -R` (the command `system-rollback` prints).
 - **Rollback rebuilds the main UKI** instead of copying the slot UKI (the
   slot UKI embeds the slot's cmdline) and restores `/boot/vmlinuz-linux`.
 - **Healthcheck**: `--system`, `--since`; recovery checks = `/.snapshots`
