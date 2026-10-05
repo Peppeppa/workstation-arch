@@ -22,7 +22,7 @@ graphics_vaapi_packages:
 hyprland_monitors:
   - output: eDP-1
     mode: preferred
-    position: 0x0
+    position: "0x0"   # quoted: YAML 1.1 reads a bare 0x0 as the hex number 0
     scale: 1
   - output: ""
     mode: preferred

@@ -66,7 +66,7 @@ hyprland_monitor_scale: auto
 # A host that needs more lists its outputs explicitly, e.g. a laptop with a
 # fixed external layout:
 #   hyprland_monitors:
-#     - { output: eDP-1,    mode: preferred, position: 0x0,    scale: auto }
+#     - { output: eDP-1,    mode: preferred, position: "0x0",  scale: auto }   # quote 0x0 (YAML: hex 0)
 #     - { output: HDMI-A-1, mode: preferred, position: auto-right, scale: 1 }
 #     - { output: "",       mode: preferred, position: auto, scale: auto }
 hyprland_monitors:

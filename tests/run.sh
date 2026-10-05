@@ -29,6 +29,19 @@ for f in sys.argv[1:]:
     with open(f) as h:
         yaml.safe_load(h)
 ' $(git ls-files '*.yml' '*.yaml')
+# YAML 1.1 (Ansible) reads a bare `position: 0x0` as the hex number 0.
+step "hyprland_monitors positions are strings" python3 -c '
+import sys, yaml
+bad = []
+for f in sys.argv[1:]:
+    with open(f) as h:
+        data = yaml.safe_load(h) or {}
+    for m in data.get("hyprland_monitors") or []:
+        if not isinstance(m.get("position", "auto"), str):
+            bad.append("%s: %s position=%r" % (f, m.get("output"), m.get("position")))
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+' host_vars/*.yml group_vars/*.yml
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 if command -v qml6 >/dev/null; then
     step "tests/qml-logic.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
