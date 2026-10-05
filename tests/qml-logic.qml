@@ -117,7 +117,27 @@ QtObject {
         eq("route v6 zero run in the middle", v6("20010db8000000000000000000000001"), "2001:db8::1");
     }
 
+    function hover() {
+        // Keyboard-first menus open under a resting pointer: its first hover
+        // report is only an anchor; only real movement changes the selection
+        // (Enter on the power menu otherwise hit the row under the pointer).
+        const area = { mapToItem: (_, x, y) => ({ x: x, y: y }) };
+        for (const [file, prop] of [["PowerMenu.qml", "selectedIndex"], ["quickshell/osmenu/RootPage.qml", "index"],
+                                    ["clipboard/ClipboardHistory.qml", "selectedIndex"]]) {
+            const st = { pointerAtOpen: { x: -1, y: -1 } };
+            st[prop] = 0;
+            const hoverRow = make(read(file), "hoverRow", st);
+            hoverRow(area, { x: 10, y: 50 }, 2);
+            eq(file + ": resting pointer keeps the preselection", st[prop], 0);
+            hoverRow(area, { x: 10, y: 50 }, 2);
+            eq(file + ": same position again keeps it", st[prop], 0);
+            hoverRow(area, { x: 10, y: 53 }, 2);
+            eq(file + ": movement selects the row", st[prop], 2);
+        }
+    }
+
     Component.onCompleted: {
+        hover();
         bluetooth();
         battery();
         network();

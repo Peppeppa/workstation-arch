@@ -294,8 +294,10 @@ Keyboard on list pages: `j`/Down next, `k`/Up previous, `l`/Right/Enter
 open, `h`/Left back; no wrap-around. Applications: the search field has
 the focus, every letter is search input (no Vim keys), Up/Down/Enter.
 **Escape always closes the whole OS menu** - from any page, never "back".
-Mouse: hover selects, click opens, the page header goes back, a click
-outside the panel closes. Surface: overlay on the focused output below the
+Mouse: hover selects (only after the pointer really moved since opening -
+the menu maps under a resting pointer, whose first hover report must not
+replace the preselection; same in the power menu and clipboard history),
+click opens, the page header goes back, a click outside the panel closes. Surface: overlay on the focused output below the
 bar strip, only while open (unmapped when closed). IPC `osmenu`:
 `toggle`, `close`, `openPage <root|apps|settings>`, `state` (JSON, tests).
 
@@ -547,6 +549,7 @@ copied. Feature Category A (provisioning-only) plus Category B
 | Secrets / Network | none / none |
 | Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned; the resume setup itself is the host capability `hibernate_enabled` (see "Hibernate") |
 | Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
+| Preselection | Lock, also when the menu opens under a resting pointer: hover selects only after real movement (before, the row under the pointer replaced it and Enter could log out or shut down - found on arch-dev) |
 | Disable | no bind, component not instantiated/deployed; an already-deployed `PowerMenu.qml` stays unreferenced; nothing deleted |
 | Persistent user data | none |
 

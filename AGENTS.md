@@ -872,7 +872,10 @@ history for that milestone's own record):
   policy-routed WireGuard full tunnel; lost theme updates on concurrent
   `theme` calls (flock); `theme` tracebacks on a non-UTF-8 state/theme.yml;
   no low-battery warning when already low at login; DeprecationWarning of
-  the pairing agent at every pairing; a tracked `.pyc`. Upstream/VM-only,
+  the pairing agent at every pairing; a tracked `.pyc`; power menu / OS
+  menu / clipboard history opened under a resting pointer took the row
+  under it as selection (Enter on `mainMod+Escape` could log out or shut
+  down instead of locking) - hover now selects only after real movement. Upstream/VM-only,
   documented in `docs/feature-architecture.md`/README: helpers still abort
   when a session is SIGTERMed from outside; imv busy-loops after the
   compositor is gone (ends with the user manager); hyprlock has no

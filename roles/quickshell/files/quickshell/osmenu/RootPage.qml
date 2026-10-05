@@ -23,6 +23,17 @@ FocusScope {
 
     function reset() {
         index = 0;
+        pointerAtOpen = Qt.point(-1, -1);
+    }
+
+    // Hover selects only after real pointer movement (as in PowerMenu.qml):
+    // the menu maps under a resting pointer, whose first hover report must
+    // not replace the preselected Applications entry.
+    property point pointerAtOpen: Qt.point(-1, -1)
+    function hoverRow(area, mouse, i) {
+        const p = area.mapToItem(null, mouse.x, mouse.y);
+        if (pointerAtOpen.x < 0) pointerAtOpen = p;
+        else if (p.x !== pointerAtOpen.x || p.y !== pointerAtOpen.y) index = i;
     }
 
     function move(d) {
@@ -103,7 +114,7 @@ FocusScope {
                     id: rowMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    onEntered: page.index = row.index
+                    onPositionChanged: mouse => page.hoverRow(rowMouse, mouse, row.index)
                     onClicked: page.menu.activate(row.modelData.id)
                 }
             }

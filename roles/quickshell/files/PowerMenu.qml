@@ -84,7 +84,20 @@ PanelWindow {
     // still apply.
     function open() {
         selectedIndex = 0;   // Lock - first entry, see header
+        pointerAtOpen = Qt.point(-1, -1);
         visible = true;
+    }
+
+    // Hover moves the selection only once the pointer really moved: the
+    // overlay maps under a resting pointer, and Qt reports that as hover
+    // enter/position events - which replaced the Lock preselection with
+    // whatever row lay under the pointer, so Enter logged out or shut down
+    // (arch-dev). The first report after opening is only the anchor.
+    property point pointerAtOpen: Qt.point(-1, -1)
+    function hoverRow(area, mouse, index) {
+        const p = area.mapToItem(null, mouse.x, mouse.y);
+        if (pointerAtOpen.x < 0) pointerAtOpen = p;
+        else if (p.x !== pointerAtOpen.x || p.y !== pointerAtOpen.y) selectedIndex = index;
     }
 
     // One transient surface at a time (bar/BarPopups.qml).
@@ -250,9 +263,10 @@ PanelWindow {
                     }
 
                     MouseArea {
+                        id: rowArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        onEntered: menu.selectedIndex = row.index
+                        onPositionChanged: mouse => menu.hoverRow(rowArea, mouse, row.index)
                         onClicked: menu.activate(row.modelData)
                     }
                 }

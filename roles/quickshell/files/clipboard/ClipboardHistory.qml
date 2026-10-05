@@ -55,6 +55,17 @@ Scope {
             property var entries: []          // [{id, text}] newest first
             property string query: ""
             property int selectedIndex: 0
+            // Hover selects only after real pointer movement (as in
+            // PowerMenu.qml): the popup maps under a resting pointer, whose
+            // first hover report must not replace the newest entry that
+            // Enter copies. The window exists only while open, so this
+            // starts unset on every open.
+            property point pointerAtOpen: Qt.point(-1, -1)
+            function hoverRow(area, mouse, index) {
+                const p = area.mapToItem(null, mouse.x, mouse.y);
+                if (pointerAtOpen.x < 0) pointerAtOpen = p;
+                else if (p.x !== pointerAtOpen.x || p.y !== pointerAtOpen.y) selectedIndex = index;
+            }
             property bool confirmClear: false
             readonly property var results: {
                 const q = query.toLowerCase();
@@ -255,7 +266,7 @@ Scope {
                                 id: entryMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onEntered: popup.selectedIndex = entry.index
+                                onPositionChanged: mouse => popup.hoverRow(entryMouse, mouse, entry.index)
                                 onClicked: popup.copySelected()
                             }
 
