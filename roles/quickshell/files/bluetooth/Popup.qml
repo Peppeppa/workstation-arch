@@ -10,7 +10,9 @@
 // on-demand processes, both fixed argv, no shell:
 //   - `rfkill --json` once when the adapter reports Blocked (soft vs.
 //     hard), `rfkill unblock bluetooth` for a soft block;
-//   - the pairing agent (bluetooth-agent), only while the user pairs.
+//   - the pairing agent (bluetooth-agent), only while the user pairs;
+//   - one `busctl call ... Device1 Connect` right after a pairing that
+//     left only the pairing link up (see connectAfterPairing).
 // Scanning is started only by the user, auto-stops after scanTimeoutMs,
 // and is stopped when the popup closes if we started it.
 
@@ -42,6 +44,7 @@ BarPopup {
     property var pairingDevice: null
     property bool pairingSeen: false
     property var agentRequest: null           // pending agent event the user must answer
+    property var postPairDevice: null         // device of the one connect after pairing (running)
     property string message: ""
 
 
@@ -203,10 +206,45 @@ BarPopup {
             const d = popup.pairingDevice;
             d.trusted = true;          // reconnect without asking again (user-initiated pairing)
             popup.finishPairing("");
-            // Many devices are already connected by the pairing itself; a
-            // second connect() is an ERROR in the journal ("is already
-            // connected" - seen with the first real device on the laptop).
-            if (!d.connected) d.connect();
+            popup.connectAfterPairing(d);
+        }
+    }
+
+    // One click on an Available device = pair, then connect: exactly ONE
+    // connect request once the pairing succeeded (never after a failed or
+    // cancelled one - this runs only from onPairedChanged).
+    //   - no link left after pairing: Quickshell's connect()
+    //   - the pairing's own link still up: BlueZ already reports the device
+    //     Connected (the baseband link), but no profile is connected yet -
+    //     the link then drops after a few seconds and the device needed a
+    //     second click (real use). Quickshell refuses connect() while
+    //     `connected` is true (it logs "is already connected" as an ERROR -
+    //     that was the earlier double-connect bug), so the profile connect
+    //     goes to BlueZ directly: Device1.Connect on the device's own path.
+    //     If the pairing already connected every profile, BlueZ answers
+    //     AlreadyConnected - fine, nothing to do.
+    // A failed connect leaves the device paired + disconnected: a later
+    // row click (connect) retries.
+    function connectAfterPairing(d) {
+        if (!d.connected) {
+            d.connect();
+            return;
+        }
+        postPairDevice = d;
+        postPairConnect.command = ["busctl", "--system", "call", "org.bluez", d.dbusPath, "org.bluez.Device1", "Connect"];
+        postPairConnect.running = true;
+    }
+
+    Process {
+        id: postPairConnect
+        stderr: StdioCollector { id: postPairErr }
+        onExited: exitCode => {
+            const err = postPairErr.text;
+            if (exitCode !== 0 && !/already connected/i.test(err)) {
+                Log.warn("bluetooth", "connecting after pairing failed (exit " + exitCode + "): " + Log.firstLine(err));
+                popup.message = "Paired - connecting failed, click the device to retry";
+            }
+            popup.postPairDevice = null;
         }
     }
 
@@ -283,7 +321,7 @@ BarPopup {
 
             Text {
                 readonly property string stateText:
-                    row.device.state === BluetoothDeviceState.Connecting ? "Connecting…"
+                    row.device.state === BluetoothDeviceState.Connecting || popup.postPairDevice === row.device ? "Connecting…"
                     : row.device.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…"
                     : row.device.pairing || popup.pairingDevice === row.device ? "Pairing…"
                     : row.device.connected ? "Connected" : ""
