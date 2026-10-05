@@ -70,14 +70,26 @@ apps_packages:
   - zathura-pdf-mupdf
   - qpdf
 
-  # Images
+  # Images: imv stays the lean default for PNG (mimeapps.list); Loupe is
+  # GNOME's current image viewer (GTK4/libadwaita, follows the theme's
+  # color scheme and the text size) for browsing/zooming with a GUI.
   - imv
+  - loupe
+
+  # Disks: GNOME Disks (partitions, SMART, images, mounting via udisks2).
+  - gnome-disk-utility
+
+  # Learning: Anki (spaced repetition).
+  - anki
+
+  # Tasks: Planify (GTK4 to-do app).
+  - planify
 
   # Video
   - mpv
 
-  # Git tooling beyond plain git (already in roles/base): GitHub CLI.
-  - github-cli
+  # GitHub CLI: development tooling lives in roles/development; listed
+  # there (github-cli) - not repeated here.
 
 # Applications available only via Flatpak (Flathub) per the Package
 # Source Policy (official Arch has no clean match; see AGENTS.md for
@@ -91,18 +103,36 @@ apps_flatpak_packages:
   # is a self-updating curl-style installer, excluded by policy); the
   # Flathub package is actively maintained.
   - com.jetbrains.IntelliJ-IDEA-Ultimate
+  # LocalSend (LAN file transfer to phones/other machines): not in the
+  # official Arch repos; the Flathub app is LocalSend's own published
+  # package (verified on Flathub 2026-10). AUR would need a helper.
+  - org.localsend.localsend_app
+  # WebCord (Discord client): not in the official Arch repos. Its Flathub
+  # package was EOL earlier; it is maintained again (updates through
+  # 2026-07, no end-of-life marker - checked with `flatpak remote-info`
+  # 2026-10). This is the source change for WebCord: from "Chromium web
+  # app" (never installed) to Flathub.
+  - io.github.spacingbat3.webcord
+
+# Web apps: a launcher entry (~/.local/share/applications/<id>.desktop)
+# that opens the site in its own Chromium app window - the existing
+# "web app via Chromium" approach, now visible in Applications. No
+# wrapper package: there is no trustworthy native WhatsApp client for
+# Linux (the AUR/Flathub "WhatsApp" apps are third-party Electron
+# wrappers of the same web page). Icons from Papirus (the shell's icon
+# theme).
+apps_webapps:
+  - id: whatsapp-web
+    name: WhatsApp
+    comment: WhatsApp Web in its own window
+    url: https://web.whatsapp.com/
+    icon: whatsapp-desktop
 
 # Deliberately NOT automated this run - see AGENTS.md Current Status:
 #
-# - WebCord (Discord desktop client): not in official Arch repos; its
-#   own Flathub packaging was marked EOL/archived by WebCord's
-#   maintainer (fails the "sauber, updatefähig" bar); an AUR package
-#   exists but using it would mean installing an AUR helper, which the
-#   Package Source Policy forbids by default. Use Discord's web app via
-#   Chromium in the meantime.
-# - GeForce NOW, WhatsApp, Overleaf, draw.io/diagrams.net: web apps via
-#   Chromium for now - no declarative webapp/.desktop-entry system is
-#   built in this run (documented as a future idea only).
+# - GeForce NOW, Overleaf, draw.io/diagrams.net: plain web pages in
+#   Chromium; an entry in apps_webapps above when one is wanted in the
+#   launcher.
 
 # Packages this role once caused to be installed and that are not wanted
 # any more - removed with pacman -Rs (tasks/main.yml): their dependencies

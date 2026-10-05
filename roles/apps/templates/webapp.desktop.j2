@@ -1,0 +1,8 @@
+# Managed by Ansible (roles/apps apps_webapps) - do not edit by hand.
+[Desktop Entry]
+Type=Application
+Name={{ item.name }}
+Comment={{ item.comment }}
+Exec=chromium --app={{ item.url }}
+Icon={{ item.icon }}
+Categories=Network;

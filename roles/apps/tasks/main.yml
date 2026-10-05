@@ -53,6 +53,30 @@
     state: present
   tags: apps
 
+# Web apps (defaults/main.yml apps_webapps): one launcher entry each,
+# user level. Ensure-present like the package lists - an entry removed
+# from the list is not deleted.
+- name: Ensure ~/.local/share/applications exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/share/applications"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: apps
+
+- name: Web app launcher entries
+  ansible.builtin.template:
+    src: webapp.desktop.j2
+    dest: "{{ ansible_facts.user_dir }}/.local/share/applications/{{ item.id }}.desktop"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop: "{{ apps_webapps }}"
+  loop_control:
+    label: "{{ item.id }}"
+  tags: apps
+
 # User-level MIME default overrides - no become, owned by the invoking
 # user (same pattern as roles/hyprland). Ensure ~/.config exists here
 # too rather than assuming roles/hyprland already ran: --tags apps must
