@@ -399,7 +399,12 @@ BarPopup {
                 } catch (e) {
                     Log.warn("network", "`ip -j -d addr` returned no JSON - addresses not shown");
                 }
-                popup.addresses = list.filter(l => l.ifname !== "lo" && (l.addr_info || []).some(a => a.scope === "global"))
+                // Only links that are up: a down link can keep its address
+                // (docker0 after `systemctl stop docker` - shown as a third
+                // "connection", real use). Tunnels report UNKNOWN - kept.
+                popup.addresses = list.filter(l => l.ifname !== "lo" && l.operstate !== "DOWN"
+                                                   && (l.flags || []).indexOf("NO-CARRIER") === -1
+                                                   && (l.addr_info || []).some(a => a.scope === "global"))
                     .map(l => {
                         const kindOf = popup.net.physical[l.ifname]
                             || (l.linkinfo && ["wireguard", "tun"].indexOf(l.linkinfo.info_kind) !== -1 ? "vpn" : "other");
