@@ -17,5 +17,9 @@ NUMBER_LIMIT="{{ recovery_number_limit }}"
 NUMBER_LIMIT_IMPORTANT="{{ recovery_number_limit_important }}"
 TIMELINE_CREATE="no"
 TIMELINE_CLEANUP="no"
-EMPTY_PRE_POST_CLEANUP="yes"
+# "no": snapper's empty-pre-post cleanup deletes identical pre/post pairs
+# EVEN WHEN the pre snapshot is pinned (cleanup "") - on the laptop it
+# removed a recovery slot's snapshot after a no-op update, so a rollback to
+# that slot had no snapshot left. Empty pairs are count-limited like any other.
+EMPTY_PRE_POST_CLEANUP="no"
 EMPTY_PRE_POST_MIN_AGE="0"

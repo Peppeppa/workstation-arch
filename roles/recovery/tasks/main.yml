@@ -118,8 +118,8 @@
     mode: "0644"
   tags: recovery
 
-# snapper's own daily cleanup (count limits) - the one timer the design
-# allows; no timeline timer.
+# snapper's own cleanup (count limits; the package timer runs hourly and 10
+# min after boot) - the one timer the design allows; no timeline timer.
 - name: Recovery - snapper-cleanup.timer (recovery_enabled)
   when: recovery_enabled
   become: true
