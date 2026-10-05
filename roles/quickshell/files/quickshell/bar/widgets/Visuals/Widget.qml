@@ -4,7 +4,8 @@
 // size, hitbox, hover and active look as every bar icon), in this order:
 //   Timer      click: the timer popup (TimerPopup.qml, Countdown.qml);
 //              while running the remaining time stands next to the icon
-//   Day/Night  click: warm display colors on/off (NightLight.qml)
+//   Day/Night  click: warm display colors on/off with a 1 s fade
+//              (NightLight.qml; clicks during the fade do nothing)
 //   Light/Dark left click: `theme toggle`; right click: the theme popup
 //              (bar/widgets/Theme/Popup.qml) - the existing theme system
 //   Coffee     click: pause idle lock/DPMS (CoffeeMode.qml, the bar's
@@ -52,7 +53,7 @@ Item {
             icon: "\u{F050E}"                          // theme-light-dark: split sun/moon
             active: NightLight.active
             muted: !NightLight.active
-            onClicked: button => { if (button === Qt.LeftButton) NightLight.active = !NightLight.active; }
+            onClicked: button => { if (button === Qt.LeftButton) NightLight.toggle(); }
         }
 
         BarWidget {

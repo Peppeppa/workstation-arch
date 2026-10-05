@@ -269,7 +269,29 @@ QtObject {
         eq("timer format", [300, 5400, 30, 59, 0].map(format), ["05:00", "90:00", "00:30", "00:59", "00:00"]);
     }
 
+    function nightLight() {
+        // Day/Night fade: a click during the fade does nothing; overlapping
+        // IPC steps are replaced by the newest temperature, never queued.
+        const nl = read("quickshell/NightLight.qml");
+        const st = { busy: false, active: false, step: 0, from: 0, to: 0, neutral: 6500, temperature: 4500, pending: -1,
+                     proc: { running: false }, fade: { started: 0, start() { this.started++; } },
+                     ipc: { running: false, command: [] } };
+        const toggle = make(nl, "toggle", st), set = make(nl, "setTemperature", st);
+        toggle();
+        eq("night: first click starts Night + fade", [st.active, st.busy, st.proc.running, st.from, st.to], [true, true, true, 6500, 4500]);
+        toggle(); toggle();
+        eq("night: clicks during the fade change nothing", [st.active, st.busy, st.fade.started], [true, true, 0]);
+        set(6000);
+        eq("night: a step runs the IPC call", st.ipc.command, ["hyprctl", "hyprsunset", "temperature", "6000"]);
+        set(5800); set(5600);
+        eq("night: overlapping steps keep only the newest", st.pending, 5600);
+        st.busy = false;
+        toggle();
+        eq("night: after the fade a click fades back to Day", [st.active, st.busy, st.from, st.to, st.fade.started], [false, true, 4500, 6500, 1]);
+    }
+
     Component.onCompleted: {
+        nightLight();
         barLayout();
         countdown();
         launcher();
