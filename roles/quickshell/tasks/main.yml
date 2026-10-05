@@ -24,6 +24,21 @@
     mode: "0755"
   tags: quickshell
 
+# Quickshell registers the QML types of its config modules (qs, qs.bar,
+# qs.services, ...) when it starts; a hot reload does not pick up a type
+# in a NEW file ("DisplayModel is not a type" - measured on the laptop
+# when a batch added files: the reload failed and the old config stayed).
+# So the deployed QML files are listed before and after deploying; only
+# when new ones appeared is Quickshell restarted instead of reloaded
+# (handler, exec'd by Hyprland). Changed files keep the plain reload.
+- name: List deployed Quickshell QML files (before)
+  ansible.builtin.find:
+    paths: "{{ ansible_facts.user_dir }}/.config/quickshell"
+    patterns: "*.qml"
+    recurse: true
+  register: quickshell_qml_before
+  tags: quickshell
+
 # Fonts.qml is templated (unlike the rest of the core files) because the
 # font names come from group_vars/all.yml desktop_*_font_family.
 - name: Deploy the Quickshell font singleton (Fonts.qml)
@@ -50,14 +65,6 @@
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
-  notify: Reload running Quickshell config
-  tags: quickshell
-
-- name: Remove retired Quickshell files
-  ansible.builtin.file:
-    path: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
-    state: absent
-  loop: "{{ quickshell_retired_files }}"
   notify: Reload running Quickshell config
   tags: quickshell
 
@@ -354,7 +361,31 @@
     - ConnectivityPopup.qml
     - WallpaperPicker.qml
     - Launcher.qml
+    # Daily Driver Polish: Coffee + Theme are the one "visuals" widget; the
+    # GTK-only text scale model became the desktop text size (theme helper)
+    - bar/widgets/Coffee
+    - bar/widgets/Theme/Widget.qml
+    - services/TextScaleModel.qml
   notify: Reload running Quickshell config
+  tags: quickshell
+
+- name: List deployed Quickshell QML files (after)
+  ansible.builtin.find:
+    paths: "{{ ansible_facts.user_dir }}/.config/quickshell"
+    patterns: "*.qml"
+    recurse: true
+  register: quickshell_qml_after
+  tags: quickshell
+
+- name: New QML files need a Quickshell restart, not a reload
+  ansible.builtin.debug:
+    msg: "new: {{ quickshell_qml_new | join(', ') }}"
+  vars:
+    quickshell_qml_new: >-
+      {{ quickshell_qml_after.files | map(attribute='path') | list
+         | difference(quickshell_qml_before.files | map(attribute='path') | list) }}
+  changed_when: quickshell_qml_new | length > 0
+  notify: Restart running Quickshell
   tags: quickshell
 
 # Quickshell keeps D-Bus names it once claimed across config reloads -
