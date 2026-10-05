@@ -134,6 +134,11 @@ QtObject {
         eq("network: Other frozen while the box is open, new ones at the end",
            order([c, a, b, d], ["A", "B", "C"]).map(n => n.name), ["A", "B", "C", "D"]);
 
+        // Closing the Share view drops the password (and the QR) from memory.
+        const qr = { qrRequested: true, qrSvg: "<svg/>", qrPassword: "secret", qrCopied: true };
+        make(pop, "hideQr", qr)();
+        eq("network: hideQr clears the shared password", [qr.qrRequested, qr.qrSvg, qr.qrPassword, qr.qrCopied], [false, "", "", false]);
+
         const m = read("quickshell/bar/widgets/Connectivity/Model.qml");
         const v4 = make(m, "v4", {}), v6 = make(m, "v6", {});
         eq("route v4", v4("0202000A"), "10.0.2.2");
