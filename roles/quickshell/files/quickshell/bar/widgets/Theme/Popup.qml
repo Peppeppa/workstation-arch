@@ -1,4 +1,5 @@
-// Bar widget "theme" - its popup (right click on the theme icon). Managed
+// The theme popup: right click on the Light/Dark icon of the "visuals" bar
+// widget (bar/widgets/Visuals/Widget.qml). Managed
 // by Ansible: do not edit by hand, see roles/quickshell in workstation-arch.
 //
 // Two dropdowns: the preferred dark theme and the preferred light theme.
@@ -125,7 +126,7 @@ BarPopup {
             }
 
             Text {
-                Layout.preferredWidth: 40
+                Layout.preferredWidth: Fonts.px(40)
                 horizontalAlignment: Text.AlignRight
                 text: Math.round(brightness.value * 100) + "%"
                 color: Colors.foreground
@@ -159,7 +160,7 @@ BarPopup {
                 // The dropdown button: current choice + chevron.
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 32
+                    implicitHeight: Fonts.px(32)
                     radius: 4
                     color: Colors.surface
                     border.color: dialog.openSlot === section.slot ? Colors.borderActive : Colors.border
@@ -210,7 +211,7 @@ BarPopup {
                             readonly property bool lit: index === dialog.highlighted
 
                             Layout.fillWidth: true
-                            implicitHeight: 30
+                            implicitHeight: Fonts.px(30)
                             radius: 4
                             color: lit ? Colors.accent : "transparent"
 

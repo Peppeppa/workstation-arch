@@ -43,8 +43,7 @@ import qs.bar.widgets.Clock as Clock
 import qs.bar.widgets.Connectivity as Connectivity
 import qs.bar.widgets.Audio as Audio
 import qs.bar.widgets.Power as Power
-import qs.bar.widgets.Coffee as Coffee
-import qs.bar.widgets.Theme as Theme
+import qs.bar.widgets.Visuals as Visuals
 
 PanelWindow {
     id: bar
@@ -311,16 +310,14 @@ PanelWindow {
         connectivity: connectivityWidget,
         audio: audioWidget,
         power: powerWidget,
-        coffee: coffeeWidget,
-        theme: themeWidget
+        visuals: visualsWidget
     })
     Component { id: workspacesWidget; Workspaces.Widget { bar: barWindow } }
     Component { id: clockWidget; Clock.Widget { bar: barWindow } }
     Component { id: connectivityWidget; Connectivity.Widget { bar: barWindow } }
     Component { id: audioWidget; Audio.Widget { bar: barWindow } }
     Component { id: powerWidget; Power.Widget { bar: barWindow } }
-    Component { id: coffeeWidget; Coffee.Widget { bar: barWindow } }
-    Component { id: themeWidget; Theme.Widget { bar: barWindow } }
+    Component { id: visualsWidget; Visuals.Widget { bar: barWindow } }
 
     Repeater {
         model: BarLayout.availableWidgets

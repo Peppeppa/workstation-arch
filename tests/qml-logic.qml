@@ -238,7 +238,40 @@ QtObject {
         eq("launcher: a search finds by name", search("thun").map(e => e.name), ["Thunderbird"]);
     }
 
+    function barLayout() {
+        // coffee + theme became one "visuals" widget: a stored layout gets it
+        // at the place of the first of them, nothing duplicated, the rest kept.
+        const bl = read("quickshell/bar/BarLayout.qml");
+        const ids = ["workspaces", "clock", "tray", "connectivity", "bluetooth", "audio", "power", "visuals"];
+        const scope = { widgets: ids.map(i => ({ id: i })), renamed: { coffee: "visuals", theme: "visuals" },
+                        zoneNames: ["left", "center", "right"], backgrounds: ["solid", "transparent"] };
+        scope.known = make(bl, "known", scope);
+        scope.cleanEntry = make(bl, "cleanEntry", scope);
+        scope.emptyLayout = make(bl, "emptyLayout", scope);
+        const sanitize = make(bl, "sanitize", scope);
+        const laptop = { version: 1, layout: { left: [{ id: "workspaces" }], center: [{ id: "theme" }, { id: "coffee" }, { id: "clock" }],
+                                               right: [{ id: "audio" }, { id: "bluetooth" }, { id: "tray" }, { id: "connectivity" }, { id: "power" }] },
+                         settings: { background: "transparent" } };
+        const out = sanitize(laptop);
+        eq("bar layout: coffee+theme -> one visuals at the first place", out.layout.center.map(e => e.id), ["visuals", "clock"]);
+        eq("bar layout: other zones untouched", out.layout.right.map(e => e.id), ["audio", "bluetooth", "tray", "connectivity", "power"]);
+        eq("bar layout: settings kept", out.settings.background, "transparent");
+        const split = sanitize({ layout: { left: [{ id: "coffee" }], center: [], right: [{ id: "theme" }] } });
+        eq("bar layout: split coffee/theme -> visuals where the first was", [split.layout.left.map(e => e.id), split.layout.right.map(e => e.id)], [["visuals"], []]);
+    }
+
+    function countdown() {
+        // MM:SS input, minutes may exceed 59; remaining always from the deadline.
+        const cd = read("quickshell/Countdown.qml");
+        const parse = make(cd, "parse", {}), format = make(cd, "format", {});
+        eq("timer parse", ["05:00", "25:00", "90:00", "00:30", "5:07", " 01:00 "].map(parse), [300, 1500, 5400, 30, 307, 60]);
+        eq("timer parse rejects", ["00:00", "5", "05:60", "abc", "1:2", "-1:00", "1000:00"].map(parse), [-1, -1, -1, -1, -1, -1, -1]);
+        eq("timer format", [300, 5400, 30, 59, 0].map(format), ["05:00", "90:00", "00:30", "00:59", "00:00"]);
+    }
+
     Component.onCompleted: {
+        barLayout();
+        countdown();
         launcher();
         hover();
         bluetooth();

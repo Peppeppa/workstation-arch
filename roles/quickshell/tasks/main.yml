@@ -53,6 +53,14 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+- name: Remove retired Quickshell files
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    state: absent
+  loop: "{{ quickshell_retired_files }}"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # Which optional bar parts this host has (the <name>_enabled flags).
 - name: Deploy the bar feature switches (bar/BarFeatures.qml)
   ansible.builtin.template:

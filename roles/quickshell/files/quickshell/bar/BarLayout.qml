@@ -16,6 +16,10 @@ pragma Singleton
 // - unknown ids and duplicates are ignored (and dropped on the next write);
 //   ids of widgets this host has switched off (feature flag false) are kept
 //   in the file, so they return to their place when switched on again
+// - migration: the former standalone "coffee" and "theme" widgets are one
+//   "visuals" widget now; a stored layout with either of them gets
+//   "visuals" at the place of the first one (the other is dropped), every
+//   other entry stays as it was, and the migrated layout is written once
 // - a widget missing from the file is shown at the end of its default zone
 // - missing/broken file -> the shipped default (bar/default-layout.json);
 //   `qs ipc call bar resetLayout` restores it (the arrangement only -
@@ -48,9 +52,10 @@ Singleton {
         { id: "bluetooth", path: "widgets/Bluetooth/Widget.qml", available: BarFeatures.bluetooth },
         { id: "audio", available: true },
         { id: "power", available: true },
-        { id: "coffee", available: BarFeatures.coffee },
-        { id: "theme", available: true }
+        { id: "visuals", available: true }
     ]
+    // Retired ids and the widget that replaced them (see sanitize).
+    readonly property var renamed: ({ coffee: "visuals", theme: "visuals" })
     readonly property var availableWidgets: widgets.filter(w => w.available)
 
     property var defaultLayout: emptyLayout()
@@ -80,7 +85,9 @@ Singleton {
 
     // Keep only well-formed entries: {id: <known id>, <key>: <plain value>...}.
     function cleanEntry(entry) {
-        const e = typeof entry === "string" ? { id: entry } : entry;
+        let e = typeof entry === "string" ? { id: entry } : entry;
+        if (e && typeof e === "object" && typeof e.id === "string" && renamed[e.id] !== undefined)
+            e = { id: renamed[e.id] };
         if (!e || typeof e !== "object" || typeof e.id !== "string" || !known(e.id)) return null;
         const out = { id: e.id };
         for (const k in e) {
@@ -204,6 +211,8 @@ Singleton {
         raw = parse(stored) || JSON.parse(JSON.stringify(defaultLayout));
         if (stored.trim() !== "" && parse(stored) === null)
             Log.warn("bar", "bar-layout.json is not a valid layout - showing the default (the file is rewritten on the next change)");
+        else if (/"id"\s*:\s*"(coffee|theme)"/.test(stored))
+            save();         // the coffee/theme -> visuals migration, written once
     }
 
     IpcHandler {

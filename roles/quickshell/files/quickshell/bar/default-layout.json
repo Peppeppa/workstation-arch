@@ -13,8 +13,7 @@
       { "id": "bluetooth" },
       { "id": "audio" },
       { "id": "power" },
-      { "id": "coffee" },
-      { "id": "theme" }
+      { "id": "visuals" }
     ]
   },
   "settings": {

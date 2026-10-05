@@ -30,6 +30,23 @@ quickshell_packages:
   # use regardless of `systemctl is-enabled` state.
   - upower
 
+  # Visuals bar widget (core): Day/Night runs hyprsunset - hyprwm's own
+  # blue-light filter (official `extra`), a child of Quickshell only while
+  # Night is on (NightLight.qml); the timer's reminder sound is the
+  # freedesktop sound theme's alarm-clock-elapsed (played with pw-play,
+  # part of pipewire - roles/audio). No other night-light/timer daemon.
+  - hyprsunset
+  - sound-theme-freedesktop
+
+# Files this role deployed once that no longer exist in it - removed from
+# ~/.config/quickshell/ (the core copy only adds/updates, it never
+# deletes). Coffee and Theme are one "visuals" widget now; the GTK-only
+# text scale model became the desktop text size (theme helper).
+quickshell_retired_files:
+  - bar/widgets/Coffee
+  - bar/widgets/Theme/Widget.qml
+  - services/TextScaleModel.qml
+
 # FEATURE: power_menu (see group_vars/all.yml power_menu_enabled).
 # PowerMenu.qml draws its icons (Font Awesome codepoints) from the
 # system Nerd Font (Fonts.icons). roles/desktop already installs it as
