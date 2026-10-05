@@ -79,6 +79,15 @@ QtObject {
         scope.pairingDevice = pairing;
         row(pairing);
         eq("bluetooth row actions", calls, ["disconnect", "connect", "pair", "cancelPair", "finish"]);
+
+        // After pairing: trust, and connect only if the pairing did not
+        // already connect (a second connect() logs an ERROR).
+        for (const [connected, want] of [[true, []], [false, ["connect"]]]) {
+            const done = [];
+            const d = { paired: true, connected: connected, trusted: false, connect: () => done.push("connect") };
+            make(bt, "onPairedChanged", { popup: { pairingDevice: d, finishPairing: () => {} } })();
+            eq("bluetooth after pairing (connected=" + connected + ")", [d.trusted, done], [true, want]);
+        }
     }
 
     function battery() {

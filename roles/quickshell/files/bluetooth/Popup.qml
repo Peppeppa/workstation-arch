@@ -203,7 +203,10 @@ BarPopup {
             const d = popup.pairingDevice;
             d.trusted = true;          // reconnect without asking again (user-initiated pairing)
             popup.finishPairing("");
-            d.connect();
+            // Many devices are already connected by the pairing itself; a
+            // second connect() is an ERROR in the journal ("is already
+            // connected" - seen with the first real device on the laptop).
+            if (!d.connected) d.connect();
         }
     }
 
