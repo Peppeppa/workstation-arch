@@ -66,9 +66,12 @@ Scope {
         write(next);
     }
 
+    // nvim -c, not +cmd: Ghostty's -e drops words starting with "+" (its
+    // own CLI action syntax - measured: nvim got only the file).
+    // search(): no highlight, and quiet when the host has no such key yet.
     function openConfig() {
         Quickshell.execDetached(["systemd-run", "--user", "--quiet", "--collect", "--"]
-            .concat(terminal).concat(["-e", "nvim", "+silent! /^hyprland_monitors:", configFile]));
+            .concat(terminal).concat(["-e", "nvim", "-c", "call search('^hyprland_monitors:')", configFile]));
     }
 
     function parse(text) {
