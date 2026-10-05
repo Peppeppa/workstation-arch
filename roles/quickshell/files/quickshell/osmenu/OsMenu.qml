@@ -49,6 +49,12 @@ PanelWindow {
         visible = false;
     }
 
+    // One transient surface at a time (bar/BarPopups.qml).
+    function closePopup() {
+        close();
+    }
+    onVisibleChanged: visible ? BarPopups.request(menu) : BarPopups.release(menu)
+
     function back() {
         if (page !== "root") {
             page = "root";

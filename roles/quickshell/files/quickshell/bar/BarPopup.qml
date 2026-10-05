@@ -37,6 +37,14 @@ PanelWindow {
 
     signal closeRequested
 
+    // Give the keyboard back to the popup (Escape) - for content that had
+    // its own input field: a field that is hidden takes the focus with it,
+    // and Escape then reached nothing (measured: network password box after
+    // a successful connect).
+    function restoreKeyFocus() {
+        keyHandler.forceActiveFocus();
+    }
+
     screen: ownerBar.screen
     visible: true
     focusable: true

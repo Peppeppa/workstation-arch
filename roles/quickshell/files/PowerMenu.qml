@@ -39,6 +39,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.bar
 
 PanelWindow {
     id: menu
@@ -86,7 +87,18 @@ PanelWindow {
         visible = true;
     }
 
-    onVisibleChanged: if (visible) keyHandler.forceActiveFocus()
+    // One transient surface at a time (bar/BarPopups.qml).
+    function closePopup() {
+        visible = false;
+    }
+    onVisibleChanged: {
+        if (visible) {
+            BarPopups.request(menu);
+            keyHandler.forceActiveFocus();
+        } else {
+            BarPopups.release(menu);
+        }
+    }
 
     function moveSelection(step) {
         selectedIndex = Math.max(0, Math.min(items.length - 1, selectedIndex + step));

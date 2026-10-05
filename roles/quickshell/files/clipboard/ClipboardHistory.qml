@@ -19,6 +19,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import qs.bar
 
 Scope {
     id: root
@@ -26,6 +27,12 @@ Scope {
     required property int fontSize
 
     property bool open: false
+
+    // One transient surface at a time (bar/BarPopups.qml).
+    function closePopup() {
+        open = false;
+    }
+    onOpenChanged: open ? BarPopups.request(root) : BarPopups.release(root)
 
     IpcHandler {
         target: "clipboard"

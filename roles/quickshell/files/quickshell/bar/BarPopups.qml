@@ -1,9 +1,13 @@
 pragma Singleton
 
-// The bar's popout coordinator (Omarchy's requestPopout/releasePopout idea):
-// at most ONE bar popup is open at a time, across all monitors. A widget
-// calls request(this) when it opens its popup; whatever was open before is
-// asked to close (its closePopup()). Managed by Ansible: do not edit by
+// The shell's popout coordinator (Omarchy's requestPopout/releasePopout idea):
+// at most ONE transient surface is open at a time, across all monitors - a
+// bar popup or one of the overlays (OS menu, Appearance, power menu,
+// clipboard history). An owner calls request(this) when it opens and
+// release(this) when it closes; whatever was open before is asked to close
+// (its closePopup()). Without the overlays in here, opening the OS menu over
+// a bar popup showed both, and once the menu closed the popup no longer had
+// the keyboard (Escape did nothing). Managed by Ansible: do not edit by
 // hand, see roles/quickshell in workstation-arch.
 
 import QtQuick

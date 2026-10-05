@@ -30,6 +30,12 @@ PanelWindow {
         visible = false;
     }
 
+    // One transient surface at a time (bar/BarPopups.qml).
+    function closePopup() {
+        close();
+    }
+    onVisibleChanged: visible ? BarPopups.request(win) : BarPopups.release(win)
+
     visible: false
     focusable: true
     color: "transparent"

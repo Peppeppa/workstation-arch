@@ -455,7 +455,11 @@ BarPopup {
                         font.family: Fonts.family
                         font.pixelSize: popup.fontSize
                         maximumLength: 16
-                        onVisibleChanged: if (visible) { text = ""; forceActiveFocus(); }
+                        onVisibleChanged: {
+                            text = "";
+                            if (visible) forceActiveFocus();
+                            else popup.restoreKeyFocus();   // Escape closes the popup again
+                        }
                         Keys.onReturnPressed: popup.answer(true, text)
                         Keys.onEscapePressed: popup.answer(false)
                     }
