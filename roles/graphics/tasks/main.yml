@@ -10,3 +10,11 @@
     name: "{{ graphics_packages }}"
     state: present
   tags: graphics
+
+- name: Install the host's VA-API driver (graphics_vaapi_packages, host_vars)
+  when: graphics_vaapi_packages | length > 0
+  become: true
+  community.general.pacman:
+    name: "{{ graphics_vaapi_packages }}"
+    state: present
+  tags: graphics

@@ -27,6 +27,13 @@ network_packages:
                      # (eduroam), DHCP vs static IPv4, DNS. No tray applet
                      # (network-manager-applet stays out), no autostart;
                      # the bar's network popup is quick control only.
+  - wireless-regdb   # the kernel's regulatory database (official core;
+                     # pulls in iw). Without it cfg80211 found no
+                     # regulatory.db ("Direct firmware load ... failed")
+                     # and kept the restrictive world domain - measured on
+                     # the laptop's Intel 7260. No country is set here: with
+                     # the database present the kernel follows the country
+                     # the access point announces.
 
 # Uni-VPN (eduroam-adjacent institutional VPN) is a deliberately open
 # point: the actual protocol (possibly Fortinet/FortiGate/FortiClient,

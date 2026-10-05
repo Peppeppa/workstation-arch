@@ -30,3 +30,12 @@ graphics_packages:
   - mesa               # OpenGL/DRM-KMS graphics userspace
   - xorg-xwayland      # XWayland compatibility layer for X11-only apps;
                        # native Wayland stays primary, this is fallback only
+
+# VA-API (hardware video decode/encode) driver - depends on the GPU
+# generation, so it is a per-host value, empty by default (no guess, no
+# driver for hardware a host does not have). Official Arch packages:
+#   Intel Gen 4 (GMA X4500) .. Haswell (HD 4600): libva-intel-driver (i965)
+#   Intel Broadwell and newer:                    intel-media-driver (iHD)
+#   AMD (radeonsi):                               mesa already ships VA-API
+# Mesa itself has no VA-API driver for Intel GPUs.
+graphics_vaapi_packages: []

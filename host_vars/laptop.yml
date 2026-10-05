@@ -1,8 +1,8 @@
 ---
 # Host-specific overrides for the ThinkPad laptop.
-# Empty for now - real deviations (battery/power, ThinkPad-specific
-# hardware, Intel mobile graphics quirks, ...) land here once they are
-# actually needed, not invented ahead of time.
+# Real deviations only, each measured on this machine (ThinkPad T440p,
+# i7-4712MQ, Intel HD 4600 / Haswell, 14" 1920x1080 eDP panel - see the
+# Stage 0 hardware audit), not invented ahead of time.
 #
 # Gaming is opt-in (gaming_enabled: false by default - see
 # group_vars/all.yml and AGENTS.md). This host's real GPU is not yet
@@ -10,4 +10,21 @@
 # the real GPU is known, enable both together, e.g.:
 #   gaming_enabled: true
 #   gaming_gpu_vulkan_packages: [vulkan-intel, lib32-vulkan-intel]
-{}
+
+# Haswell: VA-API through the i965 driver - intel-media-driver starts at
+# Broadwell (see roles/graphics/defaults/main.yml).
+graphics_vaapi_packages:
+  - libva-intel-driver
+
+# The internal panel explicitly at scale 1 (conservative start, decided on
+# the real screen - "auto" guesses from the reported physical size); any
+# other output keeps the generic preferred/auto rule.
+hyprland_monitors:
+  - output: eDP-1
+    mode: preferred
+    position: 0x0
+    scale: 1
+  - output: ""
+    mode: preferred
+    position: auto
+    scale: auto
