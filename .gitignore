@@ -6,3 +6,6 @@
 
 # Local scratch files, never intended for commit
 *.local
+
+# Python bytecode caches (scripts/ helpers run on demand)
+__pycache__/
