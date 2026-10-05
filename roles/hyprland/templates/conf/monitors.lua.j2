@@ -8,19 +8,40 @@
 -- "auto"), and a workstation - real hosts report real sizes, so
 -- "preferred" mode and "auto" scale are right there. arch-dev overrides
 -- the scale (VirtualBox reports 0x0 mm, which makes "auto" pick 2) and
--- sets an explicit 2560x1440 mode (see host_vars/arch-dev.yml). No
--- monitor GUI.
+-- sets an explicit 2560x1440 mode (see host_vars/arch-dev.yml).
+--
+-- Display scale at runtime: Appearance (Quickshell) writes the scale the
+-- user picked per output into ~/.config/workstation/display-scale.lua
+-- (runtime state, never written by Ansible) and runs `hyprctl reload`.
+-- A scale there wins over the scale below for that output; an output not
+-- listed below gets the catch-all rule's mode/position with that scale.
+-- Missing or broken file: the scales below (pcall, like the theme colors).
 return function(v)
+    local ok, scales = pcall(dofile, v.userDir .. "/.config/workstation/display-scale.lua")
+    if not ok or type(scales) ~= "table" then scales = {} end
+    local listed = {}
 {% for m in hyprland_monitors %}
+    listed["{{ m.output | default('') }}"] = true
     hl.monitor({
         output   = "{{ m.output | default('') }}",
         mode     = "{{ m.mode | default('preferred') }}",
         position = "{{ m.position | default('auto') }}",
 {% if (m.scale | default('auto') | string) == 'auto' %}
-        scale    = "auto",
+        scale    = {% if m.output | default('') != '' %}scales["{{ m.output }}"] or {% endif %}"auto",
 {% else %}
-        scale    = {{ m.scale }},
+        scale    = {% if m.output | default('') != '' %}scales["{{ m.output }}"] or {% endif %}{{ m.scale }},
 {% endif %}
     })
 {% endfor %}
+{% set catchall = hyprland_monitors | selectattr('output', 'defined') | selectattr('output', 'equalto', '') | list %}
+    for output, scale in pairs(scales) do
+        if not listed[output] and type(scale) == "number" then
+            hl.monitor({
+                output   = output,
+                mode     = "{{ (catchall[0].mode if catchall else 'preferred') | default('preferred') }}",
+                position = "{{ (catchall[0].position if catchall else 'auto') | default('auto') }}",
+                scale    = scale,
+            })
+        end
+    end
 end

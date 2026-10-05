@@ -3,16 +3,20 @@
 //
 // Sections: Theme (dark + light, from the theme directories via the shared
 // services/ThemeModel - the same runtime path as the bar's theme popup),
-// Wallpaper (opens WallpaperPicker.qml), Brightness (only with a real
-// backlight, services/BrightnessModel), Text size (GTK text-scaling-factor,
-// services/TextScaleModel), Display (each output as Hyprland reports it -
-// read-only, see docs/feature-architecture.md "Appearance").
+// Wallpaper (opens WallpaperPicker.qml), Bar (transparent background - the
+// bar's own setting in BarLayout, the same one its right click flips),
+// Brightness (only with a real backlight, services/BrightnessModel), Text
+// size (the desktop's one text-size preference, `theme text-size`: shell,
+// Ghostty, GTK - see Fonts.qml), Display (per output: scale presets as
+// runtime state, Change opens the host's monitor config - services/
+// DisplayModel; see docs/feature-architecture.md "Appearance").
 
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs
+import qs.bar
 import qs.services
 import qs.ui
 
@@ -21,8 +25,8 @@ FocusScope {
 
     required property var window
     required property int fontSize
-
-    property var monitors: []
+    required property string monitorConfig
+    required property var terminal
 
     focus: true
     Component.onCompleted: forceActiveFocus()
@@ -39,23 +43,39 @@ FocusScope {
         id: brightness
     }
 
-    TextScaleModel {
-        id: textScale
+    DisplayModel {
+        id: display
+        configFile: root.monitorConfig
+        terminal: root.terminal
     }
 
-    // Outputs as Hyprland has them now: one read per open.
-    Process {
-        running: true
-        command: ["hyprctl", "monitors", "-j"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    root.monitors = JSON.parse(text);
-                } catch (e) {
-                    root.monitors = [];
-                    Log.warn("appearance", "`hyprctl monitors -j` returned no JSON - no display information");
-                }
-            }
+    // A row of preset chips (text size, display scale).
+    component Chip: Rectangle {
+        id: chip
+        property string label
+        property bool current: false
+        signal picked
+        Layout.fillWidth: true
+        implicitHeight: Fonts.px(28)
+        radius: 4
+        color: current ? Colors.accent : chipMouse.containsMouse ? Colors.surface : "transparent"
+        border.color: current ? Colors.accent : Colors.border
+        border.width: 1
+
+        Text {
+            anchors.centerIn: parent
+            text: chip.label
+            color: chip.current ? Colors.accentForeground : Colors.foreground
+            font.family: Fonts.family
+            font.pixelSize: root.fontSize - 2
+        }
+
+        MouseArea {
+            id: chipMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: chip.picked()
         }
     }
 
@@ -79,7 +99,7 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 760) / 2))
-        width: 480
+        width: Fonts.px(480)
         height: Math.min(column.implicitHeight + 32, root.height - y - 40)
         radius: 8
         color: Colors.background
@@ -148,7 +168,7 @@ FocusScope {
                     readonly property var current: themeModel.wallpaper
                         ? themeModel.backgrounds.find(b => b.file === themeModel.wallpaper.selected) || null : null
                     Layout.fillWidth: true
-                    implicitHeight: 72
+                    implicitHeight: Fonts.px(72)
                     radius: 6
                     color: cardMouse.containsMouse ? Colors.surface : "transparent"
                     border.color: cardMouse.containsMouse ? Colors.borderActive : Colors.border
@@ -214,6 +234,50 @@ FocusScope {
                     }
                 }
 
+                // ---- Bar ------------------------------------------------
+                SectionTitle { text: "Bar" }
+
+                // The bar's own background setting (BarLayout, persisted in
+                // bar-layout.json) - right click on free bar space flips the
+                // same value, so both always agree.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Rectangle {
+                        implicitWidth: Fonts.px(16)
+                        implicitHeight: Fonts.px(16)
+                        radius: 3
+                        color: BarLayout.background === "transparent" ? Colors.accent : "transparent"
+                        border.color: BarLayout.background === "transparent" ? Colors.accent : Colors.border
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: BarLayout.background === "transparent"
+                            text: "\u{F012C}"         // check
+                            color: Colors.accentForeground
+                            font.family: Fonts.icons
+                            font.pixelSize: root.fontSize - 2
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Transparent bar background"
+                        color: Colors.foreground
+                        font.family: Fonts.family
+                        font.pixelSize: root.fontSize - 1
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.leftMargin: -Fonts.px(24)
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: BarLayout.setBackground(BarLayout.background === "transparent" ? "solid" : "transparent")
+                        }
+                    }
+                }
+
                 // ---- Brightness -----------------------------------------
                 SectionTitle { text: "Brightness" }
 
@@ -236,7 +300,7 @@ FocusScope {
                     }
 
                     Text {
-                        Layout.preferredWidth: 40
+                        Layout.preferredWidth: Fonts.px(40)
                         horizontalAlignment: Text.AlignRight
                         text: Math.round(brightness.value * 100) + "%"
                         color: Colors.foreground
@@ -258,33 +322,13 @@ FocusScope {
                     spacing: 4
 
                     Repeater {
-                        model: textScale.steps
+                        model: themeModel.textSizes
 
-                        Rectangle {
-                            id: step
-                            required property var modelData
-                            readonly property bool current: Math.abs(textScale.factor - modelData.factor) < 0.01
-                            Layout.fillWidth: true
-                            implicitHeight: 28
-                            radius: 4
-                            color: current ? Colors.accent : stepMouse.containsMouse ? Colors.surface : "transparent"
-                            border.color: current ? Colors.accent : Colors.border
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: step.modelData.label
-                                color: step.current ? Colors.accentForeground : Colors.foreground
-                                font.family: Fonts.family
-                                font.pixelSize: root.fontSize - 2
-                            }
-
-                            MouseArea {
-                                id: stepMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: textScale.set(step.modelData.factor)
-                            }
+                        Chip {
+                            required property int modelData
+                            label: String(modelData)
+                            current: themeModel.textSize === modelData
+                            onPicked: themeModel.setTextSize(modelData)
                         }
                     }
                 }
@@ -292,7 +336,7 @@ FocusScope {
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Applies to GTK apps (Files, ...) right away; the shell keeps its own size."
+                    text: "px - the shell, Ghostty (and Neovim in it) and GTK apps follow; other apps keep their own zoom."
                     font.pixelSize: root.fontSize - 2
                 }
 
@@ -300,36 +344,97 @@ FocusScope {
                 SectionTitle { text: "Display" }
 
                 Repeater {
-                    model: root.monitors
+                    model: display.monitors
 
-                    RowLayout {
+                    ColumnLayout {
+                        id: mon
                         required property var modelData
+                        readonly property bool overridden: display.overrides[modelData.name] !== undefined
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: 4
 
-                        Text {
-                            text: "\u{F0379}"       // monitor
-                            color: Colors.foreground
-                            font.family: Fonts.icons
-                            font.pixelSize: root.fontSize + 2
-                        }
-
-                        Text {
+                        RowLayout {
                             Layout.fillWidth: true
-                            text: modelData.name
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                            color: Colors.foreground
-                            font.family: Fonts.family
-                            font.pixelSize: root.fontSize
+                            spacing: 8
+
+                            Text {
+                                text: "\u{F0379}"       // monitor
+                                color: Colors.foreground
+                                font.family: Fonts.icons
+                                font.pixelSize: root.fontSize + 2
+                            }
+
+                            Column {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    width: parent.width
+                                    text: mon.modelData.name
+                                    elide: Text.ElideRight
+                                    textFormat: Text.PlainText
+                                    color: Colors.foreground
+                                    font.family: Fonts.family
+                                    font.pixelSize: root.fontSize
+                                }
+
+                                Text {
+                                    text: mon.modelData.width + "×" + mon.modelData.height + " @ " + Math.round(mon.modelData.refreshRate) + " Hz"
+                                    color: Colors.foregroundMuted
+                                    font.family: Fonts.family
+                                    font.pixelSize: root.fontSize - 1
+                                }
+                            }
+
+                            // The real monitor configuration (host_vars) in Neovim.
+                            PopupButton {
+                                label: "Change"
+                                fontSize: root.fontSize - 1
+                                onClicked: {
+                                    display.openConfig();
+                                    root.window.close();
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Repeater {
+                                model: display.scales
+
+                                Chip {
+                                    required property real modelData
+                                    label: modelData + "×"
+                                    current: display.isCurrent(mon.modelData, modelData)
+                                    onPicked: display.setScale(mon.modelData.name, modelData)
+                                }
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: "Scale " + Number(mon.modelData.scale).toFixed(2).replace(/\.?0+$/, "") + "×"
+                                  + (mon.overridden ? " - chosen here (the host default is in its monitor config)" : " - the host default")
+                            font.pixelSize: root.fontSize - 2
                         }
 
                         Text {
-                            text: modelData.width + "×" + modelData.height + " @ " + Math.round(modelData.refreshRate) + " Hz"
-                                  + "   ·   scale " + Number(modelData.scale).toFixed(2).replace(/\.?0+$/, "")
-                            color: Colors.foreground
+                            visible: mon.overridden
+                            text: "Use the host default"
+                            color: Colors.accent
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize - 1
+                            font.pixelSize: root.fontSize - 2
+                            font.underline: resetMouse.containsMouse
+
+                            MouseArea {
+                                id: resetMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: display.resetScale(mon.modelData.name)
+                            }
                         }
                     }
                 }
@@ -337,8 +442,8 @@ FocusScope {
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: root.monitors.length === 0 ? "No output information"
-                        : "Resolution and scale are set per output in the host's hyprland_monitors."
+                    visible: display.monitors.length === 0
+                    text: "No output information"
                     font.pixelSize: root.fontSize - 2
                 }
             }

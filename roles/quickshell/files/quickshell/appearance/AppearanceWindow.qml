@@ -18,6 +18,10 @@ PanelWindow {
     id: win
 
     required property int fontSize
+    // From shell.qml (rendered by Ansible): the host's monitor config in the
+    // repository checkout, and the terminal argv - for Display -> Change.
+    required property string monitorConfig
+    required property var terminal
     property bool pickerOpen: false
 
     function open() {
@@ -71,6 +75,8 @@ PanelWindow {
         sourceComponent: AppearanceContent {
             window: win
             fontSize: win.fontSize
+            monitorConfig: win.monitorConfig
+            terminal: win.terminal
         }
     }
 

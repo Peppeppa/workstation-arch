@@ -16,6 +16,7 @@
 
 import QtQuick
 import Quickshell
+import qs
 import qs.appearance
 import qs.bar
 import qs.osmenu
@@ -24,8 +25,9 @@ ShellRoot {
     id: root
 
     // Font size of the non-bar overlays (launcher, power menu, toasts,
-    // clipboard); the bar has its own (bar/BarStyle.qml).
-    readonly property int fontSize: 13
+    // clipboard); the bar has its own (bar/BarStyle.qml). Both follow the
+    // user's text size (Fonts.px - 13 at the default size).
+    readonly property int fontSize: Fonts.px(13)
 
     // One bar per connected monitor.
     Variants {
@@ -56,6 +58,8 @@ ShellRoot {
     AppearanceWindow {
         id: appearanceWindow
         fontSize: root.fontSize
+        monitorConfig: "{{ playbook_dir }}/host_vars/{{ ansible_facts.nodename }}.yml"
+        terminal: {{ hyprland_terminal.split() | to_json }}
     }
 {% if wallpaper_enabled %}
 
