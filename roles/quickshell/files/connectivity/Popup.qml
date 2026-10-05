@@ -19,9 +19,10 @@
 //            NM events, after each action): activate/deactivate only.
 //   Wi-Fi    Quickshell.Networking: radio on/off; Known networks (saved NM
 //            profiles; hover X forgets) and Other networks (visible, not
-//            saved; password inline for WPA/WPA3-Personal). Scanning only
-//            while open. Secrets go straight to NetworkManager - never
-//            logged or stored here. QR share of the current network.
+//            saved; password inline for WPA/WPA3-Personal, own scroll area
+//            of ten rows, Up/Down/Enter). Scanning only while open. Secrets
+//            go straight to NetworkManager - never logged, stored, put in
+//            argv or the clipboard here. QR share of the current network.
 
 import QtQuick
 import QtQuick.Layouts
@@ -46,31 +47,71 @@ BarPopup {
     readonly property bool wifiOn: Networking.wifiEnabled && Networking.wifiHardwareEnabled
     readonly property var networks: wifiDevice === null ? []
         : wifiDevice.networks.values.filter(n => n.name !== "")
-    readonly property var knownNetworks: networks.filter(n => n.known && !holdInOther(n))
+    readonly property var knownNetworks: networks.filter(n => n.known && n.name !== authSsid)
         .sort((a, b) => (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
-    readonly property var otherNetworks: orderOther(networks.filter(n => !n.known || holdInOther(n)), otherOrder)
-
-    // The password box opens inline below its network (NetworkEntry). While
-    // it is open the network keeps its place: it stays under "Other" until
-    // the connect succeeded (NM saves a profile - known - already while
-    // connecting), and "Other" keeps the order it had when the box opened
-    // (otherwise it is re-sorted by signal on every scan). New networks go
-    // to the end. Cleared on success/cancel -> the network moves to Known.
-    readonly property var authNetwork: passwordFor || pendingPsk
-    property var otherOrder: []          // SSIDs, frozen while authNetwork is set
-    onAuthNetworkChanged: otherOrder = authNetwork
-        ? orderOther(networks.filter(n => !n.known || n === authNetwork), []).map(n => n.name) : []
-
-    function holdInOther(n) {
-        return n === authNetwork && !pendingWasKnown;
+    // SSID -> network object (the rows look their network up by name).
+    readonly property var byName: {
+        const m = {};
+        for (const n of networks) if (!(n.name in m)) m[n.name] = n;
+        return m;
     }
 
-    function orderOther(list, order) {
-        const bySignal = list.slice().sort((a, b) => b.signalStrength - a.signalStrength);
-        if (order.length === 0) return bySignal;
-        const rank = n => { const i = order.indexOf(n.name); return i < 0 ? order.length : i; };
-        return bySignal.sort((a, b) => rank(a) - rank(b));
+    // Other networks: a ListModel of SSIDs, NOT a JS array as the model.
+    // A Repeater over an array recreates every row whenever the array is
+    // re-evaluated - and the scan re-evaluated it on each result and signal
+    // change, so the inline password box (its TextInput) was destroyed and
+    // rebuilt: the typed password was lost (real use, long password). Rows
+    // now keep their identity (key = SSID): syncOther() only moves, inserts
+    // and removes what differs. While a password is being entered or sent
+    // (authSsid) the list is frozen - no move, insert or removal; the wanted
+    // order just keeps changing and is applied once, when the box closes
+    // (cancel, success, popup closed). Everything else (Known, VPN, status)
+    // keeps updating.
+    readonly property var otherWanted: networks.filter(n => !n.known || n.name === authSsid)
+        .sort((a, b) => b.signalStrength - a.signalStrength).map(n => n.name)
+    onOtherWantedChanged: syncOther()
+    property string authSsid: ""        // the network of the password box ("" = none)
+    readonly property bool authActive: authSsid !== ""
+    onAuthActiveChanged: if (!authActive) syncOther()
+
+    // The open password box's height: the list's view grows by it, so ten
+    // rows stay visible next to it.
+    readonly property real authExtra: {
+        if (!authActive) return 0;
+        for (let i = 0; i < otherRepeater.count; i++) {
+            const it = otherRepeater.itemAt(i);
+            if (it && it.ssid === authSsid) return Math.max(0, it.height - rowHeight);
+        }
+        return 0;
     }
+    // Opening the box scrolls its row (with the box) into view.
+    onAuthSsidChanged: if (authActive) Qt.callLater(() => {
+        for (let i = 0; i < otherModel.count; i++)
+            if (otherModel.get(i).ssid === authSsid) { otherSel = i; showOther(i); }
+    })
+
+    function syncOther() {
+        if (authActive) return;
+        const want = otherWanted.filter((s, i, a) => a.indexOf(s) === i);
+        for (let i = 0; i < want.length; i++) {
+            let j = i;
+            while (j < otherModel.count && otherModel.get(j).ssid !== want[i]) j++;
+            if (j === otherModel.count) otherModel.insert(i, { ssid: want[i] });
+            else if (j !== i) otherModel.move(j, i, 1);
+        }
+        if (otherModel.count > want.length) otherModel.remove(want.length, otherModel.count - want.length);
+        if (otherSel >= otherModel.count) otherSel = otherModel.count - 1;
+    }
+
+    ListModel {
+        id: otherModel
+    }
+
+    // Keyboard selection in Other networks (-1 = none): Up/Down/Enter.
+    property int otherSel: -1
+    readonly property int rowHeight: 30           // an Other network row (not connecting)
+    readonly property int otherVisibleRows: 10
+
     readonly property var currentNetwork: networks.find(n => n.connected) || null
 
     property var passwordFor: null      // network waiting for a password
@@ -120,18 +161,42 @@ BarPopup {
 
     function activateNetwork(n) {
         message = "";
+        if (n === null) return;
         if (n.connected) n.disconnect();
         else if (n.known || !secured(n)) n.connect();
-        else if (personal(n)) { pwError = ""; passwordFor = n; }
+        else if (personal(n)) { pwError = ""; passwordFor = n; authSsid = n.name; }
         else message = "enterprise";
     }
 
-    function submitPassword(pw) {
-        if (passwordFor === null || pw.length < 8) return;
-        pendingPsk = passwordFor;
-        pendingWasKnown = passwordFor.known;
+    function cancelPassword() {
+        passwordFor = null;
+        pendingPsk = null;
         pwError = "";
-        passwordFor.connectWithPsk(pw);
+        authSsid = "";
+    }
+
+    function submitPassword(pw) {
+        if (pw.length < 8) return false;
+        // The network left the scan while the password was typed (the row
+        // stays, frozen): keep the text, say why nothing happens.
+        const n = byName[authSsid];
+        if (n === undefined || n === null) { pwError = "Network out of range"; return false; }
+        passwordFor = n;
+        pendingPsk = n;
+        pendingWasKnown = n.known;
+        pwError = "";
+        n.connectWithPsk(pw);
+        return true;
+    }
+
+    // Bring Other row i (and its password box) into the list's view.
+    function showOther(i) {
+        const item = otherRepeater.itemAt(i);
+        if (!item) return;
+        if (item.y < otherView.contentY) otherView.contentY = item.y;
+        else if (item.y + item.height > otherView.contentY + otherView.height)
+            otherView.contentY = Math.min(item.y + item.height - otherView.height,
+                                          Math.max(0, otherView.contentHeight - otherView.height));
     }
 
     function openSettings() {
@@ -236,17 +301,33 @@ BarPopup {
 
     panelWidth: 340
     keyFilter: event => {
-        if (event.key !== Qt.Key_Escape) return false;
-        if (passwordFor !== null) { passwordFor = null; pwError = ""; }
-        else if (qrRequested) hideQr();
-        else return false;
-        return true;
+        if (event.key === Qt.Key_Escape) {
+            if (authActive && pendingPsk === null) cancelPassword();
+            else if (qrRequested) hideQr();
+            else return false;
+            return true;
+        }
+        // Other networks: Up/Down select (the list scrolls along), Enter
+        // acts like a click. Inactive while the password box has the keys.
+        if (!wifiOn || otherModel.count === 0 || authActive) return false;
+        if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+            otherSel = event.key === Qt.Key_Down ? Math.min(otherModel.count - 1, otherSel + 1)
+                                                 : Math.max(0, otherSel - 1);
+            showOther(otherSel);
+            return true;
+        }
+        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && otherSel >= 0) {
+            activateNetwork(byName[otherModel.get(otherSel).ssid] || null);
+            return true;
+        }
+        return false;
     }
 
     Component.onCompleted: {
         if (wifiDevice !== null && wifiOn) wifiDevice.scannerEnabled = true;
         refreshLists();
         sample();
+        syncOther();
     }
     Component.onDestruction: {
         if (wifiDevice !== null) wifiDevice.scannerEnabled = false;
@@ -291,11 +372,7 @@ BarPopup {
     Connections {
         target: popup.pendingPsk
         function onConnectedChanged() {
-            if (popup.pendingPsk && popup.pendingPsk.connected) {
-                popup.pendingPsk = null;
-                popup.passwordFor = null;
-                popup.pwError = "";
-            }
+            if (popup.pendingPsk && popup.pendingPsk.connected) popup.cancelPassword();
         }
         // NM saved a profile for the attempt; a network that was not known
         // before must not become "known" with a wrong password: forget it.
@@ -496,8 +573,15 @@ BarPopup {
     }
 
     // Password for a protected network (WPA/WPA2/WPA3-Personal), inline
-    // below its row (one instance per row, visible only for authNetwork).
+    // below its row in Other networks (one per row, visible only for
+    // authSsid). The row - and so this box and its TextInput - lives as long
+    // as the password interaction: the list is frozen meanwhile (syncOther),
+    // so text, cursor and focus survive every scan. The eye only switches
+    // the echo mode of the same field. Nothing of the text is kept anywhere
+    // else: hiding the box (cancel, sent, popup closed) empties it.
     component PasswordBox: Rectangle {
+        id: box
+        property bool reveal: false
         Layout.fillWidth: true
         Layout.topMargin: 4
         implicitHeight: pwBox.implicitHeight + 16
@@ -505,6 +589,7 @@ BarPopup {
         color: Colors.surface
         border.color: popup.pwError !== "" ? Colors.error : Colors.borderActive
         border.width: 1
+        onVisibleChanged: reveal = false
 
         ColumnLayout {
             id: pwBox
@@ -516,9 +601,8 @@ BarPopup {
 
             Text {
                 Layout.fillWidth: true
-                readonly property var n: popup.passwordFor || popup.pendingPsk
-                text: popup.pendingPsk !== null ? "Connecting to " + (n ? n.name : "") + "…"
-                                                : "Password for " + (n ? n.name : "")
+                text: popup.pendingPsk !== null ? "Connecting to " + popup.authSsid + "…"
+                                                : "Password for " + popup.authSsid
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: Colors.foreground
@@ -537,9 +621,14 @@ BarPopup {
 
                 TextInput {
                     id: pwInput
-                    anchors.fill: parent
-                    anchors.margins: 6
-                    echoMode: TextInput.Password
+                    anchors.left: parent.left
+                    anchors.right: eye.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 6
+                    anchors.rightMargin: 4
+                    clip: true
+                    echoMode: box.reveal ? TextInput.Normal : TextInput.Password
+                    selectByMouse: false
                     color: Colors.foreground
                     font.family: Fonts.family
                     font.pixelSize: popup.fontSize
@@ -549,8 +638,36 @@ BarPopup {
                         if (visible) forceActiveFocus();
                         else popup.restoreKeyFocus();
                     }
-                    Keys.onReturnPressed: { popup.submitPassword(text); text = ""; }
-                    Keys.onEscapePressed: { text = ""; popup.passwordFor = null; popup.pwError = ""; }
+                    // Never into the clipboard (cliphist) - also not when shown.
+                    Keys.onPressed: event => {
+                        if (event.matches(StandardKey.Copy) || event.matches(StandardKey.Cut)) event.accepted = true;
+                    }
+                    Keys.onReturnPressed: if (popup.submitPassword(text)) text = ""
+                    Keys.onEscapePressed: popup.cancelPassword()
+                }
+
+                // Show / hide the typed password (same field, same text).
+                Text {
+                    id: eye
+                    anchors.right: parent.right
+                    anchors.rightMargin: 6
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: box.reveal ? "\u{F0209}" : "\u{F0208}"      // eye-off / eye
+                    color: eyeMouse.containsMouse || box.reveal ? Colors.accent : Colors.foregroundMuted
+                    font.family: Fonts.icons
+                    font.pixelSize: popup.fontSize
+
+                    MouseArea {
+                        id: eyeMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            box.reveal = !box.reveal;
+                            pwInput.forceActiveFocus();
+                        }
+                    }
                 }
             }
 
@@ -569,31 +686,37 @@ BarPopup {
 
                 PopupButton {
                     label: "Cancel"
-                    onClicked: { pwInput.text = ""; popup.passwordFor = null; popup.pwError = ""; }
+                    onClicked: popup.cancelPassword()
                 }
 
                 PopupButton {
                     primary: true
                     label: "Connect"
-                    onClicked: { popup.submitPassword(pwInput.text); pwInput.text = ""; }
+                    onClicked: if (popup.submitPassword(pwInput.text)) pwInput.text = ""
                 }
             }
         }
     }
 
-    // A network row plus its inline password box.
-    component NetworkEntry: ColumnLayout {
+    // An Other network row plus its inline password box. Keyed by SSID:
+    // the network object is looked up (it can vanish from the scan while
+    // the list is frozen - the row then stays, marked out of range).
+    component OtherEntry: ColumnLayout {
         id: entry
-        required property var network
-        Layout.fillWidth: true
+        required property string ssid
+        required property int index
+        readonly property var network: popup.byName[ssid] || null
+        width: parent ? parent.width : 0
         spacing: 2
 
         NetworkRow {
             network: entry.network
+            name: entry.ssid
+            selected: popup.otherSel === entry.index
         }
 
         PasswordBox {
-            visible: popup.authNetwork !== null && popup.authNetwork === entry.network
+            visible: popup.authSsid === entry.ssid
         }
     }
 
@@ -601,15 +724,21 @@ BarPopup {
     // an X replaces it while hovered: forget, without triggering the row.
     component NetworkRow: Rectangle {
         id: row
-        required property var network
+        required property var network       // null: no longer in the scan (frozen Other list)
+        property string name: network ? network.name : ""
+        property bool selected: false
+        readonly property bool present: network !== null
+        readonly property bool connected: present && network.connected
+        readonly property bool changing: present && network.stateChanging
+        readonly property bool known: present && network.known
         readonly property bool hovered: rowMouse.containsMouse || forgetMouse.containsMouse
 
         Layout.fillWidth: true
-        implicitHeight: row.network.connected || row.network.stateChanging ? 40 : 30
+        implicitHeight: connected || changing || !present ? popup.rowHeight + 10 : popup.rowHeight
         radius: 4
-        color: row.network.connected ? Colors.surface : hovered ? Colors.surface : "transparent"
-        border.color: row.network.connected ? Colors.accent : "transparent"
-        border.width: row.network.connected ? 1 : 0
+        color: connected || hovered || selected ? Colors.surface : "transparent"
+        border.color: connected ? Colors.accent : "transparent"
+        border.width: connected ? 1 : 0
 
         MouseArea {
             id: rowMouse
@@ -620,6 +749,7 @@ BarPopup {
 
         Connections {
             target: row.network
+            ignoreUnknownSignals: true
             // A password attempt logs once, in the popup's own handler; its
             // handler may run first (then pendingPsk is already cleared and
             // passwordFor is set again) - either order must not log twice.
@@ -634,8 +764,8 @@ BarPopup {
             anchors.left: parent.left
             anchors.leftMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            text: popup.signalIcon(row.network.signalStrength)
-            color: row.network.connected ? Colors.accent : Colors.foreground
+            text: popup.signalIcon(row.present ? row.network.signalStrength : 0)
+            color: row.connected ? Colors.accent : row.present ? Colors.foreground : Colors.foregroundMuted
             font.family: Fonts.icons
             font.pixelSize: popup.fontSize + 1
         }
@@ -649,18 +779,18 @@ BarPopup {
 
             Text {
                 width: parent.width
-                text: row.network.name
+                text: row.name
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
-                color: Colors.foreground
+                color: row.present ? Colors.foreground : Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 1
             }
 
             Text {
-                visible: row.network.connected || row.network.stateChanging
-                text: row.network.stateChanging ? "Connecting…" : "Connected"
-                color: row.network.connected ? Colors.accent : Colors.foregroundMuted
+                visible: row.connected || row.changing || !row.present
+                text: !row.present ? "Out of range" : row.changing ? "Connecting…" : "Connected"
+                color: row.connected ? Colors.accent : Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 3
             }
@@ -676,7 +806,7 @@ BarPopup {
 
             Text {
                 anchors.centerIn: parent
-                visible: !(row.network.known && row.hovered) && popup.secured(row.network)
+                visible: row.present && !(row.known && row.hovered) && popup.secured(row.network)
                 text: "\u{F033E}"           // lock
                 color: Colors.foregroundMuted
                 font.family: Fonts.icons
@@ -685,7 +815,7 @@ BarPopup {
 
             Rectangle {
                 anchors.fill: parent
-                visible: row.network.known && row.hovered
+                visible: row.known && row.hovered
                 radius: 4
                 color: forgetMouse.containsMouse ? Colors.error : "transparent"
 
@@ -702,7 +832,7 @@ BarPopup {
             MouseArea {
                 id: forgetMouse
                 anchors.fill: parent
-                enabled: row.network.known
+                enabled: row.known
                 hoverEnabled: true
                 onClicked: row.network.forget()
             }
@@ -898,7 +1028,7 @@ BarPopup {
 
             Repeater {
                 model: popup.wifiOn ? popup.knownNetworks : []
-                delegate: NetworkEntry {
+                delegate: NetworkRow {
                     required property var modelData
                     network: modelData
                 }
@@ -965,15 +1095,72 @@ BarPopup {
             }
 
             SubTitle {
-                visible: popup.wifiOn && popup.otherNetworks.length > 0
+                visible: popup.wifiOn && otherModel.count > 0
                 text: "Other networks"
             }
 
-            Repeater {
-                model: popup.wifiOn ? popup.otherNetworks : []
-                delegate: NetworkEntry {
-                    required property var modelData
-                    network: modelData
+            // Its own scroll area: up to ten rows tall (plus an open password
+            // box), the rest scrolls here - the heading above and every other
+            // section stay put. A Repeater, not a ListView: rows (and the
+            // password field in one) are never destroyed by scrolling.
+            Item {
+                visible: popup.wifiOn && otherModel.count > 0
+                Layout.fillWidth: true
+                implicitHeight: otherView.height
+
+                Flickable {
+                    id: otherView
+                    readonly property real viewport: popup.otherVisibleRows * popup.rowHeight
+                        + (popup.otherVisibleRows - 1) * otherColumn.spacing
+                        + popup.authExtra
+                    readonly property bool scrolls: contentHeight > height + 1
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: Math.min(otherColumn.implicitHeight, viewport)
+                    contentHeight: otherColumn.implicitHeight
+                    clip: true
+                    interactive: scrolls
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    Column {
+                        id: otherColumn
+                        width: otherView.width - (otherView.scrolls ? 10 : 0)
+                        spacing: 3
+
+                        Repeater {
+                            id: otherRepeater
+                            model: otherModel
+                            delegate: OtherEntry {}
+                        }
+                    }
+                }
+
+                // Scrollbar - only when the list is longer than its view.
+                Rectangle {
+                    visible: otherView.scrolls
+                    anchors.right: parent.right
+                    y: otherView.visibleArea.yPosition * otherView.height
+                    width: 4
+                    height: Math.max(16, otherView.visibleArea.heightRatio * otherView.height)
+                    radius: 2
+                    color: barDrag.drag.active || barMouse.containsMouse ? Colors.accent : Colors.foregroundMuted
+
+                    MouseArea {
+                        id: barMouse
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        hoverEnabled: true
+                    }
+
+                    DragHandler {
+                        id: barDrag
+                        target: null
+                        property real startY: 0
+                        onActiveChanged: if (active) startY = otherView.contentY
+                        onTranslationChanged: otherView.contentY = Math.max(0, Math.min(
+                            otherView.contentHeight - otherView.height,
+                            startY + translation.y * otherView.contentHeight / otherView.height))
+                    }
                 }
             }
 
