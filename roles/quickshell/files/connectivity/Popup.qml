@@ -120,7 +120,7 @@ BarPopup {
     property string pwError: ""
     property string message: ""
     property string qrSvg: ""           // QR code (contains the password) - memory only
-    property string qrPassword: ""      // the same password, shown below the QR - memory only, "" = none
+    property string qrPassword: ""      // the same password, for Copy only (never rendered) - memory only, "" = none
     property bool qrCopied: false
     property bool qrRequested: false
     property var vpns: []               // [{name, uuid, type, active}]
@@ -1072,7 +1072,10 @@ BarPopup {
                 }
             }
 
-            // The shared network's password, below its QR (open networks: none).
+            // The shared network's password row, below its QR (open networks:
+            // none). Never rendered: a fixed mask (same length for every
+            // password, so not even the length shows) - the real password
+            // only goes to Copy (wl-copy stdin, --sensitive) and the QR.
             SubTitle {
                 visible: popup.qrRequested && popup.qrSvg !== "" && popup.qrPassword !== ""
                 text: "Password"
@@ -1085,9 +1088,8 @@ BarPopup {
 
                 Text {
                     Layout.fillWidth: true
-                    text: popup.qrPassword
+                    text: "\u2022".repeat(12)
                     textFormat: Text.PlainText
-                    wrapMode: Text.WrapAnywhere
                     color: Colors.foreground
                     font.family: Fonts.family
                     font.pixelSize: popup.fontSize

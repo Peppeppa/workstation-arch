@@ -66,6 +66,9 @@ sys.exit(1 if bad else 0)
 # Snapper's empty-pre-post cleanup ignores the pin of a recovery slot's pre
 # snapshot (it deleted one on the laptop) - it must stay off.
 step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"' roles/recovery/templates/snapper-root.j2
+# The Wi-Fi Share view never renders the saved password: nothing in the
+# popup may bind text to qrPassword (Copy and the QR use it, nothing shows it).
+step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]*qrPassword" roles/quickshell/files/connectivity/Popup.qml'
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 if command -v qml6 >/dev/null; then
     step "tests/qml-logic.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
