@@ -9,6 +9,8 @@
 //            opens NM's own check URL in Chromium so the portal redirects),
 //            global addresses per interface (`ip -j -d addr`, on open and on
 //            NM events), the default gateway (Model.qml, kernel routes),
+//            "via VPN" also for a policy-routed full tunnel (`ip route get`,
+//            same moments - see tunnelDefault),
 //            traffic of the default-route interface: the ONLY sampling - a
 //            1 s Timer reading /sys/class/net/<if>/statistics (and the kernel
 //            routes), alive only while this popup exists, following the
@@ -60,6 +62,15 @@ BarPopup {
     property var vpns: []               // [{name, uuid, type, active}]
     property string vpnBusy: ""         // uuid of a running up/down
     property var addresses: []          // [{iface, kind, v4: [], v6: ""}]
+    // NetworkManager's WireGuard full tunnel (AllowedIPs 0.0.0.0/0, how NM
+    // imports wg-quick files) routes by policy: its default route sits in a
+    // table of its own behind an ip rule, the main table - all Model.qml
+    // reads - keeps the physical default, and NM does not mark the profile
+    // as default either. So the popup asks the kernel which interface an
+    // internet packet would leave by (a FIB lookup, nothing is sent;
+    // TEST-NET-3 address, never routed specifically).
+    property string internetDev: ""
+    readonly property bool tunnelDefault: internetDev !== "" && net.physical[internetDev] === undefined
 
     // Traffic (default-route interface) - see header.
     readonly property string trafficIface: net.primaryIface
@@ -131,11 +142,16 @@ BarPopup {
         lastRx = rx; lastTx = tx; lastT = t;
     }
 
-    onTrafficIfaceChanged: { lastRx = -1; lastTx = -1; rxRate = -1; txRate = -1; sample(); }
+    // Deferred: this runs while the model is still propagating its new
+    // default route, and sample() re-reads the routes into that model -
+    // synchronously that wrote into primary's own update (QML: binding
+    // loop on primary, every route change with the popup open).
+    onTrafficIfaceChanged: { lastRx = -1; lastTx = -1; rxRate = -1; txRate = -1; Qt.callLater(sample); }
 
     function refreshLists() {
         if (!vpnList.running) vpnList.running = true;
         if (!addrProc.running) addrProc.running = true;
+        if (!routeGet.running) routeGet.running = true;
     }
 
     function toggleVpn(v) {
@@ -271,6 +287,21 @@ BarPopup {
                                  v4: g.filter(a => a.family === "inet").map(a => a.local),
                                  v6: stable ? stable.local : "" };
                     });
+            }
+        }
+    }
+
+    Process {
+        id: routeGet
+        command: ["ip", "-j", "route", "get", "203.0.113.1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const r = JSON.parse(text);
+                    popup.internetDev = r.length > 0 && r[0].dev ? r[0].dev : "";
+                } catch (e) {
+                    popup.internetDev = "";   // no IPv4 route at all: nothing to say
+                }
             }
         }
     }
@@ -417,8 +448,11 @@ BarPopup {
 
         Connections {
             target: row.network
+            // A password attempt logs once, in the popup's own handler; its
+            // handler may run first (then pendingPsk is already cleared and
+            // passwordFor is set again) - either order must not log twice.
             function onConnectionFailed(reason) {
-                if (popup.pendingPsk !== row.network)
+                if (popup.pendingPsk !== row.network && popup.passwordFor !== row.network)
                     Log.warn("network", "Wi-Fi \"" + row.network.name + "\": connection failed (" + ConnectionFailReason.toString(reason) + ")");
             }
         }
@@ -535,7 +569,7 @@ BarPopup {
                         : c === NetworkConnectivity.Portal ? "Login required"
                         : c === NetworkConnectivity.Limited ? "Limited connectivity"
                         : c === NetworkConnectivity.None ? "No internet"
-                        : (popup.net.kind === "wifi" ? "Wi-Fi" : "Ethernet") + (popup.net.vpnDefault ? "  ·  via VPN" : "")
+                        : (popup.net.kind === "wifi" ? "Wi-Fi" : "Ethernet") + (popup.net.vpnDefault || popup.tunnelDefault ? "  ·  via VPN" : "")
                     color: c === NetworkConnectivity.Portal || c === NetworkConnectivity.Limited
                            || (c === NetworkConnectivity.None && popup.net.kind !== "none") ? Colors.error : Colors.foreground
                     font.family: Fonts.family
@@ -798,7 +832,11 @@ BarPopup {
                             font.family: Fonts.family
                             font.pixelSize: popup.fontSize
                             maximumLength: 63
-                            onVisibleChanged: { text = ""; if (visible) forceActiveFocus(); }
+                            onVisibleChanged: {
+                                text = "";
+                                if (visible) forceActiveFocus();
+                                else popup.restoreKeyFocus();
+                            }
                             Keys.onReturnPressed: { popup.submitPassword(text); text = ""; }
                             Keys.onEscapePressed: { text = ""; popup.passwordFor = null; popup.pwError = ""; }
                         }
