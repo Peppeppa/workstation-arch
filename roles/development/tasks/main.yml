@@ -1,0 +1,31 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here.
+- name: Install development tools
+  become: true
+  community.general.pacman:
+    name: "{{ development_packages }}"
+    state: present
+  tags: development
+
+# Docker on demand only (see defaults): never enabled at boot. Not
+# stopped here either - a running Docker the user started stays running
+# through a bootstrap.
+- name: Docker does not start at boot
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+  loop: "{{ development_docker_units }}"
+  tags: development
+
+# Membership in `docker` = access to the daemon socket without sudo (and
+# with it root-equivalent rights on this machine - the documented Docker
+# trade-off for a single-user workstation). Takes effect at the next login.
+- name: Add the invoking user to the docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_facts.user_id }}"
+    groups: docker
+    append: true
+  tags: development

@@ -130,6 +130,11 @@
     - role: apps
       tags: [apps]
 
+    # Development tools (gh, lazygit, JDK, Python/uv) and Docker -
+    # installed, never started at boot (start/stop on demand: README).
+    - role: development
+      tags: [development]
+
     - role: virtualization
       tags: [virtualization]
 

@@ -1,0 +1,41 @@
+---
+# Development tooling (Daily Driver Polish). Official Arch packages only
+# (`pacman -Si` checked 2026-10), ensure-present: removing a line never
+# uninstalls anything. Project dependencies do NOT belong here - they go
+# into per-project environments (uv / venv), not the system.
+development_packages:
+  # Git/GitHub (git itself: roles/base)
+  - github-cli          # gh
+  - lazygit             # terminal UI for git
+
+  # Java: the current LTS JDK (25) for IntelliJ projects and the CLI.
+  # jdk-openjdk would be the latest non-LTS release (27); IntelliJ can
+  # still download/select other JDKs per project itself.
+  - jdk25-openjdk
+
+  # Python: the interpreter (core) + uv for virtual environments, project
+  # dependencies and other Python versions. No global pip packages -
+  # Arch's system Python is externally managed on purpose; `python -m venv`
+  # is in the standard library.
+  - python
+  - uv
+
+  # Docker Engine + Compose (CLI plugin, `docker compose`) + Buildx
+  # (Compose builds images through it) + lazydocker (TUI). Containers,
+  # images, volumes and databases are the user's - nothing is created
+  # here.
+  - docker
+  - docker-compose
+  - docker-buildx
+  - lazydocker
+
+# Docker runs only on demand: neither the daemon nor its socket starts at
+# boot (that is also Arch's package default - stated here so it stays
+# so). Start: `sudo systemctl start docker`; stop everything again:
+# `sudo systemctl stop docker.socket docker.service containerd.service`
+# (README "Docker"). The socket is part of the stop: left listening, any
+# `docker` call (or an IDE probing it) would start the daemon again.
+development_docker_units:
+  - docker.service
+  - docker.socket
+  - containerd.service
