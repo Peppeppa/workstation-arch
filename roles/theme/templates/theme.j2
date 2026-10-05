@@ -38,6 +38,7 @@
 # first file in sorted order is used; with no files there is no wallpaper
 # (Quickshell then shows the theme's background color).
 
+import fcntl
 import json
 import os
 import re
@@ -101,6 +102,9 @@ def load_theme(theme_id):
         errors.append("missing theme.yml")
     except yaml.YAMLError as e:
         errors.append("theme.yml is not valid YAML: %s" % str(e).splitlines()[0])
+    except (UnicodeDecodeError, OSError) as e:
+        # one unreadable theme is an invalid theme, not a crash of discovery
+        errors.append("theme.yml is unreadable: %s" % e.__class__.__name__)
     if data is not None:
         if not isinstance(data, dict):
             errors.append("theme.yml must be a mapping")
@@ -153,8 +157,11 @@ def discover():
 # --- state -----------------------------------------------------------------
 
 def read_state():
+    # errors="replace": a corrupted byte must not crash every command (it
+    # did - UnicodeDecodeError traceback); the damaged value then simply
+    # fails check_state() like any other invalid entry.
     try:
-        with open(STATE_FILE, encoding="utf-8") as f:
+        with open(STATE_FILE, encoding="utf-8", errors="replace") as f:
             pairs = dict(line.rstrip("\n").split("=", 1) for line in f if "=" in line)
     except FileNotFoundError:
         return None
@@ -216,8 +223,9 @@ def write_files(files):
     try:
         for path, text in files.items():
             try:
-                with open(path, encoding="utf-8") as f:
-                    if f.read() == text:
+                # bytes, not text: a damaged file must just count as changed
+                with open(path, "rb") as f:
+                    if f.read() == text.encode("utf-8"):
                         continue
             except FileNotFoundError:
                 pass
@@ -360,10 +368,29 @@ def require_state():
     return state
 
 
+# Commands that change state/outputs run one at a time: each is a
+# read-modify-write of the state plus a live apply, and two at once (a fast
+# double click on the bar's theme icon, a bar click during bootstrap) lost
+# one of the changes - measured on arch-dev: 7 of 20 rounds of parallel
+# toggles. A blocking flock (held for one run, typically <1 s) queues them;
+# read-only commands need none (every file is replaced atomically).
+MUTATING = ("toggle", "mode", "select", "wallpaper set", "apply")
+
+
+def serialize(cmd, args):
+    if cmd not in MUTATING and " ".join([cmd] + args[:1]) not in MUTATING:
+        return None
+    os.makedirs(OUT_DIR, exist_ok=True)
+    lock = open(os.path.join(OUT_DIR, ".lock"), "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    return lock
+
+
 def main(argv):
     if not argv:
         return usage()
     cmd, args = argv[0], argv[1:]
+    _lock = serialize(cmd, args)  # noqa: F841 - released at exit
     valid, invalid = discover()
 
     if cmd == "validate":
