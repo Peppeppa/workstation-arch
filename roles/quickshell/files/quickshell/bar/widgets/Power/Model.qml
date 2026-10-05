@@ -4,6 +4,7 @@
 
 import QtQuick
 import Quickshell.Services.UPower
+import qs.bar
 
 QtObject {
     id: model
@@ -21,6 +22,9 @@ QtObject {
                                                            || device.state === UPowerDeviceState.PendingCharge)
     readonly property bool discharging: hasBattery && device.state === UPowerDeviceState.Discharging
     readonly property bool low: discharging && percent <= lowPercent
+    // AC policy (PowerPolicy.qml, feature power_profiles): on external
+    // power the profile is Performance and the popup hides the choice.
+    readonly property bool profileByPolicy: BarFeatures.powerProfiles && hasBattery && !UPower.onBattery
 
     // Plug while on external power; otherwise a battery filled in 10% steps.
     readonly property string batteryIcon: onExternalPower ? "\u{F06A5}"            // power-plug

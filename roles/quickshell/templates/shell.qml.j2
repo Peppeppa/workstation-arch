@@ -36,6 +36,12 @@ ShellRoot {
 
     // Low-battery warning (core): one instance, not per bar.
     BatteryWatcher {}
+{% if power_profiles_enabled %}
+
+    // FEATURE: power_profiles - AC/battery profile policy (laptops only:
+    // external power = Performance, battery = the user's battery choice).
+    PowerPolicy {}
+{% endif %}
 
     // The OS menu (mainMod+Space), placed by the compositor on the focused
     // output. It only navigates; destinations are handed the objects below.

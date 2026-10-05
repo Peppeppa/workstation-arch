@@ -94,9 +94,18 @@ BarPopup {
             font.pixelSize: popup.fontSize - 2
         }
 
-        // Power profiles (feature power_profiles).
+        // Power profiles (feature power_profiles) - only on battery: on
+        // external power PowerPolicy.qml keeps Performance.
         Text {
-            visible: BarFeatures.powerProfiles
+            visible: BarFeatures.powerProfiles && popup.power.profileByPolicy
+            Layout.topMargin: 8
+            text: "\u{F06A5}  On external power: " + (PowerProfiles.hasPerformanceProfile ? "Performance" : "Balanced")
+            color: Colors.foregroundMuted
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize - 1
+        }
+        Text {
+            visible: BarFeatures.powerProfiles && !popup.power.profileByPolicy
             Layout.topMargin: 8
             text: "Power profile"
             color: Colors.foreground
@@ -106,7 +115,7 @@ BarPopup {
         }
 
         RowLayout {
-            visible: BarFeatures.powerProfiles
+            visible: BarFeatures.powerProfiles && !popup.power.profileByPolicy
             Layout.fillWidth: true
             spacing: 4
 
