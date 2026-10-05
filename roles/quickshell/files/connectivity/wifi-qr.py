@@ -3,10 +3,12 @@
 # by Ansible (roles/quickshell/files/connectivity/wifi-qr.py) - do not edit
 # by hand.
 #
-# Prints an SVG QR code for joining the Wi-Fi network that is active on
-# the given interface (standard "WIFI:T:WPA;S:...;P:...;;" payload). Run
-# by the Connectivity popup only when the user asks for the QR code; the
-# SVG goes to stdout (a pipe to Quickshell, held in memory while shown).
+# Prints, as one JSON object {"svg": ..., "password": ...}, an SVG QR code
+# for joining the Wi-Fi network that is active on the given interface
+# (standard "WIFI:T:WPA;S:...;P:...;;" payload) and the same password the
+# QR encodes (null for an open network) - one credential read for both.
+# Run by the Connectivity popup only when the user asks to share; the JSON
+# goes to stdout (a pipe to Quickshell, held in memory while shown).
 #
 # The password is read on demand from NetworkManager (GetSecrets over
 # D-Bus - NM/polkit decide whether this session may read it) and passed
@@ -15,6 +17,7 @@
 # OWE, and secrets NM does not hand out (e.g. "ask every time" / agent-
 # owned). Exit 1: no active Wi-Fi connection or NM/qrencode error.
 
+import json
 import subprocess
 import sys
 
@@ -88,7 +91,7 @@ def main():
         return 1
     if result.returncode != 0:
         return 1
-    sys.stdout.buffer.write(result.stdout)
+    json.dump({"svg": result.stdout.decode("utf-8"), "password": password or None}, sys.stdout)
     return 0
 
 

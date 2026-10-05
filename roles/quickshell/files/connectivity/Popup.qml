@@ -79,6 +79,8 @@ BarPopup {
     property string pwError: ""
     property string message: ""
     property string qrSvg: ""           // QR code (contains the password) - memory only
+    property string qrPassword: ""      // the same password, shown below the QR - memory only, "" = none
+    property bool qrCopied: false
     property bool qrRequested: false
     property var vpns: []               // [{name, uuid, type, active}]
     property string vpnBusy: ""         // uuid of a running up/down
@@ -205,6 +207,17 @@ BarPopup {
     function hideQr() {
         qrRequested = false;
         qrSvg = "";
+        qrPassword = "";
+        qrCopied = false;
+    }
+
+    // Copy only the password: wl-copy (core wl-clipboard) gets it on stdin,
+    // never in argv; --sensitive sets the password-manager hint, so the
+    // clipboard history (cliphist) does not store it.
+    function copyQrPassword() {
+        if (qrPassword === "" || copyProc.running) return;
+        copyProc.stdinEnabled = true;
+        copyProc.running = true;
     }
 
     // nmcli -t output: fields separated by ':', literal ':' and '\' escaped.
@@ -238,6 +251,7 @@ BarPopup {
     Component.onDestruction: {
         if (wifiDevice !== null) wifiDevice.scannerEnabled = false;
         qrSvg = "";
+        qrPassword = "";
     }
 
     onWifiOnChanged: if (wifiDevice !== null) wifiDevice.scannerEnabled = wifiOn
@@ -359,7 +373,18 @@ BarPopup {
     Process {
         id: qrProc
         stdout: StdioCollector {
-            onStreamFinished: if (popup.qrRequested) popup.qrSvg = text
+            onStreamFinished: {
+                if (!popup.qrRequested) return;
+                try {
+                    const r = JSON.parse(text);
+                    popup.qrPassword = typeof r.password === "string" ? r.password : "";
+                    popup.qrSvg = r.svg;
+                } catch (e) {
+                    popup.hideQr();     // nothing faked: no QR, no empty password row
+                    popup.message = "QR code unavailable";
+                    Log.warn("network", "wifi-qr returned no valid output");
+                }
+            }
         }
         onExited: exitCode => {
             if (exitCode !== 0) {
@@ -368,6 +393,19 @@ BarPopup {
                 popup.message = exitCode === 2 ? "No QR code for this network (password not readable or enterprise)"
                                                : "QR code unavailable";
             }
+        }
+    }
+
+    Process {
+        id: copyProc
+        command: ["wl-copy", "--sensitive"]
+        onStarted: {
+            write(popup.qrPassword);
+            stdinEnabled = false;       // EOF: wl-copy takes what it got
+        }
+        onExited: exitCode => {
+            if (exitCode === 0) popup.qrCopied = true;
+            else Log.warn("network", "copying the Wi-Fi password failed (wl-copy exit " + exitCode + ")");
         }
     }
 
@@ -896,6 +934,33 @@ BarPopup {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: popup.hideQr()
+                }
+            }
+
+            // The shared network's password, below its QR (open networks: none).
+            SubTitle {
+                visible: popup.qrRequested && popup.qrSvg !== "" && popup.qrPassword !== ""
+                text: "Password"
+            }
+
+            RowLayout {
+                visible: popup.qrRequested && popup.qrSvg !== "" && popup.qrPassword !== ""
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: popup.qrPassword
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WrapAnywhere
+                    color: Colors.foreground
+                    font.family: Fonts.family
+                    font.pixelSize: popup.fontSize
+                }
+
+                PopupButton {
+                    label: popup.qrCopied ? "Copied" : "Copy"
+                    onClicked: popup.copyQrPassword()
                 }
             }
 
