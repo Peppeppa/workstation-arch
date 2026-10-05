@@ -39,7 +39,8 @@ LY_UNIT = "ly@{{ display_manager_tty | default('tty2') }}.service"
 F = {"lock_idle": {{ lock_idle_enabled | bool }}, "clipboard": {{ clipboard_history_enabled | bool }},
      "notifications": {{ notifications_enabled | bool }}, "tray": {{ tray_enabled | bool }},
      "bluetooth": {{ bluetooth_enabled | bool }}, "power_profiles": {{ power_profiles_enabled | bool }},
-     "display_manager": {{ display_manager_enabled | bool }}, "wallpaper": {{ wallpaper_enabled | bool }}}
+     "display_manager": {{ display_manager_enabled | bool }}, "wallpaper": {{ wallpaper_enabled | bool }},
+     "recovery": {{ recovery_enabled | bool }}}
 UID = os.getuid()
 HOME = os.path.expanduser("~")
 CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
@@ -185,9 +186,9 @@ def systemd_checks():
     local = sorted(os.path.basename(p) for p in glob.glob("/etc/systemd/system/*.timer") + glob.glob(CONFIG + "/systemd/user/*.timer"))
     check("timers", not ut and not local, "no user timers, no locally defined timers" if not ut and not local
           else "user: %s; local: %s" % (", ".join(ut) or "-", ", ".join(local) or "-"))
-    need = [("NetworkManager.service", False), ("systemd-logind.service", False), ("upower.service", False)]
-    if not SYSTEM:
-        need += [("pipewire.service", True), ("wireplumber.service", True)]
+    need = [("NetworkManager.service", False), ("systemd-logind.service", False)]
+    if not SYSTEM:   # D-Bus/socket activated on the session's first use
+        need += [("upower.service", False), ("pipewire.service", True), ("wireplumber.service", True)]
     if F["power_profiles"]:
         need.append(("power-profiles-daemon.service", False))
     down = [u for u, user in need if not active(u, user)]
@@ -318,6 +319,24 @@ def theme_checks():
           problem or ("missing: " + ", ".join(missing) if missing else "generated files current for %s" % s[s["mode"]]))
 
 
+# --- recovery (recovery_enabled) -------------------------------------------
+
+def recovery_checks():
+    if not F["recovery"]:
+        return
+    rc, src = run(["findmnt", "-no", "SOURCE", "/.snapshots"])
+    check("snapshot storage", rc == 0 and src.endswith("[/@snapshots]"),
+          "/.snapshots from @snapshots" if rc == 0 and src.endswith("[/@snapshots]") else "/.snapshots not mounted from @snapshots (%s)" % (src or "-"))
+    rc, o = run(["systemctl", "is-enabled", "snapper-cleanup.timer"])
+    check("snapshot cleanup", o == "enabled", "snapper-cleanup.timer " + (o or "missing"))
+    rc, src = run(["findmnt", "-no", "SOURCE", "/"])
+    slot = src.split("[/@recovery/")[1].rstrip("]") if "[/@recovery/" in src else ""
+    if slot:
+        check("booted system", False, "RECOVERY SLOT %s - for diagnosis; permanent: sudo system-rollback %s" % (slot, slot), warn=True)
+    else:
+        check("booted system", src.endswith("[/@]"), "@" if src.endswith("[/@]") else src)
+
+
 # --- crashes / errors in the current session ------------------------------
 
 def crash_checks(hp, qs_pid):
@@ -331,8 +350,8 @@ def crash_checks(hp, qs_pid):
         dumps = []
     cur = [d for d in dumps if since and d.get("time", 0) / 1e6 >= since]
     old = [d for d in dumps if d not in cur]
-    check("coredumps (since %s)" % ("update start" if SINCE is not None else "session start")
-          if since else "coredumps (this boot)", not cur, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in cur})) or "none")
+    if since:
+        check("coredumps (since %s)" % ("update start" if SINCE is not None else "session start"), not cur, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in cur})) or "none")
     if old:
         check("coredumps (earlier this boot)", False, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in old})), warn=True)
     if hp and not SYSTEM:
@@ -357,6 +376,7 @@ def main():
     network_checks()
     bar_checks()
     theme_checks()
+    recovery_checks()
     crash_checks(hp, qs_pid)
     for status, name, detail in results:
         print("%-4s  %-30s %s" % (status, name, detail))

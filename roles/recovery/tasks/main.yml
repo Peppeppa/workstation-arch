@@ -1,0 +1,177 @@
+---
+# HOST CAPABILITY: recovery (group_vars recovery_enabled, default false;
+# docs/recovery-design.md). Declarative layout + configuration only - every
+# snapshot, slot, update and rollback is an on-demand command at runtime.
+# Disable (false) changes nothing on disk (Disable vs. Purge).
+
+- name: Recovery - root filesystem, root subvolume, boot layout (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.command:
+    cmd: findmnt -no FSTYPE,OPTIONS /
+  register: recovery_root
+  changed_when: false
+  check_mode: false
+  tags: recovery
+
+- name: Recovery - the root's fstab entry (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.command:
+    cmd: findmnt -s -no SOURCE,OPTIONS /
+  register: recovery_root_fstab
+  changed_when: false
+  check_mode: false
+  tags: recovery
+
+- name: Recovery - kernel cmdline file (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.slurp:
+    src: /etc/kernel/cmdline
+  register: recovery_cmdline
+  tags: recovery
+
+- name: Recovery - stop on a layout the design does not cover (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.assert:
+    that:
+      - recovery_root.stdout.split()[0] == 'btrfs'
+      - "'subvol=/@' in recovery_root.stdout.split()[1].split(',')"
+      - "'subvol=/@' in recovery_root_fstab.stdout.split()[1].split(',')"
+      - "'rootflags=subvol=@' in (recovery_cmdline.content | b64decode).split()"
+      - ansible_facts.mounts | selectattr('mount', 'equalto', '/boot') | map(attribute='fstype') | list == ['vfat']
+    fail_msg: >-
+      roles/recovery needs: a Btrfs root mounted as subvol=/@ (fstab and running),
+      rootflags=subvol=@ in /etc/kernel/cmdline (systemd-boot + UKI) and the ESP
+      (vfat) at /boot - see docs/recovery-design.md. Found: {{ recovery_root.stdout }}.
+    quiet: true
+  tags: recovery
+
+- name: Install recovery packages (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ recovery_packages }}"
+    state: present
+  tags: recovery
+
+# The top level (subvolid=5) is mounted only for this and unmounted again;
+# subvolumes are created once, never recreated or deleted here.
+- name: Recovery - subvolumes @snapshots, @recovery container (+ @swap with hibernate) (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      top={{ recovery_top_mount | quote }}
+      dev=$(findmnt -no SOURCE / | sed 's/\[.*//')
+      mkdir -p "$top"
+      mountpoint -q "$top" || mount -o subvolid=5 "$dev" "$top"
+      trap 'umount "$top"' EXIT
+      for sv in @snapshots @recovery {{ '@swap' if hibernate_enabled else '' }}; do
+        if [ ! -d "$top/$sv" ]; then
+          btrfs subvolume create "$top/$sv" >/dev/null
+          echo "created $sv"
+        fi
+      done
+      # No_COW for the swapfile's subvolume (mkswap --file sets it on the file too)
+      {% if hibernate_enabled %}chattr +C "$top/@swap"{% endif %}
+  register: recovery_subvolumes
+  changed_when: "'created' in recovery_subvolumes.stdout"
+  tags: recovery
+
+- name: Recovery - mount @snapshots at /.snapshots (+ @swap at /swap) (recovery_enabled)
+  when: recovery_enabled and (item.when | default(true) | bool)
+  become: true
+  ansible.posix.mount:
+    path: "{{ item.path }}"
+    src: "{{ recovery_root_fstab.stdout.split()[0] }}"
+    fstype: btrfs
+    opts: >-
+      {{ (recovery_root_fstab.stdout.split()[1].split(',')
+          | reject('match', '^subvol(id)?=') | list + ['subvol=/' ~ item.subvol]) | join(',') }}
+    state: mounted
+  loop:
+    - { path: /.snapshots, subvol: "@snapshots" }
+    - { path: /swap, subvol: "@swap", when: "{{ hibernate_enabled }}" }
+  tags: recovery
+
+- name: Recovery - snapper config "root" (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.template:
+    src: snapper-root.j2
+    dest: /etc/snapper/configs/root
+    owner: root
+    group: root
+    mode: "0640"
+  tags: recovery
+
+- name: Recovery - snapper knows the root config (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/conf.d/snapper
+    regexp: '^SNAPPER_CONFIGS='
+    line: 'SNAPPER_CONFIGS="root"'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  tags: recovery
+
+# snapper's own daily cleanup (count limits) - the one timer the design
+# allows; no timeline timer.
+- name: Recovery - snapper-cleanup.timer (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: snapper-cleanup.timer
+    enabled: true
+    state: started
+  tags: recovery
+
+- name: Recovery - ESP directory for recovery-slot UKIs (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: /boot/EFI/workstation/recovery
+    state: directory
+    mode: "0700"
+  tags: recovery
+
+# The normal entry stays the default; recovery entries are only picked by hand.
+- name: Recovery - systemd-boot default entry (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /boot/loader/loader.conf
+    regexp: '^default\s'
+    line: default arch-linux.efi
+  tags: recovery
+
+- name: Recovery - /usr/local/lib/workstation (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/lib/workstation
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: recovery
+
+- name: Recovery - helpers (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: recovery-lib.sh, dest: /usr/local/lib/workstation/recovery-lib.sh, mode: "0644" }
+    - { src: system-update-root, dest: /usr/local/lib/workstation/system-update-root, mode: "0755" }
+    - { src: system-update, dest: /usr/local/bin/system-update, mode: "0755" }
+    - { src: system-snapshot, dest: /usr/local/bin/system-snapshot, mode: "0755" }
+    - { src: system-rollback, dest: /usr/local/bin/system-rollback, mode: "0755" }
+  tags: recovery

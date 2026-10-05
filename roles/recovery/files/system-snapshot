@@ -1,0 +1,56 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/system-snapshot) - do not edit by hand.
+#
+# system-snapshot "<label>"               read-only snapshot of the system (@),
+#                                         important - kept by count (NUMBER_LIMIT_IMPORTANT)
+# system-snapshot --known-good "<label>"  the same, and it becomes the boot
+#                                         menu's "Recovery: known good" slot
+# system-snapshot --list                  snapshots + recovery slots
+#
+# On demand, as root. Snapshots are not backups (docs/recovery-design.md).
+. /usr/local/lib/workstation/recovery-lib.sh
+
+usage() { echo "usage: system-snapshot \"<label>\" | --known-good \"<label>\" | --list" >&2; exit 2; }
+
+list() {
+    snapper -c root list --columns number,type,date,cleanup,description,userdata
+    echo
+    for slot in $SLOTS; do
+        n=$(slot_snapshot "$slot")
+        if [ -n "$n" ]; then
+            ok=complete
+            [ -f "$RECOVERY_UKI_DIR/$slot.efi" ] && [ -f "$RECOVERY_ENTRY_DIR/workstation-recovery-$slot.conf" ] || ok=INCOMPLETE
+            printf '%-16s snapshot %-4s %s\n' "$slot" "$n" "$ok"
+        else
+            printf '%-16s -\n' "$slot"
+        fi
+    done
+    echo "booted from: $(root_subvol)"
+}
+
+[ $# -ge 1 ] || usage
+need_root
+case $1 in
+    --list) [ $# -eq 1 ] || usage; list; exit 0 ;;
+    --known-good) [ $# -eq 2 ] && [ -n "$2" ] || usage; known=1; label=$2 ;;
+    -*) usage ;;
+    *) [ $# -eq 1 ] && [ -n "$1" ] || usage; known=0; label=$1 ;;
+esac
+
+booted_from_main || die "booted from $(root_subvol), not @ - a snapshot of a recovery boot is not taken"
+if [ "$known" -eq 1 ]; then
+    main_uki_is_booted || die "the current UKI is not the one this system booted with (updated since the last boot?) - reboot first, then mark it known good"
+    [ "$(esp_free_bytes)" -gt $((150 * 1024 * 1024)) ] || die "less than 150 MB free on the ESP (/boot)"
+fi
+
+n=$(snapper -c root create --print-number --cleanup-algorithm number --userdata important=yes \
+    --description "$label (repo $(repo_commit))")
+say "snapshot $n: $label"
+if [ "$known" -eq 1 ]; then
+    top_mount
+    trap top_umount EXIT
+    old=$(slot_snapshot known-good)
+    make_slot known-good "$n" "$label ($(date +%F))"
+    [ -n "$old" ] && say "previous known-good snapshot $old stays as an ordinary important snapshot"
+    say "boot menu: \"$(slot_title known-good) - $label ($(date +%F))\""
+fi

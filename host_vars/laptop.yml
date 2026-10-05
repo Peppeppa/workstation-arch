@@ -13,6 +13,10 @@
 
 # Haswell: VA-API through the i965 driver - intel-media-driver starts at
 # Broadwell (see roles/graphics/defaults/main.yml).
+# Recovery: Btrfs-on-LUKS2 root as @ with systemd-boot + UKI (Stage 0
+# audit) - docs/recovery-design.md.
+recovery_enabled: true
+
 graphics_vaapi_packages:
   - libva-intel-driver
 

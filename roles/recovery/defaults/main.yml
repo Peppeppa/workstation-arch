@@ -1,0 +1,19 @@
+---
+# Recovery (host capability recovery_enabled, group_vars/all.yml; default
+# false). Design: docs/recovery-design.md. Owns the Btrfs recovery layout
+# (@snapshots at /.snapshots, @swap at /swap when hibernate_enabled, the
+# @recovery container for boot clones), snapper's root config, its cleanup
+# timer, and the on-demand commands system-update / system-snapshot /
+# system-rollback. Runtime actions never go through Ansible.
+recovery_packages:
+  - snapper        # snapshots of @ (official extra)
+  - systemd-ukify  # builds the recovery-slot UKIs from the booted UKI (official core)
+
+# Snapper retention (section 13): last 5 update pre/post pairs, last 4
+# manual (important) snapshots; recovery-slot snapshots are pinned by the
+# helpers and never counted. No timeline, no quota groups.
+recovery_number_limit: 10
+recovery_number_limit_important: 4
+
+# Btrfs mount options for the extra subvolumes = the root's (read from fstab).
+recovery_top_mount: /run/workstation-recovery/top

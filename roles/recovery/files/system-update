@@ -1,0 +1,90 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/system-update) - do not edit by hand.
+#
+# system-update [--force]   the update transaction (docs/recovery-design.md 6)
+#
+#   1 preflight         booted from @ with the UKI it booted; free space; ESP;
+#                       battery/AC; no pacman lock
+#   2 repo-healthcheck  before (a FAIL stops, --force goes on anyway)
+#   3 recovery slot     "before-update" from the RUNNING system (the old one
+#                       becomes "previous-update") - snapper PRE snapshot +
+#                       writable clone + matching UKI + boot entry
+#   4 pacman -Syu       interactive, as always
+#   5 snapper POST, UKI sanity, repo-healthcheck --since <start>
+#
+# Never rolls back by itself: a failure leaves diagnostics and the choices
+# (boot "Recovery: before the last update", `sudo system-rollback
+# before-update`). Run as the desktop user (sudo is asked for once); the
+# health checks run as that user, everything else as root.
+set -euo pipefail
+
+force=0
+case ${1:-} in
+    "") ;;
+    --force) force=1 ;;
+    *) echo "usage: system-update [--force]" >&2; exit 2 ;;
+esac
+[ "$(id -u)" -ne 0 ] || { echo "system-update: run as your user, not root (it uses sudo itself)" >&2; exit 1; }
+
+say() { printf '\n==> %s\n' "$*"; }
+fail() { printf '\nsystem-update: %s\n' "$*" >&2; exit 1; }
+root() { sudo /usr/local/lib/workstation/system-update-root "$@"; }
+
+health() { # args for repo-healthcheck; prints its result, returns its exit code
+    local mode=()
+    [ -n "${WAYLAND_DISPLAY:-}" ] || mode=(--system)
+    repo-healthcheck "${mode[@]}" "$@"
+}
+
+sudo -v
+T0=$(date +%s)
+
+say "preflight"
+root preflight
+
+say "repo-healthcheck (before)"
+if ! health; then
+    [ "$force" -eq 1 ] || fail "the system is not healthy before the update - fix it first (repo-diagnose), or run system-update --force"
+    echo "(--force: going on despite the failed checks)"
+fi
+
+say "recovery slot: before-update"
+pre=$(root pre "$T0")
+
+say "pacman -Syu"
+set +e
+sudo pacman -Syu
+pacman_rc=$?
+set -e
+
+say "snapper post"
+root post "$pre" "$pacman_rc"
+
+say "boot image check"
+uki_ok=1
+root ukicheck || uki_ok=0
+
+say "repo-healthcheck (after, crashes since $(date -d @"$T0" +%T) count)"
+health_ok=1
+health --since "$T0" || health_ok=0
+
+echo
+if [ "$pacman_rc" -ne 0 ]; then
+    echo "RESULT: pacman FAILED (exit $pacman_rc). The system may be partly updated."
+elif [ "$uki_ok" -eq 0 ]; then
+    echo "RESULT: updated, but the boot image looks WRONG - do not reboot before checking mkinitcpio's output above."
+elif [ "$health_ok" -eq 0 ]; then
+    echo "RESULT: updated, but repo-healthcheck FAILED (see above, details: repo-diagnose)."
+else
+    echo "RESULT: updated, healthy."
+fi
+if [ "$pacman_rc" -ne 0 ] || [ "$uki_ok" -eq 0 ] || [ "$health_ok" -eq 0 ]; then
+    echo "Nothing was rolled back. Your choices:"
+    echo "  - fix it and run repo-healthcheck again"
+    echo "  - reboot and pick \"Recovery: before the last update\" in the boot menu to look at the old system"
+    echo "  - sudo system-rollback before-update   (permanent, from the next boot on; /home stays)"
+fi
+if root rebootneeded "$T0"; then
+    echo "A reboot is needed for the new kernel/system components (then: repo-healthcheck)."
+fi
+[ "$pacman_rc" -eq 0 ] && [ "$uki_ok" -eq 1 ] && [ "$health_ok" -eq 1 ]

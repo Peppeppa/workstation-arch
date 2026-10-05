@@ -1,0 +1,68 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/system-rollback) - do not edit by hand.
+#
+# system-rollback <before-update|previous-update|known-good|SNAPSHOT-NUMBER> [--yes]
+#
+# Makes the system (@) the state of a recovery slot's - or any snapper
+# snapshot's - read-only snapshot, permanently, from the next boot on:
+#   1. new @ = writable snapshot of that read-only snapshot (pristine; the
+#      slot's boot clone is not used, so diagnosis in a slot boot does not
+#      leak into the rolled-back system)
+#   2. the current @ is kept as @broken-<date> (read-only), not deleted
+#   3. the kernel side follows: arch-linux.efi = the snapshot's kernel +
+#      initramfs (from the slot UKI) with the system's normal cmdline, and
+#      /boot/vmlinuz-linux = the snapshot's kernel (mkinitcpio builds from
+#      it - a newer one there would break the next rebuild)
+# @home, @log, @pkg, @snapshots, @swap are never touched. rootflags=subvol=@
+# stays: "@" always is the live system. No reboot without asking.
+# A snapshot number without a slot has no saved UKI: only allowed when its
+# kernel is the one installed now (/usr/lib/modules has it).
+. /usr/local/lib/workstation/recovery-lib.sh
+
+[ $# -ge 1 ] && [ $# -le 2 ] || { echo "usage: system-rollback <before-update|previous-update|known-good|NUMBER> [--yes]" >&2; exit 2; }
+need_root
+target=$1; yes=${2:-}
+
+case $target in
+    before-update|previous-update|known-good)
+        n=$(slot_snapshot "$target"); uki="$RECOVERY_UKI_DIR/$target.efi"
+        [ -n "$n" ] && [ -f "$uki" ] || die "no complete $target slot (system-snapshot --list)" ;;
+    *[!0-9]*|"") die "unknown slot or snapshot number: $target" ;;
+    *) n=$target; uki="" ;;
+esac
+snap="/.snapshots/$n/snapshot"
+[ -d "$snap" ] || die "snapshot $n does not exist"
+
+kver=$(ls "$snap/usr/lib/modules" | head -1)
+[ -n "$kver" ] && [ -f "$snap/usr/lib/modules/$kver/vmlinuz" ] || die "snapshot $n has no kernel in /usr/lib/modules"
+if [ -z "$uki" ]; then
+    [ "$kver" = "$(uki_uname "$MAIN_UKI")" ] || die "snapshot $n has kernel $kver, the current UKI $(uki_uname "$MAIN_UKI") - roll back to a recovery slot instead"
+    uki=$MAIN_UKI
+fi
+
+desc=$(snapper -c root --csvout --separator '|' list --columns number,date,description | awk -F'|' -v n="$n" '$1 == n {print $2 " - " $3}')
+echo "Roll the system back to snapshot $n ($desc), kernel $kver."
+echo "The current system is kept as @broken-<date>; /home is not touched."
+if [ "$yes" != "--yes" ]; then
+    read -r -p "Type 'rollback' to continue: " answer
+    [ "$answer" = rollback ] || die "aborted"
+fi
+
+top_mount
+trap top_umount EXIT
+stamp=$(date +%Y%m%d-%H%M%S)
+[ -d "$RECOVERY_TOP/@" ] || die "no @ at the top level"
+btrfs subvolume snapshot "$RECOVERY_TOP/@snapshots/$n/snapshot" "$RECOVERY_TOP/@rollback-new" >/dev/null
+# the kernel side first: build the new main UKI before anything is renamed
+build_uki "$uki" "$(tr -d '\n' < "$RECOVERY_TOP/@rollback-new$KERNEL_CMDLINE")" "$MAIN_UKI.rollback"
+mkdir -p "$RECOVERY_BROKEN_DIR"
+cp -f "$MAIN_UKI" "$RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"
+mv "$RECOVERY_TOP/@" "$RECOVERY_TOP/@broken-$stamp"
+mv "$RECOVERY_TOP/@rollback-new" "$RECOVERY_TOP/@"
+btrfs property set "$RECOVERY_TOP/@broken-$stamp" ro true
+mv -f "$MAIN_UKI.rollback" "$MAIN_UKI"
+cp -f "$RECOVERY_TOP/@/usr/lib/modules/$kver/vmlinuz" /boot/vmlinuz-linux
+sync
+say "done: @ = snapshot $n (kernel $kver); previous system: @broken-$stamp, its UKI: $RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"
+say "next: reboot, then repo-healthcheck; bootstrap.sh only once ~/workstation-arch matches the restored system"
+say "remove the old system when no longer needed: btrfs subvolume delete (top level) @broken-$stamp"

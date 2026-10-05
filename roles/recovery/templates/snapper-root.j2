@@ -1,0 +1,21 @@
+# Managed by Ansible (roles/recovery/templates/snapper-root.j2) - do not edit by hand.
+# snapper config "root": snapshots of @ (/), stored in @snapshots (/.snapshots).
+# Event-driven history only: system-update (pre/post), system-snapshot
+# (manual, important), recovery slots (pinned). docs/recovery-design.md 4.
+SUBVOLUME="/"
+FSTYPE="btrfs"
+QGROUP=""
+SPACE_LIMIT="0.5"
+FREE_LIMIT="0.2"
+ALLOW_USERS=""
+ALLOW_GROUPS=""
+SYNC_ACL="no"
+BACKGROUND_COMPARISON="no"
+NUMBER_CLEANUP="yes"
+NUMBER_MIN_AGE="0"
+NUMBER_LIMIT="{{ recovery_number_limit }}"
+NUMBER_LIMIT_IMPORTANT="{{ recovery_number_limit_important }}"
+TIMELINE_CREATE="no"
+TIMELINE_CLEANUP="no"
+EMPTY_PRE_POST_CLEANUP="yes"
+EMPTY_PRE_POST_MIN_AGE="0"

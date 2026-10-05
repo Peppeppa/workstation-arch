@@ -109,6 +109,11 @@
     - role: bluetooth
       tags: [bluetooth]
 
+    # Host capability: Btrfs recovery layout, snapper, system-update/-snapshot/
+    # -rollback (docs/recovery-design.md). Before power: it owns @swap.
+    - role: recovery
+      tags: [recovery]
+
     - role: power
       tags: [power]
 

@@ -202,3 +202,12 @@ gaming_gpu_vulkan_packages: []
 # for the knobs and docs/feature-architecture.md "Hibernate" for the
 # real-hardware bring-up checklist. Default false: no host is set up yet.
 hibernate_enabled: false
+
+# Recovery is an OPT-IN host capability (docs/recovery-design.md): Btrfs
+# root on LUKS2 mounted as subvol=@, systemd-boot + UKI - the role checks
+# and stops otherwise. true creates @snapshots (+ @swap with hibernate),
+# configures snapper (event snapshots only, count-limited, its daily
+# cleanup timer) and installs system-update / system-snapshot /
+# system-rollback. Snapshots are not backups. Default false: enabled per
+# host after its layout was checked.
+recovery_enabled: false

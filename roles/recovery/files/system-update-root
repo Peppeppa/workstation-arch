@@ -1,0 +1,63 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/system-update-root) - do not edit by hand.
+# Deployed to /usr/local/lib/workstation/system-update-root: the root half of
+# system-update (which calls it through sudo). Not a user interface.
+#   preflight | pre <T0> | post <pre-number> <pacman-rc> | ukicheck | rebootneeded <T0>
+. /usr/local/lib/workstation/recovery-lib.sh
+need_root
+
+MIN_FREE=$((10 * 1024 * 1024 * 1024))   # 10 GiB ...
+MIN_FREE_PERCENT=10                     # ... and 10 % of the filesystem
+MIN_ESP=$((150 * 1024 * 1024))          # three slot UKIs + room
+
+case ${1:-} in
+preflight)
+    booted_from_main || die "booted from $(root_subvol), not @ - updates run in the normal system only"
+    main_uki_is_booted || die "the current UKI is not the one this system booted with (updated without a reboot?) - reboot first"
+    free=$(root_free_bytes); size=$(root_size_bytes)
+    [ -n "$free" ] && [ -n "$size" ] || die "cannot read the free space of /"
+    if [ "$free" -lt "$MIN_FREE" ] || [ $((free * 100 / size)) -lt "$MIN_FREE_PERCENT" ]; then
+        die "only $((free / 1024 / 1024 / 1024)) GiB ($((free * 100 / size)) %) free on / - needs >= 10 GiB and >= 10 %. Old snapshots: system-snapshot --list; old systems: @broken-* (top level)"
+    fi
+    [ "$(esp_free_bytes)" -ge "$MIN_ESP" ] || die "less than 150 MB free on the ESP (/boot)"
+    for b in /sys/class/power_supply/BAT*; do
+        [ -e "$b/capacity" ] || continue
+        if [ "$(cat /sys/class/power_supply/AC*/online 2>/dev/null | head -1)" != 1 ] && [ "$(cat "$b/capacity")" -lt 30 ]; then
+            die "on battery below 30 % - plug in first"
+        fi
+    done
+    [ ! -e /var/lib/pacman/db.lck ] || die "pacman is running (or /var/lib/pacman/db.lck is stale)"
+    echo "ok: booted from @ with its UKI, $((free / 1024 / 1024 / 1024)) GiB free, ESP ok"
+    ;;
+pre)
+    n=$(snapper -c root create --type pre --print-number --cleanup-algorithm number \
+        --description "system-update (repo $(repo_commit))" --userdata "update=$2")
+    top_mount
+    trap top_umount EXIT
+    move_slot before-update previous-update
+    make_slot before-update "$n" "$(date +%F\ %H:%M)"
+    echo "$n"
+    ;;
+post)
+    snapper -c root create --type post --pre-number "$2" --cleanup-algorithm number \
+        --description "system-update (pacman exit $3)" >/dev/null
+    echo "ok: snapshots $2 (pre, recovery slot) and post"
+    ;;
+ukicheck)
+    [ -s "$MAIN_UKI" ] || die "$MAIN_UKI is missing or empty"
+    ukify inspect "$MAIN_UKI" >/dev/null 2>&1 || die "$MAIN_UKI is not a readable UKI"
+    newest=$(ls -1 /usr/lib/modules | sort -V | tail -1)
+    have=$(uki_uname "$MAIN_UKI")
+    [ "$have" = "$newest" ] || die "$MAIN_UKI carries kernel $have, installed is $newest - mkinitcpio did not rebuild it"
+    [ -f "/usr/lib/modules/$have/modules.dep" ] || die "no modules for the UKI's kernel $have"
+    echo "ok: $MAIN_UKI = kernel $have, modules present"
+    ;;
+rebootneeded)
+    since=$(date -d @"$2" '+%Y-%m-%dT%H:%M')
+    awk -v s="[$since" '$1 >= s' /var/log/pacman.log \
+        | grep -qE '\[ALPM\] (upgraded|installed) (linux|linux-firmware|intel-ucode|amd-ucode|systemd|mesa|hyprland|quickshell|glibc|dbus) '
+    ;;
+*)
+    die "usage: system-update-root preflight | pre T0 | post N RC | ukicheck | rebootneeded T0"
+    ;;
+esac
