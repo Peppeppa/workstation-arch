@@ -38,4 +38,8 @@ Scope {
 
     onPercentChanged: check()
     onDischargingChanged: check()
+    // A binding's first value raises no change signal: without this a
+    // login (or Quickshell restart) already at <= 15 % on battery stayed
+    // silent until the percentage moved again.
+    Component.onCompleted: check()
 }

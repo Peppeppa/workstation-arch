@@ -149,7 +149,9 @@ def main():
     loop = GLib.MainLoop()
     agent = Agent(bus, loop)
     info = Gio.DBusNodeInfo.new_for_xml(AGENT_XML).interfaces[0]
-    reg = bus.register_object(AGENT_PATH, info, agent.handle, None, None)
+    # register_object() is deprecated in PyGObject (a DeprecationWarning on
+    # stderr at every pairing); the closures2 form takes the same handler.
+    reg = bus.register_object_with_closures2(AGENT_PATH, info, agent.handle, None, None)
 
     def manager(method, args):
         bus.call_sync("org.bluez", "/org/bluez", "org.bluez.AgentManager1", method,
