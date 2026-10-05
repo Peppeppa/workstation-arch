@@ -6,6 +6,16 @@
 # Exit 0 = every required invariant passes (WARN does not fail), 1 = at
 # least one FAIL, 2 = usage. Details/troubleshooting: repo-diagnose.
 #
+# repo-healthcheck [--system] [--since EPOCH]
+#   --system       no graphical-session checks (TTY, SSH, system-update):
+#                  session, Hyprland, Quickshell, session helpers, audio
+#                  stack (socket-activated per login), D-Bus owners, QML
+#   --since EPOCH  coredumps (and QML errors) from that moment on are FAIL,
+#                  earlier ones WARN - system-update passes the start of
+#                  the update, so only crashes it may have caused fail.
+#                  Default: the start of the current Hyprland; without a
+#                  session every coredump is WARN.
+#
 # Read-only and on demand: starts nothing, writes nothing (theme/bar state
 # is only parsed), no daemon, no timer. Expectations come from the feature
 # flags this host was provisioned with (templated below) and from the
@@ -42,6 +52,8 @@ FORBIDDEN = {"notifications": ["mako", "dunst", "swaync", "fnott"], "network": [
 QML_BROKEN = re.compile(r"\b(ERROR|CRIT)\b|TypeError|ReferenceError|RangeError|SyntaxError|Binding loop|is not a function|Cannot (read|assign)")
 
 results = []
+SYSTEM = False
+SINCE = None
 
 
 def check(name, ok, detail="", warn=False):
@@ -173,8 +185,9 @@ def systemd_checks():
     local = sorted(os.path.basename(p) for p in glob.glob("/etc/systemd/system/*.timer") + glob.glob(CONFIG + "/systemd/user/*.timer"))
     check("timers", not ut and not local, "no user timers, no locally defined timers" if not ut and not local
           else "user: %s; local: %s" % (", ".join(ut) or "-", ", ".join(local) or "-"))
-    need = [("NetworkManager.service", False), ("systemd-logind.service", False), ("upower.service", False),
-            ("pipewire.service", True), ("wireplumber.service", True)]
+    need = [("NetworkManager.service", False), ("systemd-logind.service", False), ("upower.service", False)]
+    if not SYSTEM:
+        need += [("pipewire.service", True), ("wireplumber.service", True)]
     if F["power_profiles"]:
         need.append(("power-profiles-daemon.service", False))
     down = [u for u, user in need if not active(u, user)]
@@ -191,6 +204,8 @@ def ownership_checks(ps, qs_pid):
             bad.append("%s (network)" % unit)
     check("one owner per responsibility", not bad, "second owner running: " + ", ".join(bad) if bad
           else "no competing network/audio/notification/idle/wallpaper/bar/launcher process")
+    if SYSTEM:
+        return
     audio = {c: len([p for p in ps if p[2] == UID and p[3] == c]) for c in ("pipewire", "wireplumber")}
     pulse = active("pipewire-pulse.socket", True) or active("pipewire-pulse.service", True)
     check("audio stack", audio == {"pipewire": 1, "wireplumber": 1} and pulse,
@@ -306,7 +321,7 @@ def theme_checks():
 # --- crashes / errors in the current session ------------------------------
 
 def crash_checks(hp, qs_pid):
-    since = started_at(hp) if hp else None
+    since = SINCE if SINCE is not None else (started_at(hp) if hp else None)
     with open("/proc/stat") as f:
         btime = int(next(l for l in f if l.startswith("btime")).split()[1])
     rc, o = run(["coredumpctl", "--no-pager", "--no-legend", "-q", "--json=short", "list", "--since", "@%d" % btime], timeout=10)
@@ -316,10 +331,11 @@ def crash_checks(hp, qs_pid):
         dumps = []
     cur = [d for d in dumps if since and d.get("time", 0) / 1e6 >= since]
     old = [d for d in dumps if d not in cur]
-    check("coredumps (this session)", not cur, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in cur})) or "none")
+    check("coredumps (since %s)" % ("update start" if SINCE is not None else "session start")
+          if since else "coredumps (this boot)", not cur, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in cur})) or "none")
     if old:
         check("coredumps (earlier this boot)", False, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in old})), warn=True)
-    if hp:
+    if hp and not SYSTEM:
         args = ["journalctl", "--user", "-q", "--no-pager", "-o", "cat", "-t", "quickshell", "--since", "@%d" % int(since)]
         broken = [l for l in run(args, timeout=10)[1].splitlines() if QML_BROKEN.search(l)]
         check("QML runtime", not broken, broken[-1].strip()[:150] if broken else "no exceptions/binding loops this session")
@@ -334,7 +350,7 @@ def crash_checks(hp, qs_pid):
 
 def main():
     ps = procs()
-    sess = session_checks(ps)
+    sess = None if SYSTEM else session_checks(ps)
     hp, qs_pid = sess if sess else (None, None)
     systemd_checks()
     ownership_checks(ps, qs_pid)
@@ -354,7 +370,17 @@ def main():
 
 
 if __name__ == "__main__":
-    if sys.argv[1:]:
-        print("usage: repo-healthcheck", file=sys.stderr)
+    args = sys.argv[1:]
+    try:
+        while args:
+            a = args.pop(0)
+            if a == "--system":
+                SYSTEM = True
+            elif a == "--since":
+                SINCE = float(args.pop(0))
+            else:
+                raise ValueError(a)
+    except (ValueError, IndexError):
+        print("usage: repo-healthcheck [--system] [--since EPOCH]", file=sys.stderr)
         sys.exit(2)
     sys.exit(main())
