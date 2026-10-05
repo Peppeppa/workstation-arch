@@ -119,7 +119,13 @@ blanket sudoers change.
 `hyprland.lua` is only the entry point; it `dofile()`s the modules in
 `~/.config/hypr/conf/` (`roles/hyprland/templates/conf/*.lua.j2`):
 `vars`, `monitors` (`hyprland_monitors`), `input`, `appearance`,
-`session` (the processes Hyprland owns), `binds` (incl. hardware keys).
+`session` (the processes Hyprland owns - started on `hyprland.start`, ended
+on `hyprland.shutdown` by `~/.local/libexec/workstation/session-stop`:
+SIGTERM to exactly those helpers + hyprlock, then a stop of
+xdg-desktop-portal/-hyprland/-gtk, each with a bounded wait, while the
+display still exists; Hyprland blocks in `os.execute` meanwhile. Not a stop of
+graphical-session.target: that also stops the a11y bus and leaks its
+at-spi2-registryd per logout), `binds` (incl. hardware keys).
 Each module is a function taking the shared values. Feature binds/
 autostarts stay `{% if <name>_enabled %}` blocks inside the module they
 belong to (`binds.lua.j2`, `session.lua.j2`) - no per-feature files, no
@@ -171,7 +177,7 @@ third-party API.
 ~/.config/quickshell/bar/
   Bar.qml            host: zones, positions, drag & drop, background toggle, opt-in tooltip (one per monitor)
   BarLayout.qml      registry of widget ids + the user layout (singleton, IPC "bar")
-  BarPopups.qml      coordinator: at most one bar popup open (singleton)
+  BarPopups.qml      coordinator: at most one transient surface open - bar popup or overlay (singleton)
   BarStyle.qml       geometry / type sizes (singleton; colors stay in Colors)
   BarFeatures.qml    which optional parts exist (templated from the flags)
   BarWidget.qml      common frame: hitbox, hover, active/muted, underline, opt-in tooltip, popup protocol
@@ -251,7 +257,13 @@ third-party API.
   `popupOpen`), built on `BarPopup`: overlay layer covering the output
   except the bar strip (another widget switches popups in one click),
   outside click / Escape close, panel centered under its widget. The
-  coordinator closes the previous popup on `request()`.
+  coordinator closes the previous popup on `request()` - and the overlays
+  (OS menu, Appearance, power menu, clipboard history) register with the
+  same coordinator, so a bar popup and an overlay are never open together
+  (before, the OS menu opened over a popup, and the popup kept no keyboard
+  once the menu closed). Content with its own input field gives the keyboard
+  back with `BarPopup.restoreKeyFocus()` when the field disappears (network
+  password box, Bluetooth PIN), so Escape keeps closing the popup.
 - **Cost**: no process, no watcher, no timer except one short one-shot
   settle timer per drop.
 
@@ -342,6 +354,30 @@ message within 60 s is dropped. Capabilities that simply are not there
 log nothing. A missing file is reported by FileView itself - no second
 line of ours.
 
+`repo-healthcheck` (`roles/diagnostics`, `/usr/local/bin`): the PASS/WARN/FAIL
+view - "do the invariants hold?", exit 0 (HEALTHY) or 1 (UNHEALTHY: N checks
+failed; WARN never fails), compact, ~0.5 s, read-only (state files are only
+parsed). Checks, expectations templated from the feature flags: graphical
+wayland session (via Ly if enabled), exactly one Hyprland, session and
+activation environment, exactly one desktop Quickshell as Hyprland's child,
+session helpers (polkit agent, hypridle, clipboard watcher - children of this
+Hyprland, counts per flag, at most one hyprlock), no failed system/user units,
+no user timers and no locally defined timer units, core services active
+(NetworkManager, logind, UPower, PipeWire, WirePlumber, PPD per flag), no
+competing owner process (second notification daemon, network manager/applet,
+PulseAudio, idle daemon, wallpaper daemon, bar, launcher; systemd-networkd/iwd
+inactive), audio stack, D-Bus owners of `org.freedesktop.Notifications` and
+`org.kde.StatusNotifierWatcher` = Quickshell (per flag), no pairing agent
+older than its 60 s limit, NetworkManager state + a default route when
+connected, Bluetooth service only where a controller exists, bar layout
+structure (unknown/duplicate ids: WARN - the bar ignores them), theme registry
+(`theme status`: every directory valid, both modes, no duplicate names), theme
+state (valid ids/modes; vanished wallpaper choice: WARN), theme outputs
+current (colors.json = the active theme's colors, wallpaper file exists),
+coredumps in this session (earlier this boot: WARN), QML exceptions/binding
+loops in this session, `hyprctl configerrors`. Absent hardware (battery,
+backlight, Bluetooth, Wi-Fi) is never a failure. Details stay repo-diagnose's.
+
 `repo-diagnose [--full]` (`roles/diagnostics`, `/usr/local/bin`): read-only
 Python, runs only when called. Default: one screen (session, shell + QML
 warnings, network/default route/VPN summary, Bluetooth, audio, power,
@@ -350,8 +386,9 @@ coredumps) - exits 1 if it marked an issue. `--full`: unit table,
 allowlisted environment (no full env), monitors, bounded journal excerpts
 per component, hardware capabilities. Expectations come from the feature
 flags (e.g. hypridle only with `lock_idle_enabled`). Failed units and
-coredumps from before the current Hyprland start (logout aborts of
-session helpers) are listed as such, not as issues. Privacy: only fields
+coredumps from before the current Hyprland start are listed as such, not as
+issues - a normal logout leaves none since `session-stop` (see "Hyprland
+modularity"); a session killed from outside (SIGTERM) still can. Privacy: only fields
 collected on purpose (connection types, never names or profiles), and
 every line passes a redaction filter (private-key blocks, `key=value` and
 `*.psk VALUE` / `--password VALUE` forms, long base64 keys, all sudo
@@ -506,6 +543,7 @@ copied. Feature Category A (provisioning-only) plus Category B
 | Keybind | `mainMod + Escape` -> `qs ipc call powermenu toggle` (IPC exposes only `toggle`/`close`) |
 | Lifecycle owner | the existing Quickshell instance under Hyprland - no new process |
 | Privileges | none added: `systemctl suspend/hibernate/reboot/poweroff` via logind's normal active-session polkit rules; logout = Hyprland `hl.dsp.exit()` |
+| Reboot / Shutdown | `workstation_end_session("reboot"\|"poweroff")` (roles/hyprland `session.lua`): the session ends like a logout (ordered `session-stop`), then the shutdown hook asks logind - a plain `systemctl reboot` SIGTERMed the whole session scope at once and every helper crashed. A refused request leaves the user at Ly (which offers reboot/shutdown itself) |
 | Secrets / Network | none / none |
 | Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned; the resume setup itself is the host capability `hibernate_enabled` (see "Hibernate") |
 | Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
@@ -597,7 +635,7 @@ handler), so splitting them would buy nothing.
 | Lock path | `loginctl lock-session` only (Super+L, power menu, idle listener, `before_sleep_cmd`) -> logind Lock -> hypridle `lock_cmd` -> `pidof hyprlock \|\| hyprlock` |
 | Idle | `lock_idle_lock_timeout` 300 s -> lock, `lock_idle_dpms_timeout` 600 s -> `hl.dsp.dpms` off, on at activity (ext-idle-notify, no polling) |
 | Suspend | hypridle holds a logind delay inhibitor until Hyprland reports the session locked (`inhibit_sleep` auto -> lock-notify) |
-| Lifecycle owner | Hyprland session start; a bootstrap inside a running session asks that Hyprland to exec it; config/start-command changes restart it (handler) |
+| Lifecycle owner | Hyprland session start; a bootstrap inside a running session asks that Hyprland to exec it; config/start-command changes restart it (handler); `session-stop` ends it (and a running hyprlock) at session end |
 | Privileges / Auth | none added; unlock only via hyprlock's package PAM file (`auth include login`), no `unlock_cmd` |
 | Secrets / Network | none / none |
 | Coffee mode (v1.1) | bar toggle left of the clock -> Quickshell `IdleInhibitor` (Wayland idle-inhibit) on the bar surface; hypridle's listeners obey it, explicit/sleep locks don't go through idle events so they're unaffected; not persisted, dropped by the compositor if Quickshell exits |
@@ -702,7 +740,7 @@ default `true`). NetworkManager stays the only network owner.
 | Bar icon | the interface carrying the **active default route**: kernel routes (`/proc/net/route`, `/proc/net/ipv6_route` via FileView), lowest metric among NM's physical devices (Wi-Fi with signal level / Ethernet), else disconnected. Ethernet + Wi-Fi both up -> whichever owns the default route; cable gone -> follows the route. A VPN holding the default route keeps the physical uplink as icon (`vpnDefault`, "via VPN" in the popup). Re-read on NM events (device states, active networks, connectivity) + one 1.5 s one-shot re-read for routes that settle late - no poller, no process. A pure route change NM raises no event for (e.g. `nmcli device reapply` with a new metric) reaches the bar on the next NM event or as soon as the popup opens (its 1 s timer re-reads the routes too) |
 | Popup: status | NM connectivity: Full / "Login required" (portal: button opens NM's own `ConnectivityCheckUri` in Chromium, so the portal redirects - no probing of ours) / Limited / No internet; global addresses per interface with type icon (`ip -j -d addr`, on open + on NM events; no loopback/link-local; at most one stable IPv6 per interface, dimmed); default gateway with its interface type |
 | Traffic | the ONLY sampling: ↓/↑ of the default-route interface, a 1 s Timer reading `/sys/class/net/<if>/statistics/{rx,tx}_bytes` (FileView, no process). It lives inside the popup (exists only while open): starts when the popup appears, gone when it closes - zero wakeups afterwards; follows the interface when the default route moves |
-| Popup: VPN (before Wi-Fi) | NM `vpn`/`wireguard` profiles (`nmcli -t` on open, on NM events, after each action): row click = up/down by UUID. No create/import/edit/delete here |
+| Popup: VPN (before Wi-Fi) | NM `vpn`/`wireguard` profiles (`nmcli -t` on open, on NM events, after each action): row click = up/down by UUID. No create/import/edit/delete here. "via VPN" also for NM's WireGuard full tunnel, which routes by policy (default route in its own table behind an ip rule; the main table and NM's `Default` flag still show the physical uplink): `ip -j route get 203.0.113.1` (FIB lookup, nothing sent) at the same moments as the address list |
 | Popup: Wi-Fi | radio on/off; **Known networks** = saved NM profiles (`known`), connected one highlighted with "Connected"; **Other networks** = visible, not saved. Signal icon before the SSID, lock on the right if secured; on a known row an X replaces the lock (or appears) while hovered - forget, in its own click area. Row click: known -> connect (connected -> disconnect), open -> connect, WPA/WPA2/WPA3-Personal -> inline password; wrong password -> box stays with an error; success -> NM stores it, it moves to Known. Enterprise/WEP -> note + "Open" (nm-connection-editor). Scanning only while open. QR share of the current network (unchanged) |
 | Secrets | passwords go straight to NM (`connectWithPsk`), never logged or stored by us; QR only in memory |
 | Administration | `nm-connection-editor` (roles/network, official `extra`), started on demand from the OS menu (and the enterprise note): VPN add/import/edit/delete, Ethernet/Wi-Fi profiles, WPA-Enterprise/eduroam, DHCP vs static IPv4, gateway, DNS. No `network-manager-applet`, no tray applet, no autostart |
@@ -729,7 +767,7 @@ in the popup's VPN list automatically.
 |---|---|
 | Scope | `roles/hyprland` (package, watcher in `session.lua`, mainMod+V bind, start/stop tasks); `roles/quickshell/files/clipboard/ClipboardHistory.qml` |
 | Packages | `cliphist` (`wl-clipboard` is core) |
-| Lifecycle owner | Hyprland session start: `wl-paste --type text --watch cliphist -max-items 100 store` (one process, event-driven, ~2 MB RSS, 0 % CPU idle); bootstrap in a running session starts it via that Hyprland and replaces it when its command changed |
+| Lifecycle owner | Hyprland session start: `wl-paste --type text --watch cliphist -max-items 100 store` (one process, event-driven, ~2 MB RSS, 0 % CPU idle); bootstrap in a running session starts it via that Hyprland and replaces it when its command changed; `session-stop` ends it at session end |
 | Storage | `~/.cache/cliphist/db` (dir 0700), at most `clipboard_history_max_items` (100) text entries |
 | Sensitive content | text only (no images/files); content offered with the password-manager hint (`CLIPBOARD_STATE=sensitive`, e.g. `wl-copy --sensitive`, KeePassXC) is not stored |
 | UI | mainMod+V toggles the popup (created only while open): `cliphist list` once, type to search, Enter/click = `cliphist decode ID | wl-copy`, Del/trash = `cliphist delete` (ID on stdin), Clear (two clicks) = `cliphist wipe` |
@@ -754,6 +792,20 @@ in the popup's VPN list automatically.
 | Privileges / Secrets / Network | none / none / none |
 | Disable | no wallpaper surface/picker; Hyprland's default wallpaper returns; state lines stay |
 | Persistent user data | own images in `themes/<id>/backgrounds/` (untracked files are never touched); the per-theme choice |
+
+## Known upstream / VM-only behaviour (evidence from the stability audit)
+
+Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
+
+| What | Evidence | Why it stays |
+|---|---|---|
+| Session ended from outside (`sudo reboot`/`poweroff` from a TTY or SSH, `loginctl terminate-session`, ACPI power key): hyprpolkitagent SIGSEGV, xdg-desktop-portal-hyprland SIGSEGV, hypridle SIGABRT | Hyprland does not raise `hyprland.shutdown` on SIGTERM (verified), and systemd SIGTERMs the whole session scope at once; stacks: SEGV inside `exit()` destructors marshalling on a dead `wl_display` (xdph: `wl_proxy_marshal_flags`, polkit agent: `sdbus::Variant`), hypridle `std::terminate` (uncaught exception) | upstream exit paths; no second process manager. The normal paths (logout, power menu) go through `session-stop` |
+| `hyprland-update-screen` SIGSEGV | one-shot "Hyprland updated" window (hyprland-guiutils), crash in `wl_proxy_destroy` while destroying its own window | upstream, only after a Hyprland update |
+| imv 5.0.1 spins at 100 % CPU after the compositor is gone | measured: one core, until the user manager stopped it 10 s after the last session (`UserStopDelaySec`) | upstream; with another session of the user open (SSH, TTY) it keeps running - close it before logging out there |
+| `org.bluez` re-activated right after `systemctl stop bluetooth` | WirePlumber's bluez5 monitor, UPower and NetworkManager call `org.bluez` when the name drops (busctl monitor) | upstream D-Bus activation; without a controller `ConditionPathIsDirectory` keeps bluetoothd off |
+| hyprlock: ~100 DEBUG lines per lock in `-t hypridle` | `-q` also drops ERR lines (verified with a broken `cmd[]` label: 3 ERR lines without, 0 with) | no errors-only level in hyprlock 0.9.6 - errors win over a quieter journal |
+| mpv `--player-operation-mode=pseudo-gui` SIGABRT, zathura/imv need `LIBGL_ALWAYS_SOFTWARE=1` | `__assert_fail` in mpv's VO under software GL | VirtualBox GL 4.1 / llvmpipe only |
+| Quickshell start: `org.bluez` ObjectManager warning, "Could not register app ID: Connection already associated" | once per start | no BlueZ on a host without controller / Qt's portal registration order - harmless |
 
 ## Hardware-only validation
 

@@ -275,6 +275,13 @@ defaults in the meantime.
 
 ## Troubleshooting
 
+0. `repo-healthcheck` - PASS/WARN/FAIL for the system's invariants (one
+   session, one Quickshell under Hyprland, session helpers, failed units,
+   no timers of ours, one owner per responsibility, audio stack, network,
+   bar layout / theme state / theme outputs valid, no coredumps or QML
+   exceptions this session, Hyprland config). Ends with `HEALTHY` (exit 0)
+   or `UNHEALTHY: N checks failed` (exit 1); WARN never fails. Read-only,
+   about half a second - run it first, then `repo-diagnose` for the why.
 1. `repo-diagnose` - a compact health snapshot (session, shell, network,
    Bluetooth, audio, power, desktop, failed units, duplicate processes,
    recent errors, coredumps). Problems are marked `!!` and summarized as
@@ -298,10 +305,17 @@ defaults in the meantime.
    - bootstrap: the `fatal:` task (role, file:line) in its own output;
      rerun one role with `./bootstrap.sh --tags <role> -v`
 
-Known noise: at logout the session helpers (polkit agent, portal,
-hypridle, hyprlock) may dump core when the compositor goes away and
-`xdg-desktop-portal-gtk` ends "failed" - `repo-diagnose` lists these as
-"before this session", not as issues.
+Logout (power menu, `mainMod+SHIFT+E`) and the power menu's Reboot/Shutdown
+end the session in order: Hyprland's shutdown hook stops its session
+helpers and the portals while the display still exists (`session-stop`,
+roles/hyprland) - no coredumps, no "failed" portal units. A session ended
+from outside instead (`sudo reboot` from a TTY/SSH, `loginctl
+terminate-session`) SIGTERMs everything at once: then the helpers may
+still dump core, and `repo-diagnose` lists those as "before this session".
+hyprlock logs ~100 debug lines per lock (`-t hypridle`): its `-q` also
+drops real errors, so it stays verbose on purpose.
+
+Checks of the repository itself (no live system needed): `tests/run.sh`.
 
 ## Pacman / update policy
 

@@ -574,6 +574,15 @@ custom startup script
 
 für denselben Prozess.
 
+Wer einen Prozess startet, beendet ihn auch: Hyprlands Session-Lifecycle
+startet seine Helper bei `hyprland.start` und beendet sie bei
+`hyprland.shutdown` (`session-stop`, roles/hyprland) - solange das
+Display noch existiert, zusammen mit den Wayland-gebundenen Portal-Units.
+Ohne diesen geordneten Stopp liefen die Helper beim Logout in ihren
+Exit-Pfad gegen eine tote Wayland-Verbindung und erzeugten Coredumps.
+Reboot/Shutdown aus dem Power-Menü beenden deshalb zuerst die Session
+wie ein Logout.
+
 ---
 
 # 25. systemd

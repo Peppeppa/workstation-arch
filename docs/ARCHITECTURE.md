@@ -81,7 +81,12 @@ Responsibility split within the provisioning layer:
   owns screen sharing/screenshot portals; xdg-desktop-portal-gtk owns
   the file-chooser portal. All are started exactly once - the portals by
   their own D-Bus-activated systemd `--user` units, the polkit agent by
-  Hyprland's session lifecycle.
+  Hyprland's session lifecycle. The same lifecycle also ends the session:
+  `hyprland.shutdown` runs `session-stop` (blocking, bounded) to stop its
+  helpers and the Wayland-bound portal units while the display still
+  exists; the power menu's reboot/shutdown go through that exit first.
+- `repo-healthcheck` (PASS/FAIL of these invariants) and `repo-diagnose`
+  (details) are on-demand tools - no daemon, no timer.
 - Quickshell owns the app launcher (fuzzel retired as of Core Desktop
   v1) and notifications (mako retired as of Notifications v1) - see
   AGENTS.md.

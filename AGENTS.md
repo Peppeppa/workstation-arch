@@ -107,6 +107,8 @@ direct upstream dependency.
 | File manager (`org.freedesktop.FileManager1`, `inode/directory`) | Nautilus (`roles/apps`; D-Bus-activated, it activates localsearch on demand) - Thunar retired and uninstalled (its own FileManager1 activation file would compete) |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
+| Session end (stop of the session helpers + Wayland-bound portal units before the compositor goes) | Hyprland's own lifecycle: `hl.on("hyprland.shutdown")` -> `~/.local/libexec/workstation/session-stop` (roles/hyprland) - the same owner that started them; the power menu's reboot/shutdown end the session through it first (`workstation_end_session`) |
+| Health invariants (PASS/FAIL) | `repo-healthcheck` (`roles/diagnostics`, /usr/local/bin) - on demand only, read-only; details stay `repo-diagnose`'s |
 | Diagnostics | `repo-diagnose [--full]` (`roles/diagnostics`, /usr/local/bin) - on demand only; logs stay in journald (Quickshell/hypridle output via `systemd-cat`, QML failures as `[component] ...` through `Log.qml`) - no log daemon, follower or timer |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
@@ -423,6 +425,13 @@ bash -n bootstrap.sh
 ansible-playbook --syntax-check local.yml
 ansible-inventory --list
 ```
+
+`tests/run.sh` runs these plus `sh -n` of the shell helpers, a YAML parse
+of every tracked YAML file, `tests/theme-helper.sh` (the `theme` helper
+against a temporary copy of `themes/`, stubbed session tools) and
+`tests/qml-logic.qml` (pure logic cut out of the shipped QML, via `qml6`) -
+all safe on a live desktop, ~10 s. On a provisioned machine,
+`repo-healthcheck` is the live counterpart (exit 0 = invariants hold).
 
 Also validate every changed YAML file parses
 (`python3 -c "import yaml,sys; yaml.safe_load(open(f))"` per file, or
@@ -848,6 +857,26 @@ history for that milestone's own record):
   BarWidget/BarPopup, compact look (`docs/feature-architecture.md` "Bar",
   `docs/DESIGN_SYSTEM.md` "Bar look"). The rest of the rice is not
   started yet.
+
+- **Pre-v1 Break-It Stability Audit** (real-VM-tested on `arch-dev`): no
+  new features - systematic attack of the existing system, root-cause
+  fixes, `repo-healthcheck` (on-demand PASS/FAIL invariants) and
+  `tests/run.sh` (permanent repository checks). Fixed: logout/reboot
+  coredumps of hyprpolkitagent, xdg-desktop-portal-hyprland, hypridle
+  (+ failed portal units) via an ordered `session-stop` in Hyprland's own
+  shutdown hook; bar popup and OS menu/overlays open together, popup then
+  deaf to Escape (one coordinator for all transient surfaces); Escape dead
+  after the network password box / Bluetooth PIN field closes; duplicate
+  Wi-Fi failure log line; QML binding loop on the connectivity model during
+  route changes with the popup open; "via VPN" missing for NM's
+  policy-routed WireGuard full tunnel; lost theme updates on concurrent
+  `theme` calls (flock); `theme` tracebacks on a non-UTF-8 state/theme.yml;
+  no low-battery warning when already low at login; DeprecationWarning of
+  the pairing agent at every pairing; a tracked `.pyc`. Upstream/VM-only,
+  documented in `docs/feature-architecture.md`/README: helpers still abort
+  when a session is SIGTERMed from outside; imv busy-loops after the
+  compositor is gone (ends with the user manager); hyprlock has no
+  errors-only log level; mpv/zathura/imv need software GL on arch-dev.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
