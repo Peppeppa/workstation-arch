@@ -79,7 +79,8 @@ build_uki() {
     local splash=()
     [ -s "$w/splash" ] && splash=(--splash="$w/splash")
     ukify build --linux="$w/linux" --initrd="$w/initrd" --os-release="@$w/osrel" "${splash[@]}" \
-        --uname="$(uki_uname "$src")" --cmdline="$cmd" --output="$out.tmp" >/dev/null
+        --uname="$(uki_uname "$src")" --cmdline="$cmd" --output="$out.tmp" 2>&1 >/dev/null \
+        | { grep -v '^Wrote unsigned' >&2 || true; }
     rm -rf "$w"
     mv -f "$out.tmp" "$out"
 }
