@@ -72,7 +72,7 @@ FocusScope {
                 readonly property bool selected: index === page.index
 
                 Layout.fillWidth: true
-                implicitHeight: 34
+                implicitHeight: Fonts.px(34)
                 radius: 4
                 color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 

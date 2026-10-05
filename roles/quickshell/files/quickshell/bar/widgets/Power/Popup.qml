@@ -128,7 +128,7 @@ BarPopup {
                     readonly property bool current: PowerProfiles.profile === modelData.value
                     readonly property bool usable: modelData.available
                     Layout.fillWidth: true
-                    implicitHeight: 30
+                    implicitHeight: Fonts.px(30)
                     radius: 4
                     opacity: usable ? 1 : 0.4
                     color: current ? Colors.accent : btnMouse.containsMouse && usable ? Colors.surface : "transparent"

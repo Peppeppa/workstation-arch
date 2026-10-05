@@ -3,8 +3,8 @@
 //
 // The QML side of the ONE theme implementation, the `theme` helper
 // (roles/theme): `theme status --json` for the lists (the theme
-// directories are the registry), `theme select` / `theme wallpaper set`
-// to change something. Used by the bar's theme popup and the Appearance
+// directories are the registry), `theme select` / `theme wallpaper set` /
+// `theme text-size` to change something. Used by the bar's theme popup and the Appearance
 // window alike - each creates its own instance only while it is open.
 // Every applied change (from here, the bar icon, the CLI) ends in the
 // helper's `qs ipc call theme reload`, which reloads Colors: that is the
@@ -27,6 +27,9 @@ Scope {
     readonly property bool busy: actionProc.running
     readonly property var wallpaper: status ? status.wallpaper : null
     readonly property var backgrounds: wallpaper ? wallpaper.backgrounds : []
+    // The desktop text size (px) and its presets - see Fonts.qml.
+    readonly property var textSizes: status && status.text_sizes ? status.text_sizes : []
+    readonly property int textSize: status && status.state ? parseInt(status.state.text_size) || 0 : 0
 
     // A request while a status run is in flight is not dropped: that run may
     // have read the state before the change, so one more run follows it.
@@ -58,6 +61,13 @@ Scope {
         if (id === selectedId(slot) || actionProc.running) return;
         actionProc.command = [helper, "select", slot, id];
         actionProc.what = "theme";
+        actionProc.running = true;
+    }
+
+    function setTextSize(px) {
+        if (px === textSize || actionProc.running) return;
+        actionProc.command = [helper, "text-size", String(px)];
+        actionProc.what = "appearance";
         actionProc.running = true;
     }
 

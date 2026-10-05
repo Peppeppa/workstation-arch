@@ -131,7 +131,7 @@ PanelWindow {
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((menu.height - 420) / 2))
-        width: 460
+        width: Fonts.px(460)
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
               : rootPage.implicitHeight + 24

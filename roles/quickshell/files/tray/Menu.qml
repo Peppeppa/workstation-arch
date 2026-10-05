@@ -19,7 +19,7 @@ BarPopup {
 
     required property var item
 
-    panelWidth: 240
+    panelWidth: Fonts.px(240)
 
     Loader {
         id: level

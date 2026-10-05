@@ -77,7 +77,7 @@ Scope {
         exclusionMode: ExclusionMode.Normal
         WlrLayershell.namespace: "quickshell-notifications"
         color: "transparent"
-        implicitWidth: 360
+        implicitWidth: Fonts.px(360)
         implicitHeight: stack.implicitHeight
 
         // GridLayout with one column so each toast can pick its row:

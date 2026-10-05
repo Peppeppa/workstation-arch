@@ -15,7 +15,7 @@ Rectangle {
     signal clicked
 
     implicitWidth: btnText.implicitWidth + 16
-    implicitHeight: 24
+    implicitHeight: Fonts.px(24)
     radius: 4
     color: btnMouse.containsMouse || primary ? Colors.accent : Colors.surface
     border.color: Colors.border

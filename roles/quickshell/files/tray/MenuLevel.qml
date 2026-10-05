@@ -53,7 +53,7 @@ ColumnLayout {
                 id: entryRect
                 visible: !row.modelData.isSeparator
                 Layout.fillWidth: true
-                implicitHeight: 28
+                implicitHeight: Fonts.px(28)
                 radius: 4
                 color: hover.containsMouse && row.modelData.enabled ? Colors.accent : "transparent"
 

@@ -60,7 +60,7 @@ FocusScope {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 36
+            implicitHeight: Fonts.px(36)
             radius: 4
             color: Colors.surface
             border.color: Colors.borderActive

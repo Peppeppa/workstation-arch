@@ -11,7 +11,7 @@ Rectangle {
     required property string title
     required property var menu
 
-    implicitHeight: 28
+    implicitHeight: Fonts.px(28)
     radius: 4
     color: backMouse.containsMouse ? Colors.surface : "transparent"
 

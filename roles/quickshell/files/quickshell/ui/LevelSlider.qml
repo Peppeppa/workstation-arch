@@ -18,7 +18,7 @@ Item {
         return Math.max(0, Math.min(1, v));
     }
 
-    implicitHeight: 24
+    implicitHeight: Fonts.px(24)
 
     Rectangle {
         id: track

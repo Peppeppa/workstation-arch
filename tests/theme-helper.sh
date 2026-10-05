@@ -99,6 +99,22 @@ out=$("$T" validate 2>&1); rc=$?
 check "unreadable theme.yml reported, not a crash" $?
 cp "$repo/themes/$light/theme.yml" "$tmp/themes/$light/theme.yml"
 
+# Text size: one preference; a state without it means the default; only
+# the presets are accepted; it reaches Quickshell (colors.json) and
+# Ghostty (font-size, scaled from Ghostty's 12 pt default).
+printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"
+[ "$("$T" text-size)" = 11 ]; check "text-size default without a state entry" $?
+"$T" text-size 16 >/dev/null; check "text-size 16 accepted" $?
+grep -qx 'text-size=16' "$state" && grep -q '"text_size": 16' "$tmp/cfg/workstation/theme/colors.json" \
+    && grep -qx 'font-size = 17.5' "$tmp/cfg/workstation/theme/ghostty"
+check "text-size in state, colors.json and Ghostty (17.5 pt)" $?
+before=$(sha256sum "$state")
+"$T" text-size 13 >/dev/null 2>&1; [ $? -eq 1 ] && [ "$before" = "$(sha256sum "$state")" ]
+check "text-size outside the presets rejected, state untouched" $?
+"$T" text-size 11 >/dev/null && grep -qx 'font-size = 12' "$tmp/cfg/workstation/theme/ghostty"
+check "default text size = Ghostty's own default" $?
+bad_state "text-size not a number" "dark=$dark\nlight=$light\nmode=dark\ntext-size=big\n"
+
 # Concurrency: an even number of parallel toggles ends in the start mode
 # (it lost updates before the helper serialised its writes).
 printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"

@@ -30,7 +30,7 @@ Item {
 
     Rectangle {
         anchors.centerIn: parent
-        width: 620
+        width: Fonts.px(620)
         height: Math.min(box.implicitHeight + 32, picker.height - 80)
         radius: 8
         color: Colors.background
@@ -133,7 +133,7 @@ Item {
             Rectangle {
                 Layout.alignment: Qt.AlignRight
                 implicitWidth: cancelText.implicitWidth + 24
-                implicitHeight: 28
+                implicitHeight: Fonts.px(28)
                 radius: 4
                 color: cancelMouse.containsMouse ? Colors.surface : "transparent"
                 border.color: Colors.border

@@ -274,7 +274,7 @@ BarPopup {
                                      || device.state === BluetoothDeviceState.Disconnecting || device.pairing
 
         Layout.fillWidth: true
-        implicitHeight: 36
+        implicitHeight: Fonts.px(36)
         radius: 4
         color: row.device.connected || row.hovered ? Colors.surface : "transparent"
         border.color: row.device.connected ? Colors.accent : "transparent"
@@ -380,7 +380,7 @@ BarPopup {
         }
     }
 
-    panelWidth: 320
+    panelWidth: Fonts.px(320)
 
     ColumnLayout {
         id: content
@@ -482,7 +482,7 @@ BarPopup {
                 Rectangle {
                     visible: pairBox.req.event === "pin" || pairBox.req.event === "passkey"
                     Layout.fillWidth: true
-                    implicitHeight: 28
+                    implicitHeight: Fonts.px(28)
                     radius: 4
                     color: Colors.background
                     border.color: Colors.border

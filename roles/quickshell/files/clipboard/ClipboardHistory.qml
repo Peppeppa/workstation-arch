@@ -96,8 +96,8 @@ Scope {
             visible: true
             focusable: true
             color: "transparent"
-            implicitWidth: 560
-            implicitHeight: 420
+            implicitWidth: Fonts.px(560)
+            implicitHeight: Fonts.px(420)
 
             Component.onCompleted: {
                 reload();
@@ -158,7 +158,7 @@ Scope {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 36
+                            implicitHeight: Fonts.px(36)
                             radius: 4
                             color: Colors.surface
                             border.color: Colors.borderActive
@@ -193,7 +193,7 @@ Scope {
                         // Clear all: second click confirms.
                         Rectangle {
                             implicitWidth: clearText.implicitWidth + 16
-                            implicitHeight: 36
+                            implicitHeight: Fonts.px(36)
                             radius: 4
                             color: clearMouse.containsMouse ? Colors.accent : Colors.surface
                             border.color: Colors.border

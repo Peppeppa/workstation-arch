@@ -7,7 +7,16 @@
 //
 // Components use `font.family: Fonts.family` for text and
 // `Fonts.icons` for Nerd Font icon glyphs - never a font name literal.
-// Sizes stay the fontSize constant in shell.qml.
+//
+// Text size: ONE runtime preference for the whole desktop, owned by the
+// `theme` helper (state `text-size`, `theme text-size <px>`, presets
+// 9 10 11 12 14 16 18; Appearance -> Text size). It arrives here with the
+// theme data (Colors.data.text_size, re-read on `qs ipc call theme
+// reload` - no watcher). Every shell size is written for the default
+// size ({{ desktop_ui_font_size }}) and goes through px(): bar
+// (BarStyle), popups, OS menu, Appearance, notifications, power menu,
+// clipboard - text and the rows/panels holding text scale together.
+// Ghostty and GTK get the same preference from the helper.
 
 pragma Singleton
 
@@ -16,4 +25,13 @@ import Quickshell
 Singleton {
     readonly property string family: "{{ desktop_shell_font_family }}"
     readonly property string icons: "{{ desktop_icon_font_family }}"
+
+    readonly property int defaultSize: {{ desktop_ui_font_size }}
+    readonly property int size: Colors.data.text_size || defaultSize
+    readonly property real scale: size / defaultSize
+
+    // A size written for the default text size -> the current one.
+    function px(n) {
+        return Math.round(n * scale);
+    }
 }

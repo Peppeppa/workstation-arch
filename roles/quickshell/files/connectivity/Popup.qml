@@ -109,7 +109,7 @@ BarPopup {
 
     // Keyboard selection in Other networks (-1 = none): Up/Down/Enter.
     property int otherSel: -1
-    readonly property int rowHeight: 30           // an Other network row (not connecting)
+    readonly property int rowHeight: Fonts.px(30)           // an Other network row (not connecting)
     readonly property int otherVisibleRows: 10
 
     readonly property var currentNetwork: networks.find(n => n.connected) || null
@@ -299,7 +299,7 @@ BarPopup {
         return out;
     }
 
-    panelWidth: 340
+    panelWidth: Fonts.px(340)
     keyFilter: event => {
         if (event.key === Qt.Key_Escape) {
             if (authActive && pendingPsk === null) cancelPassword();
@@ -553,7 +553,7 @@ BarPopup {
         spacing: 8
 
         Text {
-            Layout.preferredWidth: 18
+            Layout.preferredWidth: Fonts.px(18)
             horizontalAlignment: Text.AlignHCenter
             text: info.icon
             color: info.muted ? Colors.foregroundMuted : Colors.foreground
@@ -613,7 +613,7 @@ BarPopup {
             Rectangle {
                 visible: popup.pendingPsk === null
                 Layout.fillWidth: true
-                implicitHeight: 28
+                implicitHeight: Fonts.px(28)
                 radius: 4
                 color: Colors.background
                 border.color: Colors.border
@@ -952,7 +952,7 @@ BarPopup {
                     id: vrow
                     required property var modelData
                     Layout.fillWidth: true
-                    implicitHeight: modelData.active ? 40 : 30
+                    implicitHeight: Fonts.px(modelData.active ? 40 : 30)
                     radius: 4
                     color: modelData.active || vMouse.containsMouse ? Colors.surface : "transparent"
                     border.color: modelData.active ? Colors.accent : "transparent"

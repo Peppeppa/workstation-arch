@@ -20,7 +20,7 @@ ColumnLayout {
 
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: 32
+        implicitHeight: Fonts.px(32)
         radius: 4
         color: Colors.surface
         border.color: sel.expanded || headMouse.containsMouse ? Colors.borderActive : Colors.border
@@ -66,7 +66,7 @@ ColumnLayout {
             required property var modelData
             readonly property bool current: modelData.id === sel.model.selectedId(sel.slot)
             Layout.fillWidth: true
-            implicitHeight: 30
+            implicitHeight: Fonts.px(30)
             radius: 4
             color: optMouse.containsMouse ? Colors.accent : "transparent"
 

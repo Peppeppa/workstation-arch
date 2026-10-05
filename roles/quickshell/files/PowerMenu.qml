@@ -184,7 +184,7 @@ PanelWindow {
     Rectangle {
         id: panel
         anchors.centerIn: parent
-        width: 260
+        width: Fonts.px(260)
         implicitHeight: content.implicitHeight + 20
         radius: 8
         color: Colors.background
@@ -226,7 +226,7 @@ PanelWindow {
                                               : !modelData.available ? Colors.foregroundMuted : Colors.foreground
 
                     Layout.fillWidth: true
-                    implicitHeight: 36
+                    implicitHeight: Fonts.px(36)
                     radius: 4
                     color: selected ? Colors.accent : "transparent"
 
@@ -237,7 +237,7 @@ PanelWindow {
                         spacing: 10
 
                         Text {
-                            Layout.preferredWidth: 18
+                            Layout.preferredWidth: Fonts.px(18)
                             horizontalAlignment: Text.AlignHCenter
                             text: row.modelData.icon
                             font.family: Fonts.icons

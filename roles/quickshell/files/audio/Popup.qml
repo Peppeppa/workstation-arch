@@ -60,8 +60,8 @@ BarPopup {
         spacing: 8
 
         Rectangle {
-            implicitWidth: 28
-            implicitHeight: 24
+            implicitWidth: Fonts.px(28)
+            implicitHeight: Fonts.px(24)
             radius: 4
             color: muteMouse.containsMouse ? Colors.surface : "transparent"
 
@@ -83,7 +83,7 @@ BarPopup {
 
         Item {
             Layout.fillWidth: true
-            implicitHeight: 24
+            implicitHeight: Fonts.px(24)
 
             Rectangle {
                 id: track
@@ -113,7 +113,7 @@ BarPopup {
         }
 
         Text {
-            Layout.preferredWidth: 40
+            Layout.preferredWidth: Fonts.px(40)
             horizontalAlignment: Text.AlignRight
             text: vrow.live ? Math.round(vrow.volume * 100) + "%" : "--"
             color: Colors.foreground
@@ -130,7 +130,7 @@ BarPopup {
         signal chosen
 
         Layout.fillWidth: true
-        implicitHeight: 28
+        implicitHeight: Fonts.px(28)
         radius: 4
         color: isDefault ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
