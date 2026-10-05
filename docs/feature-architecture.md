@@ -808,6 +808,7 @@ Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
 | `org.bluez` re-activated right after `systemctl stop bluetooth` | WirePlumber's bluez5 monitor, UPower and NetworkManager call `org.bluez` when the name drops (busctl monitor) | upstream D-Bus activation; without a controller `ConditionPathIsDirectory` keeps bluetoothd off |
 | hyprlock: ~100 DEBUG lines per lock in `-t hypridle` | `-q` also drops ERR lines (verified with a broken `cmd[]` label: 3 ERR lines without, 0 with) | no errors-only level in hyprlock 0.9.6 - errors win over a quieter journal |
 | mpv `--player-operation-mode=pseudo-gui` SIGABRT, zathura/imv need `LIBGL_ALWAYS_SOFTWARE=1` | `__assert_fail` in mpv's VO under software GL | VirtualBox GL 4.1 / llvmpipe only |
+| Hyprland itself SIGSEGV at every logout **with two outputs** (laptop: eDP-1 + LG 4K over the dock's HDMI); never with one | stack in `exit()` -> `__cxa_finalize` -> `~CDRMBackend` -> `SDRMConnector::disconnect` -> `cancelAsyncOutput` -> `flushAsyncCommitEvents` (aquamarine 0.15.1, Hyprland 0.56.2), 4/4 with two outputs (also when the session started with both), 0/1 with one; the same without our shutdown hook (diagnostic run), so not `session-stop`; the session's helpers stay clean. Same class as hyprwm/aquamarine#272 (connector teardown in static destruction) | upstream; after Hyprland is done, no user-visible effect besides the core dump; `repo-healthcheck` shows it as WARN (earlier session) |
 | Quickshell start: `org.bluez` ObjectManager warning, "Could not register app ID: Connection already associated" | once per start | no BlueZ on a host without controller / Qt's portal registration order - harmless |
 
 ## Hardware-only validation
@@ -815,6 +816,18 @@ Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
 What `arch-dev` (VirtualBox, no battery/Wi-Fi/Bluetooth adapter/GPU,
 software rendering) cannot prove - to check once on `laptop` and
 `workstation`:
+
+Status on the **laptop** (ThinkPad T440p, Stage 1 bring-up): validated on
+the real machine - monitors (eDP-1 + an external 4K HDMI screen over the dock,
+hotplug), lid (battery -> lock + suspend x3, docked with an external screen ->
+ignored), hardware keys (volume, mute, mic mute + LEDs, brightness), battery
+(plug/level icons, AC/undock, percentage + bar, UPower remaining / until full),
+power profiles (all three offered on this Haswell), brightness, display, audio
+(internal speaker + mic), Wi-Fi (password flows, Ethernet <-> Wi-Fi route),
+Bluetooth (pair, connect, disconnect, forget). Still open there: the <= 15 %
+notification on the real battery (logic covered by tests/qml-logic.qml), HDMI
+audio, captive portal, eduroam, real VPN, Wi-Fi QR with a phone, clipboard with
+a password manager. The workstation is not yet deployed.
 
 | Area | Check |
 |---|---|

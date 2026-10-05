@@ -881,6 +881,26 @@ history for that milestone's own record):
   compositor is gone (ends with the user manager); hyprlock has no
   errors-only log level; mpv/zathura/imv need software GL on arch-dev.
 
+- **Real Hardware Stage 1 - laptop bring-up** (ThinkPad T440p, hostname
+  `laptop`; real-hardware-tested): first workstation-arch deployment over
+  Ly -> start-hyprland on real i915 (Mesa crocus, OpenGL 4.6 core, no
+  LIBGL workaround), `repo-healthcheck` HEALTHY, second bootstrap
+  changed=0. Validated physically: eDP-1 1920x1080@60 scale 1, brightness
+  (sliders + keys, no double steps), battery/AC/undock transitions and
+  UPower estimates, all three power profiles, Wi-Fi (Intel 7260, 5 GHz,
+  wrong/right password, Ethernet<->Wi-Fi default route), Bluetooth
+  pairing/connect/disconnect/forget, internal speaker + mic, volume/mute/
+  mic-mute keys + LEDs, idle lock, Coffee, DPMS, lid suspend/resume x3,
+  docked lid ignore, external 4K HDMI monitor + hotplug, logout/login.
+  Fixed on the way: wireless-regdb; per-host VA-API (libva-intel-driver);
+  monitor `position: 0x0` read as the number 0 by YAML; battery popup empty
+  (`power: power` self-binding); network icon one route read behind
+  (FileView text() after reload() is stale in Quickshell 0.3.1); redundant
+  Bluetooth connect() after pairing; emoji font. Upstream: Hyprland
+  SIGSEGV at exit with two outputs (aquamarine teardown). Not validated:
+  HDMI audio, multi-monitor layout persistence, captive portal/eduroam/
+  Uni VPN, Hibernate.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
