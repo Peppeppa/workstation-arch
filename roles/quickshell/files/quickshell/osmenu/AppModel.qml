@@ -36,7 +36,8 @@ Scope {
         "avahi-discover", "bssh", "bvnc",            // avahi (needed by CUPS, PipeWire-Pulse, Flatpak/ostree)
         "lstopo",                                    // hwloc (via onetbb <- appstream <- Flatpak)
         "designer", "linguist", "assistant",         // qt6-tools (needed by VirtualBox)
-        "qv4l2", "qvidcap"                           // v4l-utils (needed by ffmpeg)
+        "qv4l2", "qvidcap",                          // v4l-utils (needed by ffmpeg)
+        "jconsole-java25-openjdk", "jshell-java25-openjdk" // jdk25-openjdk (roles/development): JMX monitor + terminal REPL
     ]
 
     function shown(e) {
