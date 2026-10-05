@@ -88,9 +88,18 @@ Scope {
         return g.slice(0, best).join(":") + "::" + g.slice(best + bestLen).join(":");
     }
 
+    // Quickshell 0.3.1: text() right after reload() still returns the
+    // PREVIOUS content (measured), so the routes are parsed when the new
+    // content has arrived (onLoaded). Read synchronously, the bar was always
+    // one read behind: re-plugging Ethernet while Wi-Fi was up left the Wi-Fi
+    // icon, because the settle re-read still saw NM's temporary metric
+    // (20100, connectivity check pending, lifted ~0.1-0.2 s later).
     function update() {
         route4.reload();
         route6.reload();
+    }
+
+    function parse() {
         const out = [];
         for (const line of route4.text().split("\n").slice(1)) {
             const f = line.trim().split(/\s+/);
@@ -124,11 +133,13 @@ Scope {
         id: route4
         path: "/proc/net/route"
         blockLoading: true
+        onLoaded: model.parse()
     }
 
     FileView {
         id: route6
         path: "/proc/net/ipv6_route"
         blockLoading: true
+        onLoaded: model.parse()
     }
 }

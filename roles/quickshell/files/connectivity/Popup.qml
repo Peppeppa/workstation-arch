@@ -128,11 +128,20 @@ BarPopup {
     // Also re-reads the kernel routes (Model.update): while the popup is
     // open, even a route change NetworkManager announces no event for (a
     // metric reapply) shows within a second. Closed: events only.
+    // The counters are read when both reloads have delivered (onLoaded) -
+    // text() right after reload() is the previous content in Quickshell
+    // 0.3.1 (see Model.qml).
+    property int countersPending: 0
     function sample() {
         popup.net.update();
         if (trafficIface === "") return;
+        countersPending = 2;
         rxFile.reload();
         txFile.reload();
+    }
+
+    function counterLoaded() {
+        if (countersPending <= 0 || --countersPending > 0) return;
         const rx = parseFloat(rxFile.text()), tx = parseFloat(txFile.text()), t = Date.now();
         if (isNaN(rx) || isNaN(tx)) return;
         if (lastRx >= 0 && t > lastT) {
@@ -232,6 +241,7 @@ BarPopup {
         path: popup.trafficIface !== "" ? "/sys/class/net/" + popup.trafficIface + "/statistics/rx_bytes" : ""
         blockLoading: true
         printErrors: false
+        onLoaded: popup.counterLoaded()
     }
 
     FileView {
@@ -239,6 +249,7 @@ BarPopup {
         path: popup.trafficIface !== "" ? "/sys/class/net/" + popup.trafficIface + "/statistics/tx_bytes" : ""
         blockLoading: true
         printErrors: false
+        onLoaded: popup.counterLoaded()
     }
 
     // A pending password connect: success clears it, failure keeps the box.
