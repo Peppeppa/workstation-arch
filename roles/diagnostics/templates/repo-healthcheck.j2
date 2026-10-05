@@ -329,6 +329,11 @@ def recovery_checks():
           "/.snapshots from @snapshots" if rc == 0 and src.endswith("[/@snapshots]") else "/.snapshots not mounted from @snapshots (%s)" % (src or "-"))
     rc, o = run(["systemctl", "is-enabled", "snapper-cleanup.timer"])
     check("snapshot cleanup", o == "enabled", "snapper-cleanup.timer " + (o or "missing"))
+    # system-update refuses below 150 MB (slot UKIs); slots themselves are
+    # root-only (snapper, ESP 0700) - sudo system-snapshot --list
+    st = os.statvfs("/boot")
+    esp = st.f_bavail * st.f_frsize // (1024 * 1024)
+    check("ESP space", esp >= 150, "%d MB free on /boot" % esp + ("" if esp >= 150 else " - system-update needs 150 MB"), warn=esp < 150)
     rc, src = run(["findmnt", "-no", "SOURCE", "/"])
     slot = src.split("[/@recovery/")[1].rstrip("]") if "[/@recovery/" in src else ""
     if slot:

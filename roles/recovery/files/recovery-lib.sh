@@ -54,9 +54,10 @@ main_uki_is_booted() {
     [ "$(stat -c %Y "$MAIN_UKI")" -lt "$(boot_epoch)" ]
 }
 
-# Bytes free on the root filesystem (Btrfs estimate) and on the ESP.
-root_free_bytes() { btrfs filesystem usage -b / 2>/dev/null | awk '/Free \(estimated\)/{print $3; exit}'; }
-root_size_bytes() { btrfs filesystem usage -b / 2>/dev/null | awk '/Device size/{print $3; exit}'; }
+# Bytes free on the root filesystem (Btrfs estimate) and on the ESP; empty
+# (not an exit under pipefail) when btrfs cannot tell - the caller says so.
+root_free_bytes() { btrfs filesystem usage -b / 2>/dev/null | awk '/Free \(estimated\)/{print $3; exit}' || true; }
+root_size_bytes() { btrfs filesystem usage -b / 2>/dev/null | awk '/Device size/{print $3; exit}' || true; }
 esp_free_bytes() { df -B1 --output=avail /boot | tail -1 | tr -d ' '; }
 
 # The cmdline a UKI gets: the system's own one, root pointed elsewhere for
