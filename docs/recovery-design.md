@@ -1,7 +1,9 @@
 # Recovery / Storage Design v1
 
-Status: **design only, not implemented** (approved design required before
-any storage change). Evidence: Stage 0 audit and read-only inspection of
+Status: **implemented** (`roles/recovery`, `recovery_enabled`, laptop only)
+and destructively tested on the laptop - deviations from this design and
+the test results are in section 21 (as built), which wins where it differs.
+Originally written as a design only (approved before any storage change). Evidence: Stage 0 audit and read-only inspection of
 the ThinkPad T440p test laptop at commit `2255fe1`; `roles/power` as of the
 same commit.
 
@@ -85,7 +87,9 @@ created by systemd. Nested subvolumes are not part of a snapshot (they show
 up as empty directories) and are left behind in the old `@` by a rollback.
 Recommendation: delete them during migration (nothing uses machinectl or
 portable services); systemd re-creates them as plain directories/subvolumes
-on demand.
+on demand. *As built: kept* - systemd-tmpfiles re-creates them on every
+boot, so deleting them is pointless; they stay empty and are irrelevant to
+rollback (section 21).
 
 Final tree (top level, `subvolid=5`):
 
@@ -110,14 +114,15 @@ Final tree (top level, `subvolid=5`):
 - Cleanup: `NUMBER_CLEANUP="yes"`, `NUMBER_LIMIT="10"` (the last 5
   pre/post pairs), `NUMBER_LIMIT_IMPORTANT="4"` (manual known-good
   snapshots carry `important=yes`), `NUMBER_MIN_AGE="0"`,
-  `EMPTY_PRE_POST_CLEANUP="yes"`.
+  `EMPTY_PRE_POST_CLEANUP="no"` (*as built* - `yes` deleted a pinned slot
+  snapshot after a no-op update, section 21).
 - No quota groups (`QGROUP=""`): qgroups cost write performance on Btrfs
   and only feed space-aware cleanup; free space is guarded by
   `system-update` instead (section 13).
 - Snapshots referenced by a recovery slot are pinned (`--cleanup-algorithm
   ""`), so snapper's cleanup can never delete a bootable recovery state;
   the helper unpins on slot rotation.
-- `snapper-cleanup.timer` (package unit, daily) is the only timer added -
+- `snapper-cleanup.timer` (package unit; hourly, 10 min after boot) is the only timer added -
   it is snapper's own and does nothing between snapshot events. Needs an
   `AGENTS.md`/healthcheck exception ("no timers of ours" -> "only
   snapper-cleanup.timer").
@@ -254,9 +259,11 @@ recovery boot or from the normal system:
 2 btrfs subvolume snapshot @snapshots/<n>/snapshot  @rollback-new   (rw, pristine)
 3 rename  @ -> @broken-<date>   (kept, read-only afterwards, pinned until removed by hand)
 4 rename  @rollback-new -> @
-5 copy the slot's matching UKI back as /boot/EFI/Linux/arch-linux.efi
-  (kernel and modules match again), keep the broken one as arch-linux.broken.efi
-6 delete nested-subvolume leftovers, sync, reboot (asked)
+5 rebuild /boot/EFI/Linux/arch-linux.efi from the slot UKI's kernel + initramfs
+  with the restored system's normal cmdline (kernel and modules match again;
+  built before step 3), keep the replaced one in /EFI/workstation/broken/;
+  copy the snapshot's kernel to /boot/vmlinuz-linux (mkinitcpio builds from it)
+6 sync; reboot is left to the user
 ```
 
 The cmdline keeps `rootflags=subvol=@` - the name always means "the live
@@ -349,14 +356,14 @@ list + slot markers. Nothing else (no generic manager).
 
 | What | Kept |
 |---|---|
-| update pre/post pairs | last 5 (snapper NUMBER_LIMIT=10) |
+| update pre/post pairs | last 10 (snapper NUMBER_LIMIT=10 counts a pair once - measured) |
 | manual important | last 4 |
 | recovery slots | ≤ 3, pinned, rotated by the helpers |
 | @broken-<date> from rollbacks | until removed by hand; healthcheck WARNs while one exists |
 
 Space guard instead of qgroups: `system-update` refuses below 10 GiB / 10 %
 free (`btrfs filesystem usage`), offering `snapper cleanup number` and the
-list of pinned/broken states. Snapper's daily cleanup timer applies the
+list of pinned/broken states. Snapper's cleanup timer (hourly) applies the
 count limits.
 
 ## 14. Backup / NAS boundary (later, not designed in detail)
@@ -474,3 +481,55 @@ writable clone boot + `noresume`), then `roles/recovery` with
 NO-GO conditions: the spike cannot produce a bootable slot UKI by either
 method, or a rollback cannot be performed without touching the LUKS
 header, partition table or `sdb`.
+
+## 21. As built (v1) and test results
+
+Implemented in `roles/recovery` (Ansible: layout, snapper config, timer,
+helpers only) and the three on-demand commands `system-update`,
+`system-snapshot`, `system-rollback` (+ `recovery-lib.sh`,
+`system-update-root`). No resident process; the only timer is
+`snapper-cleanup.timer`.
+
+Deviations from sections 1-20:
+
+- **`EMPTY_PRE_POST_CLEANUP="no"`**: with `yes`, snapper's cleanup deleted
+  the pre snapshot of a no-op update although the `before-update` slot had
+  pinned it (cleanup algorithm "") - the slot's clone/UKI were left without
+  their snapshot and `system-rollback before-update` refused. A no-op
+  update now keeps its (cheap) pair; the number limit removes it later.
+  `tests/run.sh` checks the setting.
+- **Number limit counts a pre/post pair once**: `NUMBER_LIMIT=10` keeps
+  10 pairs (measured: after 11 update runs the oldest pair went, pinned slot
+  snapshots and `known-good` stayed).
+- **Nested `var/lib/machines`/`portables` kept** (section 3).
+- **Rollback rebuilds the main UKI** instead of copying the slot UKI (the
+  slot UKI embeds the slot's cmdline) and restores `/boot/vmlinuz-linux`.
+- **Healthcheck**: `--system`, `--since`; recovery checks = `/.snapshots`
+  from `@snapshots`, cleanup timer enabled, booted from `@` (WARN "RECOVERY
+  SLOT <slot>" in a slot boot), ESP free space (WARN < 150 MB). Slot
+  completeness and `@broken-*` are root-only (snapper, ESP dir 0700, top
+  level) and therefore shown by `sudo system-snapshot --list`, not by the
+  user-run healthcheck.
+- **pacman inside a slot boot is not blocked**, only `system-update`
+  refuses there (risk 2): plain `pacman` in a slot writes the throw-away
+  clone and the shared `@pkg` cache - harmless to `@`, but pointless.
+
+Destructive results (ThinkPad T440p, 2026-10-05):
+
+| Test | Result |
+|---|---|
+| spike: ukify slot UKI + Type #1 entry boots the writable clone | pass (same kernel/modules, `@` untouched, `@home` shared, network up) |
+| `system-snapshot --known-good`, `system-update` (no-op) | pass; slot rotation before-update -> previous-update |
+| userspace + desktop breakage (qpdf removed, NetworkManager masked, `start-hyprland` = `exit 1`) | normal boot broken (session 0.4 s, no network); recovery entry boots a working system |
+| permanent rollback (`system-rollback known-good`) | pass: next normal boot healthy, `pacman -Dk` clean, `pacman -Qkk hyprland qpdf networkmanager` 0 altered files, home marker unchanged, bootstrap changed=0 on the 2nd run |
+| truncated `arch-linux.efi` (1 MB) | **systemd-boot still starts it** (the PE header survives) and the boot hangs at the vendor/Arch splash; the recovery entry has to be picked by hand in the menu (keep the menu reachable: `timeout` or a held key). `system-rollback before-update` rebuilt the main UKI (kernel section identical to the original), normal boot healthy |
+| retention: 11 no-op updates + `snapper-cleanup.service` | oldest pair removed at > 10 pairs; all three slots intact |
+| space guard (fake `btrfs` on `PATH`, SSD not filled) | 5 GiB/1 % and 27 GiB/6 % refused, 93 GiB/20 % and the real 223 GiB accepted, unreadable `btrfs` refused with a message |
+
+Not tested on hardware: kernel/initramfs breakage (test 4 - the broken-UKI
+test covers the same recovery path), package downgrade from `@pkg`
+(test 6), Arch ISO drill (test 10), hibernate (test 11, no `@swap` yet).
+Possible later improvement: systemd-boot boot counting (`+3` in the UKI
+name + `systemd-bless-boot`) would demote a main UKI that failed to boot
+a few times (each attempt still needs a manual reset when it hangs) - not
+in v1 (it changes the normal boot path).

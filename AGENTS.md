@@ -110,6 +110,8 @@ direct upstream dependency.
 | Session end (stop of the session helpers + Wayland-bound portal units before the compositor goes) | Hyprland's own lifecycle: `hl.on("hyprland.shutdown")` -> `~/.local/libexec/workstation/session-stop` (roles/hyprland) - the same owner that started them; the power menu's reboot/shutdown end the session through it first (`workstation_end_session`) |
 | Health invariants (PASS/FAIL) | `repo-healthcheck` (`roles/diagnostics`, /usr/local/bin) - on demand only, read-only; details stay `repo-diagnose`'s |
 | Diagnostics | `repo-diagnose [--full]` (`roles/diagnostics`, /usr/local/bin) - on demand only; logs stay in journald (Quickshell/hypridle output via `systemd-cat`, QML failures as `[component] ...` through `Log.qml`) - no log daemon, follower or timer |
+| System snapshots (snapper config `root`, cleanup) | snapper + `snapper-cleanup.timer` (the one allowed timer; `roles/recovery`, host capability `recovery_enabled`) - no timeline, no snap-pac |
+| Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 
@@ -900,6 +902,13 @@ history for that milestone's own record):
   SIGSEGV at exit with two outputs (aquamarine teardown). Not validated:
   HDMI audio, multi-monitor layout persistence, captive portal/eduroam/
   Uni VPN, Hibernate.
+
+- **Recovery v1** (`recovery_enabled`, laptop only): Btrfs snapshots +
+  bootable recovery slots + update/rollback commands
+  (`docs/recovery-design.md`, section 21 = as built). **Real-hardware
+  tested on the laptop** (slot boot, broken userspace/desktop, truncated
+  UKI, permanent rollback, retention, space guard). Workstation: not
+  enabled - its layout needs its own Stage 0 check first.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

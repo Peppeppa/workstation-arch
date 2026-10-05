@@ -190,6 +190,7 @@ first - see the `gaming` row below.
 | `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, ...); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
+| `recovery`       | `recovery`      | Btrfs snapshots (snapper), recovery boot slots, `system-update`/`-snapshot`/`-rollback` (`recovery_enabled`) |
 
 Further roles (`session`, `hardware`, ...) will be added
 the same way as the desktop is built out - see `docs/ARCHITECTURE.md`
@@ -316,6 +317,28 @@ hyprlock logs ~100 debug lines per lock (`-t hypridle`): its `-q` also
 drops real errors, so it stays verbose on purpose.
 
 Checks of the repository itself (no live system needed): `tests/run.sh`.
+
+## Updates, snapshots and rollback (hosts with `recovery_enabled`)
+
+On a host with `recovery_enabled: true` (Btrfs + systemd-boot + UKI, see
+`docs/recovery-design.md`) update with `system-update` instead of a bare
+`sudo pacman -Syu`: it checks free space/ESP/battery and health first,
+keeps the running system as the boot entry "Recovery: before the last
+update", runs `pacman -Syu`, then checks the boot image and health again.
+It never rolls back by itself.
+
+```sh
+system-update                               # the update transaction
+sudo system-snapshot --known-good "label"   # after a verified good state (needs a fresh boot)
+sudo system-snapshot --list                 # snapshots + recovery slots
+sudo system-rollback before-update          # permanent, from the next boot; /home stays
+```
+
+If the system does not come up after an update: pick "Recovery: ..." in
+the systemd-boot menu (it boots the saved system, `/home` is the normal
+one), look around, then `sudo system-rollback <slot>` and reboot. The old
+system is kept as `@broken-<date>` at the Btrfs top level until deleted
+by hand.
 
 ## Pacman / update policy
 

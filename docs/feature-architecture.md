@@ -596,7 +596,21 @@ Real-hardware bring-up (laptop/workstation), in this order:
 6. Real test: open apps, `systemctl hibernate`, power on, unlock - the
    session is back; `journalctl -b -1 -u systemd-hibernate`.
 
-## Display manager (Ly)
+## Recovery (host capability)
+
+`recovery_enabled` (`group_vars/all.yml`, default `false`; `laptop` on),
+implemented in `roles/recovery`; full design and test results:
+`docs/recovery-design.md` (section 21 = as built).
+
+| Contract | |
+|---|---|
+| Layout | needs a Btrfs root as `subvol=/@`, `rootflags=subvol=@` in `/etc/kernel/cmdline`, systemd-boot + UKI, vfat ESP at `/boot` - the role asserts it and stops otherwise. Adds `@snapshots` (`/.snapshots`) and the unmounted `@recovery` container (+ `@swap` with hibernate); never partitions, never touches LUKS, `@home`, `@log`, `@pkg` |
+| Snapshots | snapper config `root`: no timeline, no qgroups, `NUMBER_LIMIT` 10 pairs, 4 important, `EMPTY_PRE_POST_CLEANUP="no"`; `snapper-cleanup.timer` (the one allowed timer) |
+| Recovery slots | `before-update`, `previous-update`, `known-good`: pinned read-only snapshot + writable clone `@recovery/<slot>` + UKI with the booted kernel/initramfs (`/boot/EFI/workstation/recovery/`) + boot entry "Recovery: ..." (never the default) |
+| Commands | on demand only, never run by Ansible: `system-update` (preflight, healthcheck, slot, `pacman -Syu`, post checks - never rolls back by itself), `system-snapshot` (`"label"`, `--known-good "label"`, `--list`), `system-rollback <slot\|N>` (new `@` from the snapshot, old one kept as `@broken-<date>`, main UKI rebuilt) |
+| Cost | no process; ESP ~45 MB per slot; snapshot space only for changed blocks |
+| Disable | `false` changes nothing on disk; slots/snapshots stay until removed by hand |
+
 
 `display_manager_enabled` (`group_vars/all.yml`, default `true`),
 `roles/display_manager`. Ly only - not a display-manager framework.

@@ -87,6 +87,11 @@ Responsibility split within the provisioning layer:
   exists; the power menu's reboot/shutdown go through that exit first.
 - `repo-healthcheck` (PASS/FAIL of these invariants) and `repo-diagnose`
   (details) are on-demand tools - no daemon, no timer.
+- Recovery (host capability `recovery_enabled`, `docs/recovery-design.md`):
+  snapper snapshots of `@` (never `@home`/`@swap`), bootable recovery
+  slots, and the on-demand `system-update`/`system-snapshot`/
+  `system-rollback`; the only timer in the whole design is snapper's own
+  `snapper-cleanup.timer`.
 - Quickshell owns the app launcher (fuzzel retired as of Core Desktop
   v1) and notifications (mako retired as of Notifications v1) - see
   AGENTS.md.
