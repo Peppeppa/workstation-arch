@@ -137,6 +137,16 @@ apps_webapps:
     comment: WhatsApp Web in its own window
     url: https://web.whatsapp.com/
     icon: whatsapp-desktop
+  # Zoom's web client: the fallback for meetings/screen sharing when the
+  # native Zoom misbehaves - it shares through Chromium's own WebRTC +
+  # xdg-desktop-portal path (the one WebCord uses), no XWayland toolbar
+  # windows (see docs/feature-architecture.md "Screen sharing"). The icon
+  # comes from the Flathub Zoom's exported icon.
+  - id: zoom-web
+    name: Zoom (Web)
+    comment: Zoom web client in its own window
+    url: https://app.zoom.us/wc/home
+    icon: us.zoom.Zoom
 
 # Deliberately NOT automated this run - see AGENTS.md Current Status:
 #
