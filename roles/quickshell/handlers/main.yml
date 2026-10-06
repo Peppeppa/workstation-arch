@@ -1,18 +1,21 @@
 ---
-# Quickshell hot-reloads its config on file changes, but its watcher
-# does not reliably notice Ansible's atomic replace (write temp file +
-# rename) - confirmed on arch-dev: after a changed shell.qml was
-# deployed, the running instance kept the old config until the next
-# login, while an in-place mtime change on shell.qml triggered a clean
-# reload at once. So any config change notifies this handler, which
-# runs once at the end of the play - after every file is in place, so
-# the reload never sees a half-deployed config. Harmless if Quickshell
-# isn't running. No process, no IPC: just the watcher Quickshell
-# already has.
+# A config change notifies this handler, which runs once at the end of
+# the play - after every file is in place, so the reload never sees a
+# half-deployed config. It asks the running Quickshell to reload over its
+# own IPC (`shell.reload` -> Quickshell.reload(), shell.qml.j2): its file
+# watcher is not reliable for deploys (arch-dev: Ansible's atomic replace
+# went unnoticed; laptop 2026-10-06: even a touched shell.qml was ignored).
+# An instance started from an older config has no `shell` target yet - for
+# that one, the old touch is the fallback. Harmless if Quickshell isn't
+# running. No process, no watcher of ours.
 - name: Reload running Quickshell config
-  ansible.builtin.file:
-    path: "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
-    state: touch
+  ansible.builtin.shell:
+    cmd: |
+      qs ipc --any-display call shell reload >/dev/null 2>&1 \
+        || touch "{{ ansible_facts.user_dir }}/.config/quickshell/shell.qml"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.user_uid }}"
+  changed_when: true
 
 # A restart (not a reload) for changes a running process cannot pick up,
 # e.g. newly installed Qt image plugins. Runs after the reload above.

@@ -16,6 +16,7 @@
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs
 import qs.appearance
 import qs.bar
@@ -34,6 +35,18 @@ ShellRoot {
         model: Quickshell.screens
 
         Bar {}
+    }
+
+    // Explicit config reload for provisioning (`qs ipc call shell reload`,
+    // roles/quickshell handler): Quickshell's own file watcher missed
+    // deployed changes (laptop 2026-10-06: a touched shell.qml and replaced
+    // QML files, no reload) - a deploy must not depend on it.
+    IpcHandler {
+        target: "shell"
+
+        function reload(): void {
+            Quickshell.reload(false);
+        }
     }
 
     // Low-battery warning (core): one instance, not per bar.
