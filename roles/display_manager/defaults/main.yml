@@ -17,9 +17,9 @@ display_manager_tty: tty2
 
 # The only keys changed in the package's /etc/ly/config.ini (edited in
 # place, everything else stays upstream's default and new upstream keys
-# keep working). Upstream defaults already give what we want: no
-# animation, no big clock, password shown as `*`, no autologin, last user
-# and session remembered.
+# keep working). Upstream defaults already give what we want: no big
+# clock, password shown as `*`, no autologin, last user and session
+# remembered.
 #   allow_empty_password: upstream true - an account without a password
 #                         must not be one Enter away from a desktop.
 #   hide_version_string:  quiet screen; `ly-dm --version` still tells.
@@ -29,6 +29,20 @@ display_manager_tty: tty2
 #                         before any user session, so it is deliberately
 #                         NOT tied to the runtime theme helper - the Linux
 #                         VT maps them to its nearest console colours.
+#   animation / dur_file_path / animation_frame_delay: the static login
+#                         background - Ly cannot show images on the console;
+#                         its only background art is a durdraw file. Ours
+#                         (files/workstation-background.dur, 3 KB, generated
+#                         by scripts/ly-background.py) is ONE frame of
+#                         half-block pixel art (an original dark retro night
+#                         scene, 240x67 cells = 1920x1080 at the 8x16 console
+#                         font, centered; other sizes crop/pad in black). Ly
+#                         redraws the dur widget on every wake-up and wakes
+#                         every animation_frame_delay ms - the default 5 ms
+#                         would redraw a still picture 200 times a second; one
+#                         frame needs no timer, so the wake-up is set to the
+#                         maximum (65535 ms). Input still redraws at once.
+#                         Static, not tied to the runtime theme (like fg).
 #   waylandsessions:      Ly's own session directory holding only a
 #                         symlink to the hyprland package's
 #                         hyprland.desktop (Exec=start-hyprland). The
@@ -38,8 +52,13 @@ display_manager_tty: tty2
 #                         here (no uwsm). Ly's built-in "shell" session
 #                         stays as a console fallback.
 display_manager_sessions_dir: /etc/ly/wayland-sessions
+display_manager_background: /etc/ly/workstation-background.dur
 display_manager_ly_settings:
   waylandsessions: "{{ display_manager_sessions_dir }}"
+  animation: dur_file
+  dur_file_path: "{{ display_manager_background }}"
+  dur_offset_alignment: center
+  animation_frame_delay: "65535"
   allow_empty_password: "false"
   hide_version_string: "true"
   fg: "0x00FFF1DA"

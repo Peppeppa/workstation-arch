@@ -37,6 +37,17 @@
     group: root
   tags: display_manager
 
+- name: Ly login background (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  ansible.builtin.copy:
+    src: workstation-background.dur
+    dest: "{{ display_manager_background }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: display_manager
+
 - name: Ly settings in /etc/ly/config.ini (display_manager_enabled)
   when: display_manager_enabled
   become: true
