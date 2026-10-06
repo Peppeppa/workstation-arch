@@ -10,11 +10,10 @@
 --   appearance.lua  borders (active theme), animations/blur/shadow, misc
 --   session.lua     processes Hyprland owns (polkit agent, Quickshell, hypridle)
 --   binds.lua       keybindings incl. hardware keys
---   rules.lua       window rules for apps Hyprland would mis-place (Zoom)
 -- Quickshell (roles/quickshell) is the separate presentation layer.
 local conf = "{{ ansible_facts.user_dir }}/.config/hypr/conf/"
 local v = dofile(conf .. "vars.lua")
 
-for _, module in ipairs({ "monitors", "input", "appearance", "session", "binds", "rules" }) do
+for _, module in ipairs({ "monitors", "input", "appearance", "session", "binds" }) do
     dofile(conf .. module .. ".lua")(v)
 end
