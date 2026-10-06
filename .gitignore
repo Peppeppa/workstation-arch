@@ -9,3 +9,6 @@
 
 # Python bytecode caches (scripts/ helpers run on demand)
 __pycache__/
+
+# Claude Code local settings (personal, per machine)
+.claude/settings.local.json

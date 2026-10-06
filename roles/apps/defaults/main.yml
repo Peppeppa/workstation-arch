@@ -114,15 +114,6 @@ apps_flatpak_packages:
   # app" (never installed) to Flathub.
   - io.github.spacingbat3.webcord
 
-  # Zoom (university video calls): not in the official Arch repos. Zoom's
-  # own Linux download (zoom_x86_64.pkg.tar.xz) is a single file, not a
-  # repository - no clean, Ansible-reproducible update path (the same
-  # reason as JetBrains above); the AUR `zoom` only repackages it. The
-  # Flathub app is maintained (update 2026-10-02, `flatpak remote-info`
-  # checked 2026-10) and fetches Zoom's official binary as extra-data.
-  # Screen sharing goes through xdg-desktop-portal like every other app
-  # (docs/feature-architecture.md "Screen sharing").
-  - us.zoom.Zoom
 
 # Web apps: a launcher entry (~/.local/share/applications/<id>.desktop)
 # that opens the site in its own Chromium app window - the existing
@@ -137,16 +128,16 @@ apps_webapps:
     comment: WhatsApp Web in its own window
     url: https://web.whatsapp.com/
     icon: whatsapp-desktop
-  # Zoom's web client: the fallback for meetings/screen sharing when the
-  # native Zoom misbehaves - it shares through Chromium's own WebRTC +
-  # xdg-desktop-portal path (the one WebCord uses), no XWayland toolbar
-  # windows (see docs/feature-architecture.md "Screen sharing"). The icon
-  # comes from the Flathub Zoom's exported icon.
+  # Zoom = its web client (university meetings). It shares the screen
+  # through Chromium's own WebRTC + xdg-desktop-portal path (the one
+  # WebCord uses) - tested on the laptop: faster and fully usable. The
+  # native Zoom (Flathub us.zoom.Zoom 7.2.1) is retired, see
+  # apps_retired_flatpak_packages.
   - id: zoom-web
-    name: Zoom (Web)
+    name: Zoom
     comment: Zoom web client in its own window
     url: https://app.zoom.us/wc/home
-    icon: us.zoom.Zoom
+    icon: zoom-desktop
 
 # Deliberately NOT automated this run - see AGENTS.md Current Status:
 #
@@ -166,6 +157,18 @@ apps_webapps:
 #            one owner per responsibility. Their XFCE libraries (exo,
 #            libxfce4ui, libxfce4util, xfconf) go with them via -Rs only
 #            when nothing else needs them.
+# Flatpak apps this role once installed and that are not wanted any more -
+# uninstalled (the app; the user's data under ~/.var/app stays).
+#   us.zoom.Zoom - the native Zoom (XWayland): its share toolbars are
+#            override-redirect X11 windows that get no pointer input unless
+#            the pointer came in through a managed Zoom window (measured
+#            2026-10-06: X keeps the old pointer position; "Stop share",
+#            mute etc. never receive the click - Zoom looked frozen). Its
+#            Wayland setting (xwayland=false) is ignored by the Flatpak
+#            build. Replaced by the web client (apps_webapps "Zoom").
+apps_retired_flatpak_packages:
+  - us.zoom.Zoom
+
 apps_retired_packages:
   - chipass
   - thunar-archive-plugin

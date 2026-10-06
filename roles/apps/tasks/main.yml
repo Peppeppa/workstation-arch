@@ -65,6 +65,14 @@
     mode: "0755"
   tags: apps
 
+- name: Remove retired Flatpak applications
+  become: true
+  community.general.flatpak:
+    name: "{{ apps_retired_flatpak_packages }}"
+    method: system
+    state: absent
+  tags: apps
+
 - name: Web app launcher entries
   ansible.builtin.template:
     src: webapp.desktop.j2
