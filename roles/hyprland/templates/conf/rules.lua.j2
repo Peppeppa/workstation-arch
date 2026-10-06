@@ -1,0 +1,32 @@
+-- Managed by Ansible (roles/hyprland/templates/conf/rules.lua.j2) - do not
+-- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
+--
+-- Window rules for applications whose windows Hyprland would otherwise
+-- lay out against the application's intent. Only rules with a measured
+-- reason belong here - each names the app and the evidence.
+return function(v)
+    -- Zoom (Flathub us.zoom.Zoom, XWayland) while sharing the screen opens
+    -- an invisible, full-screen annotation overlay "annotate_toolbar". Zoom
+    -- means it to float; Hyprland tiled it (1878x1012 at the tiling origin),
+    -- so it sat over the share toolbar and took its clicks - "Stop share"
+    -- and the label row only reached the overlay (and its border grab
+    -- zone, hence a resize cursor). Zoom looked frozen; it was not
+    -- (measured on the laptop, 2026-10-06: floating the overlay made Stop
+    -- share work at once).
+    hl.window_rule({
+        name  = "zoom-annotate-overlay-floats",
+        match = { class = "^zoom$", title = "^annotate_toolbar$" },
+        float = true,
+    })
+
+    -- Zoom places its share toolbar "as_toolbar" at y = 0, under the
+    -- Quickshell bar (a layer surface above all windows; floating windows
+    -- do not get the bar's exclusive zone): its icon row then received no
+    -- clicks. Centered below the bar instead - 48 px clears the bar at
+    -- every text size preset (tallest: 43 px at 18 px text).
+    hl.window_rule({
+        name  = "zoom-share-toolbar-below-bar",
+        match = { class = "^zoom$", title = "^as_toolbar$" },
+        move  = "monitor_w/2-window_w/2 48",
+    })
+end

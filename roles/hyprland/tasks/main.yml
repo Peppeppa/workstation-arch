@@ -94,7 +94,7 @@
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
-  loop: [vars, monitors, input, appearance, session, binds]
+  loop: [vars, monitors, input, appearance, session, binds, rules]
   register: hyprland_modules
   # hypridle's start command (incl. per-host environment) lives in
   # session.lua - a running hypridle must be replaced for it to apply.
