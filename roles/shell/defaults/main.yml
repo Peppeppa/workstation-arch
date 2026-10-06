@@ -1,0 +1,27 @@
+---
+# Terminal tooling + the shell integration interface (docs/feature-
+# architecture.md "Shell"). Official Arch packages only (`pacman -Si`
+# checked 2026-10), ensure-present. Already elsewhere, not repeated:
+# ripgrep, fd (roles/apps - LazyVim's requirements), fastfetch, btop
+# (roles/base), gh, lazygit (roles/development).
+#
+# Ownership: this repository owns the PACKAGES and one small, sourced
+# integration file (tool hooks only - prompt, zoxide, fzf). The user's
+# shell configuration itself (~/.bashrc beyond one source line, aliases,
+# history, ~/.config/starship.toml) is personal and belongs to the
+# dotfiles - nothing here writes it.
+shell_packages:
+  - starship    # the prompt (default config below, a personal one wins)
+  - zoxide      # `z <dir>` - frecency cd
+  - fzf         # fuzzy finder: Ctrl+R history, Ctrl+T files, Alt+C cd
+  - eza         # ls replacement (no alias set here - personal choice)
+  - bat         # cat with syntax highlighting (ANSI theme, see below)
+  - tealdeer    # `tldr` - Rust client; extra's python `tldr` is the slower
+                # alternative. Pages come with `tldr --update` (user cache)
+
+# Workstation-owned files (data, user level). The integration file is
+# sourced by ONE line in ~/.bashrc (shell_bashrc_hook) - added only while
+# ~/.bashrc is a plain file; a symlinked ~/.bashrc (dotfiles/stow) is
+# never written: the dotfiles then carry that line themselves.
+shell_share_dir: "{{ ansible_facts.user_dir }}/.local/share/workstation/shell"
+shell_bashrc_hook: '[[ -r ~/.local/share/workstation/shell/bashrc ]] && . ~/.local/share/workstation/shell/bashrc  # workstation-arch shell integration'

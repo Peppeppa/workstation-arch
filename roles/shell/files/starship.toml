@@ -1,0 +1,48 @@
+# workstation-arch default Starship prompt (roles/shell) - used only while
+# there is no ~/.config/starship.toml. Lightweight on purpose (after
+# Omarchy's): directory, git, exit status. Named ANSI colors only, so the
+# prompt follows the active workstation theme through the terminal palette.
+add_newline = true
+command_timeout = 200
+format = "$directory$git_branch$git_status$python$cmd_duration$character"
+
+[character]
+success_symbol = "[❯](bold cyan)"
+error_symbol = "[✗](bold red)"
+
+[directory]
+truncation_length = 2
+truncation_symbol = "…/"
+style = "bold blue"
+repo_root_style = "bold cyan"
+repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
+
+[git_branch]
+format = "[$branch]($style) "
+style = "italic cyan"
+
+[git_status]
+format = '[$all_status$ahead_behind]($style)'
+style = "yellow"
+ahead = "⇡${count} "
+behind = "⇣${count} "
+diverged = "⇕⇡${ahead_count}⇣${behind_count} "
+conflicted = "= "
+untracked = "? "
+modified = "! "
+staged = "+ "
+renamed = "» "
+deleted = "✘ "
+stashed = ""
+up_to_date = ""
+
+[python]
+format = '[(\($virtualenv\) )]($style)'
+style = "yellow"
+detect_extensions = []
+detect_files = []
+
+[cmd_duration]
+min_time = 5000
+format = "[$duration]($style) "
+style = "dimmed"

@@ -1,0 +1,28 @@
+# workstation-arch shell integration (roles/shell) - managed by Ansible,
+# do not edit: personal settings belong in ~/.bashrc / the dotfiles.
+# Sourced by one line in ~/.bashrc. Tool hooks only, each only if the tool
+# exists; nothing here runs in the background.
+
+[[ $- == *i* ]] || return 0
+
+# Prompt: Starship. ~/.config/starship.toml (personal) wins; without one
+# the workstation default below is used. Colors are the terminal's ANSI
+# palette, i.e. the active workstation theme (Ghostty).
+if [[ ${TERM:-} != dumb ]] && command -v starship >/dev/null; then
+    if [[ -z ${STARSHIP_CONFIG:-} && ! -e ${XDG_CONFIG_HOME:-$HOME/.config}/starship.toml ]]; then
+        export STARSHIP_CONFIG=$HOME/.local/share/workstation/shell/starship.toml
+    fi
+    eval "$(starship init bash)"
+fi
+
+# zoxide: `z <part of a dir>`, `zi` interactive.
+command -v zoxide >/dev/null && eval "$(zoxide init bash)"
+
+# fzf: Ctrl+R (history), Ctrl+T (files), Alt+C (cd), ** completion.
+command -v fzf >/dev/null && eval "$(fzf --bash)"
+
+# bat: the terminal's own 16 colors (= the workstation theme) unless the
+# user chose a theme (BAT_THEME or ~/.config/bat/config).
+if [[ -z ${BAT_THEME:-} && ! -e ${XDG_CONFIG_HOME:-$HOME/.config}/bat/config ]]; then
+    export BAT_THEME=ansi
+fi

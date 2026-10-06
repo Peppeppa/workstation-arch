@@ -135,6 +135,11 @@
     - role: development
       tags: [development]
 
+    # Terminal tools (Starship, zoxide, fzf, eza, bat, tldr) + one sourced
+    # shell integration file; personal shell config stays in the dotfiles.
+    - role: shell
+      tags: [shell]
+
     - role: virtualization
       tags: [virtualization]
 

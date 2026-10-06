@@ -1,0 +1,55 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here.
+- name: Install terminal tools
+  become: true
+  community.general.pacman:
+    name: "{{ shell_packages }}"
+    state: present
+  tags: shell
+
+- name: Create the shell integration directory
+  ansible.builtin.file:
+    path: "{{ shell_share_dir }}"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: shell
+
+- name: Deploy the shell integration and the default Starship config
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ shell_share_dir }}/{{ item }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop:
+    - bashrc
+    - starship.toml
+  tags: shell
+
+# The one line in ~/.bashrc - only while ~/.bashrc is the user's plain
+# file. A symlink (dotfiles/stow) is the dotfiles' to change.
+- name: Check ~/.bashrc
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.user_dir }}/.bashrc"
+  register: shell_bashrc
+  tags: shell
+
+- name: Source the shell integration from ~/.bashrc
+  when: not (shell_bashrc.stat.islnk | default(false))
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_facts.user_dir }}/.bashrc"
+    line: "{{ shell_bashrc_hook }}"
+    create: true
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: shell
+
+- name: Report a dotfiles-managed ~/.bashrc
+  when: shell_bashrc.stat.islnk | default(false)
+  ansible.builtin.debug:
+    msg: "~/.bashrc is a symlink (dotfiles) - not changed. Add this line there: {{ shell_bashrc_hook }}"
+  tags: shell
