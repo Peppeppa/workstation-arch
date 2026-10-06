@@ -9,7 +9,7 @@
 // So the process exists exactly while Night is on - no daemon otherwise,
 // no schedule, no polling, no slider.
 //
-// Fade (1 s): hyprsunset starts neutral (--identity) and is stepped from
+// Fade (0.5 s): hyprsunset starts neutral (--identity) and is stepped from
 // 6500 K to 4500 K over its IPC (`hyprctl hyprsunset temperature N`,
 // ~5 ms each), 10 steps; switching back steps up to 6500 K first and only
 // then ends the process. The step timer exists only while fading. At most
@@ -32,7 +32,7 @@ Singleton {
     readonly property int temperature: 4500     // K - lightly orange
     readonly property int neutral: 6500         // K - no visible tint
     readonly property int steps: 10
-    readonly property int fadeMs: 1000
+    readonly property int fadeMs: 500
 
     property bool active: false                 // Night (the target, set at the click)
     property bool busy: false                   // a fade is running
