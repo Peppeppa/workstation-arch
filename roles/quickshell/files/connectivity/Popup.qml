@@ -2,7 +2,8 @@
 // QUICK CONTROL (v2). Managed by Ansible: do not edit by hand, see
 // roles/quickshell in workstation-arch. See docs/feature-architecture.md
 // "Network". Administration (VPN add/import/edit/delete, Ethernet/static
-// IP/DNS, WPA-Enterprise) is nm-connection-editor (OS menu -> Network).
+// IP/DNS, WPA-Enterprise) is nm-connection-editor: the popup's own
+// "Connections..." button at the bottom, or OS menu -> Network.
 //
 // A BarPopup (click outside / Escape closes, exists only while open).
 //   Status   NetworkManager's connectivity (portal -> "Login required":
@@ -1207,6 +1208,15 @@ BarPopup {
                 color: Colors.error
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 2
+            }
+
+            // The escape hatch for everything this popup deliberately does
+            // not do (VPN import/edit, static IP/DNS, 802.1X, Ethernet).
+            PopupButton {
+                Layout.alignment: Qt.AlignRight
+                Layout.topMargin: 4
+                label: "Connections\u2026"
+                onClicked: popup.openSettings()
             }
         }
     }
