@@ -37,6 +37,42 @@
     group: root
   tags: display_manager
 
+# The login background tried on 2026-10-06 (a durdraw picture + its own
+# tty2 console palette) was dropped - Ly stays plain black. Its deployed
+# artifacts go, and the config keys it set return to Ly's built-in
+# defaults (animation none, frame delay 5) by being removed again.
+- name: Remove the retired Ly background files (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/ly/workstation-background.dur
+    - "/etc/systemd/system/ly@{{ display_manager_tty }}.service.d/palette.conf"
+    - "/etc/systemd/system/ly@{{ display_manager_tty }}.service.d/palette-test.conf"
+    - "/etc/systemd/system/ly@{{ display_manager_tty }}.service.d"
+  register: display_manager_retired
+  tags: display_manager
+
+- name: Reload systemd after removing the Ly drop-in (display_manager_enabled)
+  when: display_manager_enabled and display_manager_retired is changed
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  tags: display_manager
+
+- name: Remove the retired Ly background keys (display_manager_enabled)
+  when: display_manager_enabled
+  become: true
+  community.general.ini_file:
+    path: /etc/ly/config.ini
+    section: null
+    option: "{{ item }}"
+    state: absent
+  loop: [animation, animation_frame_delay, dur_file_path, dur_offset_alignment]
+  tags: display_manager
+
 - name: Ly settings in /etc/ly/config.ini (display_manager_enabled)
   when: display_manager_enabled
   become: true
