@@ -137,6 +137,59 @@ sed -i 's|^  plugin: .*|  plugin: "x\\" os.execute()"|' "$tmp/themes/$dark/theme
 "$T" validate >/dev/null 2>&1; [ $? -eq 1 ]; check "malformed neovim plugin makes the theme invalid" $?
 cp "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml"
 
+# Theme sources: the compiler on fixture repositories (offline) - data
+# only: commented-out Lua ignored, color tables taken, non-color btop lines
+# and symlinked files dropped, unknown files reported, ids/names derived.
+python3 - "$T" "$tmp" <<'EOF' || fail=1
+import os, sys
+from importlib.machinery import SourceFileLoader
+t = SourceFileLoader("theme", sys.argv[1]).load_module()
+tmp = sys.argv[2]
+bad = []
+def check(name, cond):
+    if not cond:
+        bad.append(name)
+src = os.path.join(tmp, "fixture")
+os.makedirs(os.path.join(src, "backgrounds"))
+open(os.path.join(src, "colors.toml"), "w").write(
+    'background = "#101010"\nforeground = "#e0e0e0"\naccent = "#ff8800"\n'
+    + "".join('color%d = "#%02x%02x%02x"\n' % (i, i * 10, i * 10, i * 10) for i in range(16)))
+open(os.path.join(src, "neovim.lua"), "w").write(
+    '-- return { "evil/commented.nvim", colorscheme = "nope" }\n'
+    'return {\n  { "owner/shade.nvim", branch = "v2", name = "shade",\n'
+    '    opts = { colors = { bg = "#101010", fg = "#E0E0E0", ["end"] = "x" } } },\n'
+    '  { "LazyVim/LazyVim", opts = { colorscheme = "shade" } },\n}\n')
+open(os.path.join(src, "btop.theme"), "w").write(
+    'theme[main_bg]="#101010"\ntheme[x]="$(touch /tmp/pwned)"\nos.execute("x")\n')
+open(os.path.join(src, "waybar.css"), "w").write("* {}")
+os.symlink("/etc/passwd", os.path.join(src, "ghostty.conf"))
+os.makedirs(t.SOURCES_DIR, exist_ok=True)
+entry = {"id": "fixture", "name": "Fixture", "url": "https://example.org/x/omarchy-fixture-theme",
+         "commit": "0" * 40, "mode": "dark"}
+report = t.compile_source(src, entry)
+theme, errors = t.load_theme("fixture")
+check("compiled theme valid: %s" % errors, theme is not None)
+if theme:
+    n = theme["neovim"] or {}
+    check("neovim plugin from code, not comment", n.get("plugin") == "owner/shade.nvim" and n.get("colorscheme") == "shade")
+    check("neovim branch/name", n.get("branch") == "v2" and n.get("name") == "shade")
+    check("neovim colors = hex pairs only", n.get("colors") == {"bg": "#101010", "fg": "#e0e0e0"})
+    check("accent from colors.toml", theme["colors"]["accent"] == "#ff8800")
+with open(os.path.join(t.COMPILED_DIR, "fixture", "btop.theme")) as f:
+    check("btop keeps color lines only", f.read() == 'theme[main_bg]="#101010"\n')
+check("symlinked ghostty.conf not read", "ghostty.conf" not in report["used"])
+check("unknown files reported", "waybar.css" in report["ignored"])
+check("id/name derived", t.derive_id_name("https://github.com/o/omarchy-retro-82-theme") == ("retro-82", "Retro 82"))
+for url in ("http://x/y", "https://h/a@b", "https://h/../x", "file:///etc", "https://h/a b"):
+    try:
+        t.check_url(url)
+        bad.append("url accepted: " + url)
+    except t.ThemeError:
+        pass
+print("\n".join("FAIL theme sources: " + b for b in bad))
+sys.exit(1 if bad else 0)
+EOF
+
 # Concurrency: an even number of parallel toggles ends in the start mode
 # (it lost updates before the helper serialised its writes).
 printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"
