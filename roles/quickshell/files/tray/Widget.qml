@@ -166,10 +166,16 @@ Item {
     }
 
     // Loaded by path (feature widget): its own files by relative path too.
+    // The source is cleared when the menu closes: left set, re-activating
+    // the Loader first re-created Menu.qml from it WITHOUT the properties
+    // (owner/item null - TypeError in BarPopup) before setSource ran.
     Loader {
         id: menuLoader
         active: tray.menuItem !== null && tray.menuEntry !== null
-        onActiveChanged: if (active) setSource("Menu.qml", { owner: tray.menuEntry, ownerBar: tray.bar, item: tray.menuItem })
+        onActiveChanged: {
+            if (active) setSource("Menu.qml", { owner: tray.menuEntry, ownerBar: tray.bar, item: tray.menuItem });
+            else source = "";
+        }
     }
 
     Connections {

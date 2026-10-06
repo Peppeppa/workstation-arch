@@ -124,16 +124,21 @@ ColumnLayout {
                 }
             }
 
-            // Submenu, inline. Only instantiated while expanded.
+            // Submenu, inline. Only instantiated while expanded. The source
+            // is cleared on collapse (see Widget.qml's menu Loader: a kept
+            // source is re-created without properties on re-expand).
             Loader {
                 Layout.fillWidth: true
                 active: row.modelData.hasChildren && row.expanded
                 visible: active
-                onActiveChanged: if (active) setSource("MenuLevel.qml", {
-                    handle: row.modelData,
-                    fontSize: level.fontSize,
-                    depth: level.depth + 1
-                })
+                onActiveChanged: {
+                    if (active) setSource("MenuLevel.qml", {
+                        handle: row.modelData,
+                        fontSize: level.fontSize,
+                        depth: level.depth + 1
+                    });
+                    else source = "";
+                }
                 onLoaded: item.entryTriggered.connect(level.entryTriggered)
             }
         }
