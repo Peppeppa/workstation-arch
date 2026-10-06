@@ -30,6 +30,16 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0755"
 
+# Theme sources (themes/sources.yml): each pinned Omarchy theme repository
+# fetched at its exact commit and compiled by the helper's SAFE importer
+# (data only - nothing from a repository runs). Network only when a source
+# is missing or its pin changed; afterwards themes need none.
+- name: Install the pinned theme sources (themes/sources.yml)
+  ansible.builtin.command:
+    cmd: "{{ ansible_facts.user_dir }}/.local/bin/theme sync-sources"
+  register: theme_sources
+  changed_when: theme_sources.stdout == "changed"
+
 - name: Validate every theme directory
   ansible.builtin.command:
     cmd: "{{ ansible_facts.user_dir }}/.local/bin/theme validate"
@@ -55,3 +65,36 @@
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ ansible_facts.user_uid }}/bus"
   register: theme_apply
   changed_when: theme_apply.stdout == "changed"
+
+# btop: its theme file follows the active workstation theme (the helper
+# writes ~/.config/workstation/theme/btop.theme - the theme's own btop
+# payload or one from its palette); btop reads it at start. btop.conf is
+# btop's own file (it rewrites it on exit): created only if missing, with
+# just the theme name - an existing one is never touched.
+- name: Ensure ~/.config/btop/themes exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/btop/themes"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+
+- name: btop's workstation theme follows the active theme
+  ansible.builtin.file:
+    src: "{{ ansible_facts.user_dir }}/.config/workstation/theme/btop.theme"
+    dest: "{{ ansible_facts.user_dir }}/.config/btop/themes/workstation.theme"
+    state: link
+    force: true
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+
+- name: Select the workstation theme in a new btop.conf (only if missing)
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts.user_dir }}/.config/btop/btop.conf"
+    content: |
+      #? Created by workstation-arch (roles/theme) - btop adds its defaults.
+      color_theme = "workstation"
+    force: false
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"

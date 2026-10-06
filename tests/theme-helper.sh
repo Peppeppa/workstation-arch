@@ -35,7 +35,7 @@ with open(dst, "w") as f:
 EOF
 chmod +x "$tmp/theme"
 mkdir -p "$tmp/run"
-export XDG_CONFIG_HOME="$tmp/cfg" XDG_RUNTIME_DIR="$tmp/run" PATH="$tmp/stub:$PATH"
+export XDG_CONFIG_HOME="$tmp/cfg" XDG_DATA_HOME="$tmp/data" XDG_RUNTIME_DIR="$tmp/run" PATH="$tmp/stub:$PATH"
 unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY
 T="$tmp/theme"
 state="$tmp/cfg/workstation/theme-state"

@@ -1,0 +1,19 @@
+# Theme sources: Omarchy-style theme repositories, each pinned to the exact
+# commit that was tested. Written by `theme import` / `theme remove`
+# (Appearance -> Theme -> Import) - commit the change to keep the theme on
+# the next installation; provisioning (`theme sync-sources`, roles/theme)
+# installs exactly these. An id that also exists under themes/ is that
+# bundled theme's source: its theme.yml stays authoritative, the source adds
+# backgrounds and app payloads. Repositories are data, never executed -
+# see docs/DESIGN_SYSTEM.md "Theme sources".
+sources:
+- id: retro-82
+  name: Retro 82
+  url: https://github.com/OldJobobo/omarchy-retro-82-theme
+  commit: b73914de6cd24af3c05f3c8213a877cf3d48917e
+  mode: dark
+- id: solarized-dark
+  name: Solarized Dark
+  url: https://github.com/Gazler/omarchy-solarized-theme
+  commit: 236840f05449f1becfafd1f5995c2c5c9c79ca70
+  mode: dark

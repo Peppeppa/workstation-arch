@@ -27,9 +27,28 @@
 #                                  per theme), apply
 #   theme text-size [<px>]         print / set the desktop text size (one of
 #                                  TEXT_SIZES), apply
+#   theme import <url> dark|light  clone an Omarchy theme repository (pinned to its
+#                                  current commit), compile it, add it to the manifest
+#   theme remove <id>              remove an imported theme (never the selected
+#                                  dark/light theme, never a bundled one)
+#   theme sync-sources             provisioning: every manifest entry present at its
+#                                  pinned commit and compiled. Prints changed/unchanged.
 #
 # Theme registry = the theme directories themselves (no list anywhere else):
-#   <THEMES_DIR>/<id>/{dark|light, theme.yml, backgrounds/}
+#   <THEMES_DIR>/<id>/{dark|light, theme.yml, backgrounds/}      bundled (the repo)
+#   <COMPILED_DIR>/<id>/{dark|light, theme.yml, backgrounds/...}  imported (user data)
+# A theme id may live in both (a bundled theme associated with its source
+# repository): the bundled theme.yml and marker win (curated palette), the
+# compiled directory adds the source's backgrounds and app payloads.
+#
+# Theme sources (THEMES_DIR/sources.yml, the manifest): Omarchy theme
+# repositories pinned to an exact commit. They are UNTRUSTED DATA: cloned
+# with hooks, submodules, symlinks, filters, credential helpers and every
+# non-https protocol off, then only known files are READ and parsed
+# (colors.toml / alacritty.toml / ghostty.conf / hyprland.conf palettes,
+# neovim.lua as text, btop.theme line by line, backgrounds/ referenced) -
+# nothing in them is ever executed, sourced or copied as configuration.
+# Everything else is listed as ignored in the compiled theme's source.json.
 #
 # Outputs (~/.config/workstation/theme/): colors.json (Quickshell: colors +
 # wallpaper + text size), hyprland.lua, hyprlock.conf, ghostty (colors +
@@ -64,15 +83,21 @@ import fcntl
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
+import tomllib
 
 import yaml
 
 THEMES_DIR = "{{ theme_dir }}"
+MANIFEST = os.path.join(THEMES_DIR, "sources.yml")
 CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+DATA_HOME = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+SOURCES_DIR = os.path.join(DATA_HOME, "workstation", "themes", "sources")
+COMPILED_DIR = os.path.join(DATA_HOME, "workstation", "themes", "compiled")
 STATE_FILE = os.path.join(CONFIG_HOME, "workstation", "theme-state")
 OUT_DIR = os.path.join(CONFIG_HOME, "workstation", "theme")
 
@@ -110,9 +135,16 @@ class ThemeError(Exception):
 
 # --- discovery / contract --------------------------------------------------
 
+def theme_dirs(theme_id):
+    """The directories of one theme id: bundled first, then compiled."""
+    return [d for d in (os.path.join(THEMES_DIR, theme_id), os.path.join(COMPILED_DIR, theme_id))
+            if os.path.isdir(d)]
+
+
 def load_theme(theme_id):
     """Return (theme, errors). theme = {id, name, mode, colors} when valid."""
-    path = os.path.join(THEMES_DIR, theme_id)
+    dirs = theme_dirs(theme_id)
+    path = dirs[0] if dirs else os.path.join(THEMES_DIR, theme_id)
     errors = []
     if not ID_RE.match(theme_id):
         errors.append("directory name must match [a-z0-9][a-z0-9-]* (it is the theme id)")
@@ -120,7 +152,10 @@ def load_theme(theme_id):
     if len(markers) != 1:
         errors.append("needs exactly one marker file 'dark' or 'light' (found: %s)"
                       % (", ".join(markers) or "none"))
-    if not os.path.isdir(os.path.join(path, "backgrounds")):
+    for other in dirs[1:]:
+        if markers and not os.path.isfile(os.path.join(other, markers[0])):
+            errors.append("its source was imported with the other mode than its bundled marker")
+    if not any(os.path.isdir(os.path.join(d, "backgrounds")) for d in dirs):
         errors.append("missing backgrounds/ directory")
     data = None
     try:
@@ -176,21 +211,50 @@ def load_theme(theme_id):
                             errors.append("neovim %s must match %s" % (k, rx.pattern))
     if errors:
         return None, errors
+    nvim = data.get("neovim")
+    btop = None
+    for d in dirs:
+        if nvim is None and d != path:
+            nvim = compiled_neovim(d)
+        if os.path.isfile(os.path.join(d, "btop.theme")):
+            btop = os.path.join(d, "btop.theme")
     return {"id": theme_id, "name": data["name"], "mode": markers[0],
             "colors": {r: data["colors"][r] for r in ROLES},
             "terminal": [data["terminal"][k] for k in TERMINAL],
-            "neovim": data.get("neovim")}, []
+            "neovim": nvim, "btop": btop, "dirs": dirs}, []
+
+
+def compiled_neovim(directory):
+    """The neovim block of a compiled theme.yml (a bundled theme without
+    its own block takes the one its source provided)."""
+    try:
+        with open(os.path.join(directory, "theme.yml"), encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError, UnicodeDecodeError):
+        return None
+    n = data.get("neovim") if isinstance(data, dict) else None
+    if not isinstance(n, dict):
+        return None
+    out = {}
+    for k, rx in (("plugin", PLUGIN_RE), ("name", NAME_RE), ("colorscheme", NAME_RE)):
+        if isinstance(n.get(k), str) and rx.match(n[k]):
+            out[k] = n[k]
+    return out if "plugin" in out and "colorscheme" in out else None
 
 
 def discover():
     """Scan the theme directories once. Returns (valid {id: theme}, invalid {id: errors})."""
     valid, invalid = {}, {}
     try:
-        entries = sorted(os.listdir(THEMES_DIR))
+        entries = set(os.listdir(THEMES_DIR))
     except FileNotFoundError:
         raise ThemeError("theme directory %s does not exist" % THEMES_DIR)
-    for entry in entries:
-        if entry.startswith(".") or not os.path.isdir(os.path.join(THEMES_DIR, entry)):
+    try:
+        entries |= set(os.listdir(COMPILED_DIR))
+    except FileNotFoundError:
+        pass
+    for entry in sorted(entries):
+        if entry.startswith(".") or not theme_dirs(entry):
             continue
         theme, errors = load_theme(entry)
         if theme:
@@ -219,16 +283,27 @@ def read_state():
     return state
 
 
+def background_paths(theme_id):
+    """{file name: path} of the theme's wallpapers: its bundled backgrounds/
+    first, then the ones its source provides (a name already taken keeps
+    the bundled file)."""
+    found = {}
+    for d in theme_dirs(theme_id):
+        path = os.path.join(d, "backgrounds")
+        try:
+            names = os.listdir(path)
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        for n in names:
+            if (n not in found and not n.startswith(".") and n.lower().endswith(WALLPAPER_EXT)
+                    and os.path.isfile(os.path.join(path, n))):
+                found[n] = os.path.join(path, n)
+    return found
+
+
 def backgrounds(theme_id):
     """The theme's wallpaper files (names), sorted - the deterministic order."""
-    path = os.path.join(THEMES_DIR, theme_id, "backgrounds")
-    try:
-        names = os.listdir(path)
-    except FileNotFoundError:
-        return []
-    return sorted(n for n in names if not n.startswith(".")
-                  and n.lower().endswith(WALLPAPER_EXT)
-                  and os.path.isfile(os.path.join(path, n)))
+    return sorted(background_paths(theme_id))
 
 
 def wallpaper(state, theme_id):
@@ -239,16 +314,17 @@ def wallpaper(state, theme_id):
     name = choice if choice in files else (files[0] if files else None)
     if name is None:
         return None
-    return {"file": name, "path": os.path.join(THEMES_DIR, theme_id, "backgrounds", name),
+    return {"file": name, "path": background_paths(theme_id)[name],
             "animated": name.lower().endswith(ANIMATED_EXT)}
 
 
 def wallpaper_list(state):
     tid = state[state["mode"]]
     current = wallpaper(state, tid)
+    paths = background_paths(tid)
     return {"theme": tid, "selected": current["file"] if current else None,
-            "backgrounds": [{"file": n, "path": os.path.join(THEMES_DIR, tid, "backgrounds", n),
-                             "animated": n.lower().endswith(ANIMATED_EXT)} for n in backgrounds(tid)]}
+            "backgrounds": [{"file": n, "path": paths[n], "animated": n.lower().endswith(ANIMATED_EXT)}
+                            for n in sorted(paths)]}
 
 
 def text_size(state):
@@ -344,12 +420,58 @@ def render(state, valid):
                    + "".join("palette = %d=%s\n" % (i, v) for i, v in enumerate(theme["terminal"]))
                    + "font-size = %g\n" % ghostty_pt,
         "neovim.lua": render_neovim_spec(valid),
+        # btop: ~/.config/btop/themes/workstation.theme links here
+        # (roles/theme); read at btop's start - no live reload exists.
+        "btop.theme": render_btop(theme),
         # Neovim: the active theme's colorscheme (neovim.lua applies it)
         "neovim-current.lua": "-- generated by `theme` - do not edit\nreturn {\n"
                               + '    theme = "%s",\n' % theme["id"]
                               + '    colorscheme = "%s",\n' % (theme["neovim"] or {}).get("colorscheme", "default")
                               + '    background = "%s",\n' % theme["mode"] + "}\n",
     }
+
+
+BTOP_LINE = re.compile(r'^theme\[([a-z_]+)\]\s*=\s*"(#[0-9a-fA-F]{6}|)"\s*$')
+
+
+def btop_lines(text):
+    """Only btop color assignments - a theme file is data, nothing else passes."""
+    out = []
+    for line in text.splitlines():
+        m = BTOP_LINE.match(line.strip())
+        if m:
+            out.append('theme[%s]="%s"' % (m.group(1), m.group(2).lower()))
+    return out
+
+
+def render_btop(theme):
+    if theme.get("btop"):
+        try:
+            with open(theme["btop"], encoding="utf-8", errors="replace") as f:
+                lines = btop_lines(f.read())
+            if lines:
+                return "# generated by `theme` from the theme's own btop.theme - do not edit\n" + "\n".join(lines) + "\n"
+        except OSError:
+            pass
+    c, t = theme["colors"], theme["terminal"]
+    keys = {
+        "main_bg": c["background"], "main_fg": c["foreground"], "title": c["foreground_strong"],
+        "hi_fg": c["accent"], "selected_bg": c["surface"], "selected_fg": c["foreground_strong"],
+        "inactive_fg": c["foreground_muted"], "graph_text": c["foreground"], "meter_bg": c["surface"],
+        "proc_misc": c["accent"], "cpu_box": c["border"], "mem_box": c["border"], "net_box": c["border"],
+        "proc_box": c["border"], "div_line": c["border"],
+        "temp_start": t[2], "temp_mid": t[3], "temp_end": t[1],
+        "cpu_start": t[6], "cpu_mid": t[4], "cpu_end": t[5],
+        "free_start": t[2], "free_mid": t[2], "free_end": t[10],
+        "cached_start": t[4], "cached_mid": t[4], "cached_end": t[12],
+        "available_start": t[3], "available_mid": t[3], "available_end": t[11],
+        "used_start": t[1], "used_mid": t[1], "used_end": t[9],
+        "download_start": t[6], "download_mid": t[4], "download_end": t[12],
+        "upload_start": t[5], "upload_mid": t[13], "upload_end": t[9],
+        "process_start": t[6], "process_mid": t[4], "process_end": t[5],
+    }
+    return ("# generated by `theme` from the theme's palette - do not edit\n"
+            + "".join('theme[%s]="%s"\n' % (k, v.lower()) for k, v in keys.items()))
 
 
 def render_neovim_spec(valid):
@@ -487,12 +609,437 @@ def commit(state, valid):
     return bool(changed or gtk_changed)
 
 
+# --- theme sources: Omarchy theme repositories as UNTRUSTED DATA ----------
+
+URL_RE = re.compile(r"^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._~/-]+$")
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+MAX_TEXT = 256 * 1024          # bytes of one source file we parse
+# Files the compiler understands; everything else is reported as ignored.
+KNOWN = ("colors.toml", "alacritty.toml", "ghostty.conf", "hyprland.conf",
+         "neovim.lua", "btop.theme", "backgrounds")
+
+
+def check_url(url):
+    if not (isinstance(url, str) and len(url) < 300 and URL_RE.match(url) and ".." not in url):
+        raise ThemeError("not a plain https repository URL (https://host/owner/repo): %r" % url)
+    return url.rstrip("/")
+
+
+def derive_id_name(url):
+    """omarchy-retro-82-theme -> ('retro-82', 'Retro 82')"""
+    repo = url.rstrip("/").split("/")[-1]
+    repo = re.sub(r"\.git$", "", repo).lower()
+    repo = re.sub(r"^omarchy-", "", repo)
+    repo = re.sub(r"-theme$", "", repo)
+    tid = re.sub(r"[^a-z0-9]+", "-", repo).strip("-")
+    if not tid or not ID_RE.match(tid):
+        raise ThemeError("cannot derive a theme id from %r" % url)
+    return tid, " ".join(w if w.isdigit() else w.capitalize() for w in tid.split("-"))
+
+
+def read_manifest():
+    try:
+        with open(MANIFEST, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return []
+    except (yaml.YAMLError, UnicodeDecodeError) as e:
+        raise ThemeError("%s is not valid YAML: %s" % (MANIFEST, str(e).splitlines()[0]))
+    entries = data.get("sources") or [] if isinstance(data, dict) else []
+    out = []
+    for e in entries:
+        if not (isinstance(e, dict) and isinstance(e.get("id"), str) and ID_RE.match(e["id"])
+                and isinstance(e.get("commit"), str) and SHA_RE.match(e["commit"])
+                and e.get("mode") in MODES and isinstance(e.get("name"), str) and e["name"]):
+            raise ThemeError("invalid entry in %s: %r" % (MANIFEST, e))
+        check_url(e.get("url"))
+        out.append({k: e[k] for k in ("id", "name", "url", "commit", "mode")})
+    return out
+
+
+MANIFEST_HEADER = """\
+# Theme sources: Omarchy-style theme repositories, each pinned to the exact
+# commit that was tested. Written by `theme import` / `theme remove`
+# (Appearance -> Theme -> Import) - commit the change to keep the theme on
+# the next installation; provisioning (`theme sync-sources`, roles/theme)
+# installs exactly these. An id that also exists under themes/ is that
+# bundled theme's source: its theme.yml stays authoritative, the source adds
+# backgrounds and app payloads. Repositories are data, never executed -
+# see docs/DESIGN_SYSTEM.md "Theme sources".
+"""
+
+
+def write_manifest(entries):
+    text = MANIFEST_HEADER + yaml.safe_dump({"sources": entries}, sort_keys=False, allow_unicode=True)
+    write_files({MANIFEST: text})
+
+
+def git(args, cwd=None, timeout=600):
+    """git with everything a repository could use to run code switched off."""
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.path.expanduser("~"),
+           "LC_ALL": "C", "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/bin/false",
+           "SSH_ASKPASS": "/bin/false", "GCM_INTERACTIVE": "never",
+           "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"}
+    safe = ["-c", "core.hooksPath=/dev/null", "-c", "core.symlinks=false",
+            "-c", "core.fsmonitor=false", "-c", "protocol.allow=never",
+            "-c", "protocol.https.allow=always", "-c", "submodule.recurse=false",
+            "-c", "credential.helper=", "-c", "advice.detachedHead=false"]
+    try:
+        r = subprocess.run(["git"] + safe + args, cwd=cwd, env=env, capture_output=True,
+                           text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise ThemeError("git timed out: %s" % " ".join(args[:2]))
+    if r.returncode != 0:
+        raise ThemeError("git %s failed: %s" % (args[0], (r.stderr.strip().splitlines() or ["?"])[-1]))
+    return r.stdout.strip()
+
+
+def fetch_source(url, ref):
+    """Shallow checkout of url at ref (a pinned commit or HEAD) into a new
+    temporary directory below SOURCES_DIR; returns (dir, commit)."""
+    os.makedirs(SOURCES_DIR, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix=".fetch-", dir=SOURCES_DIR)
+    try:
+        git(["init", "-q", "--template=", tmp])
+        git(["remote", "add", "origin", url], cwd=tmp)
+        git(["fetch", "-q", "--depth", "1", "--no-tags", "--no-recurse-submodules", "origin", ref], cwd=tmp)
+        git(["checkout", "-q", "--detach", "FETCH_HEAD"], cwd=tmp)
+        commit = git(["rev-parse", "HEAD"], cwd=tmp)
+        if ref != "HEAD" and commit != ref:
+            raise ThemeError("%s is at %s, not the pinned %s" % (url, commit, ref))
+        return tmp, commit
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+
+
+def read_source_file(src, name):
+    """A regular (non-symlink) file of the source, at most MAX_TEXT bytes, or None."""
+    path = os.path.join(src, name)
+    if os.path.islink(path) or not os.path.isfile(path) or os.path.getsize(path) > MAX_TEXT:
+        return None
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+def hexcolor(v):
+    if isinstance(v, str):
+        v = v.strip().strip("'\"")
+        if re.match(r"^#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$", v):
+            return "#" + v.lstrip("#")[:6].lower()
+    return None
+
+
+def rgb(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def luminance(h):
+    def ch(c):
+        c /= 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (ch(c) for c in rgb(h))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def mix(a, b, t):
+    return "#%02x%02x%02x" % tuple(round(x + (y - x) * t) for x, y in zip(rgb(a), rgb(b)))
+
+
+def source_palette(src, used, notes):
+    """bg/fg/accent/16 terminal colors (+ optional hints) from the first
+    palette file the source has - parsed as data (TOML / key=value)."""
+    pal = {}
+    text = read_source_file(src, "colors.toml")
+    if text is not None:
+        try:
+            d = tomllib.loads(text)
+            pal = {"bg": hexcolor(d.get("background")), "fg": hexcolor(d.get("foreground")),
+                   "accent": hexcolor(d.get("accent")), "muted": hexcolor(d.get("muted")),
+                   "surface": hexcolor(d.get("lighter_bg")), "strong": hexcolor(d.get("bright_fg")),
+                   "mode": d.get("mode") if d.get("mode") in MODES else None,
+                   "terminal": [hexcolor(d.get("color%d" % i)) for i in range(16)]}
+            used.append("colors.toml")
+        except tomllib.TOMLDecodeError as e:
+            notes.append("colors.toml unreadable: %s" % e)
+    if not pal.get("bg") or None in pal.get("terminal", [None]):
+        text = read_source_file(src, "alacritty.toml")
+        if text is not None:
+            try:
+                c = tomllib.loads(text).get("colors", {})
+                names = ("black", "red", "green", "yellow", "blue", "magenta", "cyan", "white")
+                prim = c.get("primary", {})
+                pal = {"bg": hexcolor(prim.get("background")), "fg": hexcolor(prim.get("foreground")),
+                       "terminal": [hexcolor(c.get(part, {}).get(n)) for part in ("normal", "bright") for n in names]}
+                used.append("alacritty.toml")
+            except (tomllib.TOMLDecodeError, AttributeError) as e:
+                notes.append("alacritty.toml unreadable: %s" % e)
+    if not pal.get("bg") or None in pal.get("terminal", [None]):
+        text = read_source_file(src, "ghostty.conf")
+        if text is not None:
+            g = {"terminal": [None] * 16}
+            for line in text.splitlines():
+                m = re.match(r"^\s*(background|foreground)\s*=\s*(#?[0-9a-fA-F]{6})\s*$", line)
+                if m:
+                    g["bg" if m.group(1) == "background" else "fg"] = hexcolor(m.group(2))
+                m = re.match(r"^\s*palette\s*=\s*([0-9]{1,2})\s*=\s*(#?[0-9a-fA-F]{6})\s*$", line)
+                if m and int(m.group(1)) < 16:
+                    g["terminal"][int(m.group(1))] = hexcolor(m.group(2))
+            pal = g
+            used.append("ghostty.conf")
+    text = read_source_file(src, "hyprland.conf")
+    if text is not None:
+        m = re.search(r"col\.active_border\s*=\s*rgba?\(\s*([0-9a-fA-F]{6})", text)
+        if m:
+            pal.setdefault("border_hint", "#" + m.group(1).lower())
+            used.append("hyprland.conf")
+    if not pal.get("bg") or not pal.get("fg") or None in pal.get("terminal", [None]):
+        raise ThemeError("no usable palette (colors.toml, alacritty.toml or ghostty.conf with "
+                         "background, foreground and 16 terminal colors)")
+    return pal
+
+
+def derive_roles(pal):
+    """Our semantic roles from a source palette - only where the source has
+    no direct value; contrast decides between candidates."""
+    bg, fg, t = pal["bg"], pal["fg"], pal["terminal"]
+    accent = pal.get("accent") or pal.get("border_hint") or t[4]
+    strong = max([c for c in (pal.get("strong"), t[15], fg) if c], key=lambda c: contrast(c, bg))
+    muted = pal.get("muted")
+    if not muted or contrast(muted, bg) < 2.0:
+        muted = mix(bg, fg, 0.55)
+    surface = pal.get("surface")
+    if not surface or surface == bg:
+        surface = mix(bg, fg, 0.10)
+    return {
+        "background": bg, "surface": surface, "foreground": fg, "foreground_strong": strong,
+        "foreground_muted": muted, "accent": accent,
+        "accent_foreground": bg if contrast(accent, bg) >= contrast(accent, fg) else fg,
+        "border": mix(bg, fg, 0.25), "border_active": accent, "error": t[1],
+    }
+
+
+def strip_lua_comments(text):
+    text = re.sub(r"--\[(=*)\[.*?\]\1\]", "", text, flags=re.S)
+    out = []
+    for line in text.splitlines():
+        quote, i = None, 0
+        while i < len(line):
+            ch = line[i]
+            if quote:
+                if ch == "\\":
+                    i += 1
+                elif ch == quote:
+                    quote = None
+            elif ch in "'\"":
+                quote = ch
+            elif line.startswith("--", i):
+                line = line[:i]
+                break
+            i += 1
+        out.append(line)
+    return "\n".join(out)
+
+
+def source_neovim(src, used):
+    """{plugin, name?, colorscheme} from neovim.lua read as TEXT (never run):
+    the first plugin string other than LazyVim, its name = ..., and
+    colorscheme = ...; each value regex-checked."""
+    text = read_source_file(src, "neovim.lua")
+    if text is None:
+        return None
+    code = strip_lua_comments(text)
+    plugin = next((m for m in re.finditer(r"""["']([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)["']""", code)
+                   if m.group(1) != "LazyVim/LazyVim"), None)
+    scheme = re.search(r"""colorscheme\s*=\s*["']([A-Za-z0-9_.-]+)["']""", code)
+    if not plugin or not scheme:
+        return None
+    out = {"plugin": plugin.group(1), "colorscheme": scheme.group(1)}
+    table_end = code.find("}", plugin.end())
+    name = re.search(r"""\bname\s*=\s*["']([A-Za-z0-9_.-]+)["']""", code[plugin.end():table_end if table_end > 0 else None])
+    if name:
+        out["name"] = name.group(1)
+    used.append("neovim.lua")
+    return out
+
+
+def compile_source(src, entry):
+    """Normalize a fetched source into COMPILED_DIR/<id> (atomically):
+    marker, theme.yml (palette -> roles + terminal, neovim), btop.theme
+    (color lines only), backgrounds -> the source's backgrounds/, and
+    source.json (url, commit, what was used / ignored)."""
+    used, notes = [], []
+    pal = source_palette(src, used, notes)
+    if pal.get("mode") and pal["mode"] != entry["mode"]:
+        notes.append("the source says %s, imported as %s (your choice)" % (pal["mode"], entry["mode"]))
+    theme = {"name": entry["name"], "colors": derive_roles(pal),
+             "terminal": dict(zip(TERMINAL, pal["terminal"]))}
+    nvim = source_neovim(src, used)
+    if nvim:
+        theme["neovim"] = nvim
+    btop_text = read_source_file(src, "btop.theme")
+    btop = btop_lines(btop_text) if btop_text else []
+    if btop:
+        used.append("btop.theme")
+    bg_src = os.path.join(src, "backgrounds")
+    has_bg = os.path.isdir(bg_src) and not os.path.islink(bg_src)
+    if has_bg:
+        used.append("backgrounds")
+    ignored = sorted(n for n in os.listdir(src) if n not in KNOWN and n != ".git" and n not in used)
+
+    os.makedirs(COMPILED_DIR, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix=".compile-", dir=COMPILED_DIR)
+    try:
+        open(os.path.join(tmp, entry["mode"]), "w").close()
+        with open(os.path.join(tmp, "theme.yml"), "w", encoding="utf-8") as f:
+            f.write("# compiled by `theme` from %s @ %s - do not edit\n" % (entry["url"], entry["commit"]))
+            yaml.safe_dump(theme, f, sort_keys=False, allow_unicode=True)
+        if btop:
+            with open(os.path.join(tmp, "btop.theme"), "w", encoding="utf-8") as f:
+                f.write("\n".join(btop) + "\n")
+        if has_bg:
+            os.symlink(os.path.join(SOURCES_DIR, entry["id"], "backgrounds"), os.path.join(tmp, "backgrounds"))
+        else:
+            os.mkdir(os.path.join(tmp, "backgrounds"))
+        with open(os.path.join(tmp, "source.json"), "w", encoding="utf-8") as f:
+            json.dump({"url": entry["url"], "commit": entry["commit"], "mode": entry["mode"],
+                       "used": used, "ignored": ignored, "notes": notes}, f, indent=2)
+        for root, dirs, files in os.walk(tmp):
+            for n in dirs + files:
+                p = os.path.join(root, n)
+                if not os.path.islink(p):
+                    os.chmod(p, 0o755 if os.path.isdir(p) else 0o644)
+        os.chmod(tmp, 0o755)
+        replace_dir(tmp, os.path.join(COMPILED_DIR, entry["id"]))
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    return {"used": used, "ignored": ignored, "notes": notes}
+
+
+def replace_dir(new, final):
+    old = None
+    if os.path.lexists(final):
+        old = final + ".old-%d" % os.getpid()
+        os.rename(final, old)
+    os.rename(new, final)
+    if old:
+        shutil.rmtree(old, ignore_errors=True)
+
+
+def source_commit(theme_id):
+    path = os.path.join(SOURCES_DIR, theme_id)
+    if not os.path.isdir(os.path.join(path, ".git")):
+        return None
+    try:
+        return git(["rev-parse", "HEAD"], cwd=path, timeout=30)
+    except ThemeError:
+        return None
+
+
+def compiled_commit(theme_id):
+    try:
+        with open(os.path.join(COMPILED_DIR, theme_id, "source.json"), encoding="utf-8") as f:
+            return json.load(f).get("commit")
+    except (OSError, ValueError):
+        return None
+
+
+def lock():
+    os.makedirs(OUT_DIR, exist_ok=True)
+    handle = open(os.path.join(OUT_DIR, ".lock"), "w")
+    fcntl.flock(handle, fcntl.LOCK_EX)
+    return handle
+
+
+def import_theme(url, mode):
+    url = check_url(url)
+    if mode not in MODES:
+        raise ThemeError("mode must be dark or light")
+    tid, name = derive_id_name(url)
+    # the slow clone runs without the lock - theme switches stay possible
+    tmp, commit = fetch_source(url, "HEAD")
+    try:
+        with lock():
+            taken = [e["id"] for e in read_manifest()]
+            if tid in taken or theme_dirs(tid) or os.path.lexists(os.path.join(SOURCES_DIR, tid)):
+                raise ThemeError("a theme with the id %r already exists - nothing was changed" % tid)
+            entry = {"id": tid, "name": name, "url": url, "commit": commit, "mode": mode}
+            dest = os.path.join(SOURCES_DIR, tid)
+            os.rename(tmp, dest)
+            tmp = None
+            try:
+                report = compile_source(dest, entry)
+                theme, errors = load_theme(tid)
+                if errors:
+                    raise ThemeError("compiled theme is invalid: %s" % "; ".join(errors))
+                write_manifest(read_manifest() + [entry])
+            except BaseException:
+                shutil.rmtree(dest, ignore_errors=True)
+                shutil.rmtree(os.path.join(COMPILED_DIR, tid), ignore_errors=True)
+                raise
+    finally:
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return dict(entry, **report)
+
+
+def remove_theme(tid):
+    entries = read_manifest()
+    entry = next((e for e in entries if e["id"] == tid), None)
+    if entry is None:
+        raise ThemeError("%r is not an imported theme" % tid)
+    if os.path.isdir(os.path.join(THEMES_DIR, tid)):
+        raise ThemeError("%r is a bundled theme of this repository - it cannot be removed here" % tid)
+    state = read_state()
+    if state and tid in (state.get("dark"), state.get("light")):
+        raise ThemeError("%s is selected as the %s theme - select another one first"
+                         % (entry["name"], "dark" if state.get("dark") == tid else "light"))
+    write_manifest([e for e in entries if e["id"] != tid])
+    for base in (COMPILED_DIR, SOURCES_DIR):
+        path = os.path.join(base, tid)
+        if os.path.islink(path):
+            os.unlink(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+
+
+def sync_sources():
+    """Provisioning: every manifest entry fetched at its pinned commit and
+    compiled; untouched when both already match. Returns changed ids."""
+    changed = []
+    for entry in read_manifest():
+        tid = entry["id"]
+        if source_commit(tid) == entry["commit"] and compiled_commit(tid) == entry["commit"]:
+            continue
+        dest = os.path.join(SOURCES_DIR, tid)
+        if source_commit(tid) != entry["commit"]:
+            tmp, _ = fetch_source(entry["url"], entry["commit"])
+            replace_dir(tmp, dest)
+        compile_source(dest, entry)
+        changed.append(tid)
+    return changed
+
+
+def sources_status(state):
+    return [dict(e, bundled=os.path.isdir(os.path.join(THEMES_DIR, e["id"])),
+                 installed=os.path.isdir(os.path.join(COMPILED_DIR, e["id"])),
+                 selected=bool(state) and e["id"] in (state.get("dark"), state.get("light")))
+            for e in read_manifest()]
+
+
 # --- CLI -------------------------------------------------------------------
 
 def usage():
     sys.stderr.write("usage: theme status [--json] | list dark|light | current | toggle |"
                      " mode dark|light | select dark|light <id> | apply [...] | validate |"
-                     " wallpaper list | wallpaper set <file> | text-size [<px>]\n")
+                     " wallpaper list | wallpaper set <file> | text-size [<px>] |"
+                     " import <url> dark|light | remove <id> | sync-sources\n")
     return 2
 
 
@@ -509,7 +1056,8 @@ def require_state():
 # one of the changes - measured on arch-dev: 7 of 20 rounds of parallel
 # toggles. A blocking flock (held for one run, typically <1 s) queues them;
 # read-only commands need none (every file is replaced atomically).
-MUTATING = ("toggle", "mode", "select", "wallpaper set", "apply", "text-size")
+MUTATING = ("toggle", "mode", "select", "wallpaper set", "apply", "text-size", "remove", "sync-sources")
+# `import` takes the lock itself, after its (slow) clone.
 
 
 def serialize(cmd, args):
@@ -545,6 +1093,7 @@ def main(argv):
             "invalid": invalid,
             "wallpaper": wallpaper_list(state) if state and state.get(state["mode"]) in valid else None,
             "text_sizes": list(TEXT_SIZES),
+            "sources": sources_status(state),
         }
         if args == ["--json"]:
             print(json.dumps(status))
@@ -606,6 +1155,22 @@ def main(argv):
         state = require_state()
         state["text_size"] = args[0]
         commit(state, valid)
+        return 0
+
+    if cmd == "import" and len(args) == 2:
+        print(json.dumps(import_theme(args[0], args[1])))
+        return 0
+
+    if cmd == "remove" and len(args) == 1:
+        remove_theme(args[0])
+        print("removed %s" % args[0])
+        return 0
+
+    if cmd == "sync-sources" and not args:
+        changed = sync_sources()
+        if changed:
+            print("changed: %s" % " ".join(changed), file=sys.stderr)
+        print("changed" if changed else "unchanged")
         return 0
 
     if cmd == "apply":
