@@ -1,7 +1,8 @@
-// OS menu - Settings: reserved. Managed by Ansible: do not edit by hand,
-// see roles/quickshell in workstation-arch. A real destination replaces
-// this page later (OsMenu.activate("settings") stays the hook); nothing
-// speculative is built here.
+// OS menu - Settings: Appearance and Network. Managed by Ansible: do not
+// edit by hand, see roles/quickshell in workstation-arch. The same list as
+// the root (RootPage with other entries); the destinations stay
+// OsMenu.activate()'s: Appearance opens the Appearance window, Network
+// nm-connection-editor. Back (h/Left/Backspace) returns to the root list.
 
 import QtQuick
 import QtQuick.Layouts
@@ -14,13 +15,15 @@ FocusScope {
 
     implicitHeight: column.implicitHeight
 
+    function reset() {
+        list.reset();
+    }
+
     Keys.onPressed: event => {
-        switch (event.key) {
-        case Qt.Key_H: case Qt.Key_Left: case Qt.Key_Backspace: page.menu.back(); break;
-        case Qt.Key_Escape: page.menu.close(); break;
-        default: return;
+        if (event.key === Qt.Key_Backspace) {
+            page.menu.back();
+            event.accepted = true;
         }
-        event.accepted = true;
     }
 
     ColumnLayout {
@@ -35,14 +38,16 @@ FocusScope {
             menu: page.menu
         }
 
-        Text {
+        RootPage {
+            id: list
             Layout.fillWidth: true
-            Layout.topMargin: 4
-            Layout.bottomMargin: 8
-            text: "No additional settings yet."
-            color: Colors.foregroundMuted
-            font.family: Fonts.family
-            font.pixelSize: page.menu.fontSize
+            Layout.preferredHeight: implicitHeight
+            focus: true
+            menu: page.menu
+            entries: [
+                { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false },
+                { id: "network", label: "Network", icon: "\u{F06F3}", sub: false }
+            ]
         }
     }
 }

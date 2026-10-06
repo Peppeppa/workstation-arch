@@ -297,19 +297,17 @@ Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
 ```
 ~/.config/quickshell/osmenu/
   OsMenu.qml       host: window, page state, keyboard, destination hand-over
-  RootPage.qml     root list: Applications, Appearance, Network, Settings, System
+  RootPage.qml     a list of entries - the root: Applications, Settings, System
   AppsPage.qml     Applications: search + results (the former launcher view)
   AppModel.qml     the app model/filter (moved unchanged from Launcher.qml)
-  SettingsPage.qml reserved placeholder ("No additional settings yet")
+  SettingsPage.qml Settings: the same list with Appearance, Network
   PageHeader.qml   back chevron + title of a page below the root
 ```
 
 | Root entry | Action |
 |---|---|
 | Applications | page inside the menu (selected on every open) |
-| Appearance | close the menu, open the Appearance window |
-| Network | close the menu, start `nm-connection-editor` (on demand) |
-| Settings | page inside the menu - reserved; a real destination replaces it via `OsMenu.activate("settings")` |
+| Settings | page inside the menu: **Appearance** (close the menu, open the Appearance window) and **Network** (close the menu, start `nm-connection-editor` on demand) |
 | System | close the menu, open the existing Power Menu (sole owner of lock/suspend/hibernate/logout/reboot/shutdown; entry hidden without `power_menu_enabled`) |
 
 Keyboard on list pages: `j`/Down next, `k`/Up previous, `l`/Right/Enter
@@ -327,7 +325,7 @@ bar strip, only while open (unmapped when closed). IPC `osmenu`:
 
 Core. Opened from the OS menu (IPC `appearance`: `toggle`, `close`,
 `state`). `~/.config/quickshell/appearance/` (window, content, theme
-selector, wallpaper picker) on top of shared, non-visual models in
+selector, theme import dialog, wallpaper picker) on top of shared, non-visual models in
 `services/` and one neutral control in `ui/`:
 
 | Model | Owner of | Used by |

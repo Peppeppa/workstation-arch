@@ -2,7 +2,7 @@
 // Managed by Ansible: do not edit by hand, see roles/quickshell in
 // workstation-arch. See docs/feature-architecture.md "OS menu".
 //
-// Root list: Applications, Appearance, Network, Settings, System. Pages
+// Root list: Applications, Settings (Appearance, Network), System. Pages
 // that live in the menu (RootPage, AppsPage, SettingsPage) are separate
 // files; destinations outside it are handed over, never re-implemented:
 //   Appearance -> close, open the Appearance window (appearance/)
@@ -41,6 +41,7 @@ PanelWindow {
         page = p || "root";
         rootPage.reset();
         appsPage.reset();
+        settingsPage.reset();
         visible = true;
         focusPage();
     }
@@ -74,6 +75,7 @@ PanelWindow {
         case "apps":
         case "settings":
             page = id;
+            if (id === "settings") settingsPage.reset();
             focusPage();
             break;
         case "appearance":

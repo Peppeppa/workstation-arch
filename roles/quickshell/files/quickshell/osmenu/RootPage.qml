@@ -1,6 +1,7 @@
-// OS menu - the root list. Managed by Ansible: do not edit by hand, see
+// OS menu - a list of entries: the root list, and (with other entries) the
+// Settings list. Managed by Ansible: do not edit by hand, see
 // roles/quickshell in workstation-arch. Navigation only: what an entry
-// does is OsMenu.activate(). Applications is selected on every open; no
+// does is OsMenu.activate(). The first entry is selected on every open; no
 // wrap-around.
 
 import QtQuick
@@ -12,10 +13,8 @@ FocusScope {
 
     required property var menu
 
-    readonly property var entries: [
+    property var entries: [
         { id: "apps", label: "Applications", icon: "\u{F003B}", sub: true },
-        { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false },
-        { id: "network", label: "Network", icon: "\u{F06F3}", sub: false },
         { id: "settings", label: "Settings", icon: "\u{F0493}", sub: true },
         { id: "system", label: "System", icon: "\u{F0425}", sub: false }
     ].filter(e => e.id !== "system" || menu.powerMenu !== null)
