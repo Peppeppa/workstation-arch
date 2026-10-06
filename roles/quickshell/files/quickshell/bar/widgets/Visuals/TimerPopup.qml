@@ -1,8 +1,11 @@
 // Bar widget "visuals" - the timer popup. Managed by Ansible: do not edit
 // by hand, see roles/quickshell in workstation-arch.
 //
-// Idle: one MM:SS field (minutes may exceed 59: 90:00) + Start; Enter
-// starts too. Running: the remaining time + Stop. The countdown itself is
+// Idle: one duration field + Start; Enter and Start run the same
+// startFromInput(). Digits are read from the right (230 = 02:30, 9000 =
+// 90:00), colons work too (2:30, 3:30:00) - Countdown.parse(). The hint
+// line below shows what the typed text means; the field itself is never
+// reformatted while typing (no cursor jumps). Running: the remaining time + Stop. The countdown itself is
 // Countdown.qml (absolute deadline) - closing this popup does not stop it.
 // A BarPopup: exists only while open.
 
@@ -21,7 +24,7 @@ BarPopup {
     function startFromInput() {
         const s = Countdown.parse(input.text);
         if (s < 0) {
-            error = "Enter minutes:seconds, e.g. 05:00, 25:00, 90:00 or 00:30";
+            error = "Enter e.g. 5 (seconds), 230 (2:30), 2500 (25:00) or 1:30:00";
             return;
         }
         error = "";
@@ -83,7 +86,7 @@ BarPopup {
                     color: Colors.foreground
                     font.family: Fonts.family
                     font.pixelSize: popup.fontSize
-                    maximumLength: 6
+                    maximumLength: 8
                     inputMethodHints: Qt.ImhDigitsOnly
                     // Deferred: BarPopup's own onCompleted runs after this
                     // one and gives the keyboard to its key handler (the
@@ -107,7 +110,11 @@ BarPopup {
             visible: !Countdown.active
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: popup.error !== "" ? popup.error : "MM:SS"
+            text: {
+                if (popup.error !== "") return popup.error;
+                const s = Countdown.parse(input.text);
+                return s > 0 ? "= " + Countdown.format(s) : "MMSS or H:MM:SS";
+            }
             color: popup.error !== "" ? Colors.error : Colors.foregroundMuted
             font.family: Fonts.family
             font.pixelSize: popup.fontSize - 2
