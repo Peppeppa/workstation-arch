@@ -36,9 +36,7 @@ display_manager_tty: tty2
 #                         by scripts/ly-background.py) is ONE frame of
 #                         half-block pixel art (an original dark retro night
 #                         scene, 240x67 cells = 1920x1080 at the 8x16 console
-#                         font, centered; other sizes crop/pad in black) in
-#                         the Linux console's own colors - the console is not
-#                         truecolor (16 foreground / 8 background colors). Ly
+#                         font, centered; other sizes crop/pad in black). Ly
 #                         redraws the dur widget on every wake-up and wakes
 #                         every animation_frame_delay ms - the default 5 ms
 #                         would redraw a still picture 200 times a second; one
