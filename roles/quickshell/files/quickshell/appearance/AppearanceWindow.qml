@@ -23,14 +23,17 @@ PanelWindow {
     required property string monitorConfig
     required property var terminal
     property bool pickerOpen: false
+    property bool importOpen: false         // Theme -> Import (ThemeImport.qml)
 
     function open() {
         pickerOpen = false;
+        importOpen = false;
         visible = true;
     }
 
     function close() {
         pickerOpen = false;
+        importOpen = false;
         visible = false;
     }
 
@@ -65,7 +68,7 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: win.pickerOpen ? win.pickerOpen = false : win.close()
+        onClicked: win.pickerOpen ? win.pickerOpen = false : win.importOpen ? win.importOpen = false : win.close()
     }
 
     Loader {
@@ -94,7 +97,7 @@ PanelWindow {
 
         // For tests/diagnostics.
         function state(): string {
-            return JSON.stringify({ visible: win.visible, picker: win.pickerOpen });
+            return JSON.stringify({ visible: win.visible, picker: win.pickerOpen, import: win.importOpen });
         }
     }
 }

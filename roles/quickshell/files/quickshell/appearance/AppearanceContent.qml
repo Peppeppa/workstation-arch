@@ -2,7 +2,8 @@
 // hand, see roles/quickshell in workstation-arch.
 //
 // Sections: Theme (dark + light, from the theme directories via the shared
-// services/ThemeModel - the same runtime path as the bar's theme popup),
+// services/ThemeModel - the same runtime path as the bar's theme popup;
+// Import opens ThemeImport.qml for theme repositories),
 // Wallpaper (opens WallpaperPicker.qml), Bar (transparent background - the
 // bar's own setting in BarLayout, the same one its right click flips),
 // Brightness (only with a real backlight, services/BrightnessModel), Text
@@ -32,6 +33,7 @@ FocusScope {
     Component.onCompleted: forceActiveFocus()
     Keys.onEscapePressed: {
         if (root.window.pickerOpen) root.window.pickerOpen = false;
+        else if (root.window.importOpen) root.window.importOpen = false;
         else root.window.close();
     }
 
@@ -131,7 +133,23 @@ FocusScope {
                 }
 
                 // ---- Theme ----------------------------------------------
-                SectionTitle { text: "Theme" }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Theme"
+                        color: Colors.foreground
+                        font.family: Fonts.family
+                        font.pixelSize: root.fontSize
+                        font.bold: true
+                    }
+                    PopupButton {
+                        label: "Import"
+                        fontSize: root.fontSize - 2
+                        onClicked: root.window.importOpen = true
+                    }
+                }
 
                 Label { text: "Dark" + (themeModel.activeMode() === "dark" ? "  ·  active" : "") }
                 ThemeSelect {
@@ -456,5 +474,13 @@ FocusScope {
         model: themeModel
         fontSize: root.fontSize
         onDone: root.window.pickerOpen = false
+    }
+
+    ThemeImport {
+        anchors.fill: parent
+        visible: root.window.importOpen
+        model: themeModel
+        fontSize: root.fontSize
+        onDone: root.window.importOpen = false
     }
 }

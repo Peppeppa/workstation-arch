@@ -244,6 +244,48 @@ the semantic `background`/`foreground`; cursor = `foreground` on
 `background`; selection = `accent` / `accent_foreground` (the semantic
 selection pair) - no extra per-app fields.
 
+### Theme sources (Omarchy theme repositories)
+
+Omarchy theme repositories are theme **data sources** - never a runtime
+dependency, never vendored into this repository.
+
+| | Where | Owner |
+|---|---|---|
+| Manifest | `themes/sources.yml`: `id`, `name`, `url`, `commit` (exact, tested), `mode` | this repository (edited by `theme import`/`remove`; the user commits it) |
+| Source | `~/.local/share/workstation/themes/sources/<id>/` (shallow checkout at the pinned commit) | upstream data |
+| Compiled theme | `~/.local/share/workstation/themes/compiled/<id>/`: marker, `theme.yml`, `btop.theme`, `backgrounds` -> the source's `backgrounds/`, `source.json` (url, commit, used / ignored files) | the `theme` helper |
+| Selection | `~/.config/workstation/theme-state` - the only runtime theme state | the user |
+
+**Repositories are untrusted data.** The helper fetches with hooks,
+submodules, symlinks, filters, credential helpers, the user's git config
+and every protocol except https switched off, and only READS known files:
+palette from `colors.toml`, else `alacritty.toml`, else `ghostty.conf`
+(+ `hyprland.conf`'s active border as accent) -> our roles (derived only
+where the source has no value, by contrast) + the 16 terminal colors;
+`neovim.lua` as TEXT -> the `neovim:` block (plugin, name, colorscheme,
+regex-checked; plugin options are not taken); `btop.theme` color lines
+only; `backgrounds/` referenced. Nothing is executed, sourced or installed
+because a repository mentions it (Waybar, Walker, Mako, Alacritty, Foot,
+GTK CSS, Chromium/icon themes, editors ...): listed as ignored.
+
+**Bundled + source.** A manifest id that also exists under `themes/`
+associates that bundled theme with its repository (Retro 82, Solarized
+Dark): the bundled `theme.yml` and marker stay authoritative, the source
+adds its backgrounds (the wallpaper list is the union; local files win a
+name clash) and payloads. Bundled themes are never removable.
+
+**Import / remove** (Settings -> Appearance -> Theme -> Import, or
+`theme import <url> dark|light`, `theme remove <id>`): the user picks the
+mode; id and name come from the repository name (`omarchy-retro-82-theme`
+-> `retro-82` / Retro 82); an existing id is refused, never overwritten.
+Remove deletes source, compiled theme and manifest entry - refused for the
+selected dark/light theme. No Ansible, no sudo, no automatic commit.
+
+**Provisioning**: `theme sync-sources` (roles/theme) fetches every entry
+at its pinned commit and compiles it - network only when one is missing;
+afterwards themes work offline. No updating: pins move only by an explicit
+new import.
+
 ### App payloads (Neovim)
 
 A theme may name the real port of itself for an app that has one - as
@@ -278,7 +320,7 @@ without the block gets Neovim's `default` colorscheme in its mode.
 | Quickshell, Hyprland borders, hyprlock, GTK mode, Ghostty | themed, live switch |
 | Neovim (LazyVim with `lua/plugins/workstation-theme.lua`) | the theme's own Neovim port, live switch (explicit event, no watcher) |
 | Shell tools (Starship, bat, eza, fzf, lazygit) | follow through Ghostty's 16-color palette (Starship default config: named ANSI colors; `BAT_THEME=ansi`) |
-| btop | not integrated: no live reload, and it rewrites its own `btop.conf` - cosmetic gain only |
+| btop | follows the theme at btop's start: `~/.config/btop/themes/workstation.theme` -> the helper's `btop.theme` (the source's own btop theme, else one from the palette); `btop.conf` only created if missing. No live reload exists |
 | GTK/libadwaita apps (Nautilus, ...) | follow the GTK light/dark preference natively (libadwaita: `color-scheme`; GTK3: `gtk-theme`) |
 | Zathura | deferred: its config isn't repo-managed and a running window only re-reads colors via its own `:source` command (no signal/IPC) |
 | Browsers, Thunderbird, Bitwarden, Flatpaks | not themed by design (no CSS/app hacks; native preference only) |

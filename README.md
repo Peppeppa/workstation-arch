@@ -361,6 +361,19 @@ call (or an IDE probing it) starts the daemon again. Containers, images,
 volumes and databases (e.g. a MySQL container for a course) are yours -
 the repository creates none.
 
+## Themes from repositories
+
+Settings -> Appearance -> Theme -> **Import**: paste an Omarchy theme
+repository URL, choose Dark or Light, Add. The theme is cloned (pinned to
+its current commit), converted to a workstation theme - only colors,
+Neovim colorscheme, btop theme and wallpapers are taken, nothing from the
+repository runs - and appears in the theme lists. It is also added to
+`themes/sources.yml`; commit that file to get the theme on the next
+installation (bootstrap installs exactly the pinned commits). Wallpapers
+stay in `~/.local/share/workstation/themes/sources/`, not in this
+repository. Remove works for imported themes that are not selected. Details:
+`docs/DESIGN_SYSTEM.md` "Theme sources".
+
 ## Shell and Neovim
 
 `roles/shell` installs the tools and deploys

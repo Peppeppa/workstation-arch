@@ -97,6 +97,7 @@ direct upstream dependency.
 | Timer / reminder | Quickshell `Countdown.qml` (Visuals widget) - a deadline + tick only while a timer runs |
 | AC/battery power-profile policy (laptops) | Quickshell `PowerPolicy.qml` (feature `power_profiles`): AC = Performance, battery = remembered battery choice (`~/.config/workstation/power-battery-profile`) |
 | Shell tool integration (prompt, zoxide, fzf hooks) | `~/.local/share/workstation/shell/bashrc` (`roles/shell`), sourced by one line in `~/.bashrc`; personal shell config (aliases, `~/.config/starship.toml`, ...) = dotfiles |
+| Theme sources (Omarchy theme repositories) | manifest `themes/sources.yml` (repo); sources + compiled themes under `~/.local/share/workstation/themes/` written only by the `theme` helper (`import`/`remove` at runtime, `sync-sources` in provisioning); repositories are data, never executed |
 | Neovim colorscheme | the active workstation theme (`theme` helper: `neovim.lua` + `neovim-current.lua`, `doautocmd User WorkstationTheme` to running Neovims); Neovim config itself = the user's (LazyVim starter created once) |
 | NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) get their password stored once - README "eduroam" |
 | eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user, needs `python-dbus`), result = NetworkManager profiles; never in this repo |
