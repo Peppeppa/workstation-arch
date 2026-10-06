@@ -6,9 +6,13 @@
 # watcher is not reliable for deploys (arch-dev: Ansible's atomic replace
 # went unnoticed; laptop 2026-10-06: even a touched shell.qml was ignored).
 # An instance started from an older config has no `shell` target yet - for
-# that one, the old touch is the fallback. Harmless if Quickshell isn't
-# running. No process, no watcher of ours.
+# that one, the old touch is the fallback. Skipped when the restart below
+# follows anyway (new QML files): reloading a config with a type the
+# running instance does not know yet logs 'X is not a type' (laptop) -
+# the restart loads it cleanly. Harmless if Quickshell isn't running. No
+# process, no watcher of ours.
 - name: Reload running Quickshell config
+  when: not (quickshell_new_qml is defined and quickshell_new_qml is changed)
   ansible.builtin.shell:
     cmd: |
       qs ipc --any-display call shell reload >/dev/null 2>&1 \

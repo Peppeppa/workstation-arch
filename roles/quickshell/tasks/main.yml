@@ -385,6 +385,7 @@
       {{ quickshell_qml_after.files | map(attribute='path') | list
          | difference(quickshell_qml_before.files | map(attribute='path') | list) }}
   changed_when: quickshell_qml_new | length > 0
+  register: quickshell_new_qml
   notify: Restart running Quickshell
   tags: quickshell
 
