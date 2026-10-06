@@ -948,7 +948,7 @@ BarPopup {
                 visible: popup.vpns.length === 0
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "No VPN connections - add them in Network settings (OS menu)"
+                text: "No VPN connections - add them with Connections\u2026 below"
             }
 
             Repeater {
