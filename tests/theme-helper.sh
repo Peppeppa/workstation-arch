@@ -6,8 +6,8 @@
 #
 # Safe anywhere, also on a running desktop: the helper is rendered against
 # a temporary COPY of themes/, runs with a temporary XDG_CONFIG_HOME, and
-# hyprctl/gsettings/qs/pgrep/pkill/notify-send are no-op stubs first on PATH -
-# nothing reaches a live session. Needs python3 + python-yaml + jinja2
+# hyprctl/gsettings/qs/pgrep/pkill/notify-send/nvim are no-op stubs first on
+# PATH (and XDG_RUNTIME_DIR is temporary) - nothing reaches a live session. Needs python3 + python-yaml + jinja2
 # (installed with Ansible). Run by tests/run.sh.
 
 set -u
@@ -21,7 +21,7 @@ check() { # name, condition result (0 = ok)
 
 cp -r "$repo/themes" "$tmp/themes"
 mkdir -p "$tmp/stub" "$tmp/cfg/workstation"
-for b in hyprctl gsettings qs pgrep pkill notify-send; do
+for b in hyprctl gsettings qs pgrep pkill notify-send nvim; do
     printf '#!/bin/sh\nexit 0\n' > "$tmp/stub/$b"
     chmod +x "$tmp/stub/$b"
 done
@@ -34,7 +34,8 @@ with open(dst, "w") as f:
     f.write(text)
 EOF
 chmod +x "$tmp/theme"
-export XDG_CONFIG_HOME="$tmp/cfg" PATH="$tmp/stub:$PATH"
+mkdir -p "$tmp/run"
+export XDG_CONFIG_HOME="$tmp/cfg" XDG_RUNTIME_DIR="$tmp/run" PATH="$tmp/stub:$PATH"
 unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY
 T="$tmp/theme"
 state="$tmp/cfg/workstation/theme-state"
@@ -114,6 +115,27 @@ check "text-size outside the presets rejected, state untouched" $?
 "$T" text-size 11 >/dev/null && grep -qx 'font-size = 12' "$tmp/cfg/workstation/theme/ghostty"
 check "default text size = Ghostty's own default" $?
 bad_state "text-size not a number" "dark=$dark\nlight=$light\nmode=dark\ntext-size=big\n"
+
+# Neovim: every theme maps to its own colorscheme + background (marker),
+# the spec lists each plugin once; a malformed neovim block is invalid.
+printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"
+nv="$tmp/cfg/workstation/theme"
+ok=0
+for id in $("$T" list dark) $("$T" list light); do
+    mode=dark; [ -e "$tmp/themes/$id/light" ] && mode=light
+    want=$(python3 -c 'import sys,yaml; print(yaml.safe_load(open(sys.argv[1]))["neovim"]["colorscheme"])' "$tmp/themes/$id/theme.yml")
+    "$T" select "$mode" "$id" >/dev/null && "$T" mode "$mode" >/dev/null || ok=1
+    grep -qx "    colorscheme = \"$want\"," "$nv/neovim-current.lua" && grep -qx "    background = \"$mode\"," "$nv/neovim-current.lua" || ok=1
+done
+check "neovim-current.lua follows every theme exactly" $ok
+plugins=$(grep -h '^  plugin:' "$tmp"/themes/*/theme.yml | sort -u | wc -l)
+[ "$(grep -c 'lazy = true, priority = 1000' "$nv/neovim.lua")" -eq "$plugins" ]
+check "neovim.lua lists each theme plugin once ($plugins)" $?
+if command -v luac >/dev/null; then luac -p "$nv/neovim.lua" "$nv/neovim-current.lua"; check "neovim outputs are valid Lua" $?; fi
+cp "$tmp/themes/$dark/theme.yml" "$tmp/nv.bak"
+sed -i 's|^  plugin: .*|  plugin: "x\\" os.execute()"|' "$tmp/themes/$dark/theme.yml"
+"$T" validate >/dev/null 2>&1; [ $? -eq 1 ]; check "malformed neovim plugin makes the theme invalid" $?
+cp "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml"
 
 # Concurrency: an even number of parallel toggles ends in the start mode
 # (it lost updates before the helper serialised its writes).

@@ -33,3 +33,10 @@ terminal:
   bright_magenta:  "#907aa9"  # iris
   bright_cyan:     "#d7827e"  # rose
   bright_white:    "#575279"  # text
+
+# Neovim: the real Neovim port of this theme (the official Rosé Pine port) - see the theme
+# helper's "Neovim" notes. Data only: lazy.nvim plugin + colorscheme name.
+neovim:
+  plugin: "rose-pine/neovim"
+  name: "rose-pine"
+  colorscheme: "rose-pine-dawn"

@@ -37,18 +37,18 @@ apps_packages:
   # File manager (TUI)
   - yazi
 
-  # Editor: Neovim is a normal package. LazyVim is user *configuration*,
-  # not a package, and is deliberately NOT bootstrapped by this role -
-  # see AGENTS.md Current Status for why. ripgrep/fd are installed
-  # anyway: they are LazyVim's own documented hard requirements
-  # (fuzzy-finding) and are harmless, generically useful regardless of
-  # how/when LazyVim itself gets bootstrapped. LazyVim's third
-  # requirement, a Nerd Font, is the system font (ttf-firacode-nerd,
-  # roles/desktop) - ttf-jetbrains-mono-nerd is no longer listed (left
-  # installed where it already is, never removed).
+  # Editor: Neovim is a normal package. LazyVim is user *configuration*:
+  # the starter is created once only where no ~/.config/nvim exists (see
+  # tasks/main.yml - never managed afterwards). Its documented
+  # requirements: ripgrep/fd (fuzzy finding), tree-sitter-cli + a C
+  # compiler (gcc: nvim-treesitter builds its parsers), git, curl
+  # (roles/base), fzf and lazygit (roles/shell, roles/development), a
+  # Nerd Font (the system font ttf-firacode-nerd, roles/desktop).
   - neovim
   - ripgrep
   - fd
+  - tree-sitter-cli
+  - gcc
 
   # Notes
   - obsidian
@@ -113,6 +113,7 @@ apps_flatpak_packages:
   # 2026-10). This is the source change for WebCord: from "Chromium web
   # app" (never installed) to Flathub.
   - io.github.spacingbat3.webcord
+
 
 # Web apps: a launcher entry (~/.local/share/applications/<id>.desktop)
 # that opens the site in its own Chromium app window - the existing

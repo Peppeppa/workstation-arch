@@ -102,3 +102,27 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   tags: apps
+
+# LazyVim: Neovim configuration is the user's (dotfiles). Only when there is
+# NO ~/.config/nvim at all, the LazyVim starter is created once (files/nvim:
+# init.lua, lua/config/lazy.lua and the workstation theme interface
+# lua/plugins/workstation-theme.lua) - like the bar layout, provisioning
+# initialises missing user state but never manages it: an existing
+# directory (yours, stowed, or this starter later edited) is never touched.
+# LazyVim installs its plugins itself at the first `nvim` start.
+- name: Check for a Neovim configuration
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.user_dir }}/.config/nvim"
+  register: apps_nvim_config
+  tags: apps
+
+- name: Create the LazyVim starter (only without any Neovim configuration)
+  when: not apps_nvim_config.stat.exists
+  ansible.builtin.copy:
+    src: nvim/
+    dest: "{{ ansible_facts.user_dir }}/.config/nvim/"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+    directory_mode: "0755"
+  tags: apps

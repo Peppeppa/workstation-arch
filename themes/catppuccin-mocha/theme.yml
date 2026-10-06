@@ -33,3 +33,10 @@ terminal:
   bright_magenta:  "#f5c2e7"  # pink
   bright_cyan:     "#94e2d5"  # teal
   bright_white:    "#bac2de"  # subtext1
+
+# Neovim: the real Neovim port of this theme (the official Catppuccin port) - see the theme
+# helper's "Neovim" notes. Data only: lazy.nvim plugin + colorscheme name.
+neovim:
+  plugin: "catppuccin/nvim"
+  name: "catppuccin"
+  colorscheme: "catppuccin-mocha"

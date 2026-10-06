@@ -33,3 +33,9 @@ terminal:
   bright_magenta:  "#6c71c4"  # violet
   bright_cyan:     "#93a1a1"  # base1
   bright_white:    "#fdf6e3"  # base3
+
+# Neovim: the real Neovim port of this theme (Solarized for Neovim; dark/light follows `background` (= this theme's marker)) - see the theme
+# helper's "Neovim" notes. Data only: lazy.nvim plugin + colorscheme name.
+neovim:
+  plugin: "maxmx03/solarized.nvim"
+  colorscheme: "solarized"
