@@ -28,6 +28,7 @@ Singleton {
     readonly property int dragThreshold: 6
     readonly property int dragCorridor: 100      // a drop counts up to this far below the bar
     readonly property int moveDuration: 120      // neighbours sliding during a drag only
+    readonly property int revealDuration: 140    // hover reveal of Visuals / the tray (fade, slide)
 
     // Popups
     readonly property int popupGap: 4            // between bar and popup
