@@ -33,7 +33,7 @@ pixel size for text. Ghostty and GTK follow through the helper (see
 themes/<id>/            directory name = stable theme id ([a-z0-9-])
   dark  | light         empty marker file - exactly one; the ONLY source of the mode
   theme.yml             data only: name, the 10 semantic colors, the 16 terminal colors
-                        (+ source comments)
+                        (+ source comments); optional `neovim:` block (see below)
   backgrounds/          wallpapers for this theme (may be empty; .gitkeep keeps it in git)
 ```
 
@@ -244,11 +244,41 @@ the semantic `background`/`foreground`; cursor = `foreground` on
 `background`; selection = `accent` / `accent_foreground` (the semantic
 selection pair) - no extra per-app fields.
 
+### App payloads (Neovim)
+
+A theme may name the real port of itself for an app that has one - as
+data, never code (the idea of Omarchy themes carrying `neovim.lua`, without
+executable files in the theme directory):
+
+```yaml
+neovim:
+  plugin: "catppuccin/nvim"        # lazy.nvim plugin "owner/repo" (regex-checked)
+  name: "catppuccin"               # optional lazy.nvim name
+  colorscheme: "catppuccin-mocha"  # the exact colorscheme of THIS theme
+```
+
+The background (dark/light) is the marker file's, never repeated here. The
+helper renders `neovim.lua` (lazy.nvim spec: every theme's plugin, lazy,
++ LazyVim's colorscheme hook) and `neovim-current.lua`; running Neovims
+get `doautocmd User WorkstationTheme` over their own RPC sockets. A theme
+without the block gets Neovim's `default` colorscheme in its mode.
+
+| Theme | Neovim port | colorscheme |
+|---|---|---|
+| retro-82 | `oldjobobo/retro-82.nvim` (the palette's own author) | `retro-82` |
+| solarized-dark | `maxmx03/solarized.nvim` | `solarized` + background dark |
+| catppuccin-mocha | `catppuccin/nvim` | `catppuccin-mocha` |
+| rose-pine-dawn | `rose-pine/neovim` | `rose-pine-dawn` |
+| catppuccin-latte | `catppuccin/nvim` | `catppuccin-latte` |
+
 ### Coverage
 
 | App | Status |
 |---|---|
 | Quickshell, Hyprland borders, hyprlock, GTK mode, Ghostty | themed, live switch |
+| Neovim (LazyVim with `lua/plugins/workstation-theme.lua`) | the theme's own Neovim port, live switch (explicit event, no watcher) |
+| Shell tools (Starship, bat, eza, fzf, lazygit) | follow through Ghostty's 16-color palette (Starship default config: named ANSI colors; `BAT_THEME=ansi`) |
+| btop | not integrated: no live reload, and it rewrites its own `btop.conf` - cosmetic gain only |
 | GTK/libadwaita apps (Nautilus, ...) | follow the GTK light/dark preference natively (libadwaita: `color-scheme`; GTK3: `gtk-theme`) |
 | Zathura | deferred: its config isn't repo-managed and a running window only re-reads colors via its own `:source` command (no signal/IPC) |
 | Browsers, Thunderbird, Bitwarden, Flatpaks | not themed by design (no CSS/app hacks; native preference only) |

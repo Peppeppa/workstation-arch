@@ -271,18 +271,23 @@ third-party API.
 
 ## Visuals (bar widget)
 
-Core bar widget `visuals` (`bar/widgets/Visuals/`): four permanently
-visible icon frames - **Timer | Day/Night | Light/Dark | Coffee** - that
-form one layout item (one id, one drag handle; dragging moves all four)
-but stay separately clickable. Each is a plain `BarWidget` frame: same
-icon size, hitbox, hover, active (accent) / muted look as every bar icon.
+Core bar widget `visuals` (`bar/widgets/Visuals/`): four icon frames -
+**Timer | Day/Night | Light/Dark | Coffee** - that form one layout item
+(one id, one drag handle; dragging moves all four) but stay separately
+clickable. Each is a plain `BarWidget` frame: same icon size, hitbox,
+hover, active (accent) / muted look as every bar icon. At rest they are
+faded out, except a control that is on (running timer, Night, Coffee) or
+has its popup open; hovering the widget fades all four in, leaving fades
+them out (`BarStyle.revealDuration`, 140 ms). Only opacity changes - the
+width stays, so the hover area (one HoverHandler on the widget) never
+shrinks under the pointer.
 
 | Control | Implementation | Runtime cost |
 |---|---|---|
-| Timer | `Countdown.qml` (singleton): MM:SS input (minutes may exceed 59) in `TimerPopup.qml`; state = an absolute wall-clock deadline, remaining = deadline - now (never a decremented counter); a single-shot tick, only while a timer runs, aligned to the next full second; the remaining time stands next to the icon. Done: notification (`notify-send` -> our notification server) + `alarm-clock-elapsed.oga` via `pw-play`, then idle. Suspend: Qt timers use the monotonic clock (stops while asleep) but the deadline is wall time - the first tick after resume rings at once. No history, repeat, persistence | nothing while idle |
-| Day/Night | `NightLight.qml` (singleton): Night = `hyprsunset` (hyprwm's blue-light filter, official `extra`, Hyprland's `hyprland-ctm-control` protocol) as a child of Quickshell, 4500 K; Day = the process ends and Hyprland drops the color transform. 1 s fade: hyprsunset starts neutral (`--identity`) and is stepped 6500 <-> 4500 K in 10 steps over its IPC (`hyprctl hyprsunset temperature`, one call at a time, overlapping steps replaced - no queue); clicks during a fade do nothing. Not persisted (every start is Day), no schedule, no slider; if hyprsunset dies, the toggle shows Day again | one small process only while Night is on; a step timer only during the 1 s fade |
+| Timer | `Countdown.qml` (singleton): input in `TimerPopup.qml` - digits read from the right as [H]MM:SS (5 = 0:05, 230 = 2:30, 9000 = 90:00, 13000 = 1:30:00; the last two digits are seconds) or with colons (2:30, 90:00, 3:30:00), up to 99:59:59; Enter = Start (one parse/start path); the hint previews the parsed time, the field is never reformatted; running display MM:SS, H:MM:SS from one hour; state = an absolute wall-clock deadline, remaining = deadline - now (never a decremented counter); a single-shot tick, only while a timer runs, aligned to the next full second; the remaining time stands next to the icon. Done: notification (`notify-send` -> our notification server) + `alarm-clock-elapsed.oga` via `pw-play`, then idle. Suspend: Qt timers use the monotonic clock (stops while asleep) but the deadline is wall time - the first tick after resume rings at once. No history, repeat, persistence | nothing while idle |
+| Day/Night | `NightLight.qml` (singleton): Night = `hyprsunset` (hyprwm's blue-light filter, official `extra`, Hyprland's `hyprland-ctm-control` protocol) as a child of Quickshell, 4500 K; Day = the process ends and Hyprland drops the color transform. 0.5 s fade: hyprsunset starts neutral (`--identity`) and is stepped 6500 <-> 4500 K in 10 steps over its IPC (`hyprctl hyprsunset temperature`, one call at a time, overlapping steps replaced - no queue); clicks during a fade do nothing. Not persisted (every start is Day), no schedule, no slider; if hyprsunset dies, the toggle shows Day again | one small process only while Night is on; a step timer only during the 0.5 s fade |
 | Light/Dark | the existing theme system: left click `theme toggle`, right click the theme popup (`bar/widgets/Theme/Popup.qml`) | none |
-| Coffee | the existing `CoffeeMode` + the bar's Wayland `IdleInhibitor` (only with `lock_idle_enabled`) | none |
+| Coffee | the existing `CoffeeMode` + the bar's Wayland `IdleInhibitor` (only with `lock_idle_enabled`). Read-only status: `qs ipc call coffee status` -> `on`/`off` (no setter - the icon is the only switch) | none |
 
 ## OS menu
 
@@ -732,7 +737,7 @@ handler), so splitting them would buy nothing.
 | Scope | `roles/quickshell/files/tray/` (`Tray.qml`, `TrayMenu.qml`, `TrayMenuLevel.qml`), loaded by `Bar.qml` through a Loader |
 | Packages | none (Quickshell 0.3.1 `Quickshell.Services.SystemTray`); named icons need `QS_ICON_THEME` in Quickshell's start env (`hyprland_quickshell_exec`, core) |
 | D-Bus / lifecycle owner | the running Quickshell owns `org.kde.StatusNotifierWatcher` and registers as the one StatusNotifierHost - no other watcher/host |
-| UI | items first in the bar's status zone, 15px icons in 24px slots, Passive items hidden, zone invisible with no items; no hover tooltip |
+| UI | items first in the bar's status zone, 15px icons in 24px slots, Passive items hidden, zone invisible with no items; no hover tooltip. Collapsed: only a `<` handle; hovering the widget slides the items out to the LEFT of it (width + fade, 140 ms - an animation only while it changes); leaving collapses them. The hover area is the whole widget, so handle -> icon never collapses it; an open item menu keeps it expanded |
 | Actions | left `activate()` (menu for `onlyMenu` items), middle `secondaryActivate()`, right DBusMenu context menu, wheel `scroll()` - only the item's own SNI/DBusMenu interfaces |
 | Menu | rendered by us via `QsMenuOpener` (themed, live switch; separators, disabled, checkbox/radio, inline submenus); overlay surface exists only while open, click outside / Escape closes |
 | Privileges / Secrets / Network | none / none / none |
@@ -808,10 +813,32 @@ default `true`). NetworkManager stays the only network owner.
 | Popup: VPN (before Wi-Fi) | NM `vpn`/`wireguard` profiles (`nmcli -t` on open, on NM events, after each action): row click = up/down by UUID. No create/import/edit/delete here. "via VPN" also for NM's WireGuard full tunnel, which routes by policy (default route in its own table behind an ip rule; the main table and NM's `Default` flag still show the physical uplink): `ip -j route get 203.0.113.1` (FIB lookup, nothing sent) at the same moments as the address list |
 | Popup: Wi-Fi | radio on/off; **Known networks** = saved NM profiles (`known`), connected one highlighted with "Connected"; **Other networks** = visible, not saved. Signal icon before the SSID, lock on the right if secured; on a known row an X replaces the lock (or appears) while hovered - forget, in its own click area. Row click: known -> connect (connected -> disconnect), open -> connect, WPA/WPA2/WPA3-Personal -> inline password (eye toggle: shows/hides the same field, starts concealed; Copy/Cut blocked); wrong password -> box stays with an error; success -> NM stores it, it moves to Known. **Other networks** is a ListModel keyed by SSID (synced by move/insert/remove - rows keep their identity; a Repeater over a recomputed array recreated every row on each scan and lost the typed password) and is **frozen while a password is typed or sent**: the wanted order is applied once when the box closes (cancel, success, popup closed). Its own scroll area: up to 10 rows (+ the open box), scrollbar only when longer, heading and other sections fixed; Up/Down/Enter select/connect with the selection scrolled into view. Enterprise/WEP -> note + "Open" (nm-connection-editor). Scanning only while open. QR share of the current network: QR + a fixed 12-bullet mask (never the saved password itself, no reveal) + Copy (real password via `wl-copy --sensitive` stdin, not in cliphist) |
 | Secrets | passwords go straight to NM (`connectWithPsk`), never logged or stored by us; QR only in memory |
-| Administration | `nm-connection-editor` (roles/network, official `extra`), started on demand from the OS menu (and the enterprise note): VPN add/import/edit/delete, Ethernet/Wi-Fi profiles, WPA-Enterprise/eduroam, DHCP vs static IPv4, gateway, DNS. No `network-manager-applet`, no tray applet, no autostart |
+| Administration | `nm-connection-editor` (roles/network, official `extra`), started on demand from the popup's own **Connections...** button (bottom), the OS menu and the enterprise note: VPN add/import/edit/delete, Ethernet/Wi-Fi profiles, WPA-Enterprise/eduroam, DHCP vs static IPv4, gateway, DNS. No `network-manager-applet`, no tray applet, no autostart |
 | Privileges | NM's own polkit policy for the active session; no sudo |
 | Disable | no popup; the core icon stays |
 | Persistent user data | NM connection profiles (created by NM on connect; forget deletes on request) |
+
+**NM secret agent: none, on purpose.** Our profiles keep their secrets
+system-owned (`psk-flags 0`, root-only keyfile) - the popup hands the
+password to NM, nm-connection-editor stores "for all users". A profile
+with *agent-owned* secrets (flags 1, e.g. what an eduroam CAT installer
+creates) has no agent to ask: its password must be stored once (README
+"eduroam").
+
+### eduroam (CAT)
+
+The institution's official GÉANT CAT Linux installer (THWS:
+`eduroam-linux-THW.py`, PEAP/MSCHAPv2, SSIDs `eduroam` + `THWS`,
+`anonymous@fhws.de`, CA + RADIUS server names) is the enrollment tool -
+nothing is reimplemented and the script is not in this repository. Its
+only dependency is `python-dbus` (roles/network). With NM 1.58 it creates
+two NetworkManager profiles over D-Bus (no wpa_supplicant/iwd file of its
+own; wpa_supplicant stays NM's D-Bus-activated backend): `802-1x.ca-cert`
+= `~/.config/cat_installer/ca.pem`, `domain-match` = the RADIUS server
+names, `anonymous-identity`, `permissions user:<you>`. Without
+zenity/yad/kdialog/tk it asks in the terminal (`getpass` - never argv).
+It marks the password agent-owned, so it is stored once afterwards (see
+README). In the popup an enterprise profile is a Known network like any other (first real connect on campus: Hardware-only validation).
 
 Real-world items that need real hardware/networks: captive portals
 (e.g. BayernWLAN - "Login required" + browser login), eduroam/802.1X
@@ -823,6 +850,21 @@ the university's actual FortiGate configuration - official Arch has
 `networkmanager-fortisslvpn` is AUR-only; nothing is installed until the
 real setup (incl. MFA/SAML) is known. Whatever NM ends up managing appears
 in the popup's VPN list automatically.
+
+## Screen sharing
+
+One stack, no second owner: PipeWire + WirePlumber (roles/audio) ->
+`xdg-desktop-portal` (frontend) -> `xdg-desktop-portal-hyprland` (the only
+ScreenCast/Screenshot backend, `hyprland-portals.conf`: `hyprland;gtk`;
+`AvailableSourceTypes` = monitor | window | virtual) with its picker
+`hyprland-share-picker` (Qt, `qt6-wayland`). `-gtk` serves FileChooser/
+Settings only; no `-wlr`/`-gnome`/`-kde`. Activation env:
+`WAYLAND_DISPLAY`, `XDG_CURRENT_DESKTOP=Hyprland`, `XDG_SESSION_TYPE`
+(roles/hyprland). No RemoteDesktop portal (the Hyprland backend does not
+implement it): remote *control* features (Zoom's "Request remote
+control") are unavailable by design. Clients: Chromium/WebCord (WebRTC
+`getDisplayMedia` via the portal), Zoom (Flathub, XWayland window; uses
+the portal as a Wayland-session client).
 
 ## Clipboard history v1
 
@@ -910,4 +952,5 @@ a password manager. The workstation is not yet deployed.
 | Bluetooth | pairing dialogs, row-click connect/disconnect, hover-X forget (no connect), battery %, audio |
 | Clipboard | browser/terminal/password-manager copies (KeePassXC/Bitwarden must not appear), paste after selecting |
 | Wallpaper | real 4K images, multi-monitor, GIF CPU cost with a real GPU (arch-dev: ~13 % of one core under llvmpipe) |
+| Screen sharing | Chromium (WebRTC), WebCord, Zoom: entire screen / one monitor / one window via hyprland-share-picker; stop ends the PipeWire stream (`pw-cli ls Node` shows no xdph stream), a second share works |
 | Idle baseline | fresh login: process list, RSS/CPU of Quickshell, PPD, clipboard watcher, hypridle; no timers added |

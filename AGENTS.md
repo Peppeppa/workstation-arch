@@ -96,6 +96,10 @@ direct upstream dependency.
 | Night light (Day/Night) | `hyprsunset`, child of Quickshell only while Night is on (`NightLight.qml`, Visuals widget) |
 | Timer / reminder | Quickshell `Countdown.qml` (Visuals widget) - a deadline + tick only while a timer runs |
 | AC/battery power-profile policy (laptops) | Quickshell `PowerPolicy.qml` (feature `power_profiles`): AC = Performance, battery = remembered battery choice (`~/.config/workstation/power-battery-profile`) |
+| Shell tool integration (prompt, zoxide, fzf hooks) | `~/.local/share/workstation/shell/bashrc` (`roles/shell`), sourced by one line in `~/.bashrc`; personal shell config (aliases, `~/.config/starship.toml`, ...) = dotfiles |
+| Neovim colorscheme | the active workstation theme (`theme` helper: `neovim.lua` + `neovim-current.lua`, `doautocmd User WorkstationTheme` to running Neovims); Neovim config itself = the user's (LazyVim starter created once) |
+| NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) get their password stored once - README "eduroam" |
+| eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user, needs `python-dbus`), result = NetworkManager profiles; never in this repo |
 | Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand |
 | Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
@@ -752,15 +756,11 @@ center, lock screen. Quickshell now owns the bar and the app launcher
 is still genuinely not started.
 
 **Deliberately deferred this run — open points, not oversights:**
-- **LazyVim bootstrap**: Neovim is installed; LazyVim itself is user
-  *configuration*, not a package, and was not auto-bootstrapped into
-  `~/.config/nvim`. This machine's own Hyprland config already sources
-  personal settings (`bindings.lua`, `input.lua`, `monitors.lua`) from a
-  separate `dotfiles-stow`-managed repository rather than this one —
-  before writing `~/.config/nvim` here, decide whether Neovim config
-  should live in this repo or follow that same dotfiles-stow pattern,
-  to avoid silently conflicting with however the real hosts already
-  handle it.
+- **LazyVim bootstrap**: resolved (Daily-Driver Integration batch) - the
+  starter is created once only where no `~/.config/nvim` exists, never
+  managed afterwards; Neovim config stays the user's/dotfiles'. The
+  theme interface is `lua/plugins/workstation-theme.lua` (dofile of the
+  helper's `neovim.lua`).
 - **WebCord**: resolved - Flathub (`io.github.spacingbat3.webcord`,
   maintained again, no EOL marker as of 2026-10), roles/apps.
 - **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: neither is set
@@ -923,6 +923,21 @@ history for that milestone's own record):
   tested on the laptop** (slot boot, broken userspace/desktop, truncated
   UKI, permanent rollback, retention, space guard). Workstation: not
   enabled - its layout needs its own Stage 0 check first.
+
+- **Daily-Driver Integration batch** (laptop): read-only Coffee IPC
+  (`qs ipc call coffee status`); system LANG guaranteed + healthcheck
+  "session locale"; `roles/shell` (Starship, zoxide, fzf, eza, bat,
+  tealdeer); LazyVim starter + exact per-theme Neovim colorscheme (theme
+  payload `neovim:`, live switch); Zoom (Flathub); `python-dbus` for the
+  eduroam CAT installer; timer digits-from-the-right parser + H:MM:SS;
+  Visuals hover fade; collapsible tray; Day/Night 0.5 s; network popup
+  Connections... button. Real-hardware-tested over SSH: Coffee IPC,
+  locale (session, systemd user, activated portals), tools, Starship,
+  LazyVim plugin install, all 5 theme->Neovim mappings incl. live switch
+  of a running Neovim, Zoom launch, portal stack audit. Not yet
+  hands-on-tested (pointer input needed): Visuals/tray hover, timer
+  popup typing, Day/Night speed, Connections button, screen sharing
+  matrix, eduroam enrollment.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

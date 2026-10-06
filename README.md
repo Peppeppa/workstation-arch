@@ -178,17 +178,18 @@ first - see the `gaming` row below.
 
 | Role             | Tag             | What it does                                                          |
 |------------------|-----------------|------------------------------------------------------------------------|
-| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); enables/starts `sshd`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated |
+| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); enables/starts `sshd`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated; a system `LANG` (`en_US.UTF-8`) only if none is set |
 | `graphics`       | `graphics`      | Wayland/Mesa/XWayland foundation - no compositor yet                   |
 | `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal)                       |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
-| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation)  |
+| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer) |
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
-| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ via Flathub; WhatsApp as Chromium web app); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
+| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ/Zoom via Flathub; WhatsApp as Chromium web app); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
 | `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker") |
+| `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer) + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 | `recovery`       | `recovery`      | Btrfs snapshots (snapper), recovery boot slots, `system-update`/`-snapshot`/`-rollback` (`recovery_enabled`) |
@@ -359,6 +360,52 @@ Stop the socket too: while `docker.socket` listens, the next `docker`
 call (or an IDE probing it) starts the daemon again. Containers, images,
 volumes and databases (e.g. a MySQL container for a course) are yours -
 the repository creates none.
+
+## Shell and Neovim
+
+`roles/shell` installs the tools and deploys
+`~/.local/share/workstation/shell/{bashrc,starship.toml}`; one line in
+`~/.bashrc` sources the first (added only while `~/.bashrc` is a plain
+file - a dotfiles symlink is left alone; add the line there yourself:
+`[[ -r ~/.local/share/workstation/shell/bashrc ]] && . ~/.local/share/workstation/shell/bashrc`).
+It only wires the tools: Starship prompt (your `~/.config/starship.toml`
+wins over the default), `z`/`zi` (zoxide), Ctrl+R / Ctrl+T / Alt+C (fzf),
+`BAT_THEME=ansi` unless you set one. Aliases and the rest of your shell
+config are yours (dotfiles). `tldr --update` once fetches the pages.
+
+Neovim: where no `~/.config/nvim` exists, provisioning creates the
+LazyVim starter once (then never touches it); plugins install at the
+first `nvim` start. Its `lua/plugins/workstation-theme.lua` makes Neovim
+use the active workstation theme's own Neovim port (exact theme, not just
+dark/light - table in `docs/DESIGN_SYSTEM.md`), and a theme switch
+recolors running Neovims too. Bring your own config (dotfiles) any time -
+keep that one file to stay themed.
+
+## Zoom and screen sharing
+
+Zoom comes from Flathub (`us.zoom.Zoom`; the official repos have none).
+Screen sharing in Zoom, Chromium and WebCord goes through the portal:
+choose a monitor, a window or a region in Hyprland's picker. Stop sharing
+in the app; the capture ends with it. Remote control is not available
+on Hyprland (no RemoteDesktop portal).
+
+## eduroam
+
+Enrollment uses the university's official CAT installer (THWS: download
+`eduroam-linux-THW.py` from cat.eduroam.org), never stored in this
+repository:
+
+```sh
+python3 ~/Downloads/eduroam-linux-THW.py   # in a terminal: username + password are asked there
+```
+
+It creates the NetworkManager profiles `eduroam` and `THWS` (CA in
+`~/.config/cat_installer/ca.pem`, server names checked). It marks the
+password "agent-owned", and this desktop deliberately runs no NM secret
+agent (no nm-applet), so store it once for each profile: Network popup
+-> Connections... -> the profile -> Wi-Fi Security -> password, with the
+field's menu set to "Store the password for all users". Never put the
+password on a command line.
 
 ## Text size and display scale
 
