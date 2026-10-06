@@ -149,6 +149,13 @@ def session_checks(ps):
     if act.get("WAYLAND_DISPLAY") and not os.path.exists(os.path.join(RUNTIME, act["WAYLAND_DISPLAY"])):
         bad.append("activation WAYLAND_DISPLAY=%s has no socket" % act["WAYLAND_DISPLAY"])
     check("session environment", not bad, "missing/wrong: " + ", ".join(bad) if bad else "wayland, Hyprland, activation env imported")
+    # One UTF-8 locale for the session and its D-Bus/systemd-activated apps
+    # (roles/base: /etc/locale.conf LANG; systemd hands it to the manager).
+    utf8 = lambda v: bool(v) and re.search(r"\.(utf-?8)$", v, re.I) is not None
+    lang, alang = env.get("LANG", ""), act.get("LANG", "")
+    check("session locale", utf8(lang) and lang == alang,
+          "LANG=%s (session and activation env)" % lang if utf8(lang) and lang == alang
+          else "session LANG=%s, activation LANG=%s" % (lang or "-", alang or "-"))
 
     desk = [p for p in mine if p[3] == "quickshell" and p[4] == "quickshell"]
     others = [p for p in mine if p[3] == "quickshell" and p[4] != "quickshell"]

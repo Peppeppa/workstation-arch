@@ -9,3 +9,7 @@ base_packages:
   - rsync    # general-purpose file copy/sync tool for later roles and admin
   - btop     # interactive resource monitor - run on demand, no service/autostart
   - fastfetch # system summary - run on demand only, never from a shell rc file
+
+# System LANG written to /etc/locale.conf only when it has none (see
+# tasks/main.yml) - must be one of the locales generated there.
+base_default_lang: en_US.UTF-8

@@ -52,6 +52,34 @@
     - de_DE.UTF-8
   tags: base
 
+# A UTF-8 system locale must EXIST, or the session and its D-Bus/systemd
+# activated apps get none: systemd (PID 1 and the user manager - the
+# D-Bus activation environment) takes LANG only from /etc/locale.conf,
+# while a login shell / Ly's setup.sh fall back to C.UTF-8 on their own -
+# two different locales in one session (Qt then warns 'Detected locale
+# "C"'). Only a MISSING LANG is filled in (base_default_lang, generated
+# above); a LANG the system already has is never changed - same
+# conservative rule as above. Takes effect at the next boot/login.
+- name: Read the system LANG
+  ansible.builtin.command: grep -sx 'LANG=.\+' /etc/locale.conf
+  register: base_locale_conf
+  changed_when: false
+  failed_when: base_locale_conf.rc > 2
+  check_mode: false
+  tags: base
+
+- name: Ensure a system LANG exists (only if none is set)
+  become: true
+  when: base_locale_conf.rc != 0
+  ansible.builtin.lineinfile:
+    path: /etc/locale.conf
+    line: "LANG={{ base_default_lang }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  tags: base
+
 # Virtual console (TTY, pre-Hyprland) keymap - separate from Hyprland's
 # own Wayland input.kb_layout (roles/hyprland), which only applies once
 # a graphical session is running. de-latin1 is the Arch-documented
