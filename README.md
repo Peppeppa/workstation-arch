@@ -408,13 +408,21 @@ repository:
 python3 ~/Downloads/eduroam-linux-THW.py   # in a terminal: username + password are asked there
 ```
 
-It creates the NetworkManager profiles `eduroam` and `THWS` (CA in
-`~/.config/cat_installer/ca.pem`, server names checked). It marks the
-password "agent-owned", and this desktop deliberately runs no NM secret
-agent (no nm-applet), so store it once for each profile: Network popup
--> Connections... -> the profile -> Wi-Fi Security -> password, with the
-field's menu set to "Store the password for all users". Never put the
-password on a command line.
+It creates the NetworkManager profiles `eduroam` and `THWS` (CA bundle in
+`~/.config/cat_installer/ca.pem`, the RADIUS server names checked via
+`domain-match`, anonymous outer identity). It marks the password
+"agent-owned" - kept by a secret agent such as nm-applet, which this
+desktop deliberately does not run - so NetworkManager drops it. Store it
+once, system-owned (root-only keyfile, like every Wi-Fi password here):
+
+```sh
+sudo nmcli connection modify eduroam 802-1x.password-flags 0
+sudo nmcli connection modify THWS 802-1x.password-flags 0
+```
+
+then Network popup -> Connections... -> `eduroam` -> Wi-Fi Security ->
+type the password -> Save; the same for `THWS`. Never put the password on
+a command line.
 
 ## Text size and display scale
 
