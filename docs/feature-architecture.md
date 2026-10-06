@@ -862,9 +862,22 @@ Settings only; no `-wlr`/`-gnome`/`-kde`. Activation env:
 `WAYLAND_DISPLAY`, `XDG_CURRENT_DESKTOP=Hyprland`, `XDG_SESSION_TYPE`
 (roles/hyprland). No RemoteDesktop portal (the Hyprland backend does not
 implement it): remote *control* features (Zoom's "Request remote
-control") are unavailable by design. Clients: Chromium/WebCord (WebRTC
-`getDisplayMedia` via the portal), Zoom (Flathub, XWayland window; uses
-the portal as a Wayland-session client).
+control") are unavailable by design. Clients: Chromium, WebCord and Zoom
+as a Chromium web app (WebRTC `getDisplayMedia` via the portal).
+
+**Native Zoom: retired (2026-10-06, laptop).** Flathub `us.zoom.Zoom`
+7.2.1 runs on XWayland only (its `xwayland=false` is ignored by the
+Flatpak build). Capture worked (portal, DMA-BUF Y-tiled from xdph), but
+during a share Zoom "froze": its main thread was idle - the clicks never
+arrived. Its share toolbar (`as_toolbar`) and annotation overlay
+(`annotate_toolbar`) are override-redirect X11 windows; the overlay was
+also tiled by Hyprland over the toolbar, and the toolbar receives pointer
+input only after the pointer entered through a managed Zoom window
+(XQueryPointer kept the old position until then) - so from the second
+share on Stop share / mute did nothing. Window rules fixed only the first
+case. Separately, Zoom reads every captured frame back with glReadPixels
+(crocus CPU de-tiling, ~one core while sharing). The web client has none
+of this and is what the user uses.
 
 ## Clipboard history v1
 

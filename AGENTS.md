@@ -928,16 +928,18 @@ history for that milestone's own record):
   (`qs ipc call coffee status`); system LANG guaranteed + healthcheck
   "session locale"; `roles/shell` (Starship, zoxide, fzf, eza, bat,
   tealdeer); LazyVim starter + exact per-theme Neovim colorscheme (theme
-  payload `neovim:`, live switch); Zoom (Flathub); `python-dbus` for the
+  payload `neovim:`, live switch); Zoom as web app (native Flathub Zoom
+  retired: XWayland toolbar ignores input); `python-dbus` for the
   eduroam CAT installer; timer digits-from-the-right parser + H:MM:SS;
   Visuals hover fade; collapsible tray; Day/Night 0.5 s; network popup
   Connections... button. Real-hardware-tested over SSH: Coffee IPC,
   locale (session, systemd user, activated portals), tools, Starship,
   LazyVim plugin install, all 5 theme->Neovim mappings incl. live switch
-  of a running Neovim, Zoom launch, portal stack audit. Not yet
-  hands-on-tested (pointer input needed): Visuals/tray hover, timer
-  popup typing, Day/Night speed, Connections button, screen sharing
-  matrix, eduroam enrollment.
+  of a running Neovim, portal stack audit; GUI (virtual pointer +
+  screenshots, and by the user): tray hover/menu, Visuals fade, timer
+  input/Enter/Start/Stop and >1 h, Day/Night, Connections button,
+  screen sharing in WebCord and Zoom web (Chromium path). Open: eduroam
+  enrollment (needs the user's credentials).
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

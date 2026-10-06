@@ -187,7 +187,7 @@ first - see the `gaming` row below.
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
-| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ/Zoom via Flathub; WhatsApp as Chromium web app); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
+| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ via Flathub; WhatsApp and Zoom as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
 | `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker") |
 | `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer) + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
@@ -383,11 +383,20 @@ keep that one file to stay themed.
 
 ## Zoom and screen sharing
 
-Zoom comes from Flathub (`us.zoom.Zoom`; the official repos have none).
-Screen sharing in Zoom, Chromium and WebCord goes through the portal:
-choose a monitor, a window or a region in Hyprland's picker. Stop sharing
-in the app; the capture ends with it. Remote control is not available
-on Hyprland (no RemoteDesktop portal).
+Zoom is its **web client** in its own Chromium window (launcher entry
+"Zoom", `app.zoom.us`). The native Zoom app is not installed: on Hyprland
+its share toolbar ignores the mouse (XWayland override-redirect windows -
+Stop share and mute stop reacting from the second share on), while the
+web client shares reliably and is faster. Screen sharing in Zoom (web),
+Chromium and WebCord goes through the portal: choose a monitor, a window
+or a region in Hyprland's picker. Stop sharing in the app; the capture
+ends with it. Remote control is not available on Hyprland (no
+RemoteDesktop portal).
+
+WebCord asks once per permission (microphone, camera) and remembers the
+answer in its own settings (`~/.var/app/io.github.spacingbat3.webcord/
+config/WebCord/config.json`, `privacy.permissions`; `false` = denied):
+change it in WebCord's settings (Privacy -> Permissions).
 
 ## eduroam
 
