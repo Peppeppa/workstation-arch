@@ -34,6 +34,15 @@ network_packages:
                      # the laptop's Intel 7260. No country is set here: with
                      # the database present the kernel follows the country
                      # the access point announces.
+  - python-dbus      # the only runtime dependency of the institution's
+                     # official eduroam CAT installer (GÉANT CAT Linux
+                     # script, e.g. eduroam-linux-THW.py): it creates the
+                     # 802.1X profiles through NetworkManager's D-Bus API
+                     # (NetworkManager mode - no wpa_supplicant/iwd config
+                     # of its own). Without it the script falls back to
+                     # writing a wpa_supplicant file. Enrollment workflow:
+                     # README "eduroam". Nothing of the script (or any
+                     # credential) is part of this repository.
 
 # Uni-VPN (eduroam-adjacent institutional VPN) is a deliberately open
 # point: the actual protocol (possibly Fortinet/FortiGate/FortiClient,

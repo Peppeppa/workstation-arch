@@ -114,6 +114,15 @@ apps_flatpak_packages:
   # app" (never installed) to Flathub.
   - io.github.spacingbat3.webcord
 
+  # Zoom (university video calls): not in the official Arch repos. Zoom's
+  # own Linux download (zoom_x86_64.pkg.tar.xz) is a single file, not a
+  # repository - no clean, Ansible-reproducible update path (the same
+  # reason as JetBrains above); the AUR `zoom` only repackages it. The
+  # Flathub app is maintained (update 2026-10-02, `flatpak remote-info`
+  # checked 2026-10) and fetches Zoom's official binary as extra-data.
+  # Screen sharing goes through xdg-desktop-portal like every other app
+  # (docs/feature-architecture.md "Screen sharing").
+  - us.zoom.Zoom
 
 # Web apps: a launcher entry (~/.local/share/applications/<id>.desktop)
 # that opens the site in its own Chromium app window - the existing
