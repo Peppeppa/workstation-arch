@@ -44,7 +44,12 @@ Item {
         model.importTheme(urlField.text.trim(), mode);
     }
 
-    onVisibleChanged: if (visible) reset()
+    // Hidden, the URL field must not keep the keyboard: the Appearance
+    // FocusScope would hand focus back to it and swallow the next Escape.
+    onVisibleChanged: {
+        if (visible) reset();
+        else urlField.focus = false;
+    }
 
     MouseArea {
         anchors.fill: parent

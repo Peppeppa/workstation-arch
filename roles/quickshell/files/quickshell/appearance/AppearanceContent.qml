@@ -482,8 +482,8 @@ FocusScope {
         model: themeModel
         fontSize: root.fontSize
         onDone: root.window.importOpen = false
-        // its URL field had the keyboard: give it back, so Escape closes
-        // the window next (it went to the hidden field before)
+        // keyboard back to the window (ThemeImport drops its field's focus),
+        // so the next Escape closes Appearance
         onVisibleChanged: if (!visible) root.forceActiveFocus()
     }
 }
