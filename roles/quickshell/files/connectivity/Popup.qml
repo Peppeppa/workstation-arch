@@ -223,6 +223,12 @@ BarPopup {
         return (i === 0 ? Math.round(bps) : bps < 10 ? bps.toFixed(1) : Math.round(bps)) + " " + u[i];
     }
 
+    // A speedtest result in Mbit/s, without the unit (shown once per line).
+    function mbit(bps) {
+        const m = bps / 1e6;
+        return m < 10 ? m.toFixed(1) : String(Math.round(m));
+    }
+
     // ---- latency / loss: one small ping run every 5 s while open ---------
     // 1.1.1.1: Cloudflare's anycast resolver - answers ICMP from a nearby
     // site almost everywhere, needs no DNS lookup; it stands for "the
@@ -1103,8 +1109,8 @@ BarPopup {
                     elide: Text.ElideRight
                     text: popup.speedState === "running" ? "Speedtest running\u2026"
                         : popup.speedState === "failed" ? "Speedtest failed - click to retry"
-                        : popup.speedState === "done" ? "Speedtest " + popup.speedResult.at + ":  \u2193 " + popup.bits(popup.speedResult.down)
-                                                        + "  \u2191 " + popup.bits(popup.speedResult.up) + "  " + Math.round(popup.speedResult.ping) + " ms"
+                        : popup.speedState === "done" ? "Speedtest " + popup.speedResult.at + "  \u2193 " + popup.mbit(popup.speedResult.down)
+                                                        + "  \u2191 " + popup.mbit(popup.speedResult.up) + " Mbit/s  " + Math.round(popup.speedResult.ping) + " ms"
                         : ""
                     color: popup.speedState === "failed" ? Colors.error : Colors.foregroundMuted
                     font.family: Fonts.family

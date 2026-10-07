@@ -355,6 +355,8 @@ QtObject {
         eq("bits: 42300000", bits(42300000), "42 Mbit/s");
         eq("bits: 8100000", bits(8100000), "8.1 Mbit/s");
         eq("bits: 900", bits(900), "900 bit/s");
+        const mbit = make(pop, "mbit", {});
+        eq("mbit: 406e6", mbit(406123456), "406"); eq("mbit: 8.1e6", mbit(8100000), "8.1");
     }
 
     Component.onCompleted: {
