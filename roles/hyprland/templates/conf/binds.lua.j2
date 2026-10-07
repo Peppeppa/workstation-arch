@@ -11,8 +11,8 @@
 return function(v)
     local mainMod = v.mainMod
     local focusOrLaunch = v.userDir .. "/.local/bin/focus-or-launch"
-    -- Resize = mainMod + ALT; on a host whose mainMod IS ALT (arch-dev)
-    -- that would be ALT + ALT, so CTRL takes its place there.
+    -- Resize = mainMod + ALT. Keep the fallback generic in case a future
+    -- host genuinely overrides mainMod to ALT.
     local resizeMod = mainMod == "ALT" and "CTRL" or "ALT"
 
     -- ---- Apps -----------------------------------------------------------
