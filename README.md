@@ -372,8 +372,9 @@ Mechanism: one nftables table (`inet workstation`) loaded at boot by
 `workstation-firewall.service`; nothing keeps running.
 
 **Share a service with colleagues on the LAN**: OS menu -> Settings ->
-Firewall -> **Hinzufügen** (e.g. `Test Database` / `1234` / `TCP`). They
-can then connect to `<your-ip>:1234`. **Deaktivieren** closes it again
+Firewall -> **Hinzufügen** (e.g. `Test Database` / `1234` / `TCP`). A new
+rule starts **disabled** - nothing opens until you click **Aktivieren**;
+then colleagues can connect to `<your-ip>:1234`. **Deaktivieren** closes it again
 immediately (the row stays), **Aktivieren** reopens it, **×** closes and
 deletes the rule. Rules survive reboots.
 

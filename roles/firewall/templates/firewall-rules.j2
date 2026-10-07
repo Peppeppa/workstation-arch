@@ -10,7 +10,8 @@
 #
 # Its whole interface:
 #   list                              JSON: the rules + whether each is live
-#   add <label> <port> <protocol>     new rule, enabled at once
+#   add <label> <port> <protocol>     new rule, added DISABLED (nothing opens
+#                                     until the user enables it)
 #   enable|disable|remove <port> <protocol>
 #   restore                           refill the nft sets from the state
 #
@@ -68,32 +69,32 @@ class Failed(Exception):
 def parse_label(raw):
     label = raw.strip()
     if not label:
-        raise Refused("enter a name")
+        raise Refused("Bezeichnung fehlt")
     if len(label) > LABEL_MAX:
-        raise Refused(f"name too long (at most {LABEL_MAX} characters)")
+        raise Refused(f"Bezeichnung zu lang (höchstens {LABEL_MAX} Zeichen)")
     if any(unicodedata.category(c)[0] == "C" for c in label):
-        raise Refused("the name contains control characters")
+        raise Refused("Bezeichnung enthält Steuerzeichen")
     try:
         label.encode("utf-8")
     except UnicodeEncodeError:
-        raise Refused("the name is not valid text")
+        raise Refused("Bezeichnung ist kein gültiger Text")
     return label
 
 
 def parse_port(raw):
     # digits only, no sign/space/leading zero - nothing is "repaired"
     if not re.fullmatch(r"[1-9][0-9]{0,4}", raw):
-        raise Refused("port must be a number from 1 to 65535")
+        raise Refused("Port: eine Zahl von 1 bis 65535")
     port = int(raw)
     if port > 65535:
-        raise Refused("port must be a number from 1 to 65535")
+        raise Refused("Port: eine Zahl von 1 bis 65535")
     return port
 
 
 def parse_protocol(raw):
     proto = raw.upper()
     if proto not in ("TCP", "UDP"):
-        raise Refused("protocol must be TCP or UDP")
+        raise Refused("Protokoll: TCP oder UDP")
     return proto
 
 
@@ -106,10 +107,10 @@ def load():
     except FileNotFoundError:
         return []
     except (OSError, ValueError) as e:
-        raise Failed(f"cannot read {STATE}: {e}")
+        raise Failed(f"{STATE} nicht lesbar: {e}")
     rules = data.get("rules") if isinstance(data, dict) else None
     if not isinstance(rules, list):
-        raise Failed(f"{STATE} has no rule list")
+        raise Failed(f"{STATE} enthält keine Regelliste")
     out = []
     for r in rules:
         try:
@@ -120,7 +121,7 @@ def load():
                 "enabled": r["enabled"] is True,
             })
         except (KeyError, TypeError, Refused) as e:
-            raise Failed(f"{STATE} holds an invalid rule ({e})")
+            raise Failed(f"{STATE} enthält eine ungültige Regel ({e})")
     return out
 
 
@@ -145,7 +146,7 @@ def save(rules):
             os.unlink(tmp)
         except OSError:
             pass
-        raise Failed(f"cannot write {STATE}: {e}")
+        raise Failed(f"{STATE} nicht schreibbar: {e}")
 
 
 def find(rules, port, proto):
@@ -167,9 +168,9 @@ def nft(*args):
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"nft: {e}")
     if p.returncode != 0:
-        raise Failed("firewall not loaded (workstation-firewall.service)"
+        raise Failed("Firewall nicht geladen (workstation-firewall.service)"
                      if "No such file or directory" in p.stderr
-                     else "nft: " + (p.stderr.strip().splitlines() or ["failed"])[0])
+                     else "nft: " + (p.stderr.strip().splitlines() or ["fehlgeschlagen"])[0])
     return p.stdout
 
 
@@ -177,11 +178,11 @@ def live(proto):
     try:
         out = json.loads(nft("-j", "list", "set", "inet", TABLE, set_name(proto)))
     except ValueError:
-        raise Failed("unexpected nft output")
+        raise Failed("unerwartete nft-Ausgabe")
     for item in out.get("nftables", []):
         if "set" in item:
             return {e for e in item["set"].get("elem", []) if isinstance(e, int)}
-    raise Failed("unexpected nft output")
+    raise Failed("unerwartete nft-Ausgabe")
 
 
 def open_port(port, proto):
@@ -209,19 +210,16 @@ def cmd_list():
 def cmd_add(label, port, proto):
     label, port, proto = parse_label(label), parse_port(port), parse_protocol(proto)
     if (proto, port) in SYSTEM_PORTS:
-        raise Refused(f"{proto} {port} is always open ({SYSTEM_PORTS[(proto, port)]})")
+        raise Refused(f"{proto} {port} ist immer offen ({SYSTEM_PORTS[(proto, port)]})")
     rules = load()
     if find(rules, port, proto) >= 0:
-        raise Refused(f"a rule for {proto} {port} already exists")
+        raise Refused(f"Eine Regel für {proto} {port} gibt es schon")
     if len(rules) >= RULES_MAX:
-        raise Refused(f"at most {RULES_MAX} rules")
-    open_port(port, proto)
-    rules.append({"label": label, "port": port, "protocol": proto, "enabled": True})
-    try:
-        save(rules)
-    except Failed:
-        close_port(port, proto)
-        raise
+        raise Refused(f"Höchstens {RULES_MAX} Regeln")
+    # Added disabled: opening a port is always a separate, deliberate
+    # "enable" - a typo in the dialog can never expose anything.
+    rules.append({"label": label, "port": port, "protocol": proto, "enabled": False})
+    save(rules)
 
 
 def cmd_set(port, proto, enabled):
@@ -229,7 +227,7 @@ def cmd_set(port, proto, enabled):
     rules = load()
     i = find(rules, port, proto)
     if i < 0:
-        raise Refused(f"no rule for {proto} {port}")
+        raise Refused(f"Keine Regel für {proto} {port}")
     if enabled:
         open_port(port, proto)
     else:
@@ -248,7 +246,7 @@ def cmd_remove(port, proto):
     rules = load()
     i = find(rules, port, proto)
     if i < 0:
-        raise Refused(f"no rule for {proto} {port}")
+        raise Refused(f"Keine Regel für {proto} {port}")
     close_port(port, proto)
     was = rules.pop(i)
     try:
@@ -274,7 +272,7 @@ USAGE = ("usage: firewall-rules list | add <label> <port> <tcp|udp> | "
 
 def main(argv):
     if os.geteuid() != 0:
-        raise Refused("must run as root (pkexec)")
+        raise Refused("muss als root laufen (pkexec)")
     cmd, args = (argv[0], argv[1:]) if argv else ("", [])
     table = {
         ("list", 0): cmd_list,

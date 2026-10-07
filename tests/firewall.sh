@@ -82,15 +82,17 @@ refused add "x" 1 tcp extra;    check "extra argument refused" $?
 # ---- add / normalize / enable / disable / remove ----------------------------
 in_set() { nft -j list set inet workstation "$1" | grep -q "\"elem\": \[[^]]*\b$2\b"; }
 "$H" add 'Test DB; $(rm -rf /)' 1234 Tcp; check "add TCP (Tcp)" $?
-in_set share_tcp 1234; check "added TCP rule is live" $?
+! in_set share_tcp 1234; check "a new rule is added disabled (not live)" $?
+"$H" enable 1234 tcp && in_set share_tcp 1234; check "enabled TCP rule is live" $?
 "$H" add "Game" 4000 uDp; check "add UDP (uDp)" $?
-in_set share_udp 4000; check "added UDP rule is live" $?
+! in_set share_udp 4000; check "a new UDP rule is added disabled" $?
+"$H" enable 4000 udp && in_set share_udp 4000; check "enabled UDP rule is live" $?
 refused add "dup" 1234 TCP; check "duplicate rule refused" $?
 "$H" add "Other" 1234 udp; check "same port, other protocol is a separate rule" $?
 python3 - "$tmp/state/rules.json" <<'EOF'; check "state normalized (TCP/UDP), label kept verbatim" $?
 import json, sys
 r = json.load(open(sys.argv[1]))["rules"]
-assert [(x["port"], x["protocol"], x["enabled"]) for x in r] == [(1234, "TCP", True), (4000, "UDP", True), (1234, "UDP", True)], r
+assert [(x["port"], x["protocol"], x["enabled"]) for x in r] == [(1234, "TCP", True), (4000, "UDP", True), (1234, "UDP", False)], r
 assert r[0]["label"] == "Test DB; $(rm -rf /)"
 EOF
 for p in tcp TCP; do refused add "dup" 1234 $p; done; check "tcp/TCP duplicates refused" $?
@@ -164,10 +166,12 @@ reach $lanpid 10.0.0.1 1234; check "host service: LAN allowed with the rule enab
 
 ! reach $lanpid 10.0.0.1 2345; check "docker: published port blocked from the LAN without a rule" $?
 "$H" add "Web" 2345 tcp
+! reach $lanpid 10.0.0.1 2345; check "docker: a newly added (disabled) rule opens nothing" $?
+"$H" enable 2345 tcp
 reach $lanpid 10.0.0.1 2345; check "docker: LAN allowed with a rule for the HOST port" $?
 "$H" disable 2345 tcp
 ! reach $lanpid 10.0.0.1 2345; check "docker: LAN blocked again right after disable" $?
-"$H" add "ctr port" 80 tcp
+"$H" add "ctr port" 80 tcp; "$H" enable 80 tcp
 ! reach $lanpid 10.0.0.1 2345; check "docker: a rule for the container port does not open the host port" $?
 "$H" remove 80 tcp
 nsenter -t $lanpid -n ip route add 172.17.0.0/16 via 10.0.0.1

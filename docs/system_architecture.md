@@ -1302,7 +1302,7 @@ run entire shell as root
 Konkretes Beispiel (Hardening v1): Settings → Firewall ruft
 `pkexec /usr/local/libexec/workstation/firewall-rules <verb> <args>` auf -
 ein root-eigener Helper mit winziger, validierter Schnittstelle (Regeln
-auflisten/hinzufügen/aktivieren/deaktivieren/löschen, nur Port 1-65535 +
+auflisten/hinzufügen (neu = deaktiviert)/aktivieren/deaktivieren/löschen, nur Port 1-65535 +
 TCP/UDP), freigegeben über eine eigene polkit-Action nur für die aktive
 lokale Sitzung. Kein `sudo nft` aus QML, keine NOPASSWD-Regel, keine freie
 nft-Syntax.

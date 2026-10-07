@@ -5,8 +5,9 @@
 // Port (1-65535), Protokoll (TCP or UDP, any case - shown and stored
 // upper-case). Nothing else - no ranges, sources, interfaces or nft syntax.
 // Checked here for feedback, decided by the root helper; the dialog closes
-// only when the helper accepted the rule (then it is live). Escape / a
-// click outside / Abbrechen closes.
+// only when the helper accepted the rule. A new rule is added DISABLED -
+// the port opens only with the row's "Aktivieren" (no accidental exposure
+// from a typo). Escape / a click outside / Abbrechen closes.
 
 import QtQuick
 import QtQuick.Layouts

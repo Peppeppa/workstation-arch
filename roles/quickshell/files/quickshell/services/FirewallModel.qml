@@ -33,15 +33,15 @@ Scope {
     // ---- pure input checks (mirrors of the helper's; it decides) ----------
     function labelError(text) {
         const t = text.trim();
-        if (t === "") return "Enter a name.";
-        if (t.length > 48) return "At most 48 characters.";
-        if (/[\u0000-\u001f\u007f-\u009f]/.test(t)) return "No control characters.";
+        if (t === "") return "Bezeichnung fehlt.";
+        if (t.length > 48) return "Bezeichnung zu lang (höchstens 48 Zeichen).";
+        if (/[\u0000-\u001f\u007f-\u009f]/.test(t)) return "Bezeichnung enthält Steuerzeichen.";
         return "";
     }
 
     function portError(text) {
         if (!/^[1-9][0-9]{0,4}$/.test(text) || parseInt(text, 10) > 65535)
-            return "Port: a number from 1 to 65535.";
+            return "Port: eine Zahl von 1 bis 65535.";
         return "";
     }
 
@@ -82,9 +82,9 @@ Scope {
     // authentication; anything else is the helper's "firewall-rules: ...".
     function message(code, stderr) {
         if (code === 126 || code === 127)
-            return "Not authorized to change the firewall (polkit).";
+            return "Keine Berechtigung, die Firewall zu ändern (polkit).";
         return stderr.trim().split("\n")[0].replace(/^firewall-rules: /, "")
-            || "failed (exit " + code + ")";
+            || "fehlgeschlagen (Exit " + code + ")";
     }
 
     signal actionDone(bool ok)
@@ -103,7 +103,7 @@ Scope {
                     model.rules = d.rules;
                     model.loaded = d.loaded;
                 } catch (e) {
-                    model.errorText = "The firewall helper returned no rule list.";
+                    model.errorText = "Der Firewall-Helper lieferte keine Regelliste.";
                     Log.warn("firewall", "`firewall-rules list` returned no JSON");
                 }
             } else {
