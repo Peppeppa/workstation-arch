@@ -56,6 +56,34 @@
     state: stopped
   tags: base
 
+# SSH CLIENT: keys come from the Bitwarden SSH agent (Bitwarden desktop's
+# own socket, ~/.bitwarden-ssh-agent.sock). Only this one managed block in
+# ~/.ssh/config - anything else in the file stays the user's; it sits at the
+# END, so a more specific Host entry above it wins (OpenSSH takes the first
+# value it finds). No key, no secret, no socket is created here: without a
+# running/unlocked Bitwarden ssh simply finds no agent and goes on.
+- name: Ensure ~/.ssh exists (0700)
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.ssh"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0700"
+  tags: base
+
+- name: SSH client uses the Bitwarden SSH agent (~/.ssh/config, managed block)
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts.user_dir }}/.ssh/config"
+    marker: "# {mark} workstation-arch (roles/base): Bitwarden SSH agent"
+    block: |
+      Host *
+          IdentityAgent ~/.bitwarden-ssh-agent.sock
+    create: true
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0600"
+  tags: base
+
 # Locale generation is a system-wide (not Hyprland-specific) concern, so
 # it lives here rather than in roles/hyprland. Conservative choice, not a
 # full locale framework: generate en_US.UTF-8 (already relied upon -
