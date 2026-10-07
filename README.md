@@ -416,6 +416,19 @@ Create the profile once: OS menu -> Settings -> Network -> `+` ->
   into the tunnel, which the VPN does not forward - no internet while
   connected)
 
+**Library / licensed resources**: the VPN carries only what the THWS
+gateway routes - its services and some licensed ones (e.g. DBIS,
+beck-online: recognized as THWS). The big publisher platforms (SpringerLink,
+IEEE Xplore, ScienceDirect, Wiley) are NOT routed by the gateway (measured:
+it drops anything outside its route list, so a full tunnel cannot work
+either); the library's own way for them is its **proxy** - "Externer
+Zugang" on bibliothek.thws.de: request the separate proxy credentials,
+then set `https://www.bibliothek.thws.de/proxy.pac` as automatic proxy
+configuration in the browser. It works with or without the VPN.
+
+While a VPN is up the bar's network icon is in the accent color and the
+popup shows "via VPN" top right.
+
 Your credentials stay in NetworkManager's root-only system profile -
 never in this repository. The plugin (`networkmanager-fortisslvpn`) is the
 one AUR package here, built from a pinned commit (`roles/network`).

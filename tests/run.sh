@@ -25,6 +25,7 @@ step "bash -n bootstrap.sh" bash -n bootstrap.sh
 for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
 for f in roles/recovery/files/system-*; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc
+step "sh -n roles/network/files/50-workstation-vpn-state" sh -n roles/network/files/50-workstation-vpn-state
 step "ansible-playbook --syntax-check local.yml" ansible-playbook --syntax-check local.yml </dev/null
 step "ansible-inventory --list" ansible-inventory --list </dev/null
 step "YAML parses" python3 -c '

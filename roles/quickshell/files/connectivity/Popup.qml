@@ -343,6 +343,7 @@ BarPopup {
     Connections {
         target: popup.net
         function onNmStateChanged() { popup.refreshLists(); }
+        function onVpnStateChanged() { popup.refreshLists(); }
     }
 
     // The only sampling of this feature: exists with the popup, 1 s.
@@ -879,11 +880,21 @@ BarPopup {
                         : c === NetworkConnectivity.Portal ? "Login required"
                         : c === NetworkConnectivity.Limited ? "Limited connectivity"
                         : c === NetworkConnectivity.None ? "No internet"
-                        : (popup.net.kind === "wifi" ? "Wi-Fi" : "Ethernet") + (popup.net.vpnDefault || popup.tunnelDefault ? "  ·  via VPN" : "")
+                        : (popup.net.kind === "wifi" ? "Wi-Fi" : "Ethernet")
                     color: c === NetworkConnectivity.Portal || c === NetworkConnectivity.Limited
                            || (c === NetworkConnectivity.None && popup.net.kind !== "none") ? Colors.error : Colors.foreground
                     font.family: Fonts.family
                     font.pixelSize: popup.fontSize
+                    font.bold: true
+                }
+
+                // top right while any VPN is up (split tunnel included)
+                Text {
+                    visible: popup.net.kind !== "none" && (popup.net.vpnActive || popup.tunnelDefault)
+                    text: "via VPN"
+                    color: Colors.accent
+                    font.family: Fonts.family
+                    font.pixelSize: popup.fontSize - 1
                     font.bold: true
                 }
 
@@ -896,7 +907,9 @@ BarPopup {
             }
 
             Repeater {
-                model: popup.addresses
+                // a tunnel's address only while a VPN is up: NM reports the
+                // disconnect before pppd/wg has removed the interface
+                model: popup.addresses.filter(a => a.kind !== "vpn" || popup.net.vpnActive)
 
                 ColumnLayout {
                     id: addrRow

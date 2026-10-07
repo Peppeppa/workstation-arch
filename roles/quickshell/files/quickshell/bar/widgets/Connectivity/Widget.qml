@@ -1,6 +1,6 @@
 // Bar widget "connectivity": the interface carrying the active default
 // route (Model.qml) as one icon - Wi-Fi with signal level, Ethernet, or
-// disconnected. With the connectivity feature a click opens the network
+// disconnected; in the accent color while a VPN is connected. With the connectivity feature a click opens the network
 // popup (Popup.qml: status, VPN, Wi-Fi - quick control only; administration
 // is nm-connection-editor via the OS menu). Managed by Ansible: do not edit
 // by hand, see roles/quickshell in workstation-arch.
@@ -18,6 +18,7 @@ BarWidget {
 
     icon: net.icon
     muted: net.kind === "none"
+    active: net.vpnActive                   // accent while a VPN is connected
     interactive: BarFeatures.connectivity
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 

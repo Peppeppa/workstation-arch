@@ -1,0 +1,6 @@
+---
+# The same tmpfiles entry systemd applies at boot, right away (no reboot).
+- name: Create the VPN state file now
+  become: true
+  ansible.builtin.command:
+    cmd: systemd-tmpfiles --create /etc/tmpfiles.d/workstation-vpn-state.conf

@@ -23,6 +23,39 @@
     state: started
   tags: network
 
+# VPN state for the bar (Quickshell's Networking module reports Wi-Fi and
+# Ethernet only): NetworkManager's own dispatcher runs a hook on every
+# (vpn-)up/down that rewrites /run/workstation/vpn-state; the widget
+# watches that file. nm-dispatcher is D-Bus activated and exits when idle -
+# enabling it only installs that activation alias.
+- name: Enable NetworkManager's dispatcher (D-Bus activated, on demand)
+  become: true
+  ansible.builtin.systemd_service:
+    name: NetworkManager-dispatcher.service
+    enabled: true
+  tags: network
+
+- name: Deploy the VPN-state dispatcher hook
+  become: true
+  ansible.builtin.copy:
+    src: 50-workstation-vpn-state
+    dest: /etc/NetworkManager/dispatcher.d/50-workstation-vpn-state
+    owner: root
+    group: root
+    mode: "0755"
+  tags: network
+
+- name: Create /run/workstation/vpn-state at every boot (tmpfiles.d)
+  become: true
+  ansible.builtin.copy:
+    src: workstation-vpn-state.conf
+    dest: /etc/tmpfiles.d/workstation-vpn-state.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Create the VPN state file now
+  tags: network
+
 # FEATURE: fortinet_vpn (see defaults for the source decision). The profile
 # itself (K-number, stored password) is the user's - created once with
 # nm-connection-editor or nmcli (README "Uni VPN (THWS)"), never here.

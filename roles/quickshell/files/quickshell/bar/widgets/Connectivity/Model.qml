@@ -10,6 +10,11 @@
 // icon and sets vpnDefault. Re-read on NetworkManager events only (device
 // state/connection changes, connectivity) plus one delayed re-read for
 // routes that settle a moment later - no poller, no process.
+//
+// VPNs: Quickshell's Networking module knows only Wi-Fi/Ethernet devices,
+// so an active VPN (split tunnel: no default route of its own) comes from
+// /run/workstation/vpn-state, kept by roles/network's NetworkManager
+// dispatcher hook on every (vpn-)up/down and watched here (inotify).
 
 import QtQuick
 import Quickshell
@@ -42,6 +47,9 @@ Scope {
     readonly property string primaryIface: primary ? primary.iface : ""
     readonly property string kind: primary ? physical[primary.iface] : "none"
     readonly property bool vpnDefault: defaults.length > 0 && physical[defaults[0].iface] === undefined
+    // "TYPE:DEVICE:NAME" lines of the active VPN/WireGuard connections ("" = none)
+    property string vpnState: ""
+    readonly property bool vpnActive: vpnState !== "" || vpnDefault
     readonly property string gateway: primary ? primary.gateway : ""
 
     readonly property var wifiDevice: kind === "wifi" ? Networking.devices.values.find(d => d.name === primaryIface) || null : null
@@ -127,6 +135,20 @@ Scope {
         id: settle
         interval: 1500
         onTriggered: model.update()
+    }
+
+    // Quickshell 0.3.1: parse in onLoaded (text() right after reload() is stale).
+    FileView {
+        id: vpnFile
+        path: "/run/workstation/vpn-state"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            model.vpnState = text().trim();
+            Qt.callLater(model.update);       // a tunnel's routes changed too
+        }
     }
 
     FileView {

@@ -837,7 +837,16 @@ FortiGate SSL-VPN via openfortivpn and the NetworkManager plugin
 source decision is in its defaults). The popup's VPN section lists the
 profile (type `vpn`) and toggles it with `nmcli connection up/down`; the
 plugin takes the stored password (flags 0, system profile) - no agent.
-`ppp0` counts as a VPN link in the address list. Split tunnel by profile
+`ppp0` counts as a VPN link in the address list. VPN state for the bar:
+Quickshell's Networking module reports Wi-Fi/Ethernet only, so a
+NetworkManager dispatcher hook (`/etc/NetworkManager/dispatcher.d/
+50-workstation-vpn-state`, run by nm-dispatcher on (vpn-)up/down, exits)
+rewrites `/run/workstation/vpn-state` (tmpfiles.d creates it at boot);
+`Model.qml` watches it (inotify): icon in accent while a VPN is up, "via
+VPN" top right in the popup, tunnel addresses hidden the moment NM reports
+the disconnect. The gateway forwards only its route list (publisher CDNs
+and general internet through the tunnel time out - measured), so library
+resources outside it go through the library proxy (README). Split tunnel by profile
 (`ipv4.never-default yes`): the gateway pushes ~120 routes; a default
 route into the tunnel would cut the internet (measured). Disable: no
 packages built/installed any more; plugin + profile stay.

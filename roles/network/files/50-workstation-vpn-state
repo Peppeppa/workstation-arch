@@ -1,0 +1,20 @@
+#!/bin/sh
+# Managed by Ansible (roles/network) - do not edit by hand.
+# NetworkManager dispatcher hook (run by nm-dispatcher on NM's own events,
+# exits immediately - no daemon, no polling): keeps
+# /run/workstation/vpn-state = the active VPN/WireGuard connections, one
+# "TYPE:DEVICE:NAME" line each (empty = no VPN). The bar's network widget
+# watches that file (inotify) - Quickshell's Networking module does not
+# report VPNs. Written in place (same inode) and only when it changed.
+case "$2" in
+    up|down|vpn-up|vpn-down) ;;
+    *) exit 0 ;;
+esac
+dir=/run/workstation
+state=$dir/vpn-state
+mkdir -p "$dir"
+new=$(/usr/bin/nmcli -t -f TYPE,DEVICE,NAME connection show --active 2>/dev/null | grep -E '^(vpn|wireguard):')
+[ -f "$state" ] && [ "$new" = "$(cat "$state")" ] && exit 0
+if [ -n "$new" ]; then printf '%s\n' "$new" > "$state"; else : > "$state"; fi
+chmod 0644 "$state"
+exit 0
