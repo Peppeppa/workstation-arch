@@ -182,7 +182,7 @@ first - see the `gaming` row below.
 | `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal)                       |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
-| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer) |
+| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer); THWS VPN (openfortivpn + pinned AUR NM plugin, `fortinet_vpn_enabled`) - see "Uni VPN (THWS)" |
 | `firewall`       | `firewall`      | nftables inbound firewall (own table, no daemon), no ICMP redirects, the helper behind Settings -> Firewall - see "Firewall and SSH" |
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
@@ -394,6 +394,31 @@ the full ruleset: `sudo nft list table inet workstation`.
 SSH: inbound logins are public-key only on every host (no passwords, no
 keyboard-interactive). The server itself runs only where a host sets
 `ssh_server_enabled: true` (`host_vars/<host>.yml`).
+
+## Uni VPN (THWS)
+
+The THWS student VPN is a FortiGate SSL-VPN (`vpn.thws.de`, K-number +
+password; the access must be requested once in the Studierendenportal).
+On hosts with `fortinet_vpn_enabled` (laptop, workstation) bootstrap
+installs openfortivpn and its NetworkManager plugin; you then **switch
+it on/off only in the bar's network popup** (VPN section) like any other
+VPN.
+
+Create the profile once: OS menu -> Settings -> Network -> `+` ->
+**Fortinet SSLVPN**:
+- Gateway `vpn.thws.de`, user name = your K-number
+- password: the small icon in the field -> **Store the password for all
+  users** (this desktop has no secret agent - "only for this user" or "ask
+  every time" can never connect from the popup)
+- IPv4 Settings -> Routes -> **Use this connection only for resources on
+  its network** (split tunnel: the university pushes the routes of its
+  services; without this NetworkManager also sends all internet traffic
+  into the tunnel, which the VPN does not forward - no internet while
+  connected)
+
+Your credentials stay in NetworkManager's root-only system profile -
+never in this repository. The plugin (`networkmanager-fortisslvpn`) is the
+one AUR package here, built from a pinned commit (`roles/network`).
 
 ## Themes from repositories
 

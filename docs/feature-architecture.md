@@ -830,6 +830,18 @@ with *agent-owned* secrets (flags 1, e.g. what an eduroam CAT installer
 creates) has no agent to ask: its password must be stored once (README
 "eduroam").
 
+### THWS VPN (`fortinet_vpn_enabled`)
+
+FortiGate SSL-VPN via openfortivpn and the NetworkManager plugin
+`networkmanager-fortisslvpn` (pinned AUR build, `roles/network` - the
+source decision is in its defaults). The popup's VPN section lists the
+profile (type `vpn`) and toggles it with `nmcli connection up/down`; the
+plugin takes the stored password (flags 0, system profile) - no agent.
+`ppp0` counts as a VPN link in the address list. Split tunnel by profile
+(`ipv4.never-default yes`): the gateway pushes ~120 routes; a default
+route into the tunnel would cut the internet (measured). Disable: no
+packages built/installed any more; plugin + profile stay.
+
 ### eduroam (CAT)
 
 The institution's official GÉANT CAT Linux installer (THWS:

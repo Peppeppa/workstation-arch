@@ -104,6 +104,7 @@ direct upstream dependency.
 | NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) get their password stored once - README "eduroam" |
 | eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user, needs `python-dbus`), result = NetworkManager profiles; never in this repo |
 | Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand |
+| THWS VPN (FortiGate SSL-VPN) | NetworkManager + `networkmanager-fortisslvpn` (openfortivpn/pppd as the plugin's child, only while connected); switched only in the network popup's VPN section |
 | Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
@@ -373,17 +374,22 @@ fully specified in `docs/wifi_applet.md` (42 sections). Read it in full
 before touching any network-UI work; do not re-derive these
 requirements from scratch or narrow them without calling it out.
 
-**VPN foundation** (`roles/network`, no UI yet): `wireguard-tools` is
-installed so NetworkManager can import/manage a WireGuard profile
+**VPN foundation** (`roles/network`): `wireguard-tools` is installed so
+NetworkManager can import/manage a WireGuard profile
 (`nmcli connection import type wireguard file ...`) once one exists.
 No actual profile is created or committed here - a real profile has a
 real endpoint and keys, which are secrets and belong only in the
-separate private-config repository. **Uni-VPN is an open point**: the
-institution's actual VPN protocol (possibly Fortinet/FortiGate/
-FortiClient, possibly OpenConnect-compatible) is not yet confirmed - do
-not guess it or install a proprietary client speculatively. If
-NetworkManager/OpenConnect can natively speak the real protocol once
-confirmed, prefer that over proprietary FortiClient.
+separate private-config repository. **Uni-VPN resolved (2026-10-07)**:
+THWS = FortiGate SSL-VPN (`vpn.thws.de`, K-number + password). Feature
+`fortinet_vpn_enabled` (laptop, workstation): openfortivpn (official) +
+`networkmanager-fortisslvpn` - the ONE AUR package, built from a pinned,
+reviewed AUR commit with makepkg + pacman -U, no AUR helper. Chosen over
+the official openconnect NM plugin because that one needs a secret agent
+for its per-connect auth dialog (none here), so the network popup's
+toggle could not connect. The profile is the user's (password stored
+"for all users", split tunnel `ipv4.never-default yes`) - README "Uni
+VPN (THWS)". Real-hardware-tested on the laptop: connect from the session
+like the popup, ~120 pushed uni routes via `ppp0`, internet direct, DNS.
 
 ## Secrets and Public Repository
 
@@ -772,7 +778,6 @@ is still genuinely not started.
   until their real GPU is documented and both variables are set
   together in the relevant `host_vars/<hostname>.yml` (see
   `group_vars/all.yml` and the comments in both `host_vars/*.yml`).
-- **Uni-VPN**: protocol not confirmed — see Networking Rules.
 - **Webapp management**: `apps_webapps` (roles/apps) renders launcher
   entries for Chromium web apps (WhatsApp so far); GeForce NOW,
   Overleaf, draw.io are plain pages until added there.
@@ -963,8 +968,9 @@ history for that milestone's own record):
   temporary split WireGuard profile (routes, outbound, handshake sent).
   Bluetooth battery confirmed by the user on the real popup (Bose QC
   headphones via Battery1 = correct %, JBL without Battery1 = Connected).
-  Not tested: a real VPN peer (no profile configured), an actual LocalSend
-  file transfer (needs accepting on the laptop), Uni VPN/eduroam.
+  A real LocalSend file transfer was confirmed by the user; the THWS VPN
+  (real FortiGate peer through the firewall) works - see Networking Rules.
+  Not tested: eduroam.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
