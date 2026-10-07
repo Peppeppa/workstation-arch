@@ -1109,7 +1109,8 @@ BarPopup {
                     elide: Text.ElideRight
                     text: popup.speedState === "running" ? "Speedtest running\u2026"
                         : popup.speedState === "failed" ? "Speedtest failed - click to retry"
-                        : popup.speedState === "done" ? "Speedtest " + popup.speedResult.at + "  \u2193 " + popup.mbit(popup.speedResult.down)
+                        // the speedometer icon beside it marks the line - no "Speedtest" word (fits the width)
+                        : popup.speedState === "done" ? popup.speedResult.at + "  \u2193 " + popup.mbit(popup.speedResult.down)
                                                         + "  \u2191 " + popup.mbit(popup.speedResult.up) + " Mbit/s  " + Math.round(popup.speedResult.ping) + " ms"
                         : ""
                     color: popup.speedState === "failed" ? Colors.error : Colors.foregroundMuted

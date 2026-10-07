@@ -851,8 +851,8 @@ Ping / Packet loss (right; ONE `ping -n -q -c 5 -i 0.2 -W 1 -w 4 1.1.1.1`
 every 5 s, both numbers from that run - Cloudflare's anycast resolver as
 "the internet": answered nearby almost everywhere, no DNS lookup). A
 speedometer icon starts `speedtest-cli --secure --json` once (running state,
-no second start, 90 s guard); its result is a separate line ("Speedtest
-HH:MM: down up ping"), never mixed into the live values. Everything belongs
+no second start, 90 s guard); its result is a separate line next to the icon ("HH:MM  down  up Mbit/s
+ping ms"), never mixed into the live values. Everything belongs
 to the popup: closing it destroys the timers and kills a running ping or
 speedtest - nothing measures while it is closed.
 
