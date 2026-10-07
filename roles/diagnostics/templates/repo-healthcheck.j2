@@ -263,7 +263,8 @@ def security_checks():
                                                if active("workstation-firewall.service") else "not active"))
     sshd = active("sshd.service")
     rc, o = run(["/usr/bin/sshd", "-G"])
-    cfg = dict(l.split(None, 1) for l in o.splitlines() if " " in l) if rc == 0 else {}
+    # keys case-insensitive: OpenSSH 10 prints them CamelCase, older ones lower-case
+    cfg = {k.lower(): v.strip() for k, v in (l.split(None, 1) for l in o.splitlines() if " " in l)} if rc == 0 else {}
     key_only = cfg.get("passwordauthentication") == "no" and cfg.get("kbdinteractiveauthentication") == "no" \
         and cfg.get("pubkeyauthentication") == "yes"
     check("ssh server", sshd == F["ssh_server"] and key_only,
