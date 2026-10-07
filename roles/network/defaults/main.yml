@@ -34,6 +34,10 @@ network_packages:
                      # the laptop's Intel 7260. No country is set here: with
                      # the database present the kernel follows the country
                      # the access point announces.
+  - speedtest-cli    # the network popup's speedtest icon (official extra): one
+                     # `speedtest-cli --secure --json` run per click, nothing
+                     # in the background (no daemon/timer). Ping/loss in the
+                     # popup use iputils' ping (core).
   - python-dbus      # the only runtime dependency of the institution's
                      # official eduroam CAT installer (GÉANT CAT Linux
                      # script, e.g. eduroam-linux-THW.py): it creates the

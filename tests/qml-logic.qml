@@ -338,8 +338,28 @@ QtObject {
         eq("firewall label shell text is just text", label("$(rm -rf /); `id`"), "");
     }
 
+    // Network popup: ping summary -> latency + loss; bits formatting.
+    function networkMetrics() {
+        const pop = read("connectivity/Popup.qml");
+        const sc = { pingMs: 0, lossPct: 0 };
+        const parse = make(pop, "parsePing", sc);
+        parse("--- 1.1.1.1 ping statistics ---\n5 packets transmitted, 5 received, 0% packet loss, time 815ms\nrtt min/avg/max/mdev = 11.204/13.587/17.911/2.390 ms\n");
+        eq("ping: avg rtt", sc.pingMs, 13.587); eq("ping: no loss", sc.lossPct, 0);
+        parse("5 packets transmitted, 3 received, 40% packet loss, time 4005ms\nrtt min/avg/max/mdev = 20.1/25.5/30.2/4.0 ms\n");
+        eq("ping: 2 of 5 lost -> 40 %", sc.lossPct, 40);
+        parse("5 packets transmitted, 0 received, 100% packet loss, time 4004ms\n");
+        eq("ping: all lost -> 100 %, no latency", [sc.lossPct, sc.pingMs], [100, -1]);
+        parse("ping: connect: Network is unreachable\n");
+        eq("ping: unreachable -> unknown", [sc.lossPct, sc.pingMs], [-1, -1]);
+        const bits = make(pop, "bits", {});
+        eq("bits: 42300000", bits(42300000), "42 Mbit/s");
+        eq("bits: 8100000", bits(8100000), "8.1 Mbit/s");
+        eq("bits: 900", bits(900), "900 bit/s");
+    }
+
     Component.onCompleted: {
         firewall();
+        networkMetrics();
         nightLight();
         barLayout();
         countdown();

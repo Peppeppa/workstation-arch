@@ -843,6 +843,19 @@ with *agent-owned* secrets (flags 1, e.g. what an eduroam CAT installer
 creates) has no agent to ask: its password must be stored once (README
 "eduroam").
 
+### Live metrics + speedtest (network popup)
+
+Below the addresses: Download / Upload (left; the default-route
+interface's `/sys/class/net/<if>/statistics` counters, 1 s, in bit/s) and
+Ping / Packet loss (right; ONE `ping -n -q -c 5 -i 0.2 -W 1 -w 4 1.1.1.1`
+every 5 s, both numbers from that run - Cloudflare's anycast resolver as
+"the internet": answered nearby almost everywhere, no DNS lookup). A
+speedometer icon starts `speedtest-cli --secure --json` once (running state,
+no second start, 90 s guard); its result is a separate line ("Speedtest
+HH:MM: down up ping"), never mixed into the live values. Everything belongs
+to the popup: closing it destroys the timers and kills a running ping or
+speedtest - nothing measures while it is closed.
+
 ### THWS VPN (`fortinet_vpn_enabled`)
 
 FortiGate SSL-VPN via openfortivpn and the NetworkManager plugin
@@ -889,6 +902,24 @@ the university's actual FortiGate configuration - official Arch has
 `networkmanager-fortisslvpn` is AUR-only; nothing is installed until the
 real setup (incl. MFA/SAML) is known. Whatever NM ends up managing appears
 in the popup's VPN list automatically.
+
+## Packages menu
+
+Core. OS menu -> Packages (`ListPage.qml`: Packages, Packages > Install,
+Packages > Remove; entries in `OsMenu.packagesEntries/installEntries/
+removeEntries`, also in the type-to-search via `OsMenu.searchEntries`). A
+leaf closes the menu and starts `<terminal> -e ~/.local/bin/workstation-pkg
+<action>` as a transient systemd user unit - no picker in Quickshell.
+
+| | |
+|---|---|
+| Helper | `roles/packages/templates/workstation-pkg.j2`: one script, six actions, one shared fzf look (header, Tab multi-select, Esc = no action, result kept on screen until a key) |
+| Sources of truth | pacman sync/local databases (`-Ss`, `-Qqen`, `-Qqem`, `-Qs`), the AUR RPC (`/rpc/v5/search/<q>?by=name-desc`, reloaded while typing, nothing cached), `flatpak remote-ls --app` / `flatpak list --app` |
+| AUR helper | yay, built once by bootstrap from a pinned AUR commit (makepkg as the user, pacman -U); runtime only - the baseline stays official/upstream/Flatpak first |
+| Privileges | `sudo` in the terminal for pacman (the user types the password), yay/makepkg as the user, flatpak's own polkit prompt |
+| Snapshots | the existing pacman pre-transaction hook - the helper takes none |
+| Idle | nothing: the terminal and fzf exist only while the user works in them |
+| Tests | `tests/packages-helper.sh` (stubbed pacman/fzf/yay/flatpak/curl: filters, commands, Esc) |
 
 ## Scratchpad (phase 1)
 

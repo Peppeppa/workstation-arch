@@ -1,0 +1,66 @@
+---
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here.
+- name: Install the package picker and the AUR build toolchain
+  become: true
+  community.general.pacman:
+    name: "{{ packages_tools + packages_aur_build_packages }}"
+    state: present
+  tags: packages
+
+- name: Installed version of the AUR helper
+  ansible.builtin.command:
+    cmd: pacman -Q {{ packages_aur_helper.name }}
+  register: packages_helper_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: packages
+
+# Only when the pinned version is not installed: the AUR repository at the
+# pinned commit, built as the invoking user (makepkg refuses root), the
+# result installed with pacman -U.
+- name: Build and install the pinned AUR helper
+  when: packages_helper_installed.stdout != packages_aur_helper.name ~ ' ' ~ packages_aur_helper.version
+  block:
+    - name: Fetch the AUR helper repository at the pinned commit
+      ansible.builtin.git:
+        repo: "{{ packages_aur_helper.repo }}"
+        version: "{{ packages_aur_helper.commit }}"
+        dest: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ packages_aur_helper.name }}"
+        force: true
+      tags: packages
+
+    - name: Build the AUR helper with makepkg (as the user)
+      ansible.builtin.command:
+        cmd: makepkg --cleanbuild --force --noconfirm --noprogressbar
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ packages_aur_helper.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ packages_aur_helper.name }}"
+      tags: packages
+
+    - name: The built AUR helper package file
+      ansible.builtin.command:
+        cmd: makepkg --packagelist
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ packages_aur_helper.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ packages_aur_helper.name }}"
+      register: packages_helper_pkg
+      changed_when: false
+      tags: packages
+
+    - name: Install the built AUR helper
+      become: true
+      community.general.pacman:
+        name: "{{ packages_helper_pkg.stdout_lines | select('search', '/' ~ packages_aur_helper.name ~ '-' ~ packages_aur_helper.version ~ '-') | first }}"
+        state: present
+      tags: packages
+
+- name: Deploy workstation-pkg (~/.local/bin/workstation-pkg)
+  ansible.builtin.template:
+    src: workstation-pkg.j2
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/workstation-pkg"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: packages

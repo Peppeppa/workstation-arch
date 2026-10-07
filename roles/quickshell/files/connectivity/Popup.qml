@@ -12,10 +12,14 @@
 //            NM events), the default gateway (Model.qml, kernel routes),
 //            "via VPN" also for a policy-routed full tunnel (`ip route get`,
 //            same moments - see tunnelDefault),
-//            traffic of the default-route interface: the ONLY sampling - a
-//            1 s Timer reading /sys/class/net/<if>/statistics (and the kernel
-//            routes), alive only while this popup exists, following the
-//            interface if the default route moves.
+//            traffic of the default-route interface: a 1 s Timer reading
+//            /sys/class/net/<if>/statistics (and the kernel routes), alive
+//            only while this popup exists, following the interface if the
+//            default route moves. Latency + packet loss: ONE `ping` run
+//            (5 echo requests 0.2 s apart to 1.1.1.1, deadline 4 s) every
+//            5 s while open - both numbers from the same run. Speedtest:
+//            `speedtest-cli --secure --json` only on a click of its icon,
+//            once; closing the popup kills a running ping/speedtest.
 //   VPN      NetworkManager VPN/WireGuard profiles (`nmcli`, on open, on
 //            NM events, after each action): activate/deactivate only.
 //   Wi-Fi    Quickshell.Networking: radio on/off; Known networks (saved NM
@@ -206,12 +210,57 @@ BarPopup {
         popup.closeRequested();
     }
 
-    function rate(bps) {
-        if (bps < 0) return "–";
-        const u = ["B/s", "KiB/s", "MiB/s", "GiB/s"];
+    // Bytes/s -> bits per second, as speed tests (and providers) count.
+    function rate(bytesPerSec) {
+        if (bytesPerSec < 0) return "–";
+        return bits(bytesPerSec * 8);
+    }
+
+    function bits(bps) {
+        const u = ["bit/s", "kbit/s", "Mbit/s", "Gbit/s"];
         let i = 0;
-        while (bps >= 1024 && i < u.length - 1) { bps /= 1024; i++; }
-        return (i === 0 ? Math.round(bps) : bps.toFixed(1)) + " " + u[i];
+        while (bps >= 1000 && i < u.length - 1) { bps /= 1000; i++; }
+        return (i === 0 ? Math.round(bps) : bps < 10 ? bps.toFixed(1) : Math.round(bps)) + " " + u[i];
+    }
+
+    // ---- latency / loss: one small ping run every 5 s while open ---------
+    // 1.1.1.1: Cloudflare's anycast resolver - answers ICMP from a nearby
+    // site almost everywhere, needs no DNS lookup; it stands for "the
+    // internet", not for this LAN.
+    readonly property string pingTarget: "1.1.1.1"
+    property real pingMs: -1                 // -1 = no answer / not measured yet
+    property real lossPct: -1
+    property bool pingDone: false
+
+    function parsePing(out) {
+        const m = out.match(/(\d+) packets transmitted, (\d+) received/);
+        if (!m || parseInt(m[1]) === 0) { pingMs = -1; lossPct = -1; return; }
+        lossPct = Math.round(100 * (parseInt(m[1]) - parseInt(m[2])) / parseInt(m[1]));
+        const r = out.match(/= [\d.]+\/([\d.]+)\//);
+        pingMs = r ? parseFloat(r[1]) : -1;
+    }
+
+    // ---- speedtest: one run per click ------------------------------------
+    property string speedState: "idle"       // idle | running | done | failed
+    property var speedResult: null           // {down, up, ping, at}
+
+    function startSpeedtest() {
+        if (speedProc.running) return;
+        speedState = "running";
+        speedProc.running = true;
+        speedGuard.restart();
+    }
+
+    function parseSpeed(out) {
+        try {
+            const r = JSON.parse(out);
+            if (!(r.download > 0)) throw "no result";
+            speedResult = { down: r.download, up: r.upload, ping: r.ping,
+                            at: Qt.formatTime(new Date(), "HH:mm") };
+            speedState = "done";
+        } catch (e) {
+            speedState = "failed";
+        }
     }
 
     // Also re-reads the kernel routes (Model.update): while the popup is
@@ -331,6 +380,9 @@ BarPopup {
         syncOther();
     }
     Component.onDestruction: {
+        // nothing of the measurements outlives the popup
+        pingProc.running = false;
+        speedProc.running = false;
         if (wifiDevice !== null) wifiDevice.scannerEnabled = false;
         qrSvg = "";
         qrPassword = "";
@@ -346,12 +398,58 @@ BarPopup {
         function onVpnStateChanged() { popup.refreshLists(); }
     }
 
-    // The only sampling of this feature: exists with the popup, 1 s.
+    // Traffic sampling: exists with the popup, 1 s.
     Timer {
         interval: 1000
         repeat: true
         running: true
         onTriggered: popup.sample()
+    }
+
+    // Latency/loss: exists with the popup, a run every 5 s (none overlap).
+    Timer {
+        interval: 5000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: if (!pingProc.running && popup.trafficIface !== "") pingProc.running = true
+    }
+
+    Process {
+        id: pingProc
+        command: ["ping", "-n", "-q", "-c", "5", "-i", "0.2", "-W", "1", "-w", "4", popup.pingTarget]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                popup.parsePing(text);
+                popup.pingDone = true;
+            }
+        }
+    }
+
+    Process {
+        id: speedProc
+        command: ["speedtest-cli", "--secure", "--json"]
+        stdout: StdioCollector {
+            id: speedOut
+        }
+        stderr: StdioCollector {
+            id: speedErr
+        }
+        onExited: exitCode => {
+            speedGuard.stop();
+            if (exitCode === 0) popup.parseSpeed(speedOut.text);
+            else {
+                popup.speedState = "failed";
+                Log.warn("network", "speedtest-cli failed (exit " + exitCode + "): " + Log.firstLine(speedErr.text));
+            }
+        }
+    }
+
+    // A speedtest that hangs past 90 s is stopped (then "failed").
+    Timer {
+        id: speedGuard
+        interval: 90000
+        onTriggered: if (speedProc.running) speedProc.running = false
     }
 
     FileView {
@@ -550,6 +648,31 @@ BarPopup {
         color: Colors.foregroundMuted
         font.family: Fonts.family
         font.pixelSize: popup.fontSize - 2
+    }
+
+    // One live value: a small muted label over the value.
+    component Metric: Column {
+        property string label
+        property string value
+        property bool warn: false
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        spacing: 0
+
+        Text {
+            text: parent.label
+            color: Colors.foregroundMuted
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize - 2
+        }
+
+        Text {
+            text: parent.value
+            textFormat: Text.PlainText
+            color: parent.warn ? Colors.error : Colors.foreground
+            font.family: Fonts.family
+            font.pixelSize: popup.fontSize
+        }
     }
 
     component InfoRow: RowLayout {
@@ -947,11 +1070,70 @@ BarPopup {
                 text: popup.net.gateway
             }
 
-            InfoRow {
+            // Live: traffic (left), latency/loss (right); the speedtest is
+            // its own line below - a one-off result, not a live value.
+            GridLayout {
                 visible: popup.trafficIface !== ""
-                Layout.topMargin: 4
-                icon: popup.net.typeIcon(popup.net.kind)
-                text: "↓ " + popup.rate(popup.rxRate) + "    ↑ " + popup.rate(popup.txRate)
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                Layout.leftMargin: 6
+                columns: 2
+                columnSpacing: 12
+                rowSpacing: 4
+
+                Metric { label: "\u2193 Download"; value: popup.rate(popup.rxRate) }
+                Metric { label: "Ping"; value: popup.pingMs >= 0 ? Math.round(popup.pingMs) + " ms" : popup.pingDone ? "no answer" : "\u2026" }
+                Metric { label: "\u2191 Upload"; value: popup.rate(popup.txRate) }
+                Metric {
+                    label: "Packet loss"
+                    value: popup.lossPct >= 0 ? popup.lossPct + " %" : popup.pingDone ? "\u2013" : "\u2026"
+                    warn: popup.lossPct > 0
+                }
+            }
+
+            RowLayout {
+                visible: popup.trafficIface !== ""
+                Layout.fillWidth: true
+                Layout.leftMargin: 6
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    text: popup.speedState === "running" ? "Speedtest running\u2026"
+                        : popup.speedState === "failed" ? "Speedtest failed - click to retry"
+                        : popup.speedState === "done" ? "Speedtest " + popup.speedResult.at + ":  \u2193 " + popup.bits(popup.speedResult.down)
+                                                        + "  \u2191 " + popup.bits(popup.speedResult.up) + "  " + Math.round(popup.speedResult.ping) + " ms"
+                        : ""
+                    color: popup.speedState === "failed" ? Colors.error : Colors.foregroundMuted
+                    font.family: Fonts.family
+                    font.pixelSize: popup.fontSize - 2
+                }
+
+                // The speedtest: only on this click, one run at a time.
+                Rectangle {
+                    implicitWidth: Fonts.px(22)
+                    implicitHeight: Fonts.px(22)
+                    radius: 4
+                    color: speedMouse.containsMouse && popup.speedState !== "running" ? Colors.surface : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: popup.speedState === "running" ? "\u{F051F}" : "\u{F04C5}"   // timer-sand / speedometer
+                        color: popup.speedState === "running" ? Colors.accent : Colors.foreground
+                        font.family: Fonts.icons
+                        font.pixelSize: popup.fontSize + 1
+                    }
+
+                    MouseArea {
+                        id: speedMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: popup.speedState === "running" ? Qt.ArrowCursor : Qt.PointingHandCursor
+                        onClicked: popup.startSpeedtest()
+                    }
+                }
             }
 
             // ---- VPN ---------------------------------------------------

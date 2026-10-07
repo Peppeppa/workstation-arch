@@ -68,6 +68,7 @@ ShellRoot {
         appearance: appearanceWindow
         firewall: firewallWindow
         powerMenu: {{ 'powerMenu' if power_menu_enabled else 'null' }}
+        terminal: {{ hyprland_terminal.split() | to_json }}
     }
 
     // Appearance (opened from the OS menu): theme, wallpaper, brightness,

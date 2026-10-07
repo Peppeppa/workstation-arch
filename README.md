@@ -183,6 +183,7 @@ first - see the `gaming` row below.
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer); VPN plugins (WireGuard native, OpenVPN, OpenConnect, IPsec/IKEv2) + THWS VPN (openfortivpn + pinned AUR NM plugin, `fortinet_vpn_enabled`) - see "VPN types" |
+| `packages`       | `packages`      | fzf + the AUR helper yay (pinned build) for OS menu -> Packages (`workstation-pkg`) - see "Packages" |
 | `firewall`       | `firewall`      | nftables inbound firewall (own table, no daemon), no ICMP redirects, the helper behind Settings -> Firewall - see "Firewall and SSH" |
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
@@ -369,6 +370,29 @@ the systemd-boot menu (it boots the saved system, `/home` is the normal
 one), look around, then `sudo system-rollback <slot>` and reboot. The old
 system is kept as `@broken-<date>` at the Btrfs top level until deleted
 by hand.
+
+## Packages (install / remove)
+
+OS menu -> **Packages** -> Install / Remove -> Arch Packages | AUR Packages |
+Flatpaks (or type e.g. `install aur`, `flatpak`) opens a terminal with an fzf
+picker (`workstation-pkg`): type to search names and descriptions, Tab
+selects several, Enter goes, Esc cancels (nothing happens). Then the normal
+tool runs with its normal confirmation - nothing is `--noconfirm`:
+
+| | Lists | Runs |
+|---|---|---|
+| Install Arch | the official repositories (`pacman -Ss`), installed ones hidden | `sudo pacman -S --needed` |
+| Remove Arch | explicitly installed official packages (`pacman -Qqen`) | `sudo pacman -Rns` |
+| Install AUR | the AUR, searched while you type (RPC, >= 2 characters) | `yay -S --aur` - shows the build files (PKGBUILD) first, builds as you, installs through sudo pacman |
+| Remove AUR | explicitly installed foreign packages (`pacman -Qqem`; dependencies are not offered; ones this repository provisions are marked `[workstation baseline]`) | `sudo pacman -Rns` |
+| Install Flatpak | applications of the configured remotes (Flathub), no runtimes, installed ones hidden | `flatpak install <remote> <id>` |
+| Remove Flatpak | installed applications (no runtimes) | `flatpak uninstall` (unused runtimes stay) |
+
+Every pacman transaction takes the automatic recovery snapshot first (see
+"Updates, snapshots and rollback"). What you install here is yours, not part
+of the provisioned baseline; a baseline package you remove comes back with
+the next `./bootstrap.sh`. The AUR helper (`yay`) is built once by bootstrap
+from a pinned AUR commit and never runs by itself (no update timer).
 
 ## Scratchpad
 

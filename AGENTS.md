@@ -130,6 +130,8 @@ direct upstream dependency.
 | Health invariants (PASS/FAIL) | `repo-healthcheck` (`roles/diagnostics`, /usr/local/bin) - on demand only, read-only; details stay `repo-diagnose`'s |
 | Diagnostics | `repo-diagnose [--full]` (`roles/diagnostics`, /usr/local/bin) - on demand only; logs stay in journald (Quickshell/hypridle output via `systemd-cat`, QML failures as `[component] ...` through `Log.qml`) - no log daemon, follower or timer |
 | Pre-transaction snapshots (one per pacman transaction, newest 3 kept) | pacman hook `/etc/pacman.d/hooks/00-workstation-pre-snapshot.hook` -> `pre-transaction-snapshot` (`roles/recovery`, class `auto=pre-transaction`; system-update takes its own update's and makes the hook skip); baseline = the `known-good` slot (or one `baseline=yes` snapshot after a first complete bootstrap) |
+| Package install/remove UI | OS menu -> Packages -> `workstation-pkg` (fzf in the terminal, `roles/packages`); pacman / yay (pinned AUR build) / flatpak do the work with their own confirmations |
+| Network popup live metrics + speedtest | the popup itself, only while open: /sys counters (1 s), one `ping` run per 5 s to 1.1.1.1, `speedtest-cli` only on its icon's click |
 | Scratchpad notes | Quickshell `scratchpad/` (top-level window, mainMod+N, bar icon); files `~/.local/share/workstation/scratchpad/{1..4}.txt` |
 | System snapshots (snapper config `root`, cleanup) | snapper + `snapper-cleanup.timer` (the one allowed timer; `roles/recovery`, host capability `recovery_enabled`) - no timeline, no snap-pac |
 | Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them |
@@ -307,8 +309,11 @@ Binding priority order for where any application/package comes from:
    `community.general.flatpak`, ensure-present, same as pacman lists.
    Do not add Flatpak at all while every desired app is cleanly solvable
    without it.
-4. **AUR** - last resort only, and never by default. No AUR helper is
-   installed as part of this repository's normal provisioning. Do not
+4. **AUR** - last resort only for the BASELINE, never by default. Runtime
+   exception (2026-10-07, the user's explicit wish): the AUR helper `yay`
+   is provisioned (`roles/packages`, pinned build) so the user can install
+   and remove AUR packages themselves from OS menu -> Packages; those stay the
+   user's runtime choices, never part of the provisioned baseline. Do not
    reach for the AUR just because a package happens to exist there -
    check 1-3 first and document why they don't work before considering
    it. If the AUR is ever genuinely necessary, that is a deliberate,
@@ -390,7 +395,7 @@ separate private-config repository. **Uni-VPN resolved (2026-10-07)**:
 THWS = FortiGate SSL-VPN (`vpn.thws.de`, K-number + password). Feature
 `fortinet_vpn_enabled` (laptop, workstation): openfortivpn (official) +
 `networkmanager-fortisslvpn` - the ONE AUR package, built from a pinned,
-reviewed AUR commit with makepkg + pacman -U, no AUR helper. Chosen over
+reviewed AUR commit with makepkg + pacman -U (not through yay). Chosen over
 the official openconnect NM plugin because that one needs a secret agent
 for its per-connect auth dialog (none here), so the network popup's
 toggle could not connect. The profile is the user's (password stored

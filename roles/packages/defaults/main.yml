@@ -1,0 +1,34 @@
+# Packages (core): the OS menu's Packages -> Install / Remove for Arch
+# packages, AUR packages and Flatpaks - one terminal helper
+# (~/.local/bin/workstation-pkg) with fzf, started by the menu in the
+# terminal. Runtime only: what the user installs or removes there never
+# becomes part of this repository's provisioned baseline (and a removed
+# baseline package comes back with the next bootstrap).
+#
+# Official: fzf (extra) is the picker; pacman, flatpak, curl and python3
+# (already provisioned) do the rest. Every pacman transaction is covered by
+# roles/recovery's pre-transaction snapshot hook - nothing here takes one.
+packages_tools:
+  - fzf
+
+# AUR at RUNTIME (the user's explicit action in the menu - the baseline
+# itself stays official / upstream / Flatpak first, AUR last resort).
+# Helper: yay - none is in the official repositories; yay is maintained by
+# its author (13.0.1, 2026-06), builds from its tagged source tarball
+# (sha256-checked) with Go, and resolves AUR dependencies, which a bare
+# makepkg flow would have to reimplement. paru was considered: last
+# updated 2025-12 while linking libalpm, i.e. at risk of breaking with the
+# next pacman. Built ONCE from a pinned, reviewed AUR commit with makepkg as
+# the user + pacman -U (the same pattern as roles/network's Fortinet
+# plugin) - no curl|sh, no -bin download. Never runs by itself: no update
+# timer, no daemon. Bump commit + version here deliberately (also after a
+# libalpm soname bump: yay links it).
+packages_aur_build_packages:
+  - base-devel   # makepkg toolchain
+  - git
+  - go           # yay's build dependency (official extra)
+packages_aur_helper:
+  name: yay
+  repo: https://aur.archlinux.org/yay.git
+  commit: cb43f84828ab4f9700f7c6f9c6d7a923d4cfaff0   # upgpkg yay 13.0.1-1 (2026-06-19)
+  version: 13.0.1-1

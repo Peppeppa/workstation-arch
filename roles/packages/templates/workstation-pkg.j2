@@ -1,0 +1,160 @@
+#!/bin/bash
+# Managed by Ansible (roles/packages/templates/workstation-pkg.j2) - do not
+# edit by hand. The OS menu's Packages -> Install / Remove, in a terminal:
+#
+#   workstation-pkg install-arch | remove-arch | install-aur | remove-aur
+#                   | install-flatpak | remove-flatpak
+#
+# fzf picks (type to search name AND description, Tab = several, Enter =
+# go, Esc = nothing happens), then the normal tool runs with its normal
+# confirmation - pacman / yay / flatpak, never --noconfirm. The sources of
+# truth are theirs: pacman's sync and local databases, the AUR's RPC
+# (searched while typing, nothing cached), the Flatpak remotes. Every
+# pacman transaction gets roles/recovery's pre-transaction snapshot
+# through its hook - nothing here takes one. AUR builds run as you (yay /
+# makepkg), only the finished packages go through sudo pacman. Removal is
+# `pacman -Rns` (with now-unneeded dependencies and backup files) /
+# `flatpak uninstall` (unused runtimes are kept).
+set -uo pipefail
+
+# AUR packages this repository itself provisions (bootstrap reinstalls them).
+BASELINE_AUR=" {{ packages_aur_helper.name }}{% if fortinet_vpn_enabled | default(false) %} {{ fortinet_vpn_aur.name }}{% endif %} "
+# (everything below is literal shell - not templated)
+{% raw %}
+
+bold=$'\e[1m' dim=$'\e[2m' red=$'\e[31m' off=$'\e[0m'
+
+die() { printf '\n%s%s%s\n' "$red" "$*" "$off" >&2; finish 1; }
+
+# Results stay on screen until a key is pressed (errors must not vanish
+# with the window); a cancelled pick closes at once.
+finish() {
+    printf '\n%sPress any key to close.%s' "$dim" "$off"
+    read -rsn1 _ </dev/tty
+    exit "${1:-0}"
+}
+
+# pick <title> <fzf args...>: lines on stdin -> the chosen lines on stdout.
+pick() {
+    local title=$1; shift
+    fzf --multi --layout=reverse --height=100% --info=inline-right \
+        --prompt="> " --pointer=">" --marker="+" \
+        --header="${title}   (Tab: select several, Enter: go, Esc: cancel)" --header-first \
+        --preview-window="down:40%:wrap" --bind="esc:abort" "$@"
+}
+
+need() { command -v "$1" >/dev/null || die "$1 is not installed - run bootstrap.sh"; }
+
+case ${1:-} in
+install-arch)
+    printf '%sInstall: Arch packages%s %s(official repositories)%s\n' "$bold" "$off" "$dim" "$off"
+    # pacman -Ss = every sync package with its description; installed ones out.
+    sel=$(pacman -Ss | awk '
+        /^[^ ]/ { split($1, rp, "/"); skip = ($0 ~ /\[installed/); name = rp[2]; repo = rp[1]; next }
+        !skip   { sub(/^ +/, ""); printf "%-34s %-9s %s\n", name, repo, $0 }' \
+        | pick "Install Arch packages" --preview="pacman -Si {1}") || exit 0
+    [ -n "$sel" ] || exit 0
+    mapfile -t pkgs < <(awk '{print $1}' <<<"$sel")
+    sudo pacman -S --needed -- "${pkgs[@]}"
+    finish $?
+    ;;
+remove-arch)
+    printf '%sRemove: Arch packages%s %s(installed explicitly, official repositories)%s\n' "$bold" "$off" "$dim" "$off"
+    # -Qqen = explicitly installed AND in a sync database (native); joined
+    # with -Qs for the descriptions. AUR/foreign packages: remove-aur.
+    sel=$(pacman -Qs | awk -v keep="$(pacman -Qqen | tr '\n' ' ')" '
+        BEGIN { n = split(keep, k, " "); for (i = 1; i <= n; i++) want[k[i]] = 1 }
+        /^[^ ]/ { split($1, rp, "/"); name = rp[2]; ver = $2; next }
+        (name in want) { sub(/^ +/, ""); printf "%-34s %-16s %s\n", name, ver, $0 }' \
+        | pick "Remove Arch packages" --preview="pacman -Qi {1}") || exit 0
+    [ -n "$sel" ] || exit 0
+    mapfile -t pkgs < <(awk '{print $1}' <<<"$sel")
+    sudo pacman -Rns -- "${pkgs[@]}"
+    finish $?
+    ;;
+_aur-search)
+    # fzf reload: AUR RPC search (name + description), >= 2 characters,
+    # best-voted first, installed ones out. Nothing is cached.
+    q=${2:-}
+    [ ${#q} -ge 2 ] || { echo "(type at least 2 characters)"; exit 0; }
+    curl -fsS --max-time 10 --get --data-urlencode "by=name-desc" \
+        "https://aur.archlinux.org/rpc/v5/search/$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$q")" \
+        | python3 -c '
+import json, subprocess, sys
+installed = set(subprocess.run(["pacman", "-Qq"], capture_output=True, text=True).stdout.split())
+d = json.load(sys.stdin)
+if d.get("type") == "error":
+    print("(AUR: %s)" % d.get("error")); sys.exit(0)
+rows = sorted(d.get("results", []), key=lambda r: -(r.get("NumVotes") or 0))
+for r in rows[:400]:
+    if r["Name"] in installed: continue
+    print("%-34s %-16s %s" % (r["Name"], r["Version"], (r.get("Description") or "").replace("\n", " ")))
+' 2>/dev/null || echo "(AUR search failed - no network?)"
+    ;;
+install-aur)
+    need yay
+    printf '%sInstall: AUR packages%s %s(user-built - review the PKGBUILD yay shows before it builds)%s\n' "$bold" "$off" "$dim" "$off"
+    self=$(readlink -f "$0")
+    sel=$(echo "(type at least 2 characters)" \
+        | pick "Install AUR packages - searching the AUR while you type" --disabled \
+              --bind="change:reload:sleep 0.3; '$self' _aur-search {q}" \
+              --preview="case {1} in '(type'*|'(AUR'*) ;; *) yay -Si --aur {1} 2>/dev/null ;; esac") || exit 0
+    mapfile -t pkgs < <(awk '$1 !~ /^\(/ {print $1}' <<<"$sel")
+    [ ${#pkgs[@]} -gt 0 ] || exit 0
+    # Shows every package's build files (PKGBUILD ...) in the pager first;
+    # builds as you, installs through sudo pacman with its confirmation.
+    yay -S --aur --diffmenu --answerdiff All -- "${pkgs[@]}"
+    finish $?
+    ;;
+remove-aur)
+    printf '%sRemove: AUR packages%s %s(installed explicitly, not from the official repositories)%s\n' "$bold" "$off" "$dim" "$off"
+    # -Qqem = explicitly installed AND foreign (in no sync database); pulled
+    # in as a dependency only = not offered.
+    sel=$(pacman -Qs | awk -v keep="$(pacman -Qqem | tr '\n' ' ')" -v base="$BASELINE_AUR" '
+        BEGIN { n = split(keep, k, " "); for (i = 1; i <= n; i++) want[k[i]] = 1 }
+        /^[^ ]/ { split($1, rp, "/"); name = rp[2]; ver = $2; next }
+        (name in want) { sub(/^ +/, ""); tag = index(base, " " name " ") ? "[workstation baseline] " : "";
+                         printf "%-34s %-16s %s%s\n", name, ver, tag, $0 }' \
+        | pick "Remove AUR packages" --preview="pacman -Qi {1}") || exit 0
+    [ -n "$sel" ] || exit 0
+    mapfile -t pkgs < <(awk '{print $1}' <<<"$sel")
+    sudo pacman -Rns -- "${pkgs[@]}"
+    finish $?
+    ;;
+install-flatpak)
+    need flatpak
+    printf '%sInstall: Flatpaks%s %s(applications from the configured remotes)%s\n' "$bold" "$off" "$dim" "$off"
+    printf '%sLoading the remotes ...%s\r' "$dim" "$off"
+    # --app: applications only (no runtimes/extensions); installed ones out.
+    have=" $(flatpak list --app --columns=application | tr '\n' ' ') "
+    sel=$(flatpak remote-ls --app --columns=name,application,description,origin 2>/dev/null \
+        | awk -F'\t' -v have="$have" '!index(have, " " $2 " ") { printf "%-30s\t%s\t%s\t%s\n", $1, $2, $3, $4 }' \
+        | pick "Install Flatpaks" --delimiter='\t' --with-nth=1,2,3 \
+              --preview="flatpak remote-info {4} {2} 2>/dev/null") || exit 0
+    [ -n "$sel" ] || exit 0
+    # one install per remote (normally just flathub)
+    rc=0
+    while read -r origin; do
+        mapfile -t ids < <(awk -F'\t' -v o="$origin" '$4 == o {print $2}' <<<"$sel")
+        flatpak install "$origin" "${ids[@]}" || rc=$?
+    done < <(awk -F'\t' '{print $4}' <<<"$sel" | sort -u)
+    finish $rc
+    ;;
+remove-flatpak)
+    need flatpak
+    printf '%sRemove: Flatpaks%s %s(installed applications; runtimes stay)%s\n' "$bold" "$off" "$dim" "$off"
+    sel=$(flatpak list --app --columns=name,application,origin \
+        | awk -F'\t' '{ printf "%-30s\t%s\t%s\n", $1, $2, $3 }' \
+        | pick "Remove Flatpaks" --delimiter='\t' --with-nth=1,2 \
+              --preview="flatpak info {2} 2>/dev/null") || exit 0
+    [ -n "$sel" ] || exit 0
+    mapfile -t ids < <(awk -F'\t' '{print $2}' <<<"$sel")
+    flatpak uninstall -- "${ids[@]}"
+    finish $?
+    ;;
+*)
+    echo "usage: workstation-pkg install-arch|remove-arch|install-aur|remove-aur|install-flatpak|remove-flatpak" >&2
+    exit 2
+    ;;
+esac
+{% endraw %}

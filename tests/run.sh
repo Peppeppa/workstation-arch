@@ -75,6 +75,7 @@ step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"'
 step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]*qrPassword" roles/quickshell/files/connectivity/Popup.qml'
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
+step "tests/packages-helper.sh" bash tests/packages-helper.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
 else

@@ -4,9 +4,9 @@
 // Shown only while there is a query: the first printable key on a menu
 // list starts it (OsMenu.startSearch); an emptied query or Escape returns
 // to the normal menu (OsMenu.endSearch) - there is never an empty results
-// view. Searches the OS menu's own entries (OsMenu.rootEntries /
-// settingsEntries - the same list the pages show, opened through the same
-// OsMenu.activate()) and the applications (AppModel, its ranking for
+// view. Searches the OS menu's own entries (OsMenu.searchEntries - the
+// same lists the pages show, opened through the same OsMenu.activate())
+// and the applications (AppModel, its ranking for
 // both). The best match is selected at once: type, Enter. Up/Down or
 // Ctrl+J/Ctrl+K move; every other key is text (j and k included). The
 // index is built per keystroke from what is already in memory, only
@@ -33,13 +33,12 @@ FocusScope {
         if (query.length === 0) return [];
         const needle = query.toLowerCase();
         const out = [];
-        const entries = page.menu.rootEntries.map(e => ({ e: e, hint: "" }))
-            .concat(page.menu.settingsEntries.map(e => ({ e: e, hint: "Settings" })));
-        for (const x of entries) {
-            const score = apps.matchScore(needle, x.e.label, "", x.e.keywords || "");
+        for (const x of page.menu.searchEntries) {
+            const label = x.e.title || x.e.label;
+            const score = apps.matchScore(needle, label, "", x.e.keywords || "");
             if (score >= 0)
-                out.push({ score: score, rank: 0, name: x.e.label,
-                           item: { kind: "entry", id: x.e.id, label: x.e.label, icon: x.e.icon, hint: x.hint } });
+                out.push({ score: score, rank: 0, name: label,
+                           item: { kind: "entry", id: x.e.id, label: label, icon: x.e.icon, hint: x.hint } });
         }
         for (const a of apps.scored(query))
             out.push({ score: a.score, rank: 1, name: a.entry.name, item: { kind: "app", entry: a.entry } });

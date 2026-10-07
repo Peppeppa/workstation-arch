@@ -2,7 +2,8 @@
 // Managed by Ansible: do not edit by hand, see roles/quickshell in
 // workstation-arch. See docs/feature-architecture.md "OS menu".
 //
-// Root list: Applications, Settings (Appearance, Network, Firewall), System. Pages
+// Root list: Applications, Settings (Appearance, Network, Firewall),
+// Packages (Install / Remove: Arch, AUR, Flatpak), System. Pages
 // that live in the menu (RootPage, AppsPage, SettingsPage) are separate
 // files; destinations outside it are handed over, never re-implemented:
 //   Appearance -> close, open the Appearance window (appearance/)
@@ -11,6 +12,9 @@
 //                 applet)
 //   Firewall   -> close, open the Firewall window (firewall/: the user's LAN
 //                 sharing rules)
+//   Packages   -> Install / Remove -> Arch / AUR / Flatpak: close, start
+//                 `workstation-pkg <action>` (roles/packages, fzf) in the
+//                 terminal, as a transient systemd user unit
 //   System     -> close, open the existing Power Menu (sole owner of lock/
 //                 suspend/hibernate/logout/reboot/shutdown)
 //
@@ -40,14 +44,17 @@ PanelWindow {
     property var appearance: null           // AppearanceWindow (core)
     property var firewall: null             // FirewallWindow (core)
     property var powerMenu: null            // PowerMenu (feature power_menu) or null
+    required property var terminal          // argv of the terminal (hyprland_terminal)
 
-    property string page: "root"            // root | apps | settings | search
+    property string page: "root"            // root | apps | settings | packages | packages-install | packages-remove | search
 
     // The menu's entries - the ONE list the pages show and the search finds
     // (keywords only help finding); OsMenu.activate() is what each does.
     readonly property var rootEntries: [
         { id: "apps", label: "Applications", icon: "\u{F003B}", sub: true, keywords: "apps programs launcher" },
         { id: "settings", label: "Settings", icon: "\u{F0493}", sub: true, keywords: "preferences configuration" },
+        { id: "packages", label: "Packages", icon: "\u{F03D6}", sub: true,
+          keywords: "install remove uninstall software arch pacman aur yay flatpak flathub" },
         { id: "system", label: "System", icon: "\u{F0425}", sub: false,
           keywords: "power lock suspend hibernate logout reboot restart shutdown" }
     ].filter(e => e.id !== "system" || powerMenu !== null)
@@ -59,12 +66,42 @@ PanelWindow {
         { id: "firewall", label: "Firewall", icon: "\u{F0565}", sub: false,
           keywords: "ports sharing lan share rules" }
     ]
+    readonly property var packagesEntries: [
+        { id: "packages-install", label: "Install", icon: "\u{F0120}", sub: true, title: "Install Packages",
+          keywords: "install add software" },
+        { id: "packages-remove", label: "Remove", icon: "\u{F09E7}", sub: true, title: "Remove Packages",
+          keywords: "remove uninstall delete software" }
+    ]
+    // Leaves: label in the list, title in the search (both levels named).
+    readonly property var installEntries: [
+        { id: "pkg-install-arch", label: "Arch Packages", title: "Install Arch Packages", icon: "\u{F08C7}", sub: false,
+          keywords: "install arch pacman official repository packages" },
+        { id: "pkg-install-aur", label: "AUR Packages", title: "Install AUR Packages", icon: "\u{F0B58}", sub: false,
+          keywords: "install aur yay arch user repository packages" },
+        { id: "pkg-install-flatpak", label: "Flatpaks", title: "Install Flatpaks", icon: "\u{F0614}", sub: false,
+          keywords: "install flatpak flathub apps applications" }
+    ]
+    readonly property var removeEntries: [
+        { id: "pkg-remove-arch", label: "Arch Packages", title: "Remove Arch Packages", icon: "\u{F08C7}", sub: false,
+          keywords: "remove uninstall arch pacman packages" },
+        { id: "pkg-remove-aur", label: "AUR Packages", title: "Remove AUR Packages", icon: "\u{F0B58}", sub: false,
+          keywords: "remove uninstall aur yay packages" },
+        { id: "pkg-remove-flatpak", label: "Flatpaks", title: "Remove Flatpaks", icon: "\u{F0614}", sub: false,
+          keywords: "remove uninstall flatpak flathub apps applications" }
+    ]
+    // Everything the type-to-search finds: [{e, hint}] - the same entries.
+    readonly property var searchEntries: rootEntries.map(e => ({ e: e, hint: "" }))
+        .concat(settingsEntries.map(e => ({ e: e, hint: "Settings" })))
+        .concat(packagesEntries.concat(installEntries, removeEntries).map(e => ({ e: e, hint: "Packages" })))
 
     function open(p) {
         page = p || "root";
         rootPage.reset();
         appsPage.reset();
         settingsPage.reset();
+        packagesPage.reset();
+        installPage.reset();
+        removePage.reset();
         searchPage.reset();
         visible = true;
         focusPage();
@@ -95,16 +132,26 @@ PanelWindow {
     }
 
     function back() {
-        if (page !== "root") {
-            page = "root";
-            focusPage();
-        }
+        if (page === "packages-install" || page === "packages-remove") page = "packages";
+        else if (page !== "root") page = "root";
+        else return;
+        focusPage();
+    }
+
+    // A Packages leaf: the picker in the terminal, detached from Quickshell.
+    function runPackages(action) {
+        Quickshell.execDetached(["systemd-cat", "-t", "app-launch", "-p", "err", "--",
+                                 "systemd-run", "--user", "--quiet", "--collect", "--"]
+                                .concat(menu.terminal, ["-e", Quickshell.env("HOME") + "/.local/bin/workstation-pkg", action]));
     }
 
     function focusPage() {
         if (page === "apps") appsPage.takeFocus();
         else if (page === "search") searchPage.takeFocus();
         else if (page === "settings") settingsPage.forceActiveFocus();
+        else if (page === "packages") packagesPage.forceActiveFocus();
+        else if (page === "packages-install") installPage.forceActiveFocus();
+        else if (page === "packages-remove") removePage.forceActiveFocus();
         else rootPage.forceActiveFocus();
     }
 
@@ -117,6 +164,23 @@ PanelWindow {
             if (id === "settings") settingsPage.reset();
             searchPage.reset();             // opened from the search: no stale query
             focusPage();
+            break;
+        case "packages":
+        case "packages-install":
+        case "packages-remove":
+            page = id;
+            ({ "packages": packagesPage, "packages-install": installPage, "packages-remove": removePage })[id].reset();
+            searchPage.reset();
+            focusPage();
+            break;
+        case "pkg-install-arch":
+        case "pkg-install-aur":
+        case "pkg-install-flatpak":
+        case "pkg-remove-arch":
+        case "pkg-remove-aur":
+        case "pkg-remove-flatpak":
+            close();
+            runPackages(id.replace(/^pkg-/, ""));
             break;
         case "appearance":
             close();
@@ -181,6 +245,9 @@ PanelWindow {
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
               : menu.page === "search" ? searchPage.implicitHeight + 24
+              : menu.page === "packages" ? packagesPage.implicitHeight + 24
+              : menu.page === "packages-install" ? installPage.implicitHeight + 24
+              : menu.page === "packages-remove" ? removePage.implicitHeight + 24
               : rootPage.implicitHeight + 24
         radius: 8
         color: Colors.background
@@ -217,6 +284,36 @@ PanelWindow {
             menu: menu
         }
 
+        ListPage {
+            id: packagesPage
+            visible: menu.page === "packages"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "Packages"
+            entries: menu.packagesEntries
+        }
+
+        ListPage {
+            id: installPage
+            visible: menu.page === "packages-install"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "Packages \u203A Install"
+            entries: menu.installEntries
+        }
+
+        ListPage {
+            id: removePage
+            visible: menu.page === "packages-remove"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "Packages \u203A Remove"
+            entries: menu.removeEntries
+        }
+
         SearchPage {
             id: searchPage
             visible: menu.page === "search"
@@ -239,7 +336,8 @@ PanelWindow {
             menu.close();
         }
 
-        // Open directly on a page: root | apps | settings (search starts by typing).
+        // Open directly on a page: root | apps | settings | packages
+        // (search starts by typing).
         function openPage(name: string): void {
             menu.open(name);
         }

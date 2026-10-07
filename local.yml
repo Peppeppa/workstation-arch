@@ -141,6 +141,11 @@
     - role: development
       tags: [development]
 
+    # Packages menu (OS menu -> Packages): fzf picker helper + the AUR helper
+    # (yay, pinned build) for the user's own runtime installs/removals.
+    - role: packages
+      tags: [packages]
+
     # Terminal tools (Starship, zoxide, fzf, eza, bat, tldr) + one sourced
     # shell integration file; personal shell config stays in the dotfiles.
     - role: shell
