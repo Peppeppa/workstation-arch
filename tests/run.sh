@@ -76,6 +76,8 @@ step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
+step "tests/private-handover.sh" bash tests/private-handover.sh
+step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
 else

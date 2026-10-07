@@ -17,6 +17,11 @@ set -euo pipefail
 #   3. hands off to `ansible-playbook --ask-become-pass local.yml`,
 #      forwarding any extra arguments (e.g. --check, --tags base) and
 #      its exit code
+#   4. after a successful real run (not --check / --syntax-check /
+#      --list-*): the private handover, scripts/private-handover.sh -
+#      GitHub SSH via Bitwarden (or one ACTION REQUIRED, exit 3), safe
+#      clone/fast-forward of the private repository, its bootstrap.sh.
+#      WORKSTATION_PRIVATE=0 ./bootstrap.sh skips it.
 #
 # Do NOT run this with sudo - Ansible will prompt for the become
 # password itself ("BECOME password:") and use it only for the tasks
@@ -69,6 +74,18 @@ verify_prerequisites() {
     log_check "git and ansible-playbook available"
 }
 
+# The handover only follows a real run - nothing private after a dry run,
+# a syntax check or a listing.
+wants_private_handover() {
+    [[ "${WORKSTATION_PRIVATE:-1}" != 0 ]] || return 1
+    local arg
+    for arg in "$@"; do
+        case "${arg}" in
+            -C|--check|--syntax-check|--list-tasks|--list-tags|--list-hosts) return 1 ;;
+        esac
+    done
+}
+
 main() {
     log_info "workstation-arch bootstrap"
 
@@ -86,6 +103,15 @@ main() {
 
     if [[ "${ansible_exit}" -eq 0 ]]; then
         log_done "bootstrap complete"
+        if wants_private_handover "$@"; then
+            log_info "public -> private handover (scripts/private-handover.sh)"
+            set +e
+            "${REPO_ROOT}/scripts/private-handover.sh"
+            ansible_exit=$?
+            set -e
+        else
+            log_skip "private handover (dry-run/list run, or WORKSTATION_PRIVATE=0)"
+        fi
     else
         log_error "Ansible provisioning failed (exit ${ansible_exit})"
         log_error "the failing task is the 'fatal:' one above (role : task, with its file:line);"

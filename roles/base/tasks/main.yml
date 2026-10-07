@@ -84,6 +84,20 @@
     mode: "0600"
   tags: base
 
+# github.com's published host keys (base_github_host_keys) - the private
+# handover connects with StrictHostKeyChecking=yes. Entries the user
+# already has stay; nothing else in known_hosts is touched.
+- name: Pin github.com's SSH host keys (~/.ssh/known_hosts)
+  ansible.builtin.known_hosts:
+    path: "{{ ansible_facts.user_dir }}/.ssh/known_hosts"
+    name: github.com
+    key: "github.com {{ item }}"
+    state: present
+  loop: "{{ base_github_host_keys }}"
+  loop_control:
+    label: "{{ item.split(' ')[0] }}"
+  tags: base
+
 # Locale generation is a system-wide (not Hyprland-specific) concern, so
 # it lives here rather than in roles/hyprland. Conservative choice, not a
 # full locale framework: generate en_US.UTF-8 (already relied upon -

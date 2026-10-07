@@ -135,6 +135,7 @@ direct upstream dependency.
 | Scratchpad notes | Quickshell `scratchpad/` (top-level window, mainMod+N, bar icon); files `~/.local/share/workstation/scratchpad/{1..4}.txt` |
 | System snapshots (snapper config `root`, cleanup) | snapper + `snapper-cleanup.timer` (the one allowed timer; `roles/recovery`, host capability `recovery_enabled`) - no timeline, no snap-pac |
 | Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them |
+| Public -> private handover (GitHub SSH checkpoint, private repo clone/update) | `scripts/private-handover.sh`, called by `bootstrap.sh` after a real run: Bitwarden agent socket + key + `ssh -T git@github.com` (host keys pinned by `roles/base`) or ONE ACTION REQUIRED (exit 3, Bitwarden set up by hand); clone / fast-forward-only update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes/divergence/detached/foreign - never reset); then its `bootstrap.sh`. Private contents never come into this repository |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 
@@ -242,7 +243,10 @@ roles/*
 verifies it is not run as root, verifies `git` and `ansible-playbook`
 are already installed, then hands off to
 `ansible-playbook --ask-become-pass local.yml "$@"` and propagates its
-exit code. It does not install packages, write files, manage services,
+exit code; after a successful real run (not `--check`/`--syntax-check`/
+`--list-*`, not `WORKSTATION_PRIVATE=0`) it calls
+`scripts/private-handover.sh` - the public->private interface (see the
+Runtime Ownership row). It does not install packages, write files, manage services,
 or manage a sudo credential lifecycle of its own (no `sudo -v`, no
 keepalive loop, no NOPASSWD, no password file/env var) — Ansible's own
 `become`, prompted once via `--ask-become-pass`, is the only
@@ -1021,6 +1025,12 @@ history for that milestone's own record):
   run per 5 s to 1.1.1.1, only while open) and a speedtest icon
   (speedtest-cli once per click, no double start, killed on close; proven
   0 ping/speedtest processes after closing).
+
+- **Private handover** (2026-10-07, explicitly requested): `stow` in
+  `roles/base`, github.com host keys pinned in `~/.ssh/known_hosts`,
+  `scripts/private-handover.sh` (+ `tests/private-handover.sh`) - the
+  checkpoint and clone/fast-forward of the private `dotfiles-provision`,
+  whose `bootstrap.sh` (GNU Stow, user-level) it then runs.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

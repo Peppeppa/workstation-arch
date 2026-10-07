@@ -65,7 +65,8 @@ Responsibility split within the provisioning layer:
 
 - `bootstrap.sh` = prerequisite/environment validation (upstream Arch,
   not root, `git`/`ansible` present) and launching Ansible. It holds no
-  system state and manages no credentials of its own.
+  system state and manages no credentials of its own. After a successful
+  real run it calls `scripts/private-handover.sh` (see below).
 - Ansible (`local.yml` + roles) = provisioning / desired state.
 - Ansible `become` = privilege escalation for the individual system
   tasks that need it (`--ask-become-pass` prompts for it once per run).
@@ -155,5 +156,12 @@ for the full trade-off ordering.
 ## Public bootstrap, private secrets
 
 See `AGENTS.md`. This repository is public and contains no secrets;
-private, machine-specific credentials come from a separate private
-repository, only once a credential provider is configured.
+personal configuration comes from the separate private repository
+`dotfiles-provision`, only once a credential provider is configured.
+The one owner of that interface is `scripts/private-handover.sh`: GitHub
+SSH via the Bitwarden desktop agent (else one ACTION REQUIRED, exit 3 -
+Bitwarden is always set up by hand), then a clone or a fast-forward-only
+update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes,
+divergence, detached HEAD, foreign origin - never discards), then its
+`bootstrap.sh` (user-level, GNU Stow from `roles/base`). The private
+repository decides what it deploys; nothing of it is copied here.

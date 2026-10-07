@@ -42,11 +42,11 @@ Arch machine has no credential provider configured yet, so this
 repository is designed to be cloned over plain HTTPS - no SSH key
 required.
 
-Private, machine- or user-specific configuration (credentials, private
-repositories, ...) is expected to come later from a **separate private
-repository**, used only after a credential provider (for example a
-Bitwarden SSH agent) has been set up. That is not part of this
-repository.
+Personal configuration comes from a **separate private repository**
+(`Peppeppa/dotfiles-provision`), reached only after a credential provider
+(the Bitwarden desktop SSH agent) works - see "Private handover" below.
+Its contents never come into this repository; only its name and clone
+path are known here.
 
 ## Status
 
@@ -118,6 +118,33 @@ that password itself.
 `./bootstrap.sh` is safe to run again; so is `ansible-playbook local.yml`
 directly. Both are idempotent - already-satisfied state is reported as
 unchanged, nothing is reinstalled or reconfigured unnecessarily.
+
+### Private handover
+
+After a successful real run (not `--check`, `--syntax-check`, `--list-*`;
+skip with `WORKSTATION_PRIVATE=0 ./bootstrap.sh`) `bootstrap.sh` runs
+`scripts/private-handover.sh`:
+
+1. **GitHub over SSH via Bitwarden**: the agent socket
+   `~/.bitwarden-ssh-agent.sock` exists, the agent lists a key, and
+   `ssh -T git@github.com` authenticates (github.com's host keys are
+   pinned by `roles/base`, `StrictHostKeyChecking=yes`). If not, it
+   prints **one ACTION REQUIRED** and exits 3. Then, by hand in the
+   Bitwarden app: self-hosted server URL on the login screen, log in +
+   unlock, Settings -> Enable SSH agent, your GitHub key as an SSH key
+   item - and re-run `./bootstrap.sh`. Nothing here unlocks Bitwarden,
+   asks for its master password, reads the vault or exports a key.
+2. **Clone or fast-forward** `~/repos/peppeppa/dotfiles-provision`. An
+   existing clone is only fast-forwarded when it is a git checkout with
+   the expected origin, on a branch, with a clean working tree - local
+   changes, a divergence, a detached HEAD or a foreign directory stop the
+   run with nothing changed (never reset/stash/discard).
+3. Runs the private repo's `bootstrap.sh` (its exit code is the
+   bootstrap's).
+
+Bitwarden must be running for its agent to exist; this session runs no
+XDG autostart, so its "start on login" option has no effect - open it
+from the launcher.
 
 ## Privilege escalation
 
