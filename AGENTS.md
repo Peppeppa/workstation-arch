@@ -1010,6 +1010,18 @@ history for that milestone's own record):
   abort (set -e), bar namespace collision (shell down ~8 min), no reopen
   after Super+Q, free-desktop click did not close.
 
+- **Packages menu + network popup metrics** (laptop, 2026-10-07,
+  real-hardware-tested): OS menu -> Packages -> Install/Remove (Arch, AUR,
+  Flatpak) -> `workstation-pkg` (fzf in Ghostty; pacman/yay/flatpak with
+  their own confirmations; yay = pinned AUR build, runtime only). Real: all
+  six pickers opened from the menu search, Esc leaves no process; AUR
+  `hello` installed via yay (built as the user, one pre-transaction
+  snapshot) and removed again; a missing Flathub catalog is fetched on
+  demand. Network popup: Download/Upload + Ping/Packet loss (one 5-ping
+  run per 5 s to 1.1.1.1, only while open) and a speedtest icon
+  (speedtest-cli once per click, no double start, killed on close; proven
+  0 ping/speedtest processes after closing).
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
