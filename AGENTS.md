@@ -961,6 +961,8 @@ history for that milestone's own record):
   tables unchanged across rule ops and a firewall reload; Docker back to
   disabled/inactive), LocalSend both directions (multicast + mTLS API), a
   temporary split WireGuard profile (routes, outbound, handshake sent).
+  Bluetooth battery confirmed by the user on the real popup (Bose QC
+  headphones via Battery1 = correct %, JBL without Battery1 = Connected).
   Not tested: a real VPN peer (no profile configured), an actual LocalSend
   file transfer (needs accepting on the laptop), Uni VPN/eduroam.
 
