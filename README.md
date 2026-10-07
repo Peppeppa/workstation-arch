@@ -129,11 +129,17 @@ skip with `WORKSTATION_PRIVATE=0 ./bootstrap.sh`) `bootstrap.sh` runs
    `~/.bitwarden-ssh-agent.sock` exists, the agent lists a key, and
    `ssh -T git@github.com` authenticates (github.com's host keys are
    pinned by `roles/base`, `StrictHostKeyChecking=yes`). If not, it
-   prints **one ACTION REQUIRED** and exits 3. Then, by hand in the
-   Bitwarden app: self-hosted server URL on the login screen, log in +
-   unlock, Settings -> Enable SSH agent, your GitHub key as an SSH key
-   item - and re-run `./bootstrap.sh`. Nothing here unlocks Bitwarden,
-   asks for its master password, reads the vault or exports a key.
+   prints **one ACTION REQUIRED**: by hand in the Bitwarden app,
+   self-hosted server URL on the login screen, log in + unlock, Settings
+   -> Enable SSH agent, "Ask for authorization" Never (or click
+   Authorize in each "Confirm SSH key usage" dialog), your GitHub key as
+   an SSH key item. In a terminal the bootstrap then **waits** and goes
+   on by itself once GitHub accepts the key (the local agent is checked
+   every 3 s without any dialog; GitHub is only asked once the agent
+   offers a key, after a rejection again 15 s later; Ctrl+C or 30 min
+   stop it - re-run `./bootstrap.sh`). Without a terminal it exits 3.
+   Nothing here unlocks Bitwarden, asks for its master password, reads
+   the vault or exports a key.
 2. **Clone or fast-forward** `~/repos/peppeppa/dotfiles-provision`. An
    existing clone is only fast-forwarded when it is a git checkout with
    the expected origin, on a branch, with a clean working tree - local

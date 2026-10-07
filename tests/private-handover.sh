@@ -47,6 +47,7 @@ chmod +x "$tmp/stub/"*
 export PATH="$tmp/stub:$PATH" HANDOVER_LOG="$tmp/ran" SSH_LOG="$tmp/ssh.log"
 export WORKSTATION_PRIVATE_REPO="$tmp/remote.git" WORKSTATION_PRIVATE_DIR="$HOME/repos/peppeppa/dotfiles-provision"
 export WORKSTATION_BITWARDEN_SOCKET="$HOME/.bitwarden-ssh-agent.sock"
+export WORKSTATION_PRIVATE_WAIT=0    # the no-terminal path; waiting is tested below
 P=$WORKSTATION_PRIVATE_DIR
 H="$repo/scripts/private-handover.sh"
 run() { : > "$tmp/ran"; "$H" > "$tmp/out" 2>&1; rc=$?; }
@@ -118,6 +119,39 @@ run
 git -C "$other" remote set-url origin "$tmp/remote.git"; git -C "$other" checkout -q --detach
 run
 [ $rc -eq 1 ] && grep -q 'detached' "$tmp/out" && ! ran; check "detached HEAD -> stop (rc $rc)" $?
+
+# ---- waiting mode (terminal): one ACTION REQUIRED, then on by itself ---------
+# ssh-add refuses twice (vault locked), then lists a key; GitHub denies once
+# (dialog not authorized), then accepts. GitHub must only be asked once the
+# agent offers a key - never while it is still locked.
+rm -rf "$HOME/repos"; WORKSTATION_PRIVATE_DIR="$HOME/repos/peppeppa/dotfiles-provision"
+cat > "$tmp/stub/ssh-add" <<'EOF'
+#!/bin/sh
+n=$(($(cat "$TMPC.add" 2>/dev/null || echo 0) + 1)); echo $n > "$TMPC.add"
+[ $n -le 2 ] && { echo "error fetching identities: agent refused operation" >&2; exit 1; }
+echo "ssh-ed25519 AAAA test"
+EOF
+cat > "$tmp/stub/ssh" <<'EOF'
+#!/bin/sh
+n=$(($(cat "$TMPC.ssh" 2>/dev/null || echo 0) + 1)); echo $n > "$TMPC.ssh"
+echo "ssh after $(cat "$TMPC.add") agent checks" >> "$SSH_LOG"
+[ $n -le 1 ] && { echo "git@github.com: Permission denied (publickey)." >&2; exit 255; }
+echo "Hi test! You've successfully authenticated, but GitHub does not provide shell access." >&2; exit 1
+EOF
+chmod +x "$tmp/stub/"*
+export TMPC="$tmp/count" WORKSTATION_PRIVATE_POLL=0 WORKSTATION_PRIVATE_RETRY=0
+rm -f "$TMPC".*; : > "$SSH_LOG"
+WORKSTATION_PRIVATE_WAIT=1 run
+[ $rc -eq 0 ] && [ "$(grep -c 'ACTION REQUIRED' "$tmp/out")" = 1 ] && [ -d "$WORKSTATION_PRIVATE_DIR/.git" ] && ran
+check "wait: locked -> denied -> accepted: one ACTION REQUIRED, then cloned + bootstrap ran (rc $rc)" $?
+[ "$(head -1 "$SSH_LOG")" = "ssh after 4 agent checks" ]   # 2 refused, then key seen + the full check && [ "$(wc -l < "$SSH_LOG")" = 2 ]
+check "wait: GitHub asked only once the agent offers a key, retried once after the denial" $?
+grep -q 'waiting: GitHub rejected' "$tmp/out" && grep -q 'Waiting here' "$tmp/out"; check "wait: status changes shown" $?
+rm -rf "$HOME/repos"; rm -f "$TMPC".*
+printf '#!/bin/sh\nexit 1\n' > "$tmp/stub/ssh-add"
+WORKSTATION_PRIVATE_WAIT=1 WORKSTATION_PRIVATE_WAIT_MAX=0 run
+[ $rc -eq 3 ] && grep -q 'gave up waiting' "$tmp/out" && [ ! -e "$WORKSTATION_PRIVATE_DIR" ]
+check "wait: gives up after WORKSTATION_PRIVATE_WAIT_MAX, exit 3, nothing cloned (rc $rc)" $?
 
 # ---- bootstrap.sh: handover only after real runs --------------------------------
 w=$(sed -n '/^wants_private_handover()/,/^}/p' "$repo/bootstrap.sh")

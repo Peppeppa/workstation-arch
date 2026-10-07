@@ -159,8 +159,9 @@ See `AGENTS.md`. This repository is public and contains no secrets;
 personal configuration comes from the separate private repository
 `dotfiles-provision`, only once a credential provider is configured.
 The one owner of that interface is `scripts/private-handover.sh`: GitHub
-SSH via the Bitwarden desktop agent (else one ACTION REQUIRED, exit 3 -
-Bitwarden is always set up by hand), then a clone or a fast-forward-only
+SSH via the Bitwarden desktop agent (else one ACTION REQUIRED - Bitwarden
+is always set up by hand; in a terminal the run waits and continues by
+itself, otherwise exit 3), then a clone or a fast-forward-only
 update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes,
 divergence, detached HEAD, foreign origin - never discards), then its
 `bootstrap.sh` (user-level, GNU Stow from `roles/base`). The private
