@@ -23,7 +23,7 @@ step() { # name, command...
 
 step "bash -n bootstrap.sh" bash -n bootstrap.sh
 for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
-for f in roles/recovery/files/system-*; do step "bash -n $f" bash -n "$f"; done
+for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc
 step "sh -n roles/network/files/50-workstation-vpn-state" sh -n roles/network/files/50-workstation-vpn-state
 step "ansible-playbook --syntax-check local.yml" ansible-playbook --syntax-check local.yml </dev/null
@@ -74,6 +74,7 @@ step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"'
 # popup may bind text to qrPassword (Copy and the QR use it, nothing shows it).
 step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]*qrPassword" roles/quickshell/files/connectivity/Popup.qml'
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
+step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
 else

@@ -112,7 +112,8 @@ Final tree (top level, `subvolid=5`):
 - No timeline snapshots (`TIMELINE_CREATE="no"`): history is created by
   events (updates, manual), not by the clock.
 - Cleanup: `NUMBER_CLEANUP="yes"`, `NUMBER_LIMIT="10"` (the last 5
-  pre/post pairs), `NUMBER_LIMIT_IMPORTANT="4"` (manual known-good
+  pre/post pairs of the older system-update; the pre-transaction class is
+  outside it, section 6), `NUMBER_LIMIT_IMPORTANT="4"` (manual known-good
   snapshots carry `important=yes`), `NUMBER_MIN_AGE="0"`,
   `EMPTY_PRE_POST_CLEANUP="no"` (*as built* - `yes` deleted a pinned slot
   snapshot after a no-op update, section 21).
@@ -126,7 +127,8 @@ Final tree (top level, `subvolid=5`):
   it is snapper's own and does nothing between snapshot events. Needs an
   `AGENTS.md`/healthcheck exception ("no timers of ours" -> "only
   snapper-cleanup.timer").
-- No `snap-pac`: see section 6.
+- No `snap-pac`: see section 6 (our own pacman hook, one snapshot per
+  transaction, own retention).
 
 A separate snapper config for `@home` is not part of v1 (no rollback for
 home); the backup design may add read-only home snapshots for `btrfs send`.
@@ -201,11 +203,38 @@ kernel).
 
 ## 6. Update transaction: `system-update` owns it
 
-Two snapshot creators around one update would duplicate pairs. `snap-pac`
-would also snapshot every pacman transaction including every
-`community.general.pacman` call of a bootstrap run (dozens per run) - noise
-that pushes real states out of the retention window. Decision: **no
-snap-pac**; `system-update` is the only automatic snapshot creator.
+**Pre-transaction snapshots (2026-10-08, supersedes "system-update is the
+only automatic creator")**: every pacman transaction - `pacman -S/-R/-U`,
+a bare `pacman -Syu`, every package task of a bootstrap - gets ONE
+snapshot of `/` right before it, so a recovery point no longer depends on
+using `system-update`:
+
+- `/etc/pacman.d/hooks/00-workstation-pre-snapshot.hook`: `PreTransaction`,
+  `Install/Upgrade/Remove`, `Target = *`, `NeedsTargets`, `AbortOnFail` -
+  pacman runs a hook once per transaction with all targets, not per
+  package. It runs `/usr/local/lib/workstation/pre-transaction-snapshot`.
+- Class: `snapper create --type single --cleanup-algorithm ""
+  --userdata auto=pre-transaction`, description `pacman: <n> packages
+  (a, b, c, ...)`. No post snapshot: recovery means "the state right
+  before the transaction".
+- Retention: after each new one, `prune_auto` (recovery-lib.sh) reads
+  `snapper --jsonout list`, takes the class members newest first by number
+  and deletes all but the newest **3** - never one a recovery slot still
+  uses (`slot=` userdata), never anything outside the class. Snapper's own
+  number cleanup does not see the class (cleanup algorithm "").
+- `system-update` takes THE snapshot of its update (same class, + the
+  `before-update` slot) and leaves a one-shot skip marker
+  (`/run/workstation-recovery/skip-pre-snapshot`) so the hook does not take
+  a second one for that `pacman -Syu`; the marker is honoured only while
+  < 1 h old and removed by system-update's last step. One snapshot per
+  update.
+- A failed snapshot aborts the transaction (no silent update without its
+  recovery point); a recovery boot (not `@`) takes none and lets pacman
+  run. One-shot escape: `echo manual > /run/workstation-recovery/skip-pre-snapshot`
+  as root.
+- Bootstrap noise is bounded by the retention (3), which is why this is no
+  longer the snap-pac objection above it: a bootstrap that installs
+  nothing runs no transaction and takes no snapshot.
 
 ```
 system-update
@@ -217,9 +246,10 @@ system-update
   3 slot           rotate before-update -> previous-update, create the new
                    before-update slot from the RUNNING system (UKI copy +
                    PRE snapshot + clone + entry) BEFORE pacman touches anything
-  4 snapper pre    (the PRE snapshot of step 3, userdata update=<id>)
+  4 snapshot       (step 3's: class auto=pre-transaction, userdata update=<id>;
+                   the pacman hook skips its own for this pacman -Syu)
   5 pacman -Syu    (interactive, as today; mkinitcpio hooks rebuild the UKI)
-  6 snapper post
+  6 (no post snapshot since 2026-10-08 - the pre-transaction snapshot is the recovery point)
   7 checks         pacman exit code; UKI exists and is newer than the kernel;
                    bootctl/ESP sanity
   8 repo-healthcheck --system --since <T0>
@@ -232,7 +262,7 @@ system-update
 | update ok, healthcheck PASS | done; "before-update" slot remains as the way back |
 | update ok, healthcheck WARN | done, WARN lines printed |
 | update ok, healthcheck FAIL | **no rollback**; prints FAIL lines, how to boot "Recovery: before update", and `system-rollback before-update` |
-| pacman fails | POST snapshot still taken (documents the broken state), exit non-zero, slot kept; no automatic rollback |
+| pacman fails | exit non-zero, slot kept (the pre-transaction snapshot is the state before); no automatic rollback |
 | UKI generation fails | exit non-zero, loud: "do not reboot - the current UKI may be broken; recovery entry is available"; slot kept |
 | reboot needed | message; after reboot the user runs `repo-healthcheck` (or `system-update --check`) |
 
@@ -356,7 +386,9 @@ list + slot markers. Nothing else (no generic manager).
 
 | What | Kept |
 |---|---|
-| update pre/post pairs | last 10 (snapper NUMBER_LIMIT=10 counts a pair once - measured) |
+| automatic pre-transaction snapshots (class `auto=pre-transaction`: the pacman hook + system-update) | newest 3 (`prune_auto`), slot-used ones kept |
+| older system-update pre/post pairs (before 2026-10-08) | snapper NUMBER_LIMIT=10 until they age out |
+| baseline | the `known-good` slot; only while a host has none, one pinned `baseline=yes` snapshot taken once after a complete bootstrap (`recovery-baseline`, `local.yml` post_tasks) |
 | manual important | last 4 |
 | recovery slots | ≤ 3, pinned, rotated by the helpers |
 | @broken-<date> from rollbacks | until removed by hand; healthcheck WARNs while one exists |

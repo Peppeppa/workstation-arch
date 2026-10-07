@@ -1,0 +1,45 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/pre-transaction-snapshot) - do not edit by hand.
+# Deployed to /usr/local/lib/workstation/pre-transaction-snapshot; run by the
+# pacman hook /etc/pacman.d/hooks/00-workstation-pre-snapshot.hook ONCE per
+# package transaction (PreTransaction, AbortOnFail), the targets on stdin.
+#
+# Takes one snapper snapshot of / (class auto=pre-transaction) before
+# pacman changes anything, then keeps only the newest 3 of that class
+# (recovery-lib.sh). A failed snapshot ABORTS the transaction: an update
+# without its recovery point is not done silently. Escape for once:
+#   sudo sh -c 'mkdir -p /run/workstation-recovery && echo manual > /run/workstation-recovery/skip-pre-snapshot'
+# Skips (transaction goes on): booted from a recovery slot (not @), or the
+# one-shot skip marker (system-update already took this snapshot).
+. /usr/local/lib/workstation/recovery-lib.sh
+need_root
+
+mapfile -t targets
+case ${#targets[@]} in
+    0) what="pacman" ;;
+    1) what="pacman: ${targets[0]}" ;;
+    *) what="pacman: ${#targets[@]} packages ($(printf '%s, ' "${targets[@]:0:3}" | sed 's/, $//')$([ ${#targets[@]} -gt 3 ] && echo ", ..."))" ;;
+esac
+
+if ! booted_from_main; then
+    say "booted from $(root_subvol), not @ - no snapshot in a recovery boot"
+    exit 0
+fi
+
+# One-shot skip, honoured only while fresh (< 1 h): a marker left behind by
+# an interrupted system-update must not silently skip a later snapshot.
+if [ -f "$SKIP_MARKER" ]; then
+    reason=$(head -c 200 "$SKIP_MARKER" 2>/dev/null || true)
+    age=$(( $(date +%s) - $(stat -c %Y "$SKIP_MARKER") ))
+    rm -f "$SKIP_MARKER"
+    if [ "$age" -lt 3600 ]; then
+        say "no new snapshot: ${reason:-skip requested} (one-shot marker consumed)"
+        exit 0
+    fi
+    say "ignoring a stale skip marker (${age}s old: $reason)"
+fi
+
+n=$(auto_snapshot "$what" | tail -1) && [ -n "$n" ] \
+    || die "snapper could not take the pre-transaction snapshot - transaction ABORTED. Fix snapper, or once without a snapshot: see the header of $0"
+say "snapshot $n before this transaction ($what)"
+prune_auto || say "WARNING: could not prune old pre-transaction snapshots (snapper list/delete failed)"

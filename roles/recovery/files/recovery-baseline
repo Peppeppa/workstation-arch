@@ -1,0 +1,22 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/recovery-baseline) - do not edit by hand.
+# Deployed to /usr/local/lib/workstation/recovery-baseline; run by bootstrap
+# (local.yml post_tasks) after a COMPLETE provisioning run. The protected
+# baseline of this host is its "known-good" recovery slot (system-snapshot
+# --known-good); only while a host has none (and no earlier baseline) one
+# pinned snapshot is taken: userdata baseline=yes, cleanup "" - never
+# counted, never pruned. Prints "present <n>" or "created <n>".
+. /usr/local/lib/workstation/recovery-lib.sh
+need_root
+booted_from_main || { echo "skipped: booted from $(root_subvol)"; exit 0; }
+have=$(snapper --jsonout -c root list | python3 -c '
+import json, sys
+for s in json.load(sys.stdin).get("root", []):
+    u = s.get("userdata") or {}
+    if u.get("slot") == "known-good" or u.get("baseline") == "yes":
+        print(s["number"]); break
+')
+if [ -n "$have" ]; then echo "present $have"; exit 0; fi
+n=$(snapper -c root create --type single --print-number --cleanup-algorithm "" \
+    --description "baseline: first complete provisioning (repo $(repo_commit))" --userdata "baseline=yes")
+echo "created $n"

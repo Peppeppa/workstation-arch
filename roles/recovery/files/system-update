@@ -7,10 +7,11 @@
 #                       battery/AC; no pacman lock
 #   2 repo-healthcheck  before (a FAIL stops, --force goes on anyway)
 #   3 recovery slot     "before-update" from the RUNNING system (the old one
-#                       becomes "previous-update") - snapper PRE snapshot +
-#                       writable clone + matching UKI + boot entry
+#                       becomes "previous-update") - THE pre-transaction
+#                       snapshot (the pacman hook skips its own for this
+#                       update) + writable clone + matching UKI + boot entry
 #   4 pacman -Syu       interactive, as always
-#   5 snapper POST, UKI sanity, repo-healthcheck --since <start>
+#   5 UKI sanity, repo-healthcheck --since <start> (no post snapshot)
 #
 # Never rolls back by itself: a failure leaves diagnostics and the choices
 # (boot "Recovery: before the last update", `sudo system-rollback
@@ -57,7 +58,7 @@ sudo pacman -Syu
 pacman_rc=$?
 set -e
 
-say "snapper post"
+say "recovery point"
 root post "$pre" "$pacman_rc"
 
 say "boot image check"

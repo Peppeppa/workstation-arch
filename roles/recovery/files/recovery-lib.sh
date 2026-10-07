@@ -153,6 +153,50 @@ make_slot() {
     write_entry "$slot" "$label"
 }
 
+# ---- automatic pre-transaction snapshots (docs/recovery-design.md 6) ----
+# ONE class: snapper userdata auto=pre-transaction. Created by the pacman
+# hook (pre-transaction-snapshot) before every package transaction, and by
+# system-update's pre step (which then tells the hook to skip its own
+# transaction). Not counted by snapper's number cleanup (cleanup algorithm
+# ""); prune_auto keeps the newest AUTO_KEEP of the class instead - never a
+# snapshot outside it (baseline/known-good, manual system-snapshot ones,
+# older system-update pairs) and never one a recovery slot still uses.
+AUTO_KEEP=3
+SKIP_MARKER=/run/workstation-recovery/skip-pre-snapshot
+
+# auto_snapshot <description> [extra userdata]: prints the new number.
+auto_snapshot() {
+    snapper -c root create --type single --print-number --cleanup-algorithm "" \
+        --description "$1" --userdata "auto=pre-transaction${2:+,$2}"
+}
+
+# The class members to delete, newest AUTO_KEEP kept (snapper's JSON list).
+auto_prunable() {
+    snapper --jsonout -c root list | python3 -c '
+import json, sys
+keep = int(sys.argv[1])
+snaps = [s for s in json.load(sys.stdin).get("root", [])
+         if (s.get("userdata") or {}).get("auto") == "pre-transaction"]
+snaps.sort(key=lambda s: s["number"], reverse=True)
+for s in snaps[keep:]:
+    if not (s.get("userdata") or {}).get("slot"):
+        print(s["number"])
+' "$AUTO_KEEP"
+}
+
+prune_auto() {
+    local old
+    old=$(auto_prunable) || return 1
+    [ -z "$old" ] && return 0
+    # shellcheck disable=SC2086
+    snapper -c root delete $old
+    echo "${0##*/}: removed old pre-transaction snapshot(s): $(echo $old)"
+}
+
+# system-update's pre step covers the next transaction: one-shot skip for
+# the hook (or the documented manual escape: a snapshot failure blocks pacman).
+skip_next_snapshot() { mkdir -p "${SKIP_MARKER%/*}"; echo "$1" > "$SKIP_MARKER"; }
+
 repo_commit() {
     local repo
     repo=$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)/workstation-arch

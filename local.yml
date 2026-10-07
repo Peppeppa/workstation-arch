@@ -151,3 +151,16 @@
 
     - role: gaming
       tags: [gaming]
+
+  # After a COMPLETE run only: the host's protected recovery baseline - its
+  # "known-good" slot, or (only while it has none) one pinned snapshot taken
+  # once (roles/recovery recovery-baseline; changed only when it creates).
+  post_tasks:
+    - name: Recovery baseline after a complete provisioning (recovery_enabled)
+      when: recovery_enabled
+      become: true
+      ansible.builtin.command:
+        cmd: /usr/local/lib/workstation/recovery-baseline
+      register: recovery_baseline
+      changed_when: recovery_baseline.stdout is search('^created')
+      tags: recovery

@@ -362,6 +362,15 @@ def recovery_checks():
           "/.snapshots from @snapshots" if rc == 0 and src.endswith("[/@snapshots]") else "/.snapshots not mounted from @snapshots (%s)" % (src or "-"))
     rc, o = run(["systemctl", "is-enabled", "snapper-cleanup.timer"])
     check("snapshot cleanup", o == "enabled", "snapper-cleanup.timer " + (o or "missing"))
+    hook = "/etc/pacman.d/hooks/00-workstation-pre-snapshot.hook"
+    helper = "/usr/local/lib/workstation/pre-transaction-snapshot"
+    ok = os.path.isfile(hook) and os.access(helper, os.X_OK)
+    check("pre-transaction snapshots", ok, "pacman hook + helper present (one snapshot per transaction, newest 3 kept)"
+          if ok else "pacman hook or its helper missing - package transactions run without a recovery point")
+    # The class itself (/.snapshots/<n>/info.xml is world-readable): how many.
+    autos = sum(1 for f in glob.glob("/.snapshots/*/info.xml")
+                if "<key>auto</key><value>pre-transaction</value>" in re.sub(r"\s+", "", open(f, errors="replace").read()))
+    check("pre-transaction retention", autos <= 5, "%d automatic pre-transaction snapshot(s)" % autos, warn=autos > 5)
     # system-update refuses below 150 MB (slot UKIs); slots themselves are
     # root-only (snapper, ESP 0700) - sudo system-snapshot --list
     st = os.statvfs("/boot")

@@ -1,0 +1,17 @@
+# Managed by Ansible (roles/recovery) - do not edit by hand.
+# One recovery snapshot of / BEFORE every package transaction (hooks run
+# once per transaction with all targets, not per package). A failure aborts
+# the transaction. docs/recovery-design.md 6.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Recovery snapshot before the package transaction (workstation)
+When = PreTransaction
+Exec = /usr/local/lib/workstation/pre-transaction-snapshot
+NeedsTargets
+AbortOnFail
