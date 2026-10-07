@@ -355,6 +355,14 @@ QtObject {
         eq("bits: 42300000", bits(42300000), "42 Mbit/s");
         eq("bits: 8100000", bits(8100000), "8.1 Mbit/s");
         eq("bits: 900", bits(900), "900 bit/s");
+        const sp = { speedResult: null, speedState: "running", Qt: Qt };
+        const parseSpeed = make(pop, "parseSpeed", sp);
+        parseSpeed('{"download": 358000000, "upload": 18000000, "ping": 22.4}');
+        eq("speedtest: result parsed", [sp.speedState, sp.speedResult.down, sp.speedResult.ping], ["done", 358000000, 22.4]);
+        sp.speedState = "running"; parseSpeed("Cannot retrieve speedtest configuration");
+        eq("speedtest: garbage -> failed (retry possible)", sp.speedState, "failed");
+        sp.speedState = "running"; parseSpeed('{"download": 0, "upload": 0, "ping": 0}');
+        eq("speedtest: no measurement -> failed", sp.speedState, "failed");
         const mbit = make(pop, "mbit", {});
         eq("mbit: 406e6", mbit(406123456), "406"); eq("mbit: 8.1e6", mbit(8100000), "8.1");
     }
