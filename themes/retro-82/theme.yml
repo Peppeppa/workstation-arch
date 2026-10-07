@@ -14,6 +14,7 @@ colors:
   border:            "#2A6A73"  # base04 (author alias: border)
   border_active:     "#FAA968"  # base0A = accent
   error:             "#F85525"  # base08 (author alias: error)
+  success:           "#19A7A8"  # bright_green (author alias: success)
 
 # Terminal palette (ANSI 0-15). Source: lua/retro82/palette.lua M.terminal (v0.3.0) - the plugin's own terminal palette; preferred over the older extras/retro-82.ghostty from v0.1.0, which repeats colors (red = magenta)
 terminal:

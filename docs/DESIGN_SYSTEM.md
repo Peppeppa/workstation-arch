@@ -32,7 +32,7 @@ pixel size for text. Ghostty and GTK follow through the helper (see
 ```
 themes/<id>/            directory name = stable theme id ([a-z0-9-])
   dark  | light         empty marker file - exactly one; the ONLY source of the mode
-  theme.yml             data only: name, the 10 semantic colors, the 16 terminal colors
+  theme.yml             data only: name, the 11 semantic colors, the 16 terminal colors
                         (+ source comments); optional `neovim:` block (see below)
   backgrounds/          wallpapers for this theme (may be empty; .gitkeep keeps it in git)
 ```
@@ -230,6 +230,7 @@ icon copies of our own, no per-app overrides. GTK keeps Adwaita.
 | `border` | `border` | passive outline | inactive Hyprland border, toasts, closed dropdowns |
 | `border_active` | `borderActive` | emphasized outline | active Hyprland border, focused overlays, lockscreen input |
 | `error` | `error` | destructive/failed/critical | power menu danger icons, critical toasts, lockscreen fail, dialog errors |
+| `success` | `success` | positive/enabling action | Firewall "Aktivieren" |
 
 Add a role only when something draws it.
 

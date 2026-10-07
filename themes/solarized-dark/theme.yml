@@ -14,6 +14,7 @@ colors:
   border:            "#586e75"  # base01
   border_active:     "#268bd2"  # blue = accent
   error:             "#dc322f"  # red
+  success:           "#859900"  # green
 
 # Terminal palette (ANSI 0-15). Source: altercation/solarized README - the canonical 16-color terminal assignment
 terminal:

@@ -1,0 +1,203 @@
+// Firewall -> Hinzufügen (over the Firewall window). Managed by Ansible: do
+// not edit by hand, see roles/quickshell in workstation-arch.
+//
+// Exactly three inputs: Bezeichnung (free text, only for the user),
+// Port (1-65535), Protokoll (TCP or UDP, any case - shown and stored
+// upper-case). Nothing else - no ranges, sources, interfaces or nft syntax.
+// Checked here for feedback, decided by the root helper; the dialog closes
+// only when the helper accepted the rule (then it is live). Escape / a
+// click outside / Abbrechen closes.
+
+import QtQuick
+import QtQuick.Layouts
+import qs
+import qs.bar
+
+Item {
+    id: dialog
+
+    required property var model
+    required property int fontSize
+    signal done
+
+    property bool tried: false          // show input errors only after a first submit
+    property bool waiting: false        // our add is running in the helper
+    readonly property string inputError: model.labelError(labelField.text)
+        || model.portError(portField.text)
+        || (model.normalizeProtocol(protoField.text) === "" ? "Protokoll: TCP oder UDP." : "")
+    readonly property string message: waiting ? "" : tried && inputError !== "" ? inputError : model.errorText
+
+    function reset() {
+        labelField.text = "";
+        portField.text = "";
+        protoField.text = "";
+        tried = false;
+        waiting = false;
+        model.errorText = "";
+        labelField.input.forceActiveFocus();
+    }
+
+    function fill(label, port, protocol) {
+        labelField.text = label;
+        portField.text = port;
+        protoField.text = protocol;
+    }
+
+    function submit() {
+        tried = true;
+        if (inputError !== "" || model.busy) return;
+        waiting = model.add(labelField.text, portField.text, model.normalizeProtocol(protoField.text));
+    }
+
+    Connections {
+        target: dialog.model
+        function onActionDone(ok) {
+            if (!dialog.waiting) return;
+            dialog.waiting = false;
+            if (ok) dialog.done();
+        }
+    }
+
+    // Hidden, the fields must not keep the keyboard: the window's FocusScope
+    // would hand focus back to them and swallow the next Escape.
+    onVisibleChanged: {
+        if (visible) reset();
+        else {
+            labelField.input.focus = false;
+            portField.input.focus = false;
+            protoField.input.focus = false;
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: dialog.done()
+    }
+
+    component Caption: Text {
+        color: Colors.foregroundMuted
+        font.family: Fonts.family
+        font.pixelSize: dialog.fontSize - 1
+    }
+
+    component Field: Rectangle {
+        id: field
+        property alias text: input.text
+        property alias input: input
+        property string placeholder
+        property Item tabTarget: null
+        property Item backtabTarget: null
+        Layout.fillWidth: true
+        implicitHeight: Fonts.px(30)
+        radius: 4
+        color: Colors.surface
+        border.color: input.activeFocus ? Colors.borderActive : Colors.border
+        border.width: 1
+
+        TextInput {
+            id: input
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 8
+            verticalAlignment: TextInput.AlignVCenter
+            clip: true
+            color: Colors.foreground
+            selectionColor: Colors.accent
+            selectedTextColor: Colors.accentForeground
+            font.family: Fonts.family
+            font.pixelSize: dialog.fontSize - 1
+            Keys.onReturnPressed: dialog.submit()
+            Keys.onEnterPressed: dialog.submit()
+            Keys.onEscapePressed: dialog.done()
+            KeyNavigation.tab: field.tabTarget
+            KeyNavigation.backtab: field.backtabTarget
+
+            Text {
+                visible: input.text === ""
+                anchors.verticalCenter: parent.verticalCenter
+                text: field.placeholder
+                color: Colors.foregroundMuted
+                font: input.font
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.centerIn: parent
+        width: Fonts.px(480)
+        height: Math.min(box.implicitHeight + 32, dialog.height - 80)
+        radius: 8
+        color: Colors.background
+        border.color: Colors.borderActive
+        border.width: 1
+
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        ColumnLayout {
+            id: box
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 16
+            spacing: 8
+
+            Text {
+                text: "Regel hinzufügen"
+                color: Colors.foreground
+                font.family: Fonts.family
+                font.pixelSize: dialog.fontSize + 1
+                font.bold: true
+            }
+
+            Caption { text: "Bezeichnung" }
+            Field {
+                id: labelField
+                placeholder: "Test Database"
+                tabTarget: portField.input
+            }
+
+            Caption { text: "Port" }
+            Field {
+                id: portField
+                placeholder: "1234"
+                tabTarget: protoField.input
+                backtabTarget: labelField.input
+            }
+
+            Caption { text: "Protokoll" }
+            Field {
+                id: protoField
+                placeholder: "TCP oder UDP"
+                backtabTarget: portField.input
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    text: dialog.message
+                    color: Colors.error
+                    font.family: Fonts.family
+                    font.pixelSize: dialog.fontSize - 2
+                }
+                PopupButton {
+                    label: "Abbrechen"
+                    fontSize: dialog.fontSize - 1
+                    onClicked: dialog.done()
+                }
+                PopupButton {
+                    primary: dialog.inputError === "" && !dialog.model.busy
+                    opacity: primary ? 1 : 0.6
+                    label: dialog.waiting ? "…" : "Hinzufügen"
+                    fontSize: dialog.fontSize - 1
+                    onClicked: dialog.submit()
+                }
+            }
+        }
+    }
+}

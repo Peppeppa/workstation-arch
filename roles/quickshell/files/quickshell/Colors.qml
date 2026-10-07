@@ -40,6 +40,7 @@ Singleton {
     readonly property color border: c.border || "gray"
     readonly property color borderActive: c.border_active || "white"
     readonly property color error: c.error || "red"
+    readonly property color success: c.success || "green"
 
     // A missing file is reported by FileView itself ("Read of ... failed");
     // only content that is not JSON needs a message of ours.

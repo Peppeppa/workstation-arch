@@ -14,6 +14,7 @@ colors:
   border:            "#bcc0cc"  # surface1
   border_active:     "#1e66f5"  # blue = accent
   error:             "#d20f39"  # red
+  success:           "#40a02b"  # green
 
 # Terminal palette (ANSI 0-15). Source: catppuccin/ghostty themes/catppuccin-latte.conf (palette 0-15)
 terminal:

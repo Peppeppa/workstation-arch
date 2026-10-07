@@ -5,7 +5,8 @@
 // monitor (bar/Bar.qml - the bar host; its widgets, their layout and
 // popups live in bar/, see docs/feature-architecture.md "Bar"), the OS
 // menu (osmenu/, `qs ipc call osmenu toggle`: Applications, Appearance,
-// Network, Settings, System), the Appearance window (appearance/), the low-battery
+// Network, Settings, System), the Appearance window (appearance/), the
+// Firewall window (firewall/), the low-battery
 // warning, and the optional features composed below (power menu,
 // notifications, clipboard history, wallpaper - each inside a Jinja
 // if-block on its <name>_enabled flag, so a disabled feature is not even
@@ -20,6 +21,7 @@ import Quickshell.Io
 import qs
 import qs.appearance
 import qs.bar
+import qs.firewall
 import qs.osmenu
 
 ShellRoot {
@@ -63,6 +65,7 @@ ShellRoot {
     OsMenu {
         fontSize: root.fontSize
         appearance: appearanceWindow
+        firewall: firewallWindow
         powerMenu: {{ 'powerMenu' if power_menu_enabled else 'null' }}
     }
 
@@ -73,6 +76,12 @@ ShellRoot {
         fontSize: root.fontSize
         monitorConfig: "{{ playbook_dir }}/host_vars/{{ ansible_facts.nodename }}.yml"
         terminal: {{ hyprland_terminal.split() | to_json }}
+    }
+
+    // Firewall (OS menu -> Settings): the user's LAN sharing rules.
+    FirewallWindow {
+        id: firewallWindow
+        fontSize: root.fontSize
     }
 {% if wallpaper_enabled %}
 

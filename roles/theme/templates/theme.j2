@@ -105,7 +105,7 @@ MODES = ("dark", "light")
 # Semantic color contract - every theme fills exactly these roles.
 ROLES = (
     "background", "surface", "foreground", "foreground_strong", "foreground_muted", "accent",
-    "accent_foreground", "border", "border_active", "error",
+    "accent_foreground", "border", "border_active", "error", "success",
 )
 # Terminal contract - the 16 ANSI colors (0-15, in this order); every
 # theme has them, taken from the theme's own terminal palette.
@@ -652,7 +652,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 MAX_TEXT = 256 * 1024          # bytes of one source file we parse
 # Raised whenever the compiler's output changes: sync-sources then
 # recompiles existing themes from their local source (no network).
-COMPILER = 2
+COMPILER = 3
 # Files the compiler understands; everything else is reported as ignored.
 KNOWN = ("colors.toml", "alacritty.toml", "ghostty.conf", "hyprland.conf",
          "neovim.lua", "btop.theme", "backgrounds")
@@ -860,6 +860,7 @@ def derive_roles(pal):
         "foreground_muted": muted, "accent": accent,
         "accent_foreground": bg if contrast(accent, bg) >= contrast(accent, fg) else fg,
         "border": mix(bg, fg, 0.25), "border_active": accent, "error": t[1],
+        "success": t[2],
     }
 
 

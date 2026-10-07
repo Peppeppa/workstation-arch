@@ -14,6 +14,7 @@ colors:
   border:            "#9893a5"  # muted
   border_active:     "#286983"  # pine = accent
   error:             "#b4637a"  # love
+  success:           "#286983"  # pine (the palette has no green; its terminal green)
 
 # Terminal palette (ANSI 0-15). Source: rose-pine/ghostty dist/rose-pine-dawn (palette 0-15; white uses that repo's #575279 text tone)
 terminal:

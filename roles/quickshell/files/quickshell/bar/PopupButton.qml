@@ -9,7 +9,8 @@ Rectangle {
     id: btn
 
     property string label
-    property bool danger: false
+    property bool danger: false             // destructive: text in Colors.error
+    property bool positive: false           // enabling: text in Colors.success
     property bool primary: false
     property int fontSize: BarStyle.popupFontSize - 1
     signal clicked
@@ -26,7 +27,7 @@ Rectangle {
         anchors.centerIn: parent
         text: btn.label
         color: btnMouse.containsMouse || btn.primary ? Colors.accentForeground
-             : btn.danger ? Colors.error : Colors.foreground
+             : btn.danger ? Colors.error : btn.positive ? Colors.success : Colors.foreground
         font.family: Fonts.family
         font.pixelSize: btn.fontSize
     }

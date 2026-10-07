@@ -1,8 +1,9 @@
-// OS menu - Settings: Appearance and Network. Managed by Ansible: do not
-// edit by hand, see roles/quickshell in workstation-arch. The same list as
-// the root (RootPage with other entries); the destinations stay
+// OS menu - Settings: Appearance, Network and Firewall. Managed by Ansible:
+// do not edit by hand, see roles/quickshell in workstation-arch. The same
+// list as the root (RootPage with other entries); the destinations stay
 // OsMenu.activate()'s: Appearance opens the Appearance window, Network
-// nm-connection-editor. Back (h/Left/Backspace) returns to the root list.
+// nm-connection-editor, Firewall the Firewall window. Back
+// (h/Left/Backspace) returns to the root list.
 
 import QtQuick
 import QtQuick.Layouts
@@ -46,7 +47,8 @@ FocusScope {
             menu: page.menu
             entries: [
                 { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false },
-                { id: "network", label: "Network", icon: "\u{F06F3}", sub: false }
+                { id: "network", label: "Network", icon: "\u{F06F3}", sub: false },
+                { id: "firewall", label: "Firewall", icon: "\u{F0565}", sub: false }
             ]
         }
     }

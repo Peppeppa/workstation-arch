@@ -2,13 +2,15 @@
 // Managed by Ansible: do not edit by hand, see roles/quickshell in
 // workstation-arch. See docs/feature-architecture.md "OS menu".
 //
-// Root list: Applications, Settings (Appearance, Network), System. Pages
+// Root list: Applications, Settings (Appearance, Network, Firewall), System. Pages
 // that live in the menu (RootPage, AppsPage, SettingsPage) are separate
 // files; destinations outside it are handed over, never re-implemented:
 //   Appearance -> close, open the Appearance window (appearance/)
 //   Network    -> close, start nm-connection-editor (NetworkManager's own
 //                 editor, on demand, as a transient systemd user unit; no
 //                 applet)
+//   Firewall   -> close, open the Firewall window (firewall/: the user's LAN
+//                 sharing rules)
 //   System     -> close, open the existing Power Menu (sole owner of lock/
 //                 suspend/hibernate/logout/reboot/shutdown)
 //
@@ -33,6 +35,7 @@ PanelWindow {
 
     required property int fontSize
     property var appearance: null           // AppearanceWindow (core)
+    property var firewall: null             // FirewallWindow (core)
     property var powerMenu: null            // PowerMenu (feature power_menu) or null
 
     property string page: "root"            // root | apps | settings
@@ -81,6 +84,10 @@ PanelWindow {
         case "appearance":
             close();
             if (appearance) appearance.open();
+            break;
+        case "firewall":
+            close();
+            if (firewall) firewall.open();
             break;
         case "network":
             close();

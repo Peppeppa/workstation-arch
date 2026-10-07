@@ -294,7 +294,29 @@ QtObject {
         eq("night: after the fade a click fades back to Day", [st.active, st.busy, st.from, st.to, st.fade.started], [false, true, 4500, 6500, 1]);
     }
 
+    // Firewall dialog checks (services/FirewallModel.qml) - feedback only,
+    // the root helper decides (tests/firewall.sh), but both must agree.
+    function firewall() {
+        const fw = read("quickshell/services/FirewallModel.qml");
+        const label = make(fw, "labelError", {}), port = make(fw, "portError", {}),
+              proto = make(fw, "normalizeProtocol", {});
+        for (const p of ["tcp", "TCP", "Tcp"]) eq("firewall protocol " + p, proto(p), "TCP");
+        for (const p of ["udp", "UDP", "uDp"]) eq("firewall protocol " + p, proto(p), "UDP");
+        for (const p of ["", "sctp", "tcp;", "t cp", "icmp"]) eq("firewall protocol '" + p + "' refused", proto(p), "");
+        for (const p of ["1", "1234", "65535"]) eq("firewall port " + p, port(p), "");
+        for (const p of ["0", "65536", "99999", "12ab", "", " 80", "080", "-1", "1.5", "1e3"])
+            eq("firewall port '" + p + "' refused", port(p) !== "", true);
+        eq("firewall label ok", label("Test Database"), "");
+        eq("firewall label empty", label("") !== "", true);
+        eq("firewall label blank", label("   ") !== "", true);
+        eq("firewall label 48", label("x".repeat(48)), "");
+        eq("firewall label 49", label("x".repeat(49)) !== "", true);
+        eq("firewall label control char", label("a\tb") !== "", true);
+        eq("firewall label shell text is just text", label("$(rm -rf /); `id`"), "");
+    }
+
     Component.onCompleted: {
+        firewall();
         nightLight();
         barLayout();
         countdown();
