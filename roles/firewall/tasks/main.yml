@@ -62,9 +62,34 @@
     mode: "0644"
   tags: firewall
 
+# Can nftables run in THIS kernel? Not when this very run's pacman -Syu
+# replaced the kernel (the running one's modules are gone until the
+# reboot): then the ruleset is installed unvalidated and the unit only
+# enabled - it loads at the next boot. Read-only.
+- name: Check that nftables works in the running kernel
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/bin/nft list tables
+  register: firewall_nft
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: firewall
+
+- name: Note - the firewall loads only after a reboot
+  when: firewall_nft.rc != 0
+  ansible.builtin.debug:
+    msg: >-
+      nftables cannot run in the running kernel ({{ ansible_facts.kernel }}:
+      {{ firewall_nft.stderr | default('') | trim }}) - usually a kernel
+      upgrade in this run. workstation-firewall.service is enabled and loads
+      at the next boot; reboot, then re-run bootstrap.sh.
+  tags: firewall
+
 # Checked before it is installed: a ruleset nft rejects never replaces the
 # running one (and an unloadable table fails open, never locks SSH out).
 - name: Deploy the nftables ruleset
+  when: firewall_nft.rc == 0
   become: true
   ansible.builtin.template:
     src: firewall.nft.j2
@@ -74,6 +99,17 @@
     mode: "0644"
     validate: /usr/bin/nft -c -f %s
   notify: Reload the firewall
+  tags: firewall
+
+- name: Deploy the nftables ruleset (unvalidated - nftables unavailable until reboot)
+  when: firewall_nft.rc != 0
+  become: true
+  ansible.builtin.template:
+    src: firewall.nft.j2
+    dest: "{{ firewall_ruleset }}"
+    owner: root
+    group: root
+    mode: "0644"
   tags: firewall
 
 - name: Deploy workstation-firewall.service
@@ -92,6 +128,6 @@
   ansible.builtin.systemd_service:
     name: workstation-firewall.service
     enabled: true
-    state: started
+    state: "{{ 'started' if firewall_nft.rc == 0 else omit }}"
     daemon_reload: true
   tags: firewall
