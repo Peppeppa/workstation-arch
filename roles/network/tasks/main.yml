@@ -22,3 +22,65 @@
     enabled: true
     state: started
   tags: network
+
+# FEATURE: fortinet_vpn (see defaults for the source decision). The profile
+# itself (K-number, stored password) is the user's - created once with
+# nm-connection-editor or nmcli (README "Uni VPN (THWS)"), never here.
+- name: Install the Fortinet VPN client and build dependencies (fortinet_vpn_enabled)
+  when: fortinet_vpn_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ fortinet_vpn_packages + fortinet_vpn_build_packages }}"
+    state: present
+  tags: network
+
+- name: Installed version of the NetworkManager Fortinet plugin (fortinet_vpn_enabled)
+  when: fortinet_vpn_enabled
+  ansible.builtin.command:
+    cmd: pacman -Q {{ fortinet_vpn_aur.name }}
+  register: network_fortinet_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: network
+
+# Only when the pinned version is not installed: fetch the AUR repository
+# at the pinned commit, build as the invoking user (makepkg refuses root),
+# install the result with pacman -U.
+- name: Build and install the pinned AUR plugin (fortinet_vpn_enabled)
+  when: >-
+    fortinet_vpn_enabled and
+    network_fortinet_installed.stdout != fortinet_vpn_aur.name ~ ' ' ~ fortinet_vpn_aur.version
+  block:
+    - name: Fetch the AUR repository at the pinned commit
+      ansible.builtin.git:
+        repo: "{{ fortinet_vpn_aur.repo }}"
+        version: "{{ fortinet_vpn_aur.commit }}"
+        dest: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ fortinet_vpn_aur.name }}"
+        force: true
+      tags: network
+
+    - name: Build the package with makepkg (as the user)
+      ansible.builtin.command:
+        cmd: makepkg --cleanbuild --force --noconfirm --noprogressbar
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ fortinet_vpn_aur.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ fortinet_vpn_aur.name }}"
+      tags: network
+
+    - name: The built package file
+      ansible.builtin.command:
+        cmd: makepkg --packagelist
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ fortinet_vpn_aur.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ fortinet_vpn_aur.name }}"
+      register: network_fortinet_pkg
+      changed_when: false
+      tags: network
+
+    - name: Install the built package
+      become: true
+      community.general.pacman:
+        name: "{{ network_fortinet_pkg.stdout_lines | select('search', '/' ~ fortinet_vpn_aur.name ~ '-' ~ fortinet_vpn_aur.version ~ '-') | first }}"
+        state: present
+      tags: network

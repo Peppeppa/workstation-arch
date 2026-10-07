@@ -36,3 +36,6 @@ hyprland_monitors:
     mode: preferred
     position: auto
     scale: auto
+
+# THWS student VPN (the user's university; group_vars fortinet_vpn_enabled).
+fortinet_vpn_enabled: true

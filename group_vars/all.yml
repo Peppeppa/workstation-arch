@@ -219,3 +219,11 @@ recovery_enabled: false
 # SSH client is independent and always installed. Default false: a daily
 # driver runs no SSH server unless its host_vars say so.
 ssh_server_enabled: false
+
+# THWS student VPN (FortiGate SSL-VPN, roles/network): openfortivpn + the
+# NetworkManager plugin networkmanager-fortisslvpn, built from a pinned AUR
+# commit (documented exception - see roles/network/defaults). The network
+# widget's VPN list then toggles the user's profile like any other. Opt-in
+# per host: it builds an AUR package (base-devel). false stops installing/
+# building; installed packages and the profile stay.
+fortinet_vpn_enabled: false

@@ -408,7 +408,9 @@ BarPopup {
                                                    && (l.addr_info || []).some(a => a.scope === "global"))
                     .map(l => {
                         const kindOf = popup.net.physical[l.ifname]
-                            || (l.linkinfo && ["wireguard", "tun"].indexOf(l.linkinfo.info_kind) !== -1 ? "vpn" : "other");
+                            || (l.linkinfo && ["wireguard", "tun"].indexOf(l.linkinfo.info_kind) !== -1 ? "vpn"
+                                : l.link_type === "ppp" ? "vpn"     // openfortivpn (Fortinet SSL-VPN)
+                                : "other");
                         const g = (l.addr_info || []).filter(a => a.scope === "global");
                         const v6 = g.filter(a => a.family === "inet6");
                         const stable = v6.find(a => !a.temporary) || v6[0];

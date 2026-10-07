@@ -44,9 +44,40 @@ network_packages:
                      # README "eduroam". Nothing of the script (or any
                      # credential) is part of this repository.
 
-# Uni-VPN (eduroam-adjacent institutional VPN) is a deliberately open
-# point: the actual protocol (possibly Fortinet/FortiGate/FortiClient,
-# possibly something OpenConnect-compatible) is not yet confirmed, so no
-# package is guessed here. If NetworkManager/OpenConnect can natively
-# speak the real protocol once confirmed, prefer that over installing
-# proprietary FortiClient. See AGENTS.md.
+# FEATURE fortinet_vpn (group_vars fortinet_vpn_enabled, default false;
+# laptop + workstation true): the THWS student VPN. Protocol confirmed from
+# the ITSC guide (2024-11) and the gateway's login page: FortiGate SSL-VPN,
+# vpn.thws.de:443, K-number + password, no client certificate, no SSO.
+#
+# Source decision (Package Source Policy):
+#  1. official: openconnect + networkmanager-openconnect speak Fortinet,
+#     but their NM plugin gets the session cookie through an interactive
+#     auth dialog that only a NetworkManager secret agent starts - this
+#     desktop has none on purpose (no nm-applet), so the network widget's
+#     `nmcli connection up` could never connect. Not used.
+#  2. upstream: FortiClient is proprietary and self-managed. Not used.
+#  3. Flatpak: no VPN plugins there.
+#  4. AUR (documented exception): networkmanager-fortisslvpn - the GNOME
+#     NetworkManager plugin around openfortivpn. It takes user + stored
+#     password as plain NM secrets, so `nmcli connection up` (the widget's
+#     toggle) connects without any agent. Built from a PINNED AUR commit
+#     (PKGBUILD reviewed: GNOME upstream tag 1.4.0 pinned by commit, three
+#     upstream ppp-2.5 patches) with makepkg as the user + pacman -U - no
+#     AUR helper. Not updated by pacman -Syu: bump the pin (commit +
+#     version) here deliberately.
+fortinet_vpn_packages:
+  - openfortivpn       # official extra: the Fortinet SSL-VPN client the plugin runs
+  - ppp                # official core: openfortivpn's tunnel (pppd)
+fortinet_vpn_build_packages:
+  - base-devel         # makepkg's toolchain (fakeroot, gcc, make, ...)
+  - git
+  - glib2-devel
+  - libnma             # also the editor plugin's runtime (nm-connection-editor, GTK 3)
+  - libnma-gtk4
+  - pkg-config
+  - python
+fortinet_vpn_aur:
+  name: networkmanager-fortisslvpn
+  repo: https://aur.archlinux.org/networkmanager-fortisslvpn.git
+  commit: ed0dffef43d2fb0c17e9fe867bc104574b662d34   # upgpkg 1.4.0-6 (2024-09-27)
+  version: 1.4.0-6

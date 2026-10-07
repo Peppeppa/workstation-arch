@@ -17,3 +17,6 @@
 # roles/power (only if power-profiles-daemon offers it on this platform;
 # a later `powerprofilesctl set ...` is never reset).
 power_profile_default: performance
+
+# THWS student VPN (the user's university; group_vars fortinet_vpn_enabled).
+fortinet_vpn_enabled: true
