@@ -233,20 +233,33 @@ see `docs/ARCHITECTURE.md`), sets a German (`de`) keyboard layout for
 the Wayland session (separate from the virtual console keymap and
 system locale set by `base` - see `AGENTS.md`), and binds:
 
-| Keybind                | Action                                      |
-|-------------------------|---------------------------------------------|
-| `Super + Return`         | open a terminal (Ghostty)                    |
-| `Super + Space`          | OS menu: Applications (search), Appearance, Network (connection editor), Settings, System (power menu); Escape closes |
-| `Super + Q`              | close the focused window                     |
-| `Super + [1-9]`          | switch to workspace 1-9                      |
-| `Super + Shift + [1-9]`  | move the focused window to workspace 1-9     |
-| `Super` + arrow keys     | move keyboard focus                          |
-| `Super` + left/right click drag | move / resize a floating window       |
-| `Super + X`              | smart screenshot: drag a region or click a window -> PNG file + clipboard |
-| `Super + Shift + X`      | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
-| `Super + L`              | lock now (hyprlock)                          |
-| `Super + Escape`         | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
-| `Super + Shift + E`      | exit Hyprland (back to Ly / the TTY)         |
+| Keybind | Action |
+|---|---|
+| `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
+| `Super + T` / `Super + Return` | terminal (Ghostty) |
+| `Super + B` / `Super + Shift + B` | Chromium / Bitwarden |
+| `Super + D` | Neovim in a terminal |
+| `Super + E` / `Super + F` | Thunderbird / Nautilus |
+| `Super + G` / `Super + W` | WhatsApp / Obsidian (focus if already open) |
+| `Super + V` | clipboard history |
+| `Super + F1` | keybinding cheatsheet (`hypr-cheatsheet`) |
+| `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
+| `Super + Shift + H/J/K/L` | move the window |
+| `Super + Alt + H/J/K/L` | resize the window (100 px) |
+| `Super + Q` | close the focused window |
+| `Super + Shift + F` / `Shift + G` / `Shift + T` | fullscreen / floating toggle / split toggle |
+| `Super + [1-9]` / `Super + Shift + [1-9]` | switch to / move the window to workspace 1-9 |
+| `Super + S` / `Super + Shift + S` | toggle the scratchpad / move the window there |
+| `Super` + left/right click drag | move / resize a floating window |
+| `Super + X` | smart screenshot: drag a region or click a window -> PNG file + clipboard |
+| `Super + Shift + X` | screenshot of the whole focused monitor |
+| `Super + Ctrl + X` | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
+| `Super + Delete` | lock now (hyprlock) |
+| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
+| `Super + Shift + E` | exit Hyprland (back to Ly / the TTY) |
+
+Caps Lock is a second Ctrl (`hyprland_keyboard_options: ctrl:nocaps`). The
+full, generated list is `Super + F1`.
 
 Notifications: toasts top-right (Quickshell). Click/x closes; normal
 ones expire after ~5 s (or the sender's timeout, paused on hover),
@@ -266,7 +279,7 @@ there are none.
 Coffee icon left of the bar clock (hidden until hovered; click to
 toggle): pauses the *automatic* idle lock/display-off while on (icon
 stays visible). Not persistent - off again after any Quickshell or
-session restart. Super+L, power menu Lock and lock-before-suspend keep
+session restart. Super+Delete, power menu Lock and lock-before-suspend keep
 working while it's on.
 
 Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR
@@ -495,7 +508,19 @@ first `nvim` start. Its `lua/plugins/workstation-theme.lua` makes Neovim
 use the active workstation theme's own Neovim port (exact theme, not just
 dark/light - table in `docs/DESIGN_SYSTEM.md`), and a theme switch
 recolors running Neovims too. Bring your own config (dotfiles) any time -
-keep that one file to stay themed.
+keep that one file to stay themed. `lua/config/keymaps.lua` is the one
+file workstation-arch keeps managed (deployed on every bootstrap): Space as
+leader, `<leader>pv` explorer, visual `J`/`K` move lines, centered
+`<C-d>`/`<C-u>`/`n`/`N`, `<leader>p` paste keeping the yank, `<leader>y`/`Y`
+system clipboard, `jk` leaves insert, `<Esc>` saves, `<leader>x` chmod +x,
+visual `<leader>c` comments with `#`, `<C-h/j/k/l>` windows, `<C-c>`/`<C-v>`
+system clipboard. Personal additions go into another file under `lua/`.
+
+SSH client: `~/.ssh/config` gets one managed block (at its end - your own
+entries above it win) that points every host at the Bitwarden SSH agent:
+`Host *` / `IdentityAgent ~/.bitwarden-ssh-agent.sock`. Enable the agent in
+Bitwarden desktop (Settings -> SSH agent) and keep it unlocked; without it
+ssh just finds no agent. No key is ever stored here.
 
 ## Zoom and screen sharing
 

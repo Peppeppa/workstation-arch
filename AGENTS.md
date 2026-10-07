@@ -91,7 +91,10 @@ direct upstream dependency.
 | Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |
 | Login (display manager) | Ly - `ly@tty2.service` (package unit + PAM), `roles/display_manager`, feature `display_manager_enabled`; starts the hyprland package's `hyprland.desktop` (`start-hyprland`); tty1 keeps its getty for recovery/manual start |
 | Compositor / window manager | Hyprland |
-| OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/System hand over to their owners |
+| OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; type-to-search over its own entries + apps; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/Firewall/System hand over to their owners |
+| Hyprland keybindings, input, cheatsheet | `roles/hyprland` (`conf/binds.lua`, `conf/input.lua`, generated `~/.config/hypr/cheatsheet.md` + `hypr-cheatsheet` on mainMod+F1) - migrated once from the former dotfiles, no runtime link to them |
+| Neovim keymaps | `roles/apps` (`~/.config/nvim/lua/config/keymaps.lua`, the one managed Neovim file; the rest of the config stays the user's) |
+| SSH client agent | `~/.ssh/config` managed block (`roles/base`): `IdentityAgent ~/.bitwarden-ssh-agent.sock` - Bitwarden desktop's agent; no keys here |
 | Appearance (theme/wallpaper/bar background/brightness/text size/display) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, bar background = BarLayout's setting, brightness = `brightnessctl` (backlight only) |
 | Desktop text size (one preference: shell, Ghostty, GTK `text-scaling-factor`) | the `theme` helper (state `text-size`, `theme text-size <px>`); Quickshell derives sizes via `Fonts.px` |
 | Display scale picked at runtime | `~/.config/workstation/display-scale.lua`, written only by Appearance (`services/DisplayModel.qml`), read by `monitors.lua`; mode/position/default scale stay `hyprland_monitors` (host_vars) |
@@ -829,7 +832,7 @@ history for that milestone's own record):
   component; established the `shell.qml.j2` composition pattern (see
   `docs/feature-architecture.md`).
 - **Lock + Idle v1**: `lock_idle_enabled` - hypridle + hyprlock, one
-  lock path (`loginctl lock-session`) for Super+L, power menu, idle and
+  lock path (`loginctl lock-session`) for Super+Delete, power menu, idle and
   before-sleep. First persistent process added since the idle baseline
   (hypridle, ~7 MB, 0% CPU - see `docs/idle-baseline.md`). arch-dev
   needs `LIBGL_ALWAYS_SOFTWARE=1` for hyprlock too (host_vars). Manual

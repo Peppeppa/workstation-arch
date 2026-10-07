@@ -303,6 +303,7 @@ Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
   AppsPage.qml     Applications: search + results (the former launcher view)
   AppModel.qml     the app model/filter (moved unchanged from Launcher.qml)
   SettingsPage.qml Settings: the same list with Appearance, Network, Firewall
+  SearchPage.qml   type-to-search results (menu entries + applications)
   PageHeader.qml   back chevron + title of a page below the root
 ```
 
@@ -312,16 +313,28 @@ Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
 | Settings | page inside the menu: **Appearance** (close the menu, open the Appearance window), **Network** (close the menu, start `nm-connection-editor` on demand) and **Firewall** (close the menu, open the Firewall window - see "Firewall") |
 | System | close the menu, open the existing Power Menu (sole owner of lock/suspend/hibernate/logout/reboot/shutdown; entry hidden without `power_menu_enabled`) |
 
-Keyboard on list pages: `j`/Down next, `k`/Up previous, `l`/Right/Enter
-open, `h`/Left back; no wrap-around. Applications: the search field has
-the focus, every letter is search input (no Vim keys), Up/Down/Enter.
-**Escape always closes the whole OS menu** - from any page, never "back".
+Keyboard: **type to search**. The first printable key on a list page
+(any letter - `j`/`k` included - digit, umlaut) opens `SearchPage.qml`: the
+menu's own entries (`OsMenu.rootEntries` / `settingsEntries`, the one list
+the pages render, plus search keywords) and the applications (AppModel's
+ranking for both: name prefix, name, generic name, keywords; entries before
+apps on a tie), best match preselected - `Super+Space chrom Enter` starts
+Chromium, `appearance Enter` opens the same Appearance window as the
+Settings page (`OsMenu.activate()`). Up/Down or Ctrl+J/Ctrl+K move, Enter
+runs, Backspace edits; an emptied query or Escape returns to the unchanged
+root list (never an empty results view); Escape with no query closes the
+menu. On the lists: Down/Up (Ctrl+J/K) move, Right/Enter open, Left back,
+Backspace back on Settings; no plain-letter navigation any more.
+Applications: the search field has the focus (Up/Down/Enter). Bluetooth is
+a bar widget, not a menu entry - not a search target. The search exists
+only while typed: built per keystroke from data already in memory, nothing
+while the menu is closed.
 Mouse: hover selects (only after the pointer really moved since opening -
 the menu maps under a resting pointer, whose first hover report must not
 replace the preselection; same in the power menu and clipboard history),
 click opens, the page header goes back, a click outside the panel closes. Surface: overlay on the focused output below the
 bar strip, only while open (unmapped when closed). IPC `osmenu`:
-`toggle`, `close`, `openPage <root|apps|settings>`, `state` (JSON, tests).
+`toggle`, `close`, `openPage <root|apps|settings>`, `state` (JSON, tests: page, query, results, selection).
 
 ## Appearance
 
@@ -706,7 +719,7 @@ handler), so splitting them would buy nothing.
 |---|---|
 | Scope | `roles/hyprland`: packages, `hypridle.conf.j2`, `files/hyprlock.conf`, autostart + bind in `hyprland.lua.j2`; Power Menu Lock entry (`lockAvailable`) |
 | Packages | `lock_idle_packages`: `hyprlock`, `hypridle` (official `extra`) |
-| Lock path | `loginctl lock-session` only (Super+L, power menu, idle listener, `before_sleep_cmd`) -> logind Lock -> hypridle `lock_cmd` -> `pidof hyprlock \|\| hyprlock` |
+| Lock path | `loginctl lock-session` only (Super+Delete, power menu, idle listener, `before_sleep_cmd`) -> logind Lock -> hypridle `lock_cmd` -> `pidof hyprlock \|\| hyprlock` |
 | Idle | `lock_idle_lock_timeout` 300 s -> lock, `lock_idle_dpms_timeout` 600 s -> `hl.dsp.dpms` off, on at activity (ext-idle-notify, no polling) |
 | Suspend | hypridle holds a logind delay inhibitor until Hyprland reports the session locked (`inhibit_sleep` auto -> lock-notify) |
 | Lifecycle owner | Hyprland session start; a bootstrap inside a running session asks that Hyprland to exec it; config/start-command changes restart it (handler); `session-stop` ends it (and a running hyprlock) at session end |
