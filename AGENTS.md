@@ -944,6 +944,26 @@ history for that milestone's own record):
   screen sharing in WebCord and Zoom web (Chromium path). Open: eduroam
   enrollment (needs the user's credentials).
 
+- **Hardening v1 + Firewall UI** (laptop, real-hardware-tested 2026-10-07,
+  explicitly requested past the freeze): `roles/firewall` (nftables table
+  `inet workstation`, oneshot loader, no daemon, never `flush ruleset`;
+  Docker-published ports filtered in `forward` by the pre-DNAT port),
+  key-only SSH + host capability `ssh_server_enabled`, no ICMP redirects,
+  Settings -> Firewall (pkexec + polkit helper `firewall-rules`, new rules
+  start disabled), role `success`, Bluetooth battery % instead of
+  Connected, two Appearance info lines removed. Tested on the laptop: boot
+  load after the kernel upgrade, SSH offers only publickey, IPv4/DNS,
+  IPv6 link-local/ND (the LAN has no global IPv6), redirects off, full rule
+  lifecycle through the UI path with real TCP/UDP probes from a LAN host,
+  persistence (Quickshell reload, unit restart = boot path), Docker
+  (published port LAN-blocked until enabled, also via docker-proxy/IPv6;
+  127.0.0.1 publish local; container networking/outbound/DNS; Docker's
+  tables unchanged across rule ops and a firewall reload; Docker back to
+  disabled/inactive), LocalSend both directions (multicast + mTLS API), a
+  temporary split WireGuard profile (routes, outbound, handshake sent).
+  Not tested: a real VPN peer (no profile configured), an actual LocalSend
+  file transfer (needs accepting on the laptop), Uni VPN/eduroam.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
