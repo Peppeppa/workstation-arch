@@ -989,6 +989,22 @@ history for that milestone's own record):
   imports validated in memory, no extra idle process, strongswan's own
   daemons disabled); WireGuard imports come with autoconnect on (README).
 
+- **Pre-transaction snapshots + Scratchpad phase 1** (laptop, 2026-10-07,
+  real-hardware-tested): pacman PreTransaction hook -> one snapper snapshot
+  per transaction (class `auto=pre-transaction`, newest 3 kept, slot-used
+  and non-class snapshots never pruned; system-update's own snapshot makes
+  the hook skip; failure aborts the transaction; baseline = known-good
+  slot). Real: a 2-package transaction -> one snapshot, retention removed
+  the oldest each time, non-class snapshots identical before/after.
+  Scratchpad: Quickshell top-level window via LazyLoader (exists only while
+  open), mainMod+N + bar icon, four notes `~/.local/share/workstation/
+  scratchpad/{1..4}.txt`; real GUI tests (keys + mouse via a one-shot
+  uinput test device): open/close paths incl. Super+Q and free-desktop
+  click, Alt+1..4 + dots, autosave, no-wrap/scroll, -/+ persistence, bar
+  icon, live theme switch. Found on hardware and fixed: 2-3 package hook
+  abort (set -e), bar namespace collision (shell down ~8 min), no reopen
+  after Super+Q, free-desktop click did not close.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
