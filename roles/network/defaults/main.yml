@@ -44,6 +44,33 @@ network_packages:
                      # README "eduroam". Nothing of the script (or any
                      # credential) is part of this repository.
 
+# VPN protocols for nm-connection-editor (create/import), all official
+# Arch plugins - NetworkManager stays the only owner; each plugin's helper
+# runs only while one of its connections is up, none starts on its own:
+#  - WireGuard: native in NetworkManager (+ wireguard-tools above), also
+#    for a provider config such as Mullvad's (no provider app/daemon).
+#  - OpenVPN: networkmanager-openvpn (+ openvpn; its openvpn-client@/
+#    -server@ units stay unused - NM runs openvpn itself).
+#  - OpenConnect (Cisco AnyConnect, Juniper/Pulse, GlobalProtect, ...):
+#    networkmanager-openconnect (+ openconnect). Additional protocol only -
+#    the THWS Fortinet VPN stays on fortisslvpn below.
+#  - IPsec/IKEv2: networkmanager-strongswan (+ strongswan): NM starts
+#    strongswan's charon-nm over D-Bus per connection; strongswan's own
+#    daemons (strongswan.service, strongswan-starter.service) stay disabled
+#    (network_vpn_disabled_units). libreswan's plugin is not in the official
+#    repositories - left out.
+# Left out on purpose: L2TP/vpnc/PPTP (not wanted; PPTP is broken crypto).
+network_vpn_plugin_packages:
+  - networkmanager-openvpn
+  - openvpn
+  - networkmanager-openconnect
+  - openconnect
+  - networkmanager-strongswan
+  - strongswan
+network_vpn_disabled_units:
+  - strongswan.service
+  - strongswan-starter.service
+
 # FEATURE fortinet_vpn (group_vars fortinet_vpn_enabled, default false;
 # laptop + workstation true): the THWS student VPN. Protocol confirmed from
 # the ITSC guide (2024-11) and the gateway's login page: FortiGate SSL-VPN,

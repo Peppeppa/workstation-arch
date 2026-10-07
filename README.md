@@ -182,7 +182,7 @@ first - see the `gaming` row below.
 | `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal)                       |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
-| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer); THWS VPN (openfortivpn + pinned AUR NM plugin, `fortinet_vpn_enabled`) - see "Uni VPN (THWS)" |
+| `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer); VPN plugins (WireGuard native, OpenVPN, OpenConnect, IPsec/IKEv2) + THWS VPN (openfortivpn + pinned AUR NM plugin, `fortinet_vpn_enabled`) - see "VPN types" |
 | `firewall`       | `firewall`      | nftables inbound firewall (own table, no daemon), no ICMP redirects, the helper behind Settings -> Firewall - see "Firewall and SSH" |
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
@@ -394,6 +394,25 @@ the full ruleset: `sudo nft list table inet workstation`.
 SSH: inbound logins are public-key only on every host (no passwords, no
 keyboard-interactive). The server itself runs only where a host sets
 `ssh_server_enabled: true` (`host_vars/<host>.yml`).
+
+## VPN types
+
+All VPNs are NetworkManager connections - create or import them in OS menu
+-> Settings -> Network (`+`, or "Import a saved VPN configuration"), switch
+them in the bar's network popup. None connects on its own.
+
+| Type | Plugin (official repos unless noted) |
+|---|---|
+| WireGuard | native in NetworkManager (`wireguard-tools`) |
+| OpenVPN | `networkmanager-openvpn` |
+| OpenConnect (Cisco AnyConnect, GlobalProtect, Pulse, ...) | `networkmanager-openconnect` |
+| IPsec/IKEv2 | `networkmanager-strongswan` (NM starts `charon-nm` per connection) |
+| Fortinet SSL-VPN | `networkmanager-fortisslvpn` (pinned AUR build) - THWS, see below |
+
+Mullvad (or another provider) needs no app: download its WireGuard
+configuration, then `nmcli connection import type wireguard file
+<file>.conf` and `nmcli connection modify <name> connection.autoconnect
+no` (NetworkManager imports WireGuard files with autoconnect on).
 
 ## Uni VPN (THWS)
 

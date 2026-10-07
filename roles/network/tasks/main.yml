@@ -23,6 +23,23 @@
     state: started
   tags: network
 
+- name: Install the NetworkManager VPN plugins (OpenVPN, OpenConnect, IPsec/IKEv2)
+  become: true
+  community.general.pacman:
+    name: "{{ network_vpn_plugin_packages }}"
+    state: present
+  tags: network
+
+# strongswan ships its own IKE daemons; NetworkManager uses charon-nm
+# instead - the standalone ones never run (one owner).
+- name: strongswan's own daemons stay disabled (NetworkManager runs charon-nm)
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+  loop: "{{ network_vpn_disabled_units }}"
+  tags: network
+
 # VPN state for the bar (Quickshell's Networking module reports Wi-Fi and
 # Ethernet only): NetworkManager's own dispatcher runs a hook on every
 # (vpn-)up/down that rewrites /run/workstation/vpn-state; the widget
