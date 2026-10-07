@@ -83,6 +83,16 @@ grep -q 'auto=pre-transaction' "$tmp/log"; check "hook: classified auto=pre-tran
 grep -q 'pacman: 4 packages (less, nano, vim, ...)' "$tmp/log"; check "hook: description names the transaction" $?
 grep -q '^delete 60$' "$tmp/log"; check "hook: prunes the class to 3 (fixture already had 4)" $?
 
+# Every target count (the description must never end the hook under set -e).
+for t in "less" "less\nwhich" "a\nb\nc"; do
+    fixture; : > "$tmp/log"
+    printf "$t\n" | "$tmp/lib/pre-transaction-snapshot" > "$tmp/out" 2>&1
+    rc=$?; creates=$(grep -c '^create' "$tmp/log"); last=$(tail -1 "$tmp/out"); n=$(printf "$t\n" | wc -l)
+    [ $rc -eq 0 ] && [ "$creates" = 1 ]; ok=$?
+    check "hook: $n target(s) -> exit 0, one snapshot (rc $rc, creates $creates: $last)" $ok
+done
+grep -q 'pacman: 3 packages (a, b, c)' "$tmp/log"; check "hook: 3 targets described without '...'" $?
+
 # ---- skip marker: fresh = skip once, stale = snapshot anyway -----------------
 : > "$tmp/log"; echo "system-update took snapshot 77" > "$tmp/run/skip-pre-snapshot"
 printf 'less\n' | "$tmp/lib/pre-transaction-snapshot" > "$tmp/out" 2>&1

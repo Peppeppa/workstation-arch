@@ -15,10 +15,16 @@
 need_root
 
 mapfile -t targets
+# (no command substitution that can fail: set -e would end the hook)
 case ${#targets[@]} in
     0) what="pacman" ;;
     1) what="pacman: ${targets[0]}" ;;
-    *) what="pacman: ${#targets[@]} packages ($(printf '%s, ' "${targets[@]:0:3}" | sed 's/, $//')$([ ${#targets[@]} -gt 3 ] && echo ", ..."))" ;;
+    *)
+        names=$(printf '%s, ' "${targets[@]:0:3}")
+        names=${names%, }
+        if [ ${#targets[@]} -gt 3 ]; then names="$names, ..."; fi
+        what="pacman: ${#targets[@]} packages ($names)"
+        ;;
 esac
 
 if ! booted_from_main; then
