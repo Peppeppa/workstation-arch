@@ -351,13 +351,6 @@ FocusScope {
                     }
                 }
 
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    text: "px - the shell, Ghostty (and Neovim in it) and GTK apps follow; other apps keep their own zoom."
-                    font.pixelSize: root.fontSize - 2
-                }
-
                 // ---- Display --------------------------------------------
                 SectionTitle { text: "Display" }
 
@@ -428,14 +421,6 @@ FocusScope {
                                     onPicked: display.setScale(mon.modelData.name, modelData)
                                 }
                             }
-                        }
-
-                        Label {
-                            Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            text: "Scale " + Number(mon.modelData.scale).toFixed(2).replace(/\.?0+$/, "") + "×"
-                                  + (mon.overridden ? " - chosen here (the host default is in its monitor config)" : " - the host default")
-                            font.pixelSize: root.fontSize - 2
                         }
 
                         Text {
