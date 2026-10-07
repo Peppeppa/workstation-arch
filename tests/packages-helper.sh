@@ -48,7 +48,7 @@ case "$*" in
   "list --app --columns=application") printf '%s\n' md.obsidian.Obsidian ;;
   "list --app --columns=name,application,origin") printf 'Obsidian\tmd.obsidian.Obsidian\tflathub\n' ;;
   "remote-ls --app --columns=name,application,description,origin")
-      printf 'Obsidian\tmd.obsidian.Obsidian\tKnowledge base\tflathub\nLocalSend\torg.localsend.localsend_app\tShare files\tflathub\n' ;;
+      printf 'Obsidian\tmd.obsidian.Obsidian\tKnowledge base\tflathub\nLocalSend\torg.localsend.localsend_app\tShare files\tflathub\nVulkanInfo\torg.freedesktop.Platform.VulkanInfo\tVulkan info\tflathub\nVulkanInfo\torg.freedesktop.Platform.VulkanInfo\tVulkan info\tflathub\n' ;;
   *) echo "flatpak $*" >> "$TMPLOG" ;;
 esac
 EOF
@@ -104,6 +104,7 @@ grep -q 'rpc/v5/search/he' "$tmp/log"; check "aur-search: queries the AUR RPC (n
 run 'org.localsend' install-flatpak
 ! grep -q 'md.obsidian.Obsidian' "$tmp/offer" && grep -q 'LocalSend.*org.localsend.localsend_app.*Share files' "$tmp/offer"
 check "install-flatpak: name + app id + description, installed apps out" $?
+[ "$(grep -c 'VulkanInfo' "$tmp/offer")" = 1 ]; check "install-flatpak: an app listed for two branches appears once" $?
 grep -qx 'flatpak install flathub org.localsend.localsend_app' "$tmp/log"; check "install-flatpak: flatpak install <remote> <id>" $?
 run 'Obsidian' remove-flatpak
 grep -qx 'flatpak uninstall -- md.obsidian.Obsidian' "$tmp/log"; check "remove-flatpak: uninstall by app id, no --unused" $?

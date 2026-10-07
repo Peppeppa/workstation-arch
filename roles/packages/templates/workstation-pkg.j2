@@ -125,10 +125,11 @@ install-flatpak)
     need flatpak
     printf '%sInstall: Flatpaks%s %s(applications from the configured remotes)%s\n' "$bold" "$off" "$dim" "$off"
     printf '%sLoading the remotes ...%s\r' "$dim" "$off"
-    # --app: applications only (no runtimes/extensions); installed ones out.
+    # --app: applications only (no runtimes/extensions); installed ones out;
+    # one line per app (remote-ls lists every branch).
     have=" $(flatpak list --app --columns=application | tr '\n' ' ') "
     sel=$(flatpak remote-ls --app --columns=name,application,description,origin 2>/dev/null \
-        | awk -F'\t' -v have="$have" '!index(have, " " $2 " ") { printf "%-30s\t%s\t%s\t%s\n", $1, $2, $3, $4 }' \
+        | awk -F'\t' -v have="$have" '!index(have, " " $2 " ") && !seen[$2]++ { printf "%-30s\t%s\t%s\t%s\n", $1, $2, $3, $4 }' \
         | pick "Install Flatpaks" --delimiter='\t' --with-nth=1,2,3 \
               --preview="flatpak remote-info {4} {2} 2>/dev/null") || exit 0
     [ -n "$sel" ] || exit 0
