@@ -18,6 +18,9 @@ shell_packages:
   - bat         # cat with syntax highlighting (ANSI theme, see below)
   - tealdeer    # `tldr` - Rust client; extra's python `tldr` is the slower
                 # alternative. Pages come with `tldr --update` (user cache)
+  - bash-completion  # programmable completion (git branches, systemctl units,
+                # pacman, docker, ...); Arch's /etc/bash.bashrc loads it,
+                # completions themselves load lazily on first use
 
 # Workstation-owned files (data, user level). The integration file is
 # sourced by ONE line in ~/.bashrc (shell_bashrc_hook) - added only while

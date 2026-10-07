@@ -222,8 +222,8 @@ first - see the `gaming` row below.
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
 | `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/WebCord/IntelliJ via Flathub; WhatsApp and Zoom as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
-| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker") |
-| `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer) + one sourced shell integration file - see "Shell and Neovim" |
+| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server) |
+| `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer), bash-completion + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
 | `recovery`       | `recovery`      | Btrfs snapshots (snapper), recovery boot slots, `system-update`/`-snapshot`/`-rollback` (`recovery_enabled`) |
@@ -584,8 +584,11 @@ repository. Remove works for imported themes that are not selected. Details:
 file - a dotfiles symlink is left alone; add the line there yourself:
 `[[ -r ~/.local/share/workstation/shell/bashrc ]] && . ~/.local/share/workstation/shell/bashrc`).
 It only wires the tools: Starship prompt (your `~/.config/starship.toml`
-wins over the default), `z`/`zi` (zoxide), Ctrl+R / Ctrl+T / Alt+C (fzf),
-`BAT_THEME=ansi` unless you set one. Aliases and the rest of your shell
+wins over the default), `z`/`zi` (zoxide - or another name via zoxide's
+own `--cmd`: set `WORKSTATION_ZOXIDE_CMD=cd` before that line, as the
+private dotfiles do), Ctrl+R / Ctrl+T / Alt+C (fzf), `BAT_THEME=ansi`
+unless you set one; bash-completion is installed (Arch's
+`/etc/bash.bashrc` loads it). Aliases and the rest of your shell
 config are yours (dotfiles). `tldr --update` once fetches the pages.
 
 Neovim: where no `~/.config/nvim` exists, provisioning creates the

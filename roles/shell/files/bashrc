@@ -15,8 +15,10 @@ if [[ ${TERM:-} != dumb ]] && command -v starship >/dev/null; then
     eval "$(starship init bash)"
 fi
 
-# zoxide: `z <part of a dir>`, `zi` interactive.
-command -v zoxide >/dev/null && eval "$(zoxide init bash)"
+# zoxide: `z <part of a dir>`, `zi` interactive. Personal dotfiles that set
+# WORKSTATION_ZOXIDE_CMD before sourcing this file pick the command name
+# through zoxide's own --cmd instead (e.g. `cd`/`cdi`) - still one init.
+command -v zoxide >/dev/null && eval "$(zoxide init bash ${WORKSTATION_ZOXIDE_CMD:+--cmd "$WORKSTATION_ZOXIDE_CMD"})"
 
 # fzf: Ctrl+R (history), Ctrl+T (files), Alt+C (cd), ** completion.
 command -v fzf >/dev/null && eval "$(fzf --bash)"

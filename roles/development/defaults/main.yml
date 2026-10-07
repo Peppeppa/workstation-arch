@@ -29,6 +29,12 @@ development_packages:
   - docker-buildx
   - lazydocker
 
+  # MariaDB/MySQL command-line client only (`mariadb`, `mariadb-dump`,
+  # ...; pulls mariadb-libs) - for databases that run elsewhere (a
+  # container, a tunnel to 127.0.0.1:3306). Deliberately NOT the server
+  # package `mariadb`: no local database server in the baseline.
+  - mariadb-clients
+
 # Docker runs only on demand: neither the daemon nor its socket starts at
 # boot (that is also Arch's package default - stated here so it stays
 # so). Start: `sudo systemctl start docker`; stop everything again:
