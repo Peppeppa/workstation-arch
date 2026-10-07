@@ -124,6 +124,18 @@ remove-aur)
 install-flatpak)
     need flatpak
     printf '%sInstall: Flatpaks%s %s(applications from the configured remotes)%s\n' "$bold" "$off" "$dim" "$off"
+    # Names/descriptions come from each remote's app catalog (appstream);
+    # fetched here when missing or older than 7 days - on this explicit
+    # action only (flatpak's own polkit rule lets an active wheel user).
+    arch=$(flatpak --default-arch)
+    for remote in $(flatpak remotes --columns=name); do
+        f=$(ls -d /var/lib/flatpak/appstream/"$remote"/"$arch"/active/appstream.xml* 2>/dev/null | head -1)
+        if [ -z "$f" ] || [ -n "$(find "$f" -maxdepth 0 -mtime +7 2>/dev/null)" ]; then
+            printf '%sUpdating the %s app catalog ...%s\n' "$dim" "$remote" "$off"
+            flatpak update --appstream --noninteractive "$remote" >/dev/null 2>&1 \
+                || printf '%s(could not update it - names/descriptions may be missing)%s\n' "$dim" "$off"
+        fi
+    done
     printf '%sLoading the remotes ...%s\r' "$dim" "$off"
     # --app: applications only (no runtimes/extensions); installed ones out;
     # one line per app (remote-ls lists every branch).

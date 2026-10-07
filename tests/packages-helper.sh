@@ -46,6 +46,8 @@ cat > "$tmp/stub/flatpak" <<'EOF'
 #!/bin/bash
 case "$*" in
   "list --app --columns=application") printf '%s\n' md.obsidian.Obsidian ;;
+  "--default-arch") echo x86_64 ;;
+  "remotes --columns=name") echo flathub ;;
   "list --app --columns=name,application,origin") printf 'Obsidian\tmd.obsidian.Obsidian\tflathub\n' ;;
   "remote-ls --app --columns=name,application,description,origin")
       printf 'Obsidian\tmd.obsidian.Obsidian\tKnowledge base\tflathub\nLocalSend\torg.localsend.localsend_app\tShare files\tflathub\nVulkanInfo\torg.freedesktop.Platform.VulkanInfo\tVulkan info\tflathub\nVulkanInfo\torg.freedesktop.Platform.VulkanInfo\tVulkan info\tflathub\n' ;;
@@ -106,13 +108,14 @@ run 'org.localsend' install-flatpak
 check "install-flatpak: name + app id + description, installed apps out" $?
 [ "$(grep -c 'VulkanInfo' "$tmp/offer")" = 1 ]; check "install-flatpak: an app listed for two branches appears once" $?
 grep -qx 'flatpak install flathub org.localsend.localsend_app' "$tmp/log"; check "install-flatpak: flatpak install <remote> <id>" $?
+grep -qx 'flatpak update --appstream --noninteractive flathub' "$tmp/log"; check "install-flatpak: a missing app catalog is fetched first" $?
 run 'Obsidian' remove-flatpak
 grep -qx 'flatpak uninstall -- md.obsidian.Obsidian' "$tmp/log"; check "remove-flatpak: uninstall by app id, no --unused" $?
 
 # ---- Esc in fzf: nothing runs ------------------------------------------------
 for a in install-arch remove-arch remove-aur install-flatpak remove-flatpak; do
     run '' "$a"
-    [ ! -s "$tmp/log" ]; check "$a: Esc -> no action" $?
+    ! grep -q -E '(^pacman|^yay| install | uninstall )' "$tmp/log"; check "$a: Esc -> no action" $?
 done
 run '' install-aur
 ! grep -q '^yay' "$tmp/log"; check "install-aur: Esc -> no action" $?
