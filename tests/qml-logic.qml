@@ -228,7 +228,10 @@ QtObject {
         const apps = names.map(n => ({ name: n, genericName: "", keywords: [] }));
         const scope = { DesktopEntries: { applications: { values: apps } }, maxResults: 8,
                         model: { shown: () => true } };
-        const search = make(read("quickshell/osmenu/AppModel.qml"), "search", scope);
+        const am = read("quickshell/osmenu/AppModel.qml");
+        scope.matchScore = make(am, "matchScore", {});
+        scope.scored = make(am, "scored", scope);
+        const search = make(am, "search", scope);
         const all = search("");
         eq("launcher: empty search lists all apps", all.length, names.length);
         eq("launcher: empty search is alphabetical", all.map(e => e.name),
@@ -236,6 +239,26 @@ QtObject {
         eq("launcher: Thunderbird without typing", all.some(e => e.name === "Thunderbird"), true);
         eq("launcher: a search still returns at most maxResults", search("i").length <= 8, true);
         eq("launcher: a search finds by name", search("thun").map(e => e.name), ["Thunderbird"]);
+
+        // Type-to-search ranking (the OS menu's own entries use the same):
+        // prefix 0 < contains 1 < generic 2 < keywords 3, none -1.
+        const ms = scope.matchScore;
+        eq("search: name prefix", ms("chrom", "Chromium", "", ""), 0);
+        eq("search: name contains", ms("pear", "Appearance", "", ""), 1);
+        eq("search: generic name", ms("browser", "Chromium", "Web Browser", ""), 2);
+        eq("search: keywords", ms("wifi", "Network", "", "wifi vpn"), 3);
+        eq("search: no match", ms("xyz", "Network", "", "wifi"), -1);
+
+        // A key on a menu list: printable = search text (j/k included),
+        // Ctrl+J/Ctrl+K, Backspace, a leading blank are not.
+        const isText = make(read("quickshell/osmenu/RootPage.qml"), "isSearchText",
+                            { Qt: { ControlModifier: 0x04000000, AltModifier: 0x08000000, MetaModifier: 0x10000000 } });
+        eq("search: j is text", isText({ text: "j", modifiers: 0 }), true);
+        eq("search: k is text", isText({ text: "k", modifiers: 0 }), true);
+        eq("search: Ctrl+J is not text", isText({ text: "\n", modifiers: 0x04000000 }), false);
+        eq("search: Backspace is not text", isText({ text: "\b", modifiers: 0 }), false);
+        eq("search: a leading blank is not text", isText({ text: " ", modifiers: 0 }), false);
+        eq("search: umlaut is text", isText({ text: "ä", modifiers: 0 }), true);
     }
 
     function barLayout() {

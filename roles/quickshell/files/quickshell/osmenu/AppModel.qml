@@ -46,29 +46,40 @@ Scope {
             && !(e.categories || []).some(c => hiddenCategories.indexOf(c) !== -1);
     }
 
+    // The ranking of a text match (used for apps and, in the OS menu's
+    // type-to-search, for its own entries): 0 name starts with the query,
+    // 1 name contains it, 2 generic name contains it, 3 keywords contain
+    // it, -1 no match.
+    function matchScore(needle, name, generic, keywords) {
+        const n = (name || "").toLowerCase();
+        if (n.startsWith(needle)) return 0;
+        if (n.includes(needle)) return 1;
+        if ((generic || "").toLowerCase().includes(needle)) return 2;
+        if ((keywords || "").toLowerCase().includes(needle)) return 3;
+        return -1;
+    }
+
+    // Matching apps of a non-empty query as [{entry, score}], best first.
+    function scored(q) {
+        const needle = q.toLowerCase();
+        const out = [];
+        for (const e of DesktopEntries.applications.values) {
+            if (!model.shown(e)) continue;
+            const score = matchScore(needle, e.name, e.genericName, (e.keywords || []).join(" "));
+            if (score >= 0) out.push({ entry: e, score: score });
+        }
+        out.sort((a, b) => a.score - b.score || a.entry.name.localeCompare(b.entry.name));
+        return out;
+    }
+
     // Name matches first, then generic name, then keywords; empty query:
     // all shown apps, alphabetical. Only the name is shown - the rest only
     // helps finding.
     function search(q) {
-        const apps = DesktopEntries.applications.values.filter(e => model.shown(e));
         if (q.length === 0) {
-            return apps.slice().sort((a, b) => a.name.localeCompare(b.name));
+            return DesktopEntries.applications.values.filter(e => model.shown(e))
+                .sort((a, b) => a.name.localeCompare(b.name));
         }
-
-        const needle = q.toLowerCase();
-        const scored = [];
-        for (const e of apps) {
-            const name = (e.name || "").toLowerCase();
-            const generic = (e.genericName || "").toLowerCase();
-            const keywords = (e.keywords || []).join(" ").toLowerCase();
-            let score = -1;
-            if (name.startsWith(needle)) score = 0;
-            else if (name.includes(needle)) score = 1;
-            else if (generic.includes(needle)) score = 2;
-            else if (keywords.includes(needle)) score = 3;
-            if (score >= 0) scored.push({ entry: e, score: score });
-        }
-        scored.sort((a, b) => a.score - b.score || a.entry.name.localeCompare(b.entry.name));
-        return scored.slice(0, maxResults).map(s => s.entry);
+        return scored(q).slice(0, maxResults).map(s => s.entry);
     }
 }

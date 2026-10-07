@@ -1,8 +1,9 @@
 // OS menu - a list of entries: the root list, and (with other entries) the
 // Settings list. Managed by Ansible: do not edit by hand, see
 // roles/quickshell in workstation-arch. Navigation only: what an entry
-// does is OsMenu.activate(). The first entry is selected on every open; no
-// wrap-around.
+// does is OsMenu.activate(); the entries themselves are OsMenu's
+// (rootEntries / settingsEntries). The first entry is selected on every
+// open; no wrap-around. Plain letters (j/k too) start the type-to-search.
 
 import QtQuick
 import QtQuick.Layouts
@@ -13,11 +14,7 @@ FocusScope {
 
     required property var menu
 
-    property var entries: [
-        { id: "apps", label: "Applications", icon: "\u{F003B}", sub: true },
-        { id: "settings", label: "Settings", icon: "\u{F0493}", sub: true },
-        { id: "system", label: "System", icon: "\u{F0425}", sub: false }
-    ].filter(e => e.id !== "system" || menu.powerMenu !== null)
+    required property var entries
     property int index: 0
 
     function reset() {
@@ -42,16 +39,26 @@ FocusScope {
     implicitHeight: list.implicitHeight
     focus: true
 
+    // A printable character with no Ctrl/Alt/Super (control characters
+    // like Backspace and a leading blank excluded): search text.
+    function isSearchText(event) {
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return false;
+        const t = event.text;
+        if (t.length === 0 || t.trim() === "") return false;
+        const c = t.charCodeAt(0);
+        return c >= 0x20 && c !== 0x7f;
+    }
+
     Keys.onPressed: event => {
-        switch (event.key) {
-        case Qt.Key_J: case Qt.Key_Down: page.move(1); break;
-        case Qt.Key_K: case Qt.Key_Up: page.move(-1); break;
-        case Qt.Key_L: case Qt.Key_Right: case Qt.Key_Return: case Qt.Key_Enter:
-            page.menu.activate(page.entries[page.index].id); break;
-        case Qt.Key_H: case Qt.Key_Left: page.menu.back(); break;
-        case Qt.Key_Escape: page.menu.close(); break;
-        default: return;
-        }
+        const ctrl = event.modifiers & Qt.ControlModifier;
+        if (event.key === Qt.Key_Down || (ctrl && event.key === Qt.Key_J)) page.move(1);
+        else if (event.key === Qt.Key_Up || (ctrl && event.key === Qt.Key_K)) page.move(-1);
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+            page.menu.activate(page.entries[page.index].id);
+        else if (event.key === Qt.Key_Left) page.menu.back();
+        else if (event.key === Qt.Key_Escape) page.menu.close();
+        else if (page.isSearchText(event)) page.menu.startSearch(event.text);
+        else return;
         event.accepted = true;
     }
 

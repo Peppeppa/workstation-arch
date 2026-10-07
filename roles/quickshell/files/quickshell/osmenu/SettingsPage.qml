@@ -45,11 +45,7 @@ FocusScope {
             Layout.preferredHeight: implicitHeight
             focus: true
             menu: page.menu
-            entries: [
-                { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false },
-                { id: "network", label: "Network", icon: "\u{F06F3}", sub: false },
-                { id: "firewall", label: "Firewall", icon: "\u{F0565}", sub: false }
-            ]
+            entries: page.menu.settingsEntries
         }
     }
 }

@@ -14,10 +14,13 @@
 //   System     -> close, open the existing Power Menu (sole owner of lock/
 //                 suspend/hibernate/logout/reboot/shutdown)
 //
-// Keyboard (menu/list pages): j/Down next, k/Up previous, l/Right/Enter
-// open, h/Left back. In Applications the search field has the focus and
-// every letter is search input (no Vim keys); Up/Down/Enter work there.
-// Escape ALWAYS closes the whole menu, from any page.
+// Keyboard: type to search - the first printable key on a list page opens
+// the search (SearchPage: the menu's own entries + applications, best
+// match preselected, Enter runs it); an emptied query or Escape returns to
+// the normal menu. On the lists: Down/Up (or Ctrl+J/Ctrl+K) move,
+// Right/Enter open, Left back; plain letters are always search text. In
+// Applications the search field has the focus (Up/Down/Enter). Escape
+// with no query closes the whole menu.
 //
 // While open the transparent surface covers the focused output below the
 // bar strip; a click outside the panel closes it. Closed, the window is
@@ -38,13 +41,31 @@ PanelWindow {
     property var firewall: null             // FirewallWindow (core)
     property var powerMenu: null            // PowerMenu (feature power_menu) or null
 
-    property string page: "root"            // root | apps | settings
+    property string page: "root"            // root | apps | settings | search
+
+    // The menu's entries - the ONE list the pages show and the search finds
+    // (keywords only help finding); OsMenu.activate() is what each does.
+    readonly property var rootEntries: [
+        { id: "apps", label: "Applications", icon: "\u{F003B}", sub: true, keywords: "apps programs launcher" },
+        { id: "settings", label: "Settings", icon: "\u{F0493}", sub: true, keywords: "preferences configuration" },
+        { id: "system", label: "System", icon: "\u{F0425}", sub: false,
+          keywords: "power lock suspend hibernate logout reboot restart shutdown" }
+    ].filter(e => e.id !== "system" || powerMenu !== null)
+    readonly property var settingsEntries: [
+        { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false,
+          keywords: "theme dark light wallpaper bar brightness text size font display scale monitor" },
+        { id: "network", label: "Network", icon: "\u{F06F3}", sub: false,
+          keywords: "wifi wi-fi wlan ethernet vpn connections dns ip eduroam" },
+        { id: "firewall", label: "Firewall", icon: "\u{F0565}", sub: false,
+          keywords: "ports sharing lan share rules" }
+    ]
 
     function open(p) {
         page = p || "root";
         rootPage.reset();
         appsPage.reset();
         settingsPage.reset();
+        searchPage.reset();
         visible = true;
         focusPage();
     }
@@ -59,6 +80,20 @@ PanelWindow {
     }
     onVisibleChanged: visible ? BarPopups.request(menu) : BarPopups.release(menu)
 
+    // Type-to-search: the first printable key on a list page.
+    function startSearch(text) {
+        page = "search";
+        searchPage.begin(text);
+    }
+
+    // Query emptied or Escape: back to the normal menu.
+    function endSearch() {
+        searchPage.reset();
+        page = "root";
+        rootPage.reset();
+        focusPage();
+    }
+
     function back() {
         if (page !== "root") {
             page = "root";
@@ -68,6 +103,7 @@ PanelWindow {
 
     function focusPage() {
         if (page === "apps") appsPage.takeFocus();
+        else if (page === "search") searchPage.takeFocus();
         else if (page === "settings") settingsPage.forceActiveFocus();
         else rootPage.forceActiveFocus();
     }
@@ -79,6 +115,7 @@ PanelWindow {
         case "settings":
             page = id;
             if (id === "settings") settingsPage.reset();
+            searchPage.reset();             // opened from the search: no stale query
             focusPage();
             break;
         case "appearance":
@@ -143,6 +180,7 @@ PanelWindow {
         width: Fonts.px(460)
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
+              : menu.page === "search" ? searchPage.implicitHeight + 24
               : rootPage.implicitHeight + 24
         radius: 8
         color: Colors.background
@@ -160,6 +198,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: 12
             menu: menu
+            entries: menu.rootEntries
         }
 
         AppsPage {
@@ -173,6 +212,14 @@ PanelWindow {
         SettingsPage {
             id: settingsPage
             visible: menu.page === "settings"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+        }
+
+        SearchPage {
+            id: searchPage
+            visible: menu.page === "search"
             anchors.fill: parent
             anchors.margins: 12
             menu: menu
@@ -192,15 +239,19 @@ PanelWindow {
             menu.close();
         }
 
-        // Open directly on a page: root | apps | settings.
+        // Open directly on a page: root | apps | settings (search starts by typing).
         function openPage(name: string): void {
             menu.open(name);
         }
 
-        // For tests/diagnostics: {visible, page, index, query}.
+        // For tests/diagnostics: {visible, page, index, query, search,
+        // results: [labels], selected}.
         function state(): string {
             return JSON.stringify({ visible: menu.visible, page: menu.page,
-                                    index: rootPage.index, query: appsPage.query });
+                                    index: rootPage.index, query: appsPage.query,
+                                    search: searchPage.query,
+                                    results: searchPage.results.map(r => r.kind === "app" ? "app:" + r.entry.name : "entry:" + r.id),
+                                    selected: searchPage.selectedIndex });
         }
     }
 }
