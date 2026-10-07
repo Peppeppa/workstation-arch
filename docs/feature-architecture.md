@@ -20,7 +20,9 @@ behind a flag, never optional.
 - the Quickshell process itself, the core bar, the app launcher
 - NetworkManager, PipeWire/WirePlumber, UPower
 - hyprpolkitagent, the XDG portal stack
-- base provisioning (packages, locale, keymap, sshd)
+- base provisioning (packages, locale, keymap, the key-only SSH policy)
+- the inbound firewall (`roles/firewall`, see "Firewall") and its
+  Settings -> Firewall window
 
 **Feature**: an optional capability layered on top of Core. The desktop
 is still fully usable with every feature disabled.
@@ -300,14 +302,14 @@ Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
   RootPage.qml     a list of entries - the root: Applications, Settings, System
   AppsPage.qml     Applications: search + results (the former launcher view)
   AppModel.qml     the app model/filter (moved unchanged from Launcher.qml)
-  SettingsPage.qml Settings: the same list with Appearance, Network
+  SettingsPage.qml Settings: the same list with Appearance, Network, Firewall
   PageHeader.qml   back chevron + title of a page below the root
 ```
 
 | Root entry | Action |
 |---|---|
 | Applications | page inside the menu (selected on every open) |
-| Settings | page inside the menu: **Appearance** (close the menu, open the Appearance window) and **Network** (close the menu, start `nm-connection-editor` on demand) |
+| Settings | page inside the menu: **Appearance** (close the menu, open the Appearance window), **Network** (close the menu, start `nm-connection-editor` on demand) and **Firewall** (close the menu, open the Firewall window - see "Firewall") |
 | System | close the menu, open the existing Power Menu (sole owner of lock/suspend/hibernate/logout/reboot/shutdown; entry hidden without `power_menu_enabled`) |
 
 Keyboard on list pages: `j`/Down next, `k`/Up previous, `l`/Right/Enter
@@ -468,6 +470,10 @@ over a new one.
    scope "in case it's useful later."
 2. **No implicit sudo.** No new sudoers rule without an explicit,
    reviewed reason in the task/commit that adds it. None exist today.
+   The one privileged runtime path is a polkit action for a single
+   root helper with a validated argv interface (`firewall-rules`, see
+   "Firewall") - the pattern for any future one, never `sudo <tool>`
+   from QML.
 3. **No secrets in the repo.** Same rule as everywhere else in this
    project (see `AGENTS.md` Secrets and Public Repository) - a feature
    that needs a credential gets it from the separate private-config
@@ -685,7 +691,8 @@ user manager (D-Bus activation), Hyprland itself adds `WAYLAND_DISPLAY`,
 (`hyprland_activation_environment`) stay host-only (arch-dev's
 `LIBGL_ALWAYS_SOFTWARE=1`).
 
-Recovery: tty1 console login (`Ctrl+Alt+F1`), ttys 3-6 on demand, sshd;
+Recovery: tty1 console login (`Ctrl+Alt+F1`), ttys 3-6 on demand, sshd
+where `ssh_server_enabled`;
 from a console `start-hyprland` starts the session by hand; a broken Ly:
 `systemctl disable --now ly@tty2` (or the flag + bootstrap).
 
@@ -754,7 +761,7 @@ its own bar widget - not part of the network popup or the OS menu.
 | Packages | `bluez`, `python-gobject` (audio: PipeWire's bluez5 plugin is already in `pipewire-audio`; no `bluez-utils`) |
 | Lifecycle | `bluetoothd`: systemd system service, enabled; it carries `ConditionPathIsDirectory=/sys/class/bluetooth`, so without an adapter it never runs (zero cost) and udev's `bluetooth.target` starts it when one appears. UI: the existing Quickshell instance. Agent: Quickshell child, only during a user-started pairing |
 | API | Quickshell 0.3.1 `Quickshell.Bluetooth` (BlueZ D-Bus, event-driven): `adapter.enabled` = Powered (runtime on/off, never `systemctl`), `adapter.discovering`, `device.connect/disconnect/pair/cancelPair/forget`, `trusted`, `battery` |
-| UI (v2) | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip. Popup: on/off, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), sections Connected / Known devices / Available, Scan, in-popup pairing dialogs. Row = monochrome device glyph (Nerd Font, theme colors) chosen from BlueZ's own `Icon` property - headphones/headset, speaker, keyboard, mouse, gamepad, phone, computer, display, printer, camera; anything else the Bluetooth glyph, never guessed from the name - then name, state + battery (when BlueZ reports one); **click the row** = disconnect (connected) / connect (known) / pair (new; click again cancels). Right side: state icon; for a known device an **X replaces it while hovered** - its own click area: forget, never connect/disconnect. New devices have no X |
+| UI (v2) | status-zone icon (hidden without adapter; muted off/blocked, normal on, accent connected), no tooltip. Popup: on/off, rfkill soft/hard (one `rfkill --json` read when Blocked, unblock for soft), sections Connected / Known devices / Available, Scan, in-popup pairing dialogs. Row = monochrome device glyph (Nerd Font, theme colors) chosen from BlueZ's own `Icon` property - headphones/headset, speaker, keyboard, mouse, gamepad, phone, computer, display, printer, camera; anything else the Bluetooth glyph, never guessed from the name - then name and state - a connected device that reports its battery (BlueZ `Battery1`, D-Bus property signals, no polling) shows the level (`72%`) instead of "Connected"; **click the row** = disconnect (connected) / connect (known) / pair (new; click again cancels). Right side: state icon; for a known device an **X replaces it while hovered** - its own click area: forget, never connect/disconnect. New devices have no X |
 | Scanning | user-started only, auto-stop after 30 s, stopped on popup close if we started it |
 | Pairing | Quickshell 0.3.1 has no BlueZ agent; established ones (bt-agent, blueman) are persistent with terminal/own-GUI prompts. `bluetooth-agent` (Gio, ~150 lines): registered as default agent only while pairing, JSON lines over stdin/stdout to the popup (confirm/authorize/PIN/passkey/display), accepts calls only from `org.bluez`'s owner, never logs codes, exits on quit/stdin close/60 s. No agent otherwise: nothing pairs unless the user starts it. Paired devices are trusted + connected: **one click on an Available device = pair, then exactly one connect** - Quickshell's `connect()` when no link is up; when the pairing's own baseband link is still up (BlueZ already says Connected, no profile is), one `busctl call org.bluez <path> org.bluez.Device1 Connect` (Quickshell refuses `connect()` on a "connected" device); "Already Connected" = fine. A failed connect leaves the device paired + disconnected (click to retry) |
 | Privileges / Secrets / Network | none at runtime (no sudo; `rfkill unblock` as the session user) / no codes stored or logged / Bluetooth radio only |
@@ -848,6 +855,33 @@ the university's actual FortiGate configuration - official Arch has
 `networkmanager-fortisslvpn` is AUR-only; nothing is installed until the
 real setup (incl. MFA/SAML) is known. Whatever NM ends up managing appears
 in the popup's VPN list automatically.
+
+## Firewall + SSH (Hardening v1)
+
+Core (no flag) - except the SSH server, a host capability. Goals: safe on
+public Wi-Fi, no accidental LAN exposure of development services, zero
+idle cost, development/VPN/LocalSend/Docker unchanged. Deliberately not
+here: firewalld/ufw/zones, IDS/IPS, scanners, auditd, MAC frameworks,
+outbound filtering.
+
+| Contract | |
+|---|---|
+| Scope | `roles/firewall` (nftables ruleset, `workstation-firewall.service`, ICMP-redirect sysctl, `firewall-rules` helper + polkit action); `roles/base` (key-only sshd drop-in, `ssh_server_enabled`); Quickshell `firewall/` (window, content, add dialog) + `services/FirewallModel.qml` |
+| Packages | `nftables` (the `nft` CLI; filtering is the kernel's) |
+| Lifecycle | `workstation-firewall.service`: oneshot at boot (before `network-pre.target`), `nft -f /etc/workstation/firewall.nft` + `firewall-rules restore`, then exits - no process stays. Reload (bootstrap after a ruleset change) = the same two steps. The window and its helper calls exist only while it is open |
+| Table | `inet workstation` only. The file creates-deletes-defines it in one transaction; never `flush ruleset`, never Docker's tables/chains. Sets `share_tcp`, `share_udp` (type `inet_service`) = the user's enabled rules |
+| Inbound (`input`, policy drop) | loopback; established/related; invalid dropped; Docker bridges (`docker0`, `br-*`) -> host; ICMP errors; ICMPv6 errors + neighbor/router discovery + MLD query (no echo request); DHCPv4/v6 client replies; LocalSend (udp/53317 to 224.0.0.167, tcp/53317); tcp/22 only with `ssh_server_enabled`; `@share_tcp`/`@share_udp` |
+| Docker (`forward`, policy accept) | `-p HOST:CTR` is a DNAT in prerouting - that traffic never reaches `input`, so a plain input firewall would not protect it. Here: established/related, traffic from Docker bridges (containers outbound, container <-> container) and anything not towards a Docker bridge pass; a NEW connection from outside towards a container passes only when it was DNATed and its ORIGINAL destination port (`ct original proto-dst`) is in the share set - the same host port the user typed. Direct routed access to container IPs is dropped. `-p 127.0.0.1:...` stays local by Docker's own design |
+| Outbound | unrestricted (no output chain) - VPN clients (WireGuard/OpenVPN/OpenConnect via NetworkManager) need no rule: their traffic is outbound, replies are established |
+| sysctl | `accept_redirects = 0` for IPv4 + IPv6, `all`/`default`/every interface (`/etc/sysctl.d/50-workstation-redirects.conf`) |
+| SSH | `/etc/ssh/sshd_config.d/10-workstation-key-only.conf`: `PubkeyAuthentication yes`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no` (on every host). `ssh_server_enabled` (default false; laptop + arch-dev true) enables sshd and opens tcp/22; false stops/disables sshd. The SSH client is independent |
+| Sharing rules | a rule = label (1-48 chars, plain text, never interpreted) / port 1-65535 / TCP or UDP (any case, stored upper-case) / enabled. Enabled: LAN can reach that host port (host service AND a Docker-published port). Disabled: unsolicited LAN access to it is dropped. A rule never starts/stops the service: enabled + nothing listening = connection refused; disabled + listening = local use works, LAN blocked. Ports the base policy already opens (LocalSend, DHCP, SSH) are refused - a switch that could not close them would lie |
+| State | `/var/lib/workstation/firewall/rules.json` (root, 0644, atomic write + fsync, flock): `{"version": 1, "rules": [{"label", "port", "protocol", "enabled"}]}` - the desired list; the kernel sets are what is live |
+| Privilege boundary | `pkexec /usr/local/libexec/workstation/firewall-rules list / add <label> <port> <proto> / enable|disable|remove <port> <proto>`; polkit action `org.workstation.firewall.manage`: active local session = no password, anything else = admin auth. The helper validates every argument, runs `nft` from an argv list with a validated number + one of two fixed set names, touches the kernel first and the state second (rolled back on a failed write), so a successful call always leaves both in agreement; a corrupt state is refused, never overwritten |
+| UI | OS menu -> Settings -> Firewall: title + right-aligned "Hinzufügen" (dialog: Bezeichnung / Port / Protokoll), a box with one row per rule "Label / Port / Protocol", the button shows what is LIVE (`Deaktivieren` in `error`, `Aktivieren` in `success`), `×` closes the port and deletes the rule. Infrastructure rules are not listed. IPC `firewall`: `toggle`, `close`, `state`, and test hooks `submit`/`toggleRow`/`removeRow` that run the same paths as the controls (still pkexec + polkit) |
+| Persistence | rules survive Quickshell restarts (read from the helper) and reboots (`restore` in the unit) |
+| Disable | none for the firewall (core). `ssh_server_enabled: false` = sshd stopped + disabled, tcp/22 closed; key-only drop-in and packages stay |
+| Known limits | LocalSend's port is the default 53317 (a custom port set in LocalSend is not followed); NetworkManager hotspot/connection sharing would need its DHCP/DNS opened (not used) |
 
 ## Screen sharing
 

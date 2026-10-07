@@ -40,7 +40,7 @@ F = {"lock_idle": {{ lock_idle_enabled | bool }}, "clipboard": {{ clipboard_hist
      "notifications": {{ notifications_enabled | bool }}, "tray": {{ tray_enabled | bool }},
      "bluetooth": {{ bluetooth_enabled | bool }}, "power_profiles": {{ power_profiles_enabled | bool }},
      "display_manager": {{ display_manager_enabled | bool }}, "wallpaper": {{ wallpaper_enabled | bool }},
-     "recovery": {{ recovery_enabled | bool }}}
+     "recovery": {{ recovery_enabled | bool }}, "ssh_server": {{ ssh_server_enabled | bool }}}
 UID = os.getuid()
 HOME = os.path.expanduser("~")
 CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
@@ -253,6 +253,31 @@ def network_checks():
               if ctrls else "no controller (nothing to run)")
 
 
+# --- security (firewall, SSH, Docker at boot, redirects) -----------------
+
+def security_checks():
+    # nft itself needs root; the unit is the loader (oneshot, stays active
+    # only when the ruleset and the rule restore both succeeded).
+    check("firewall", active("workstation-firewall.service"),
+          "workstation-firewall.service %s" % ("active (table inet workstation loaded)"
+                                               if active("workstation-firewall.service") else "not active"))
+    sshd = active("sshd.service")
+    rc, o = run(["/usr/bin/sshd", "-G"])
+    cfg = dict(l.split(None, 1) for l in o.splitlines() if " " in l) if rc == 0 else {}
+    key_only = cfg.get("passwordauthentication") == "no" and cfg.get("kbdinteractiveauthentication") == "no" \
+        and cfg.get("pubkeyauthentication") == "yes"
+    check("ssh server", sshd == F["ssh_server"] and key_only,
+          "sshd %s (ssh_server_enabled %s), %s" % ("running" if sshd else "off", F["ssh_server"],
+                                                   "key-only" if key_only else "password/kbd-interactive NOT off"))
+    boot = [u for u in ("docker.service", "docker.socket", "containerd.service")
+            if run(["systemctl", "is-enabled", "-q", u])[0] == 0]
+    check("docker on demand", not boot, "enabled at boot: " + ", ".join(boot) if boot else "not started at boot")
+    accept = [p for p in glob.glob("/proc/sys/net/ipv[46]/conf/*/accept_redirects")
+              if open(p).read().strip() != "0"]
+    check("ICMP redirects", not accept, "accepted on: " + ", ".join(p.split("/")[-3] + "/" + p.split("/")[4] for p in accept)
+          if accept else "not accepted (IPv4 + IPv6, every interface)")
+
+
 # --- persistent user/runtime state ----------------------------------------
 
 def bar_checks():
@@ -386,6 +411,7 @@ def main():
     systemd_checks()
     ownership_checks(ps, qs_pid)
     network_checks()
+    security_checks()
     bar_checks()
     theme_checks()
     recovery_checks()

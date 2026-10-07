@@ -113,3 +113,7 @@ hyprland_monitors:
 # worked - it inherits Quickshell's environment, which has the variable.
 hyprland_activation_environment:
   LIBGL_ALWAYS_SOFTWARE: "1"
+
+# The VM is tested from its host over SSH (key-only), like the physical
+# test laptop.
+ssh_server_enabled: true

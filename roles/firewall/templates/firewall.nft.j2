@@ -1,0 +1,81 @@
+#!/usr/bin/nft -f
+# Managed by Ansible (roles/firewall) - do not edit by hand.
+# docs/feature-architecture.md "Firewall".
+#
+# Only the table `inet {{ firewall_table }}` is (re)created here - never
+# `flush ruleset`: Docker's own tables (iptables-nft) live beside it and
+# stay untouched. The three lines below replace this table atomically in
+# one transaction (create-if-missing, delete, define).
+table inet {{ firewall_table }}
+delete table inet {{ firewall_table }}
+
+table inet {{ firewall_table }} {
+	# The user's LAN sharing rules (Settings -> Firewall), filled only by
+	# {{ firewall_helper }} - empty after this file loads, the service then
+	# runs `firewall-rules restore`.
+	set share_tcp {
+		type inet_service
+	}
+
+	set share_udp {
+		type inet_service
+	}
+
+	# Inbound to this host: default drop.
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid drop
+
+		# Docker containers -> host services (local bridges, only containers
+		# sit on them).
+		iifname "docker0" accept
+		iifname "br-*" accept
+
+		# ICMP errors that are not already `related`, IPv6 neighbor/router
+		# discovery and MLD (IPv6 does not work without them). No echo
+		# request: the machine does not answer pings on foreign networks.
+		icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
+
+		# DHCP client replies (v4 broadcast offers/acks are not conntrack
+		# replies; DHCPv6 answers come from link-local servers).
+		udp sport 67 udp dport 68 accept
+		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+
+		# LocalSend: discovery (multicast) + its HTTPS API.
+		ip daddr {{ firewall_localsend_multicast }} udp dport {{ firewall_localsend_port }} accept
+		tcp dport {{ firewall_localsend_port }} accept
+{% if ssh_server_enabled %}
+
+		# ssh_server_enabled (host capability): key-only sshd.
+		tcp dport 22 accept
+{% endif %}
+
+		# User sharing rules.
+		tcp dport @share_tcp accept
+		udp dport @share_udp accept
+	}
+
+	# Forwarded traffic: only NEW connections from outside towards Docker
+	# containers are filtered here. Docker publishes a port (`-p 1234:80`)
+	# with a DNAT in prerouting, so that traffic never reaches `input` -
+	# it is decided here by the ORIGINAL (pre-DNAT) destination port: the
+	# same share sets, the same semantics as for a host service.
+	# Everything else forwarded (containers outbound, container <->
+	# container, other forwarding) is not this table's business.
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+
+		ct state established,related accept
+		iifname "docker0" accept
+		iifname "br-*" accept
+		oifname != "docker0" oifname != "br-*" accept
+
+		meta l4proto tcp ct status dnat ct original proto-dst @share_tcp accept
+		meta l4proto udp ct status dnat ct original proto-dst @share_udp accept
+		drop
+	}
+}

@@ -82,10 +82,9 @@ per host via a flat `<name>_enabled` variable in `group_vars/all.yml`
 `docs/feature-architecture.md` for the full model. Disabling a feature
 never deletes already-installed packages or personal data.
 
-Note: `base` enables and starts `sshd` by default (needed for remote
-access/administration on `laptop`/`workstation`, see `AGENTS.md` Runtime
-Ownership) - every machine provisioned by this repository listens for
-SSH after `./bootstrap.sh`, not just an opt-in subset.
+Note: the SSH server is opt-in per host (`ssh_server_enabled`, default
+`false`; on the test laptop and arch-dev `true`) and always key-only -
+see "Firewall and SSH". The SSH client works everywhere.
 
 ## Requirements
 
@@ -178,12 +177,13 @@ first - see the `gaming` row below.
 
 | Role             | Tag             | What it does                                                          |
 |------------------|-----------------|------------------------------------------------------------------------|
-| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); enables/starts `sshd`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated; a system `LANG` (`en_US.UTF-8`) only if none is set |
+| `base`           | `base`          | Minimal Arch base packages (git, openssh, curl, rsync); key-only sshd policy, sshd only with `ssh_server_enabled`; German (`de-latin1`) virtual console keymap; `en_US.UTF-8`/`de_DE.UTF-8` locales generated; a system `LANG` (`en_US.UTF-8`) only if none is set |
 | `graphics`       | `graphics`      | Wayland/Mesa/XWayland foundation - no compositor yet                   |
 | `hyprland`       | `hyprland`      | Hyprland session: compositor, Ghostty (terminal)                       |
 | `desktop`        | `desktop`       | Polkit agent, XDG portals, clipboard, screenshots, notifications, brightness |
 | `audio`          | `audio`         | PipeWire + WirePlumber (no PulseAudio)                                 |
 | `network`        | `network`       | NetworkManager (enabled service) + WireGuard tooling (VPN foundation), `nm-connection-editor`, `python-dbus` (eduroam CAT installer) |
+| `firewall`       | `firewall`      | nftables inbound firewall (own table, no daemon), no ICMP redirects, the helper behind Settings -> Firewall - see "Firewall and SSH" |
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
@@ -208,7 +208,7 @@ user + password -> the Hyprland session (the hyprland package's
 (`roles/display_manager`).
 
 Recovery: tty1 (`Ctrl+Alt+F1`) keeps a normal console login, ttys 3-6
-get one on demand, sshd stays enabled - and from a console login
+get one on demand, sshd stays enabled where `ssh_server_enabled` - and from a console login
 `start-hyprland` still starts the same session by hand. If Ly itself
 misbehaves: `sudo systemctl disable --now ly@tty2` (or
 `display_manager_enabled: false` + `./bootstrap.sh`).
@@ -360,6 +360,39 @@ Stop the socket too: while `docker.socket` listens, the next `docker`
 call (or an IDE probing it) starts the daemon again. Containers, images,
 volumes and databases (e.g. a MySQL container for a course) are yours -
 the repository creates none.
+
+## Firewall and SSH
+
+Inbound traffic is dropped unless it answers something this machine
+started, or is one of: LocalSend (discovery + transfers), DHCP, the ICMP
+IPv4/IPv6 need, SSH (only on a host with `ssh_server_enabled`), or one of
+**your sharing rules**. Outbound is not filtered - browsing, VPN clients
+(WireGuard/OpenVPN via NetworkManager), Docker pulls need no rule.
+Mechanism: one nftables table (`inet workstation`) loaded at boot by
+`workstation-firewall.service`; nothing keeps running.
+
+**Share a service with colleagues on the LAN**: OS menu -> Settings ->
+Firewall -> **Hinzufügen** (e.g. `Test Database` / `1234` / `TCP`). They
+can then connect to `<your-ip>:1234`. **Deaktivieren** closes it again
+immediately (the row stays), **Aktivieren** reopens it, **×** closes and
+deletes the rule. Rules survive reboots.
+
+- A rule opens the port in the firewall - it does not start or stop your
+  service. Rule on + nothing listening = connection refused; rule off +
+  service running = it works on this machine, the LAN is blocked.
+- Docker: `docker run -p 1234:5432 ...` is LAN-blocked until a rule for
+  the **host** port (1234) exists; `-p 127.0.0.1:1234:5432` stays local
+  regardless. Container networking and outbound traffic are not affected.
+- Bind dev servers to `127.0.0.1` anyway when the LAN never needs them.
+
+CLI (what the window runs):
+`pkexec /usr/local/libexec/workstation/firewall-rules list` (also `add
+<label> <port> <tcp|udp>`, `enable|disable|remove <port> <tcp|udp>`);
+the full ruleset: `sudo nft list table inet workstation`.
+
+SSH: inbound logins are public-key only on every host (no passwords, no
+keyboard-interactive). The server itself runs only where a host sets
+`ssh_server_enabled: true` (`host_vars/<host>.yml`).
 
 ## Themes from repositories
 

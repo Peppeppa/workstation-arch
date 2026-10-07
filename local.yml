@@ -106,6 +106,12 @@
     - role: network
       tags: [network]
 
+    # Core: nftables inbound firewall (one own table), ICMP-redirect sysctl,
+    # the helper behind Settings -> Firewall. After base (sshd) so a remote
+    # host's SSH rule and server exist before default-drop applies.
+    - role: firewall
+      tags: [firewall]
+
     - role: bluetooth
       tags: [bluetooth]
 

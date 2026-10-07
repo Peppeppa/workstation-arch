@@ -4,7 +4,7 @@
 # have" additions.
 base_packages:
   - git      # manage this repository directly on the target machine
-  - openssh  # reliable remote access/administration of the workstation
+  - openssh  # SSH client (git, remote hosts); the server runs only with ssh_server_enabled
   - curl     # standard tool for fetching resources and checking connectivity
   - rsync    # general-purpose file copy/sync tool for later roles and admin
   - btop     # interactive resource monitor - run on demand, no service/autostart

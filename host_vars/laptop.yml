@@ -17,6 +17,10 @@
 # audit) - docs/recovery-design.md.
 recovery_enabled: true
 
+# This laptop is the physical test machine and is deployed/validated over
+# SSH (key-only) - a productive laptop would leave this at false.
+ssh_server_enabled: true
+
 graphics_vaapi_packages:
   - libva-intel-driver
 

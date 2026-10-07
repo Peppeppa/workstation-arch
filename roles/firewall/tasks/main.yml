@@ -1,0 +1,97 @@
+---
+# Firewall (core) - docs/feature-architecture.md "Firewall". One nftables
+# table (inet {{ firewall_table }}), loaded once at boot by a oneshot unit;
+# the kernel filters, no userspace daemon. Inbound default-drop, outbound
+# unrestricted. The user's LAN sharing rules are runtime state of the
+# firewall-rules helper (Settings -> Firewall) - Ansible deploys the helper
+# and never touches its state.
+#
+# The once-per-run package database sync + full system upgrade lives in
+# local.yml's pre_tasks (tags: always), not here.
+- name: Install nftables
+  become: true
+  community.general.pacman:
+    name: "{{ firewall_packages }}"
+    state: present
+  tags: firewall
+
+# ICMP redirects: never accepted (sysctl.d, applied at boot and right away).
+- name: Deploy the ICMP redirect sysctl
+  become: true
+  ansible.builtin.copy:
+    src: 50-workstation-redirects.conf
+    dest: /etc/sysctl.d/50-workstation-redirects.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl settings
+  tags: firewall
+
+- name: Ensure the firewall directories exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ firewall_ruleset | dirname }}"
+    - "{{ firewall_helper | dirname }}"
+    - "{{ firewall_state_dir }}"
+  tags: firewall
+
+# The helper first: the unit's ExecStart runs `firewall-rules restore`.
+- name: Deploy the firewall-rules helper
+  become: true
+  ansible.builtin.template:
+    src: firewall-rules.j2
+    dest: "{{ firewall_helper }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: firewall
+
+- name: Deploy the polkit action for the firewall-rules helper
+  become: true
+  ansible.builtin.template:
+    src: firewall.policy.j2
+    dest: /usr/share/polkit-1/actions/{{ firewall_polkit_action }}.policy
+    owner: root
+    group: root
+    mode: "0644"
+  tags: firewall
+
+# Checked before it is installed: a ruleset nft rejects never replaces the
+# running one (and an unloadable table fails open, never locks SSH out).
+- name: Deploy the nftables ruleset
+  become: true
+  ansible.builtin.template:
+    src: firewall.nft.j2
+    dest: "{{ firewall_ruleset }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/nft -c -f %s
+  notify: Reload the firewall
+  tags: firewall
+
+- name: Deploy workstation-firewall.service
+  become: true
+  ansible.builtin.template:
+    src: workstation-firewall.service.j2
+    dest: /etc/systemd/system/workstation-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload the firewall
+  tags: firewall
+
+- name: Enable and start the firewall
+  become: true
+  ansible.builtin.systemd_service:
+    name: workstation-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: firewall

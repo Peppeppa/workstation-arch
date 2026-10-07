@@ -85,6 +85,14 @@ Responsibility split within the provisioning layer:
   `hyprland.shutdown` runs `session-stop` (blocking, bounded) to stop its
   helpers and the Wayland-bound portal units while the display still
   exists; the power menu's reboot/shutdown go through that exit first.
+- The kernel's nftables owns packet filtering: one table of ours
+  (`inet workstation`, inbound default-drop, outbound free), loaded once
+  at boot by `workstation-firewall.service` (oneshot, no daemon); never
+  `flush ruleset` - Docker's own tables stay untouched. The user's LAN
+  sharing rules are runtime state of the root helper `firewall-rules`
+  (Settings -> Firewall, through pkexec + one polkit action), not of
+  Ansible. sshd runs only with the host capability `ssh_server_enabled`,
+  always key-only.
 - `repo-healthcheck` (PASS/FAIL of these invariants) and `repo-diagnose`
   (details) are on-demand tools - no daemon, no timer.
 - Recovery (host capability `recovery_enabled`, `docs/recovery-design.md`):

@@ -13,22 +13,47 @@
     state: present
   tags: base
 
-# sshd is a machine-wide daemon (Runtime Ownership defaults: "machine-
-# wide daemon -> systemd system service"), same category as
-# NetworkManager in roles/network. Real-VM-discovered bug: openssh above
-# only installs the package: it does not enable the service, so
-# host -> arch-dev SSH needed a manual `systemctl enable --now sshd`
-# before this fix - not the declarative, reproducible state this project
-# requires. Wanted on laptop and workstation too (see base_packages'
-# openssh comment: "reliable remote access/administration of the
-# workstation") - not an arch-dev-only accommodation, so this task is
-# unconditional here, not in host_vars.
-- name: Ensure sshd is enabled and running
+# Inbound SSH is key-only on every host (drop-in, the upstream
+# sshd_config stays the package's): no passwords, no keyboard-interactive
+# PAM prompts. Deployed whether or not the server runs, so a server
+# enabled later is never password-reachable. sshd reads the FIRST value it
+# finds, so the drop-in sorts before the package's 99-archlinux.conf.
+# The SSH client (openssh) is independent of all of this.
+- name: Deploy the key-only sshd drop-in
+  become: true
+  ansible.builtin.copy:
+    src: 10-workstation-key-only.conf
+    dest: /etc/ssh/sshd_config.d/10-workstation-key-only.conf
+    owner: root
+    group: root
+    mode: "0644"
+    # -G parses without needing host keys (a host whose server never ran has none)
+    validate: /usr/bin/sshd -G -f %s
+  notify: Reload sshd
+  tags: base
+
+# HOST CAPABILITY: ssh_server_enabled (group_vars, default false). sshd is
+# a machine-wide daemon -> systemd system service, enabled only on a host
+# that is administered remotely (the test laptop, arch-dev); roles/firewall
+# opens tcp/22 only there. false stops and disables the server (running
+# sessions survive: sshd-session processes are not part of the unit's
+# stop) - the package stays.
+- name: Enable and start sshd (ssh_server_enabled)
+  when: ssh_server_enabled
   become: true
   ansible.builtin.systemd_service:
     name: sshd.service
     enabled: true
     state: started
+  tags: base
+
+- name: Disable and stop sshd (ssh_server_enabled false)
+  when: not ssh_server_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: sshd.service
+    enabled: false
+    state: stopped
   tags: base
 
 # Locale generation is a system-wide (not Hyprland-specific) concern, so

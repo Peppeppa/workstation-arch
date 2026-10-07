@@ -211,3 +211,11 @@ hibernate_enabled: false
 # system-rollback. Snapshots are not backups. Default false: enabled per
 # host after its layout was checked.
 recovery_enabled: false
+
+# SSH server is an OPT-IN host capability (roles/base, roles/firewall):
+# true enables sshd and opens tcp/22 in the firewall - only for a host
+# that is really administered over the network (the physical test laptop,
+# the arch-dev VM). Inbound SSH is key-only on every host either way; the
+# SSH client is independent and always installed. Default false: a daily
+# driver runs no SSH server unless its host_vars say so.
+ssh_server_enabled: false

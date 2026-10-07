@@ -1,0 +1,29 @@
+# Firewall (core): one nftables table, inbound default-drop, outbound
+# unrestricted - docs/feature-architecture.md "Firewall".
+#
+# nftables: the kernel's own packet filter + its `nft` CLI. Loaded once at
+# boot by workstation-firewall.service (oneshot, no process stays). Left
+# out on purpose: firewalld/ufw (a permanent daemon, zones - a second
+# abstraction over the same kernel tables) and Arch's nftables.service
+# (its /etc/nftables.conf and ExecStop both `flush ruleset`, which would
+# also wipe Docker's tables).
+firewall_packages:
+  - nftables
+
+# LocalSend (Flathub org.localsend.localsend_app) - protocol v2, values from
+# the installed 1.18 build: multicast discovery on 224.0.0.167 udp/53317,
+# HTTPS API (register/upload) on tcp/53317. Only these two are opened,
+# nothing broader; a custom port set in LocalSend itself is not followed.
+firewall_localsend_port: 53317
+firewall_localsend_multicast: 224.0.0.167
+
+# The one table this project owns; Docker's tables beside it are never
+# touched.
+firewall_table: workstation
+firewall_ruleset: /etc/workstation/firewall.nft
+
+# Settings -> Firewall: the root helper behind it (pkexec, polkit action
+# below) and its state - the user's LAN sharing rules.
+firewall_helper: /usr/local/libexec/workstation/firewall-rules
+firewall_state_dir: /var/lib/workstation/firewall
+firewall_polkit_action: org.workstation.firewall.manage

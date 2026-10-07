@@ -1267,6 +1267,14 @@ Keine pauschalen Security-Deaktivierungen zur Performance-Steigerung.
 
 Privilege Escalation soll klar kontrolliert sein.
 
+Netzwerkseitig (Hardening v1): eine eingehende nftables-Firewall in einer
+eigenen Tabelle (`inet workstation`, Default-Drop eingehend, ausgehend
+frei, nie `flush ruleset` - Dockers Tabellen bleiben unberührt), von einem
+Oneshot-Unit beim Boot geladen - kein Firewall-Daemon. SSH-Server nur als
+Host-Capability (`ssh_server_enabled`), immer nur mit Schlüssel. ICMP-
+Redirects werden nicht angenommen. Keine Security-Daemons, kein Polling,
+keine Scanner.
+
 Systemänderungen, die Root-Rechte benötigen, sollen über etablierte Mechanismen erfolgen.
 
 ---
@@ -1290,6 +1298,14 @@ Nicht:
 ```text
 run entire shell as root
 ```
+
+Konkretes Beispiel (Hardening v1): Settings → Firewall ruft
+`pkexec /usr/local/libexec/workstation/firewall-rules <verb> <args>` auf -
+ein root-eigener Helper mit winziger, validierter Schnittstelle (Regeln
+auflisten/hinzufügen/aktivieren/deaktivieren/löschen, nur Port 1-65535 +
+TCP/UDP), freigegeben über eine eigene polkit-Action nur für die aktive
+lokale Sitzung. Kein `sudo nft` aus QML, keine NOPASSWD-Regel, keine freie
+nft-Syntax.
 
 ---
 

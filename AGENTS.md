@@ -83,7 +83,9 @@ direct upstream dependency.
 | Responsibility | Owner |
 |---|---|
 | Networking | NetworkManager |
-| Remote access (SSH) | sshd (system service, `roles/base`) |
+| Remote access (SSH) | sshd (system service, `roles/base`) - only with host capability `ssh_server_enabled` (default false; laptop + arch-dev true), always key-only (`sshd_config.d/10-workstation-key-only.conf`) |
+| Inbound packet filter | kernel nftables, table `inet workstation` only (`roles/firewall`), loaded once at boot by `workstation-firewall.service` (oneshot, no daemon); never `flush ruleset`, never Docker's tables |
+| LAN sharing rules (Settings -> Firewall) | the root helper `firewall-rules` (`/usr/local/libexec/workstation/`, via `pkexec` + polkit action `org.workstation.firewall.manage`); state `/var/lib/workstation/firewall/rules.json`, kernel sets `share_tcp`/`share_udp` - never Ansible |
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ - `bluetoothd`, systemd system service (`roles/bluetooth`); UI via Quickshell's native Bluetooth module |
 | Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |
@@ -831,7 +833,7 @@ history for that milestone's own record):
   Nerd Font Mono (names only in `group_vars/all.yml`).
 - **Theme Architecture v1**: themes are data (`themes/*.yml`, 5 shipped:
   Retro 82, Solarized Dark, Catppuccin Mocha / Rosé Pine Dawn,
-  Catppuccin Latte), one semantic-role contract (10 roles since `foreground_strong`) validated by `roles/theme`,
+  Catppuccin Latte), one semantic-role contract (11 roles since `success`) validated by `roles/theme`,
   adapters for Quickshell, Hyprland borders, hyprlock, GTK mode.
 - **Theme Switcher v1**: theme directories with dark/light markers as the
   only registry, `theme` helper (state, discovery, render, live apply -

@@ -4,6 +4,8 @@
 #   1. syntax: bootstrap.sh, shell helpers, playbook, inventory, every YAML file
 #   2. tests/theme-helper.sh  - the `theme` helper against a copy of themes/
 #   3. tests/qml-logic.qml    - pure logic cut out of the shipped QML (qml6)
+#   4. tests/firewall.sh      - ruleset + firewall-rules helper, real packets
+#                               in a private user/network namespace
 # Exit 0 = everything passed. Live-system invariants are repo-healthcheck's
 # job (on the provisioned machine), not this script's.
 
@@ -71,6 +73,11 @@ step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"'
 # popup may bind text to qrPassword (Copy and the QR use it, nothing shows it).
 step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]*qrPassword" roles/quickshell/files/connectivity/Popup.qml'
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
+if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
+    step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
+else
+    echo "skip  tests/firewall.sh (needs nft and unprivileged user namespaces)"
+fi
 if command -v qml6 >/dev/null; then
     step "tests/qml-logic.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
         timeout 60 qml6 tests/qml-logic.qml

@@ -1,0 +1,9 @@
+---
+# A running sshd re-reads its config on reload; existing sessions stay.
+# Nothing to do where the server is not running (ssh_server_enabled false).
+- name: Reload sshd
+  become: true
+  ansible.builtin.systemd_service:
+    name: sshd.service
+    state: reloaded
+  when: ssh_server_enabled
