@@ -88,6 +88,10 @@ hyprland_monitors:
 # deliberately separate.
 hyprland_keyboard_layout: de
 
+# XKB options of the session keyboard. ctrl:nocaps = Caps Lock is a
+# second Left Ctrl, always (no tap-for-Escape dual role).
+hyprland_keyboard_options: ctrl:nocaps
+
 # Main modifier for every keybind below. SUPER on real target hosts
 # (laptop/workstation) - only overridden where a host has a genuine,
 # real reason to differ (see host_vars/arch-dev.yml), never invented

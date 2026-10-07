@@ -4,7 +4,7 @@
 #
 # hypridle is the one event-driven idle daemon (ext-idle-notify; no
 # polling), started once by Hyprland's session lifecycle. It is also the
-# single lock path: `loginctl lock-session` (Super+L, the power menu,
+# single lock path: `loginctl lock-session` (Super+Delete, the power menu,
 # the idle listener below, before sleep) makes logind emit Lock, and
 # hypridle answers with lock_cmd. hyprlock runs only while locked.
 

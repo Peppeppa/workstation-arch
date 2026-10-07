@@ -1,0 +1,73 @@
+{% set M = 'Super' if hyprland_main_modifier == 'SUPER' else hyprland_main_modifier | capitalize %}
+{% set R = 'Ctrl' if hyprland_main_modifier == 'ALT' else 'Alt' %}
+# Keybindings
+
+Managed by workstation-arch (roles/hyprland) - generated from the same
+settings as the binds, so it lists exactly what is bound on this machine.
+`{{ M }}` = the main modifier. Caps Lock is an extra Ctrl. q quits.
+
+## Apps
+
+| Key | Action |
+| --- | --- |
+| `{{ M }} + Space` | OS menu - type to search apps and menu entries |
+| `{{ M }} + T` / `{{ M }} + Return` | Terminal (Ghostty) |
+| `{{ M }} + B` | Browser (Chromium) |
+| `{{ M }} + Shift + B` | Bitwarden |
+| `{{ M }} + D` | Editor (Neovim in a terminal) |
+| `{{ M }} + E` | Thunderbird |
+| `{{ M }} + F` | File manager (Nautilus) |
+| `{{ M }} + G` | WhatsApp (focus if open) |
+| `{{ M }} + W` | Obsidian (focus if open) |
+{% if clipboard_history_enabled %}
+| `{{ M }} + V` | Clipboard history |
+{% endif %}
+| `{{ M }} + F1` | This cheatsheet |
+
+## Windows
+
+| Key | Action |
+| --- | --- |
+| `{{ M }} + H / J / K / L` (or arrows) | Focus left / down / up / right |
+| `{{ M }} + Shift + H / J / K / L` | Move window left / down / up / right |
+| `{{ M }} + {{ R }} + H / L` | Resize: narrower / wider (100 px) |
+| `{{ M }} + {{ R }} + K / J` | Resize: shorter / taller (100 px) |
+| `{{ M }} + Q` | Close window |
+| `{{ M }} + Shift + F` | Fullscreen |
+| `{{ M }} + Shift + G` | Toggle floating / tiling |
+| `{{ M }} + Shift + T` | Toggle horizontal / vertical split |
+| `{{ M }} + left / right mouse drag` | Move / resize a floating window |
+
+## Workspaces and scratchpad
+
+| Key | Action |
+| --- | --- |
+| `{{ M }} + 1 ... 9` | Switch to workspace |
+| `{{ M }} + Shift + 1 ... 9` | Move window to workspace |
+| `{{ M }} + S` | Toggle scratchpad |
+| `{{ M }} + Shift + S` | Move window to scratchpad |
+{% if screenshots_enabled %}
+
+## Screenshots
+
+| Key | Action |
+| --- | --- |
+| `{{ M }} + X` | Screenshot: drag a region or click a window -> PNG + clipboard |
+| `{{ M }} + Shift + X` | Screenshot of the whole focused monitor |
+{% if screenshots_ocr_enabled %}
+| `{{ M }} + Ctrl + X` | OCR: selection -> text to the clipboard |
+{% endif %}
+{% endif %}
+
+## System
+
+| Key | Action |
+| --- | --- |
+{% if lock_idle_enabled %}
+| `{{ M }} + Delete` | Lock |
+{% endif %}
+{% if power_menu_enabled %}
+| `{{ M }} + Escape` | Power menu (lock, suspend, logout, reboot, shutdown) |
+{% endif %}
+| `{{ M }} + Shift + E` | Exit Hyprland |
+| Volume / mute / mic / brightness / media keys | as labeled (also on the lock screen) |

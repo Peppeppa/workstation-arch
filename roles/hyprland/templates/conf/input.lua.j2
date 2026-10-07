@@ -3,11 +3,13 @@
 --
 -- Keyboard layout of the Wayland session (hyprland_keyboard_layout) -
 -- deliberately not coupled to the console keymap (roles/base
--- vconsole.conf) or the system locale.
+-- vconsole.conf) or the system locale. Caps Lock is a plain Ctrl
+-- (hyprland_keyboard_options, default ctrl:nocaps - no dual role).
 return function(v)
     hl.config({
         input = {
             kb_layout = "{{ hyprland_keyboard_layout }}",
+            kb_options = "{{ hyprland_keyboard_options }}",
         },
     })
 end

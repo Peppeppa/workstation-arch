@@ -8,7 +8,7 @@
 // inhibition is a Wayland idle inhibitor (zwp_idle_inhibit_v1, via
 // Quickshell's IdleInhibitor in Bar.qml) - the standard mechanism
 // hypridle's listeners already obey. It never stops or reconfigures
-// hypridle, so explicit locks (Super+L, power menu, lock before
+// hypridle, so explicit locks (Super+Delete, power menu, lock before
 // suspend) are unaffected: those go through logind, not idle events.
 //
 // Read-only status for scripts/tests: `qs ipc call coffee status` prints

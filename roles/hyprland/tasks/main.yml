@@ -76,6 +76,35 @@
     mode: "0755"
   tags: hyprland
 
+# Keybind helpers (one-shot, ~/.local/bin): focus-or-launch (mainMod + G /
+# W) and the cheatsheet viewer (mainMod + F1) with its generated sheet.
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/bin"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy focus-or-launch (~/.local/bin/focus-or-launch)
+  ansible.builtin.copy:
+    src: focus-or-launch.sh
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/focus-or-launch"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
+- name: Deploy hypr-cheatsheet (~/.local/bin/hypr-cheatsheet)
+  ansible.builtin.template:
+    src: hypr-cheatsheet.j2
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/hypr-cheatsheet"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
 # Modules first, entry point last: Hyprland reloads on changes to
 # hyprland.lua, which then loads complete, current modules.
 - name: Ensure ~/.config/hypr/conf exists
@@ -107,6 +136,15 @@
   ansible.builtin.file:
     path: "{{ ansible_facts.user_dir }}/.config/hypr/conf/rules.lua"
     state: absent
+  tags: hyprland
+
+- name: Deploy the keybinding cheatsheet (~/.config/hypr/cheatsheet.md)
+  ansible.builtin.template:
+    src: cheatsheet.md.j2
+    dest: "{{ ansible_facts.user_dir }}/.config/hypr/cheatsheet.md"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
   tags: hyprland
 
 - name: Deploy the Hyprland config entry point (hyprland.lua)

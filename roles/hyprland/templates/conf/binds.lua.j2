@@ -2,35 +2,36 @@
 -- edit by hand. Loaded by ~/.config/hypr/hyprland.lua.
 --
 -- Keybindings. All bound on v.mainMod, so a host override of
--- hyprland_main_modifier changes every bind.
+-- hyprland_main_modifier changes every bind. The layout (2026-10-07,
+-- migrated once from the user's former Omarchy bindings - no runtime link
+-- to that repository): left hand = apps and system actions, right hand =
+-- H/J/K/L window navigation, Shift = move / secondary action. Every bind
+-- here is listed in the cheatsheet (cheatsheet.md.j2, mainMod + F1) -
+-- change both together.
 return function(v)
     local mainMod = v.mainMod
+    local focusOrLaunch = v.userDir .. "/.local/bin/focus-or-launch"
+    -- Resize = mainMod + ALT; on a host whose mainMod IS ALT (arch-dev)
+    -- that would be ALT + ALT, so CTRL takes its place there.
+    local resizeMod = mainMod == "ALT" and "CTRL" or "ALT"
 
-    -- Minimal but genuinely usable keybind set - not final Quickshell/UX
-    -- polish, see README.md. All bound on mainMod, not a hardcoded
-    -- modifier, so a host override (see hyprland_main_modifier) changes
-    -- every bind below, not just some of them.
+    -- ---- Apps -----------------------------------------------------------
     hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(v.terminal))
-    hl.bind(mainMod .. " + Q", hl.dsp.window.close())
-    hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
-{% if lock_idle_enabled %}
+    hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(v.terminal))
+    hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("chromium"))
+    hl.bind(mainMod .. " + SHIFT + B", hl.dsp.exec_cmd("bitwarden-desktop"))
+    hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(v.terminal .. " -e nvim"))
+    hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("thunderbird"))
+    hl.bind(mainMod .. " + F", hl.dsp.exec_cmd("nautilus --new-window"))
+    -- WhatsApp web app / Obsidian: focus the running window, else start it
+    -- (one-shot helper, roles/hyprland files/focus-or-launch.sh).
+    hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(focusOrLaunch .. " '^chrome-web\\.whatsapp\\.com__' chromium --app=https://web.whatsapp.com/"))
+    hl.bind(mainMod .. " + W", hl.dsp.exec_cmd(focusOrLaunch .. " '^(obsidian|md\\.obsidian\\.Obsidian)$' obsidian"))
 
-    -- FEATURE: lock_idle - lock now. Same single lock path as the power
-    -- menu and the idle timeout: logind Lock -> hypridle -> hyprlock.
-    hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("loginctl lock-session"))
-{% endif %}
-
-    -- OS menu (roles/quickshell osmenu/: Applications, Appearance, Network,
-    -- Settings, System). No new process: one one-shot IPC call to the
+    -- OS menu (roles/quickshell osmenu/: type to search apps and menu
+    -- entries; Applications, Settings, System). One one-shot IPC call to the
     -- running Quickshell's "osmenu" target, which toggles the menu.
     hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs ipc call osmenu toggle"))
-{% if power_menu_enabled %}
-
-    -- FEATURE: power_menu (group_vars/all.yml power_menu_enabled): toggle the
-    -- power menu inside the running Quickshell instance via its IPC - same
-    -- one-shot mechanism as the launcher above, no second instance.
-    hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
-{% endif %}
 {% if clipboard_history_enabled %}
 
     -- FEATURE: clipboard_history: the clipboard history popup inside the
@@ -38,45 +39,72 @@ return function(v)
     hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("qs ipc call clipboard toggle"))
 {% endif %}
 
-    -- Move keyboard focus between windows.
-    hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
-    hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
-    hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
-    hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+    -- Keybinding cheatsheet (roles/hyprland cheatsheet.md.j2) in a terminal.
+    hl.bind(mainMod .. " + F1", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
+
+    -- ---- Windows: focus (H/J/K/L and arrows), move, resize ----------------
+    hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "l" }))
+    hl.bind(mainMod .. " + J", hl.dsp.focus({ direction = "d" }))
+    hl.bind(mainMod .. " + K", hl.dsp.focus({ direction = "u" }))
+    hl.bind(mainMod .. " + L", hl.dsp.focus({ direction = "r" }))
+    hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "l" }))
+    hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "d" }))
+    hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "u" }))
+    hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "r" }))
+
+    hl.bind(mainMod .. " + SHIFT + H", hl.dsp.window.move({ direction = "l" }))
+    hl.bind(mainMod .. " + SHIFT + J", hl.dsp.window.move({ direction = "d" }))
+    hl.bind(mainMod .. " + SHIFT + K", hl.dsp.window.move({ direction = "u" }))
+    hl.bind(mainMod .. " + SHIFT + L", hl.dsp.window.move({ direction = "r" }))
+
+    hl.bind(mainMod .. " + " .. resizeMod .. " + H", hl.dsp.window.resize({ x = -100, y = 0, relative = true }))
+    hl.bind(mainMod .. " + " .. resizeMod .. " + J", hl.dsp.window.resize({ x = 0, y = 100, relative = true }))
+    hl.bind(mainMod .. " + " .. resizeMod .. " + K", hl.dsp.window.resize({ x = 0, y = -100, relative = true }))
+    hl.bind(mainMod .. " + " .. resizeMod .. " + L", hl.dsp.window.resize({ x = 100, y = 0, relative = true }))
+
+    hl.bind(mainMod .. " + Q", hl.dsp.window.close())
+    hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+    hl.bind(mainMod .. " + SHIFT + G", hl.dsp.window.float({ action = "toggle" }))
+    hl.bind(mainMod .. " + SHIFT + T", hl.dsp.layout("togglesplit"))
 
     -- Move/resize floating windows with the mouse.
     hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
     hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-    -- Switch workspaces with mainMod + [1-9]; move the active window to a
-    -- workspace with mainMod + SHIFT + [1-9].
+    -- ---- Workspaces + scratchpad -----------------------------------------
     for i = 1, 9 do
         hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = i }))
         hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
     end
-
+    hl.bind(mainMod .. " + S", hl.dsp.workspace.toggle_special("scratchpad"))
+    hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
 {% if screenshots_enabled %}
-    -- FEATURE: screenshots (see group_vars/all.yml screenshots_enabled /
-    -- screenshots_ocr_enabled and docs/feature-architecture.md). All
-    -- selection/capture/save/clipboard/notify logic lives in the deployed
-    -- screenshot.sh helper (roles/desktop's files/screenshot.sh, installed
-    -- to ~/.local/bin/screenshot) - these binds only start it on demand
-    -- with the mode it should run; it never stays running afterward (see
-    -- AGENTS.md Runtime Ownership "temporary UI helper -> started on demand
-    -- only" - no second lifecycle owner needed for a process that exits on
-    -- its own). No current-monitor bind on purpose (rarely needed; the
-    -- script's "monitor" mode exists for a later bind).
-    --
-    -- mainMod + X: smart screenshot - drag a region or click a window
-    -- (empty desktop = whole monitor) -> PNG file + image in clipboard.
-    hl.bind(mainMod .. " + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot smart"))
-{% if screenshots_ocr_enabled %}
 
-    -- mainMod + SHIFT + X: OCR - same selection, local tesseract OCR,
-    -- recognized text -> clipboard, no PNG kept.
-    hl.bind(mainMod .. " + SHIFT + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot ocr"))
+    -- ---- Screenshots -------------------------------------------------------
+    -- FEATURE: screenshots (group_vars screenshots_enabled /
+    -- screenshots_ocr_enabled, docs/feature-architecture.md). All logic is
+    -- the on-demand helper ~/.local/bin/screenshot (roles/desktop); it exits
+    -- when done. smart = drag a region or click a window (empty desktop =
+    -- that monitor); monitor = the whole focused monitor; ocr = selection ->
+    -- local tesseract -> text to the clipboard, no PNG kept.
+    hl.bind(mainMod .. " + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot smart"))
+    hl.bind(mainMod .. " + SHIFT + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot monitor"))
+{% if screenshots_ocr_enabled %}
+    hl.bind(mainMod .. " + CTRL + X", hl.dsp.exec_cmd("{{ ansible_facts.user_dir }}/.local/bin/screenshot ocr"))
 {% endif %}
 {% endif %}
+
+    -- ---- System ------------------------------------------------------------
+{% if lock_idle_enabled %}
+    -- FEATURE: lock_idle - lock now. Same single lock path as the power
+    -- menu and the idle timeout: logind Lock -> hypridle -> hyprlock.
+    hl.bind(mainMod .. " + Delete", hl.dsp.exec_cmd("loginctl lock-session"))
+{% endif %}
+{% if power_menu_enabled %}
+    -- FEATURE: power_menu: the power menu inside the running Quickshell.
+    hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
+{% endif %}
+    hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 
     -- Hardware keys (laptop keyboards, media keyboards). locked: also work
     -- on the lockscreen; repeating: hold to keep stepping. Audio goes to

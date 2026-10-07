@@ -7,6 +7,7 @@ base_packages:
   - openssh  # SSH client (git, remote hosts); the server runs only with ssh_server_enabled
   - curl     # standard tool for fetching resources and checking connectivity
   - rsync    # general-purpose file copy/sync tool for later roles and admin
+  - less     # the pager (git, man, the keybinding cheatsheet - mainMod + F1)
   - btop     # interactive resource monitor - run on demand, no service/autostart
   - fastfetch # system summary - run on demand only, never from a shell rc file
 
