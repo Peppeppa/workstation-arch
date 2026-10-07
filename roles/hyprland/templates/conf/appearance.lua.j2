@@ -48,4 +48,14 @@ return function(v)
         },
 {% endif %}
     })
+
+    -- Quickshell's scratchpad (roles/quickshell scratchpad/): a small
+    -- floating note window at the top right, below the bar, on every
+    -- workspace. 48 px clears the bar up to the largest text size.
+    hl.window_rule({
+        match = { title = "^workstation-scratchpad$" },
+        float = true,
+        pin = true,
+        move = { "(monitor_w-window_w-12)", "48" },
+    })
 end

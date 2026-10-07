@@ -39,6 +39,9 @@ return function(v)
     hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("qs ipc call clipboard toggle"))
 {% endif %}
 
+    -- Scratchpad / quick notes (Quickshell, IPC target "scratchpad").
+    hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("qs ipc call scratchpad toggle"))
+
     -- Keybinding cheatsheet (roles/hyprland cheatsheet.md.j2) in a terminal.
     hl.bind(mainMod .. " + F1", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
 

@@ -13,7 +13,8 @@
       { "id": "bluetooth" },
       { "id": "audio" },
       { "id": "power" },
-      { "id": "visuals" }
+      { "id": "visuals" },
+      { "id": "scratchpad" }
     ]
   },
   "settings": {

@@ -890,6 +890,20 @@ the university's actual FortiGate configuration - official Arch has
 real setup (incl. MFA/SAML) is known. Whatever NM ends up managing appears
 in the popup's VPN list automatically.
 
+## Scratchpad (phase 1)
+
+Core. Four fixed plain-text notes in a Quickshell top-level window.
+
+| Contract | |
+|---|---|
+| Scope | `quickshell/Scratchpad.qml` (singleton: the window handle, `dataDir`, `stateFile`), `scratchpad/ScratchpadWindow.qml`, bar widget `bar/widgets/Scratchpad/` (id `scratchpad`, default right zone); `roles/hyprland`: `mainMod+N` (IPC `scratchpad toggle`), window rule in `conf/appearance.lua` (title `workstation-scratchpad`: float, pin, top right 48 px below the screen edge) |
+| Data | `~/.local/share/workstation/scratchpad/{1..4}.txt` (UTF-8, atomic FileView writes; the directory 0700 by Ansible, files never touched by it); `~/.config/workstation/scratchpad.json` = `{note, fontSize}` (fontSize 0 = desktop text size, 8-32) |
+| Why a top-level window | Super+Q (`window.close()`) then closes the scratchpad like any window and the shell keeps running; a layer popup would have let Super+Q close the app underneath. One transient surface at a time: it requests/releases `BarPopups` like the overlays |
+| Saving | single-shot 400 ms timer after a change, plus flush on note switch and on every close path (Escape, toggle, focus lost, Super+Q / compositor close, another popup, shell exit) |
+| Keys (window only) | Alt+1..4 note, Ctrl+-/Ctrl++ font size, Escape close; no global binds besides mainMod+N |
+| Idle cost | a hidden window + the four small files in memory; no timer runs while nothing changes, no watcher, no process |
+| Phase 2 (not built) | the notes are read once at shell start; syncing (e.g. `dataDir` on a synced Nextcloud folder), external-change detection and conflicts come later |
+
 ## Firewall + SSH (Hardening v1)
 
 Core (no flag) - except the SSH server, a host capability. Goals: safe on

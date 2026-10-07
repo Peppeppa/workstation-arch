@@ -52,7 +52,8 @@ Singleton {
         { id: "bluetooth", path: "widgets/Bluetooth/Widget.qml", available: BarFeatures.bluetooth },
         { id: "audio", available: true },
         { id: "power", available: true },
-        { id: "visuals", available: true }
+        { id: "visuals", available: true },
+        { id: "scratchpad", available: true }
     ]
     // Retired ids and the widget that replaced them (see sanitize).
     readonly property var renamed: ({ coffee: "visuals", theme: "visuals" })

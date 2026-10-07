@@ -44,6 +44,7 @@ import qs.bar.widgets.Connectivity as Connectivity
 import qs.bar.widgets.Audio as Audio
 import qs.bar.widgets.Power as Power
 import qs.bar.widgets.Visuals as Visuals
+import qs.bar.widgets.Scratchpad as Scratchpad
 
 PanelWindow {
     id: bar
@@ -310,7 +311,8 @@ PanelWindow {
         connectivity: connectivityWidget,
         audio: audioWidget,
         power: powerWidget,
-        visuals: visualsWidget
+        visuals: visualsWidget,
+        scratchpad: scratchpadWidget
     })
     Component { id: workspacesWidget; Workspaces.Widget { bar: barWindow } }
     Component { id: clockWidget; Clock.Widget { bar: barWindow } }
@@ -318,6 +320,7 @@ PanelWindow {
     Component { id: audioWidget; Audio.Widget { bar: barWindow } }
     Component { id: powerWidget; Power.Widget { bar: barWindow } }
     Component { id: visualsWidget; Visuals.Widget { bar: barWindow } }
+    Component { id: scratchpadWidget; Scratchpad.Widget { bar: barWindow } }
 
     Repeater {
         model: BarLayout.availableWidgets

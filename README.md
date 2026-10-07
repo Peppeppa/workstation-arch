@@ -242,6 +242,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + E` / `Super + F` | Thunderbird / Nautilus |
 | `Super + G` / `Super + W` | WhatsApp / Obsidian (focus if already open) |
 | `Super + V` | clipboard history |
+| `Super + N` | scratchpad: four quick notes (also the bar's note icon) |
 | `Super + F1` | keybinding cheatsheet (`hypr-cheatsheet`) |
 | `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
 | `Super + Shift + H/J/K/L` | move the window |
@@ -349,11 +350,39 @@ sudo system-snapshot --list                 # snapshots + recovery slots
 sudo system-rollback before-update          # permanent, from the next boot; /home stays
 ```
 
+Automatic snapshots: **every** package transaction (`pacman -S`, `-R`,
+`-U`, a bare `pacman -Syu`, package tasks of a bootstrap) first takes ONE
+snapshot of the system (a pacman hook), described `pacman: <packages>`.
+`system-update` takes that snapshot itself (plus the boot entry) - still
+one per update. Only the newest **3** automatic snapshots are kept; the
+`known-good` snapshot (the protected baseline - a host without one gets a
+single `baseline` snapshot after its first complete bootstrap) and your
+`system-snapshot "label"` snapshots (snapper keeps the last 4) are never
+touched by that cleanup. If a snapshot cannot be taken, pacman stops
+instead of updating without one (once without:
+`sudo sh -c 'echo manual > /run/workstation-recovery/skip-pre-snapshot'`).
+A pre-transaction snapshot is a read-only recovery point: browse it under
+`/.snapshots/<n>/snapshot`, or roll back to a boot slot as below.
+
 If the system does not come up after an update: pick "Recovery: ..." in
 the systemd-boot menu (it boots the saved system, `/home` is the normal
 one), look around, then `sudo system-rollback <slot>` and reboot. The old
 system is kept as `@broken-<date>` at the Btrfs top level until deleted
 by hand.
+
+## Scratchpad
+
+`Super + N` (or the note icon in the bar) opens a small note window at the
+top right: four fixed plain-text notes, Enter = new line, no wrapping (long
+lines scroll sideways). The dots at the bottom or `Alt + 1..4` switch notes;
+`-`/`+` (or `Ctrl + -`/`Ctrl + +`) change only the notes' font size (the
+desktop text size is the default; kept). Escape, `Super + N`, `Super + Q`
+or a click elsewhere close it. Text saves itself (shortly after typing and
+on every switch/close) to plain files:
+`~/.local/share/workstation/scratchpad/1.txt` ... `4.txt` (last note + font
+size: `~/.config/workstation/scratchpad.json`). Edits made to those files
+from outside while the desktop runs are not picked up until the next
+Quickshell start.
 
 ## Docker (on demand)
 

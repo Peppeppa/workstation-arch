@@ -22,6 +22,7 @@ import qs
 import qs.appearance
 import qs.bar
 import qs.firewall
+import qs.scratchpad
 import qs.osmenu
 
 ShellRoot {
@@ -83,6 +84,9 @@ ShellRoot {
         id: firewallWindow
         fontSize: root.fontSize
     }
+
+    // Scratchpad / quick notes (mainMod+N, bar icon): four plain-text notes.
+    ScratchpadWindow {}
 {% if wallpaper_enabled %}
 
     // FEATURE: wallpaper (group_vars/all.yml wallpaper_enabled): the
