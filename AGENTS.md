@@ -973,6 +973,16 @@ history for that milestone's own record):
   A real LocalSend file transfer was confirmed by the user; the THWS VPN
   (real FortiGate peer through the firewall) works - see Networking Rules.
   Not tested: eduroam.
+- **Chromium policy + VPN plugins** (laptop, 2026-10-07): managed policy
+  `/etc/chromium/policies/managed/workstation.json` - six store
+  extensions (installed by Chromium itself, IDs checked against store
+  publisher) + the THWS library PAC (net-log: SpringerLink -> library
+  proxy, others DIRECT; proxy answers 407, Chromium shows its own login).
+  End-to-end confirmed by the user: proxy login in Chromium, licensed
+  content accessible. Note: the THWS PAC names a plain-HTTP proxy.
+  Official NM VPN plugins OpenVPN/OpenConnect/strongswan added (profiles +
+  imports validated in memory, no extra idle process, strongswan's own
+  daemons disabled); WireGuard imports come with autoconnect on (README).
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
