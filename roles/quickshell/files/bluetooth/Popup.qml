@@ -324,10 +324,12 @@ BarPopup {
                     row.device.state === BluetoothDeviceState.Connecting || popup.postPairDevice === row.device ? "Connecting…"
                     : row.device.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…"
                     : row.device.pairing || popup.pairingDevice === row.device ? "Pairing…"
-                    : row.device.connected ? "Connected" : ""
-                readonly property string battery: popup.batteryText(row.device)
+                    // a connected device that reports its battery (BlueZ
+                    // Battery1, a D-Bus property - updates arrive as signals)
+                    // shows the level instead of "Connected"
+                    : row.device.connected ? (popup.batteryText(row.device) || "Connected") : ""
                 visible: text !== ""
-                text: [stateText, battery !== "" ? "\u{F0079} " + battery : ""].filter(s => s !== "").join("   ")
+                text: stateText
                 color: row.device.connected ? Colors.accent : Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 3
