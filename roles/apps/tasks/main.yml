@@ -13,6 +13,30 @@
 
 # Explicit removals (defaults/main.yml apps_retired_packages) - after the
 # install above, which already provides their replacements.
+# Chromium's managed policy (extensions + the THWS library PAC) - see
+# defaults. JSON comments are not allowed there, so the file says nothing
+# about its origin: managed by roles/apps.
+- name: Ensure Chromium's managed policy directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/chromium/policies/managed
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: apps
+
+- name: Deploy the Chromium managed policy (extensions, library proxy PAC)
+  become: true
+  ansible.builtin.template:
+    src: chromium-policy.json.j2
+    dest: /etc/chromium/policies/managed/workstation.json
+    owner: root
+    group: root
+    mode: "0644"
+    validate: python3 -m json.tool %s
+  tags: apps
+
 - name: Remove retired application packages
   become: true
   community.general.pacman:

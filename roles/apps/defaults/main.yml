@@ -173,3 +173,30 @@ apps_retired_packages:
   - chipass
   - thunar-archive-plugin
   - thunar
+
+# Chromium managed policy (/etc/chromium/policies/managed/workstation.json,
+# Chromium's own supported mechanism - no profile files touched).
+#
+# Extensions: installed by Chromium itself from the Chrome Web Store and
+# kept updated there (nothing is downloaded or vendored here).
+# "normal_installed" = installed automatically, cannot be removed, can be
+# disabled in chrome://extensions. IDs verified 2026-10-07 against the
+# store page (title + publisher) and the user's existing Chromium install:
+chromium_extensions:
+  - id: gighmmpiobklfepjocnamgkkbiglidom   # AdBlock - Adblock, Inc. (getadblock.com)
+  - id: nngceckbapebfimnlniiiahkandclblb   # Bitwarden Password Manager - Bitwarden Inc.
+  - id: lfjnnkckddkopjfgmbcpdiolnmfobflj   # Custom New Tab - Dictanote (dictanote.co)
+  - id: eimadpbcbfnmbkopoojfekhnkhdbieeh   # Dark Reader - Alexander Shutau (darkreader.org)
+  - id: dbepggeogbaibhgnhhndojpepiihcmeb   # Vimium - Phil Crosby (github.com/philc/vimium)
+  - id: ddkjiahejlhfcafbddmgiahcphecmpfh   # uBlock Origin Lite - Raymond Hill
+chromium_extension_update_url: https://clients2.google.com/service/update2/crx
+
+# THWS library proxy ("Externer Zugang", bibliothek.thws.de): the library's
+# own PAC - THWS owns the domain list (~170 publisher domains -> its proxy,
+# everything else DIRECT); Chromium fetches it itself, nothing runs here.
+# Independent of the THWS VPN. ProxyPacMandatory stays off: an unreachable
+# PAC falls back to direct connections instead of breaking browsing. The
+# proxy's credentials are the user's: entered in Chromium's own proxy
+# login dialog, saved (if at all) by Chromium's password manager, whose
+# key lives in the Secret Service (gnome-keyring) - never here.
+chromium_proxy_pac_url: https://www.bibliothek.thws.de/proxy.pac

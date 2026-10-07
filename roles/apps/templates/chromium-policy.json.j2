@@ -1,0 +1,15 @@
+{
+  "ExtensionSettings": {
+{% for e in chromium_extensions %}
+    "{{ e.id }}": {
+      "installation_mode": "normal_installed",
+      "update_url": "{{ chromium_extension_update_url }}"
+    }{{ "," if not loop.last }}
+{% endfor %}
+  },
+  "ProxySettings": {
+    "ProxyMode": "pac_script",
+    "ProxyPacUrl": "{{ chromium_proxy_pac_url }}",
+    "ProxyPacMandatory": false
+  }
+}

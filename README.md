@@ -422,9 +422,21 @@ beck-online: recognized as THWS). The big publisher platforms (SpringerLink,
 IEEE Xplore, ScienceDirect, Wiley) are NOT routed by the gateway (measured:
 it drops anything outside its route list, so a full tunnel cannot work
 either); the library's own way for them is its **proxy** - "Externer
-Zugang" on bibliothek.thws.de: request the separate proxy credentials,
-then set `https://www.bibliothek.thws.de/proxy.pac` as automatic proxy
-configuration in the browser. It works with or without the VPN.
+Zugang" on bibliothek.thws.de (separate proxy credentials). Chromium is
+provisioned with the library's PAC (`https://www.bibliothek.thws.de/proxy.pac`,
+managed policy - THWS keeps the domain list): only those publisher domains
+go through the library proxy, everything else stays direct, with or
+without the VPN. On the first proxied page Chromium asks for the proxy
+login - type it there; if you let Chromium save it, its password store is
+encrypted with a key in gnome-keyring (Secret Service).
+
+## Chromium
+
+Managed policy `/etc/chromium/policies/managed/workstation.json`
+(`roles/apps`, see `chrome://policy`): the library PAC above and six
+extensions Chromium installs and updates from the Chrome Web Store itself -
+AdBlock, Bitwarden, Custom New Tab, Dark Reader, Vimium, uBlock Origin
+Lite (installed automatically; can be disabled, not removed).
 
 While a VPN is up the bar's network icon is in the accent color and the
 popup shows "via VPN" top right.

@@ -104,6 +104,7 @@ direct upstream dependency.
 | NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) get their password stored once - README "eduroam" |
 | eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user, needs `python-dbus`), result = NetworkManager profiles; never in this repo |
 | Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand |
+| Browser extensions + THWS library proxy | Chromium managed policy `/etc/chromium/policies/managed/workstation.json` (`roles/apps`): ExtensionSettings (6 store extensions, Chromium installs/updates them) + ProxySettings `pac_script` = the library's own PAC (THWS owns the domain list); proxy login only in Chromium's dialog, never here |
 | THWS VPN (FortiGate SSL-VPN) | NetworkManager + `networkmanager-fortisslvpn` (openfortivpn/pppd as the plugin's child, only while connected); switched only in the network popup's VPN section |
 | Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
