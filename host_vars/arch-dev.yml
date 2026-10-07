@@ -1,32 +1,10 @@
 ---
 # Host-specific overrides for arch-dev, the disposable VirtualBox
-# validation VM (see AGENTS.md VM / Hardware Separation - arch-dev is
-# not a long-term product host and gets no invented deltas). This file
-# exists for exactly one real, persistent reason, not a guess ahead of
-# need: real-hardware testing confirmed that arch-dev's guest Hyprland
-# session shares input with a host machine that also runs a SUPER-based
-# Hyprland session, so SUPER-modifier keybinds inside the guest are
-# consumed by the host before VirtualBox delivers them to the VM. This
-# is specific to testing inside this VM, not a host_vars-worthy real
-# deviation of laptop/workstation (they run standalone, not nested under
-# another Hyprland session).
-#
-# ALT (the classic Hyprland modifier, same kind as SUPER/SHIFT/CTRL) is
-# used here, not a left/right-specific keysym like Alt_R: an earlier
-# version of this file used Alt_R, but real runtime testing showed
-# Hyprland's keysym-based modkey syntax (see
-# https://wiki.hypr.land/Configuring/Basics/Binds/#binding-modkeys-only)
-# rejects this project's combined binds (mainMod + SHIFT + <key>, mainMod
-# + <workspace number>) with "Modifiers must come first in the list" /
-# "Cannot combine special syms" - that syntax is only for standalone or
-# keysym-plus-keysym binds, not for combining with classic modifiers.
-# ALT is a classic modifier bit, so it combines exactly like SUPER does
-# everywhere in hyprland.lua.j2, with no special-casing. The host's own
-# session has no normal Alt-based keybindings, so ALT (triggered by
-# Left Alt) is free to use here.
-hyprland_main_modifier: ALT
+# validation VM. Keybindings intentionally use the common SUPER default;
+# the former ALT main-modifier override was only a nested-VM workaround
+# and is no longer required.
 
-# Real, VM-specific deviation #2 (same "no invented deltas" rule as
+# Real, VM-specific deviation #1 (same "no invented deltas" rule as
 # above): real testing on arch-dev showed `hyprctl monitors -j`
 # reporting physicalWidth/physicalHeight: 0 for VirtualBox's virtual
 # display, which makes hyprland.lua.j2's default scale = "auto" (see
@@ -37,7 +15,7 @@ hyprland_main_modifier: ALT
 # monitor dimensions and keep the default "auto".
 hyprland_monitor_scale: 1
 
-# Real, VM-specific deviation #3: real testing on arch-dev showed
+# Real, VM-specific deviation #2: real testing on arch-dev showed
 # Ghostty (hyprland_terminal default, see
 # roles/hyprland/defaults/main.yml) failing to start with
 # `Gdk: Error flushing display: Broken pipe`. Root cause confirmed with
@@ -57,7 +35,7 @@ hyprland_monitor_scale: 1
 # Hardware Separation), not fixed here.
 hyprland_terminal: "env LIBGL_ALWAYS_SOFTWARE=1 ghostty"
 
-# Real, VM-specific deviation #4, same mechanism/root cause as #3
+# Real, VM-specific deviation #3, same mechanism/root cause as #3
 # above: real testing on arch-dev showed Quickshell (roles/quickshell)
 # starting via hl.exec_cmd (both at hyprland.start and via a controlled
 # manual hl.exec_cmd() test afterward, so this is not a startup-timing
@@ -89,7 +67,7 @@ hyprland_quickshell_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 quickshell"
 # Applied to hypridle so every hyprlock it starts gets it.
 lock_idle_hypridle_cmd: "env LIBGL_ALWAYS_SOFTWARE=1 hypridle"
 
-# Real, VM-specific deviation #5: visual acceptance of the desktop at
+# Real, VM-specific deviation #4: visual acceptance of the desktop at
 # 2560x1440 (the real hosts' target size class) inside this VM.
 # VirtualBox's vmwgfx connector does not list 2560x1440 (its fixed table
 # has 2560x1600, 2048x1152, 1920x1080, ...; the preferred mode follows
@@ -104,7 +82,7 @@ hyprland_monitors:
     position: auto
     scale: "{{ hyprland_monitor_scale }}"
 
-# Real, VM-specific deviation #6, same VirtualBox GPU failure class as
+# Real, VM-specific deviation #5, same VirtualBox GPU failure class as
 # #3/#4 (Ghostty, Quickshell, hyprlock): Nautilus started by D-Bus
 # activation (the "open folder" path: gio/xdg-open/portal/FileManager1)
 # died with "Lost connection to Wayland compositor"; with
