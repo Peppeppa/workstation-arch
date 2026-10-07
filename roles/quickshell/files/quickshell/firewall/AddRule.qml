@@ -155,14 +155,14 @@ Item {
             Caption { text: "Bezeichnung" }
             Field {
                 id: labelField
-                placeholder: "Test Database"
+                placeholder: "z. B. Test Database"
                 tabTarget: portField.input
             }
 
             Caption { text: "Port" }
             Field {
                 id: portField
-                placeholder: "1234"
+                placeholder: "1 bis 65535, z. B. 1234"
                 tabTarget: protoField.input
                 backtabTarget: labelField.input
             }
