@@ -80,14 +80,17 @@ FocusScope {
         }
     }
 
-    implicitHeight: Fonts.px(36) + 8 + Math.max(1, results.length) * rowHeight
+    // From the layout itself: field + rows incl. their spacing.
+    implicitHeight: column.implicitHeight
 
     AppModel {
         id: apps
     }
 
     ColumnLayout {
-        anchors.fill: parent
+        id: column
+        anchors.left: parent.left
+        anchors.right: parent.right
         spacing: 8
 
         Rectangle {
@@ -138,85 +141,90 @@ FocusScope {
             font.pixelSize: page.menu.fontSize
         }
 
-        Repeater {
-            model: page.results
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
 
-            Rectangle {
-                id: row
-                required property var modelData
-                required property int index
-                readonly property bool selected: index === page.selectedIndex
-                readonly property bool isApp: modelData.kind === "app"
-                readonly property string iconSource: isApp && modelData.entry.icon
-                    ? Quickshell.iconPath(modelData.entry.icon, true) : ""
+            Repeater {
+                model: page.results
 
-                Layout.fillWidth: true
-                implicitHeight: page.rowHeight
-                radius: 4
-                color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
+                Rectangle {
+                    id: row
+                    required property var modelData
+                    required property int index
+                    readonly property bool selected: index === page.selectedIndex
+                    readonly property bool isApp: modelData.kind === "app"
+                    readonly property string iconSource: isApp && modelData.entry.icon
+                        ? Quickshell.iconPath(modelData.entry.icon, true) : ""
 
-                Item {
-                    id: iconBox
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 22
-                    height: 22
+                    Layout.fillWidth: true
+                    implicitHeight: page.rowHeight
+                    radius: 4
+                    color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
-                    Image {
-                        id: appIcon
-                        anchors.fill: parent
-                        visible: row.iconSource !== "" && status === Image.Ready
-                        source: row.iconSource
-                        sourceSize.width: 22
-                        sourceSize.height: 22
-                        fillMode: Image.PreserveAspectFit
-                        asynchronous: true
-                        smooth: true
+                    Item {
+                        id: iconBox
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 22
+                        height: 22
+
+                        Image {
+                            id: appIcon
+                            anchors.fill: parent
+                            visible: row.iconSource !== "" && status === Image.Ready
+                            source: row.iconSource
+                            sourceSize.width: 22
+                            sourceSize.height: 22
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            smooth: true
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !row.isApp || row.iconSource === "" || appIcon.status === Image.Error
+                            text: row.isApp ? "\u{F08C6}" : row.modelData.icon
+                            color: row.selected ? Colors.accentForeground : row.isApp ? Colors.foregroundMuted : Colors.foreground
+                            font.family: Fonts.icons
+                            font.pixelSize: row.isApp ? 18 : page.menu.fontSize + 3
+                        }
                     }
 
                     Text {
-                        anchors.centerIn: parent
-                        visible: !row.isApp || row.iconSource === "" || appIcon.status === Image.Error
-                        text: row.isApp ? "\u{F08C6}" : row.modelData.icon
-                        color: row.selected ? Colors.accentForeground : row.isApp ? Colors.foregroundMuted : Colors.foreground
-                        font.family: Fonts.icons
-                        font.pixelSize: row.isApp ? 18 : page.menu.fontSize + 3
+                        anchors.left: iconBox.right
+                        anchors.right: hint.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        text: row.isApp ? row.modelData.entry.name : row.modelData.label
+                        color: row.selected ? Colors.accentForeground : Colors.foreground
+                        font.family: Fonts.family
+                        font.pixelSize: page.menu.fontSize
+                        elide: Text.ElideRight
                     }
-                }
 
-                Text {
-                    anchors.left: iconBox.right
-                    anchors.right: hint.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
-                    text: row.isApp ? row.modelData.entry.name : row.modelData.label
-                    color: row.selected ? Colors.accentForeground : Colors.foreground
-                    font.family: Fonts.family
-                    font.pixelSize: page.menu.fontSize
-                    elide: Text.ElideRight
-                }
+                    // Where a menu entry lives (Settings), so it reads apart from apps.
+                    Text {
+                        id: hint
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: row.isApp ? "" : row.modelData.hint
+                        color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
+                        font.family: Fonts.family
+                        font.pixelSize: page.menu.fontSize - 1
+                    }
 
-                // Where a menu entry lives (Settings), so it reads apart from apps.
-                Text {
-                    id: hint
-                    anchors.right: parent.right
-                    anchors.rightMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: row.isApp ? "" : row.modelData.hint
-                    color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
-                    font.family: Fonts.family
-                    font.pixelSize: page.menu.fontSize - 1
-                }
-
-                MouseArea {
-                    id: rowMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        page.selectedIndex = row.index;
-                        page.activateSelected();
+                    MouseArea {
+                        id: rowMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            page.selectedIndex = row.index;
+                            page.activateSelected();
+                        }
                     }
                 }
             }
