@@ -493,6 +493,24 @@ latexmk -c dokument.tex         # remove the auxiliary files (.aux, .log, .fls, 
 `latexmk -C` would delete the PDF too. `latexmk -lualatex` builds with
 lualatex instead of pdflatex.
 
+Inside Neovim, VimTeX (`lua/plugins/vimtex.lua`, installed by lazy.nvim
+at the next `nvim` start) does the same. Its keys use the local leader
+`\` and exist only in `.tex` buffers:
+
+| Keys | Action |
+|---|---|
+| `\ll` | compile on/off: latexmk runs continuously and rebuilds on every save |
+| `\lk` | stop the continuous compilation |
+| `\lv` | open the PDF in Zathura / jump there to the cursor position (SyncTeX forward search) |
+| `\le` | show errors and warnings (quickfix) |
+| `\lt` | table of contents |
+| `\lc` | clean auxiliary files (the PDF stays; `\lC` removes it too) |
+
+So: `n dokument.tex`, `\ll` once, `\lv`, then just save (`<Esc>`) and
+Zathura shows the new PDF. `\ll` again or `\lk` stops the automatic
+compilation (closing Neovim stops it as well). German documents need
+nothing extra in Neovim - `\usepackage[ngerman]{babel}` in the document.
+
 ## Firewall and SSH
 
 Inbound traffic is dropped unless it answers something this machine
@@ -634,8 +652,9 @@ first `nvim` start. Its `lua/plugins/workstation-theme.lua` makes Neovim
 use the active workstation theme's own Neovim port (exact theme, not just
 dark/light - table in `docs/DESIGN_SYSTEM.md`), and a theme switch
 recolors running Neovims too. Bring your own config (dotfiles) any time -
-keep that one file to stay themed. `lua/config/keymaps.lua` is the one
-file workstation-arch keeps managed (deployed on every bootstrap): Space as
+keep that one file to stay themed. `lua/plugins/vimtex.lua` (see "LaTeX")
+and `lua/config/keymaps.lua` are the two files workstation-arch keeps
+managed (deployed on every bootstrap). Keymaps: Space as
 leader, `<leader>pv` explorer, visual `J`/`K` move lines, centered
 `<C-d>`/`<C-u>`/`n`/`N`, `<leader>p` paste keeping the yank, `<leader>y`/`Y`
 system clipboard, `jk` leaves insert, `<Esc>` saves, `<leader>x` chmod +x,

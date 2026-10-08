@@ -93,7 +93,7 @@ direct upstream dependency.
 | Compositor / window manager | Hyprland |
 | OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; type-to-search over its own entries + apps; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/Firewall/System hand over to their owners |
 | Hyprland keybindings, input, cheatsheet | `roles/hyprland` (`conf/binds.lua`, `conf/input.lua`, generated `~/.config/hypr/cheatsheet.md` + `hypr-cheatsheet` on mainMod+F1) - migrated once from the former dotfiles, no runtime link to them |
-| Neovim keymaps | `roles/apps` (`~/.config/nvim/lua/config/keymaps.lua`, the one managed Neovim file; the rest of the config stays the user's) |
+| Neovim keymaps + VimTeX spec | `roles/apps` (`~/.config/nvim/lua/config/keymaps.lua` and `lua/plugins/vimtex.lua`, the two managed Neovim files; plugins = lazy.nvim's, the rest of the config stays the user's) |
 | SSH client agent | `~/.ssh/config` managed block (`roles/base`): `IdentityAgent ~/.bitwarden-ssh-agent.sock` - Bitwarden desktop's agent; no keys here |
 | Appearance (theme/wallpaper/bar background/brightness/text size/display) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, bar background = BarLayout's setting, brightness = `brightnessctl` (backlight only) |
 | Desktop text size (one preference: shell, Ghostty, GTK `text-scaling-factor`) | the `theme` helper (state `text-size`, `theme text-size <px>`); Quickshell derives sizes via `Fonts.px` |
