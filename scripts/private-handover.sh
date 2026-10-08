@@ -9,10 +9,12 @@
 #      what to do in Bitwarden (by hand - nothing here unlocks, reads or
 #      exports anything), exit 3; re-run ./bootstrap-personal.sh after.
 #   2. Clone the private provisioning repository, or fast-forward an
-#      existing clone - only if it is a git repository with the expected
-#      origin, on a branch, with a clean working tree. Never reset,
-#      stash, checkout over or delete anything: any doubt = stop.
-#   3. Run its bootstrap.sh and return its exit code.
+#      existing clone (scripts/git-sync.sh) - only if it is a git repository
+#      with the expected origin, on a branch, with a clean working tree.
+#      Never reset, stash, checkout over or delete anything: any doubt = stop.
+#   3. Run its bootstrap.sh (with WORKSTATION_GIT_SYNC = that helper, for
+#      the private repository's own list of checkouts) and return its exit
+#      code.
 #
 # Nothing private is in this public repository: only the private repo's
 # name and where it is cloned. The checkout and its contents stay the
@@ -29,6 +31,7 @@ set -uo pipefail
 PRIVATE_REPO=${WORKSTATION_PRIVATE_REPO:-git@github.com:Peppeppa/dotfiles-provision.git}
 PRIVATE_DIR=${WORKSTATION_PRIVATE_DIR:-$HOME/repos/peppeppa/dotfiles-provision}
 AGENT_SOCK=${WORKSTATION_BITWARDEN_SOCKET:-$HOME/.bitwarden-ssh-agent.sock}
+GIT_SYNC=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-sync.sh
 
 say() { printf '[PRIVATE] %s\n' "$*"; }
 stop() { printf '[PRIVATE] STOP: %s\n' "$*" >&2; exit 1; }
@@ -96,34 +99,12 @@ fi
 say "GitHub SSH works (Bitwarden agent)"
 export SSH_AUTH_SOCK=$AGENT_SOCK
 
-# ---- 2. clone, or a safe fast-forward ---------------------------------------
-if [ ! -e "$PRIVATE_DIR" ]; then
-    mkdir -p "$(dirname "$PRIVATE_DIR")" || stop "cannot create $(dirname "$PRIVATE_DIR")"
-    say "cloning $PRIVATE_REPO -> $PRIVATE_DIR"
-    git clone -q -- "$PRIVATE_REPO" "$PRIVATE_DIR" || stop "git clone failed"
-else
-    g() { git -C "$PRIVATE_DIR" "$@"; }
-    [ -d "$PRIVATE_DIR" ] && [ "$(g rev-parse --show-toplevel 2>/dev/null)" = "$(cd "$PRIVATE_DIR" && pwd -P)" ] \
-        || stop "$PRIVATE_DIR exists but is not a git checkout - left untouched; move it away yourself"
-    origin=$(g remote get-url origin 2>/dev/null)
-    [ "$origin" = "$PRIVATE_REPO" ] || stop "$PRIVATE_DIR has origin '${origin:-none}', expected $PRIVATE_REPO - left untouched"
-    branch=$(g symbolic-ref -q --short HEAD) || stop "$PRIVATE_DIR is on a detached HEAD - left untouched"
-    [ -z "$(g status --porcelain --untracked-files=normal)" ] \
-        || stop "$PRIVATE_DIR has local changes - nothing was updated or discarded; commit, push or remove them yourself, then re-run"
-    say "updating $PRIVATE_DIR ($branch)"
-    g fetch -q origin || stop "git fetch failed"
-    upstream=$(g rev-parse -q --verify "@{upstream}") || stop "branch $branch has no upstream - left untouched"
-    if g merge-base --is-ancestor "$upstream" HEAD; then
-        say "up to date (or only local commits ahead)"
-    elif g merge-base --is-ancestor HEAD "$upstream"; then
-        g merge -q --ff-only "$upstream" || stop "fast-forward failed"
-        say "fast-forwarded to $(g rev-parse --short HEAD)"
-    else
-        stop "$PRIVATE_DIR ($branch) and its upstream have diverged - nothing changed; resolve it yourself"
-    fi
-fi
+# ---- 2. clone, or a safe fast-forward (scripts/git-sync.sh) -----------------
+"$GIT_SYNC" "$PRIVATE_REPO" "$PRIVATE_DIR" || exit 1
 
 # ---- 3. the private bootstrap ---------------------------------------------------
 [ -x "$PRIVATE_DIR/bootstrap.sh" ] || stop "$PRIVATE_DIR/bootstrap.sh missing or not executable"
 say "running $PRIVATE_DIR/bootstrap.sh"
-"$PRIVATE_DIR/bootstrap.sh"
+# The same safe clone/fast-forward for the user's further checkouts (the
+# private repository's list; it runs without this, too, and then skips them).
+WORKSTATION_GIT_SYNC=$GIT_SYNC "$PRIVATE_DIR/bootstrap.sh"

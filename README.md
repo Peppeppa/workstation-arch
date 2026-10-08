@@ -161,8 +161,12 @@ or prompt). It:
    existing clone is only fast-forwarded when it is a git checkout with
    the expected origin, on a branch, with a clean working tree - local
    changes, a divergence, a detached HEAD or a foreign directory stop the
-   run with nothing changed (never reset/stash/discard).
-4. Runs the private repo's `bootstrap.sh` (its exit code is phase 2's).
+   run with nothing changed (never reset/stash/discard). The rules live in
+   one helper, `scripts/git-sync.sh <url> <dir>`.
+4. Runs the private repo's `bootstrap.sh` (its exit code is phase 2's),
+   with `WORKSTATION_GIT_SYNC` pointing at that helper: the private repo
+   keeps its own list of further checkouts and syncs them through it, with
+   the same rules (no list or URL of them here).
 
 Running it again is safe (up to date -> the private bootstrap runs again
 and changes nothing). Bitwarden must be running for its agent to exist;

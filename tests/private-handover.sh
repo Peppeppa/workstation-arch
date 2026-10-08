@@ -25,6 +25,7 @@ git clone -q "$tmp/remote.git" "$tmp/work" 2>/dev/null
 cat > "$tmp/work/bootstrap.sh" <<'EOF'
 #!/bin/sh
 echo "ran $(git -C "$(dirname "$0")" rev-parse --short HEAD)" >> "$HANDOVER_LOG"
+echo "${WORKSTATION_GIT_SYNC:-unset}" > "$HANDOVER_LOG.sync"
 exit "${PRIVATE_RC:-0}"
 EOF
 chmod +x "$tmp/work/bootstrap.sh"
@@ -75,6 +76,8 @@ run
 [ $rc -eq 0 ] && [ "$(cat "$P/file")" = one ] && ran; check "SSH ok -> cloned, bootstrap ran (rc $rc)" $?
 run
 [ $rc -eq 0 ] && grep -q 'up to date' "$tmp/out" && ran; check "second run: no change, bootstrap runs again (rc $rc)" $?
+[ "$(cat "$tmp/ran.sync")" = "$repo/scripts/git-sync.sh" ] && [ -x "$(cat "$tmp/ran.sync")" ]
+check "private bootstrap gets WORKSTATION_GIT_SYNC = scripts/git-sync.sh" $?
 
 # ---- clean clone -> fast-forward -----------------------------------------------
 push_change two
@@ -160,6 +163,33 @@ echo dirty > "$P/file"
 prun
 [ $rc -eq 1 ] && [ "$(cat "$P/file")" = dirty ] && ! ran; check "personal: dirty private repo -> stop, edit kept (rc $rc)" $?
 git -C "$P" checkout -q -- file
+
+# ---- git-sync.sh directly (the private bootstrap's further checkouts) --------
+S="$repo/scripts/git-sync.sh"
+srun() { "$S" "$@" > "$tmp/out" 2>&1; rc=$?; }
+d="$HOME/repos/var/walls"
+srun "$tmp/remote.git" "$d"
+[ $rc -eq 0 ] && [ "$(git -C "$d" symbolic-ref --short HEAD)" = main ] && [ "$(git -C "$d" remote get-url origin)" = "$tmp/remote.git" ] \
+    && grep -q 'cloned (main at' "$tmp/out"
+check "git-sync: missing -> cloned, branch main, origin exact (rc $rc)" $?
+state() { git -C "$d" rev-parse HEAD; git -C "$d" status --porcelain; find "$d" -path "$d/.git" -prune -o -printf '%p %s\n' | sort; }
+before=$(state); srun "$tmp/remote.git" "$d"
+[ $rc -eq 0 ] && grep -q 'up to date' "$tmp/out" && [ "$(state)" = "$before" ]; check "git-sync: second run changes nothing (rc $rc)" $?
+push_change five; srun "$tmp/remote.git" "$d"
+[ $rc -eq 0 ] && [ "$(cat "$d/file")" = five ] && grep -q 'fast-forwarded' "$tmp/out"; check "git-sync: stale -> fast-forward (rc $rc)" $?
+push_change six; echo keep > "$d/untracked-only"; head=$(git -C "$d" rev-parse HEAD)
+srun "$tmp/remote.git" "$d"
+[ $rc -eq 1 ] && [ -f "$d/untracked-only" ] && [ "$(git -C "$d" rev-parse HEAD)" = "$head" ]; check "git-sync: untracked file -> stop, kept (rc $rc)" $?
+rm "$d/untracked-only"
+git -C "$d" switch -q -c topic; srun "$tmp/remote.git" "$d"
+[ $rc -eq 1 ] && grep -q 'no upstream' "$tmp/out"; check "git-sync: branch without upstream -> stop (rc $rc)" $?
+git -C "$d" switch -q main; git -C "$d" branch -q -D topic
+mkdir -p "$d/sub"; srun "$tmp/remote.git" "$d/sub"
+[ $rc -eq 1 ] && grep -q 'not a git checkout' "$tmp/out" && [ ! -e "$d/sub/.git" ]; check "git-sync: directory inside another checkout -> stop (rc $rc)" $?
+rmdir "$d/sub"
+srun "$tmp/remote.git" "$d"; [ $rc -eq 0 ] && [ "$(cat "$d/file")" = six ]; check "git-sync: resolved -> fast-forward resumes (rc $rc)" $?
+srun onlyone; [ $rc -eq 1 ]; check "git-sync: usage error -> exit 1" $?
+! grep -nE '(^|[;&|(]|\$\() *(g|git) +(-[^ ]+ +)*(reset|stash|clean|push|checkout)|--force|\brm -' "$S"; check "git-sync.sh: no reset/stash/clean/checkout/force/rm" $?
 
 # ---- bootstrap.sh (phase 1) never goes private --------------------------------
 ! grep -nE 'private-handover|bootstrap-personal\.sh"|ssh -T|ssh-add|git@github' "$repo/bootstrap.sh" | grep -v '^\s*[0-9]*:\s*#' | grep -v 'print\|cd \${REPO_ROOT} &&'
