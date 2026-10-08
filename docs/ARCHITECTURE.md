@@ -65,8 +65,11 @@ Responsibility split within the provisioning layer:
 
 - `bootstrap.sh` = prerequisite/environment validation (upstream Arch,
   not root, `git`/`ansible` present) and launching Ansible. It holds no
-  system state and manages no credentials of its own. After a successful
-  real run it calls `scripts/private-handover.sh` (see below).
+  system state and manages no credentials of its own, and touches
+  nothing private (phase 1: works from a plain TTY).
+- `bootstrap-personal.sh` = phase 2, started by hand in the graphical
+  session once Bitwarden is set up: a small preflight, then
+  `scripts/private-handover.sh` (see below).
 - Ansible (`local.yml` + roles) = provisioning / desired state.
 - Ansible `become` = privilege escalation for the individual system
   tasks that need it (`--ask-become-pass` prompts for it once per run).
@@ -158,10 +161,11 @@ for the full trade-off ordering.
 See `AGENTS.md`. This repository is public and contains no secrets;
 personal configuration comes from the separate private repository
 `dotfiles-provision`, only once a credential provider is configured.
-The one owner of that interface is `scripts/private-handover.sh`: GitHub
-SSH via the Bitwarden desktop agent (else one ACTION REQUIRED - Bitwarden
-is always set up by hand; in a terminal the run waits and continues by
-itself, otherwise exit 3), then a clone or a fast-forward-only
+The one entry point is `bootstrap-personal.sh` (phase 2, by hand, never
+from `bootstrap.sh`); the interface itself is its helper
+`scripts/private-handover.sh`: GitHub SSH via the Bitwarden desktop agent
+(else one ACTION REQUIRED - Bitwarden is always set up by hand - and exit
+3, no waiting), then a clone or a fast-forward-only
 update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes,
 divergence, detached HEAD, foreign origin - never discards), then its
 `bootstrap.sh` (user-level, GNU Stow from `roles/base`). The private

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# workstation-arch bootstrap launcher.
+# workstation-arch bootstrap launcher - PHASE 1 (system).
 #
-# Run as a normal user from a clean Arch Linux install:
+# Run as a normal user from a clean Arch Linux install - a plain TTY is
+# enough, no graphical session, no credentials:
 #   ./bootstrap.sh [ansible-playbook args...]
 #
 # Prerequisite (run this yourself first, once):
@@ -17,11 +18,10 @@ set -euo pipefail
 #   3. hands off to `ansible-playbook --ask-become-pass local.yml`,
 #      forwarding any extra arguments (e.g. --check, --tags base) and
 #      its exit code
-#   4. after a successful real run (not --check / --syntax-check /
-#      --list-*): the private handover, scripts/private-handover.sh -
-#      GitHub SSH via Bitwarden (or one ACTION REQUIRED, exit 3), safe
-#      clone/fast-forward of the private repository, its bootstrap.sh.
-#      WORKSTATION_PRIVATE=0 ./bootstrap.sh skips it.
+#   4. after a successful real run: prints the next steps. Nothing
+#      private happens here - no GitHub SSH, no Bitwarden, no private
+#      repository. That is PHASE 2, ./bootstrap-personal.sh, started by
+#      hand once Bitwarden is set up in the graphical session.
 #
 # Do NOT run this with sudo - Ansible will prompt for the become
 # password itself ("BECOME password:") and use it only for the tasks
@@ -74,16 +74,27 @@ verify_prerequisites() {
     log_check "git and ansible-playbook available"
 }
 
-# The handover only follows a real run - nothing private after a dry run,
-# a syntax check or a listing.
-wants_private_handover() {
-    [[ "${WORKSTATION_PRIVATE:-1}" != 0 ]] || return 1
+# Next steps only after a real run - not after a dry run, a syntax check
+# or a listing.
+is_real_run() {
     local arg
     for arg in "$@"; do
         case "${arg}" in
             -C|--check|--syntax-check|--list-tasks|--list-tags|--list-hosts) return 1 ;;
         esac
     done
+}
+
+print_next_steps() {
+    cat <<EOF
+
+Next steps (phase 2: personal environment - once, by hand):
+  1. Reboot and log in at the login screen (Hyprland session).
+  2. Open Bitwarden (OS menu -> Bitwarden), log in and unlock the vault.
+  3. Bitwarden Settings -> "Enable SSH agent": on ("Ask for authorization":
+     Never, or authorize the GitHub key when asked).
+  4. In a terminal:  cd ${REPO_ROOT} && ./bootstrap-personal.sh
+EOF
 }
 
 main() {
@@ -102,15 +113,9 @@ main() {
     set -e
 
     if [[ "${ansible_exit}" -eq 0 ]]; then
-        log_done "bootstrap complete"
-        if wants_private_handover "$@"; then
-            log_info "public -> private handover (scripts/private-handover.sh)"
-            set +e
-            "${REPO_ROOT}/scripts/private-handover.sh"
-            ansible_exit=$?
-            set -e
-        else
-            log_skip "private handover (dry-run/list run, or WORKSTATION_PRIVATE=0)"
+        log_done "bootstrap complete (phase 1: system)"
+        if is_real_run "$@"; then
+            print_next_steps
         fi
     else
         log_error "Ansible provisioning failed (exit ${ansible_exit})"

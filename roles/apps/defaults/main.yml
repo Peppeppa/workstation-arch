@@ -85,6 +85,12 @@ apps_packages:
   # Tasks: Planify (GTK4 to-do app).
   - planify
 
+  # File sync: the Nextcloud desktop client (official `extra`). Part of the
+  # standard environment, so the package lives here; the private repository
+  # only seeds its preferences - sign-in and the folder pairs stay by hand
+  # (no account data anywhere).
+  - nextcloud-client
+
   # Video
   - mpv
 

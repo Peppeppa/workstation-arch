@@ -22,6 +22,7 @@ step() { # name, command...
 }
 
 step "bash -n bootstrap.sh" bash -n bootstrap.sh
+step "bash -n bootstrap-personal.sh" bash -n bootstrap-personal.sh
 for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
 for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Regression test for scripts/private-handover.sh (the public -> private
-# handover). Safe anywhere: temporary HOME, a local bare repository as the
+# Regression test for phase 2 - bootstrap-personal.sh and its helper
+# scripts/private-handover.sh (the public -> private handover) - and for
+# phase 1 (bootstrap.sh) never touching anything private. Safe anywhere: temporary HOME, a local bare repository as the
 # "private repo", stub ssh/ssh-add (no network, no agent, no key is ever
 # touched), a throwaway unix socket standing in for Bitwarden's.
 # Run by tests/run.sh.
@@ -47,7 +48,6 @@ chmod +x "$tmp/stub/"*
 export PATH="$tmp/stub:$PATH" HANDOVER_LOG="$tmp/ran" SSH_LOG="$tmp/ssh.log"
 export WORKSTATION_PRIVATE_REPO="$tmp/remote.git" WORKSTATION_PRIVATE_DIR="$HOME/repos/peppeppa/dotfiles-provision"
 export WORKSTATION_BITWARDEN_SOCKET="$HOME/.bitwarden-ssh-agent.sock"
-export WORKSTATION_PRIVATE_WAIT=0    # the no-terminal path; waiting is tested below
 P=$WORKSTATION_PRIVATE_DIR
 H="$repo/scripts/private-handover.sh"
 run() { : > "$tmp/ran"; "$H" > "$tmp/out" 2>&1; rc=$?; }
@@ -57,7 +57,8 @@ ran() { [ -s "$tmp/ran" ]; }
 run
 [ $rc -eq 3 ] && [ "$(grep -c 'ACTION REQUIRED' "$tmp/out")" = 1 ] && [ ! -e "$P" ] && ! ran
 check "no Bitwarden socket -> exactly one ACTION REQUIRED, exit 3, no clone (rc $rc)" $?
-grep -q 'Enable SSH agent' "$tmp/out"; check "ACTION REQUIRED names the Bitwarden SSH agent option" $?
+grep -q 'Enable SSH agent' "$tmp/out" && grep -q 'bootstrap-personal.sh' "$tmp/out"
+check "ACTION REQUIRED names the Bitwarden SSH agent option and the re-run" $?
 
 python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$WORKSTATION_BITWARDEN_SOCKET"
 NOKEYS=1 run
@@ -120,46 +121,53 @@ git -C "$other" remote set-url origin "$tmp/remote.git"; git -C "$other" checkou
 run
 [ $rc -eq 1 ] && grep -q 'detached' "$tmp/out" && ! ran; check "detached HEAD -> stop (rc $rc)" $?
 
-# ---- waiting mode (terminal): one ACTION REQUIRED, then on by itself ---------
-# ssh-add refuses twice (vault locked), then lists a key; GitHub denies once
-# (dialog not authorized), then accepts. GitHub must only be asked once the
-# agent offers a key - never while it is still locked.
-rm -rf "$HOME/repos"; WORKSTATION_PRIVATE_DIR="$HOME/repos/peppeppa/dotfiles-provision"
-cat > "$tmp/stub/ssh-add" <<'EOF'
-#!/bin/sh
-n=$(($(cat "$TMPC.add" 2>/dev/null || echo 0) + 1)); echo $n > "$TMPC.add"
-[ $n -le 2 ] && { echo "error fetching identities: agent refused operation" >&2; exit 1; }
-echo "ssh-ed25519 AAAA test"
-EOF
-cat > "$tmp/stub/ssh" <<'EOF'
-#!/bin/sh
-n=$(($(cat "$TMPC.ssh" 2>/dev/null || echo 0) + 1)); echo $n > "$TMPC.ssh"
-echo "ssh after $(cat "$TMPC.add") agent checks" >> "$SSH_LOG"
-[ $n -le 1 ] && { echo "git@github.com: Permission denied (publickey)." >&2; exit 255; }
-echo "Hi test! You've successfully authenticated, but GitHub does not provide shell access." >&2; exit 1
-EOF
-chmod +x "$tmp/stub/"*
-export TMPC="$tmp/count" WORKSTATION_PRIVATE_POLL=0 WORKSTATION_PRIVATE_RETRY=0
-rm -f "$TMPC".*; : > "$SSH_LOG"
-WORKSTATION_PRIVATE_WAIT=1 run
-[ $rc -eq 0 ] && [ "$(grep -c 'ACTION REQUIRED' "$tmp/out")" = 1 ] && [ -d "$WORKSTATION_PRIVATE_DIR/.git" ] && ran
-check "wait: locked -> denied -> accepted: one ACTION REQUIRED, then cloned + bootstrap ran (rc $rc)" $?
-[ "$(head -1 "$SSH_LOG")" = "ssh after 4 agent checks" ]   # 2 refused, then key seen + the full check && [ "$(wc -l < "$SSH_LOG")" = 2 ]
-check "wait: GitHub asked only once the agent offers a key, retried once after the denial" $?
-grep -q 'waiting: GitHub rejected' "$tmp/out" && grep -q 'Waiting here' "$tmp/out"; check "wait: status changes shown" $?
-rm -rf "$HOME/repos"; rm -f "$TMPC".*
-printf '#!/bin/sh\nexit 1\n' > "$tmp/stub/ssh-add"
-WORKSTATION_PRIVATE_WAIT=1 WORKSTATION_PRIVATE_WAIT_MAX=0 run
-[ $rc -eq 3 ] && grep -q 'gave up waiting' "$tmp/out" && [ ! -e "$WORKSTATION_PRIVATE_DIR" ]
-check "wait: gives up after WORKSTATION_PRIVATE_WAIT_MAX, exit 3, nothing cloned (rc $rc)" $?
+# ---- no waiting: a locked agent is reported at once, also in a terminal -----
+rm -rf "$HOME/repos" "$other"; WORKSTATION_PRIVATE_DIR=$P; export WORKSTATION_PRIVATE_DIR
+NOKEYS=1 timeout 10 script -qec "$H" /dev/null > "$tmp/out" 2>&1; rc=$?
+[ $rc -eq 3 ] && [ "$(grep -c 'ACTION REQUIRED' "$tmp/out")" = 1 ] && [ ! -e "$P" ]
+check "terminal + locked agent -> one ACTION REQUIRED, exit 3 at once, no waiting (rc $rc)" $?
 
-# ---- bootstrap.sh: handover only after real runs --------------------------------
-w=$(sed -n '/^wants_private_handover()/,/^}/p' "$repo/bootstrap.sh")
+# ---- bootstrap-personal.sh: preflight, then the handover ---------------------
+B="$repo/bootstrap-personal.sh"
+printf '#!/bin/sh\nexit 0\n' > "$tmp/stub/bitwarden-desktop"; chmod +x "$tmp/stub/bitwarden-desktop"
+command -v stow >/dev/null || { printf '#!/bin/sh\nexit 0\n' > "$tmp/stub/stow"; chmod +x "$tmp/stub/stow"; }
+prun() { : > "$tmp/ran"; "$B" > "$tmp/out" 2>&1; rc=$?; }
+prun
+[ $rc -eq 1 ] && grep -q 'run ./bootstrap.sh first' "$tmp/out" && [ ! -e "$P" ] && ! ran
+check "personal: no Bitwarden block in ~/.ssh/config -> stop, nothing cloned (rc $rc)" $?
+mkdir -p "$HOME/.ssh"
+printf '# BEGIN workstation-arch (roles/base): Bitwarden SSH agent\nHost *\n    IdentityAgent ~/.bitwarden-ssh-agent.sock\n# END workstation-arch (roles/base): Bitwarden SSH agent\n' > "$HOME/.ssh/config"
+prun
+[ $rc -eq 1 ] && grep -q 'host keys are not pinned' "$tmp/out" && ! ran
+check "personal: github.com host keys not pinned -> stop (rc $rc)" $?
+echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$HOME/.ssh/known_hosts"
+rm "$tmp/stub/bitwarden-desktop"
+if ! command -v bitwarden-desktop >/dev/null; then
+    prun
+    [ $rc -eq 1 ] && grep -q 'Bitwarden desktop missing' "$tmp/out" && ! ran
+    check "personal: Bitwarden desktop not installed -> stop (rc $rc)" $?
+fi
+printf '#!/bin/sh\nexit 0\n' > "$tmp/stub/bitwarden-desktop"; chmod +x "$tmp/stub/bitwarden-desktop"
+NOKEYS=1 prun
+[ $rc -eq 3 ] && [ "$(grep -c 'ACTION REQUIRED' "$tmp/out")" = 1 ] && [ ! -e "$P" ] && ! ran
+check "personal: preflight ok, agent locked -> exactly one ACTION REQUIRED, exit 3 (rc $rc)" $?
+prun
+[ $rc -eq 0 ] && [ -d "$P/.git" ] && ran && grep -q 'personal environment complete' "$tmp/out"
+check "personal: SSH ok -> cloned, private bootstrap ran (rc $rc)" $?
+prun
+[ $rc -eq 0 ] && grep -q 'up to date' "$tmp/out" && ran; check "personal: second run idempotent (rc $rc)" $?
+echo dirty > "$P/file"
+prun
+[ $rc -eq 1 ] && [ "$(cat "$P/file")" = dirty ] && ! ran; check "personal: dirty private repo -> stop, edit kept (rc $rc)" $?
+git -C "$P" checkout -q -- file
+
+# ---- bootstrap.sh (phase 1) never goes private --------------------------------
+! grep -nE 'private-handover|bootstrap-personal\.sh"|ssh -T|ssh-add|git@github' "$repo/bootstrap.sh" | grep -v '^\s*[0-9]*:\s*#' | grep -v 'print\|cd \${REPO_ROOT} &&'
+check "bootstrap.sh: no handover, no GitHub SSH, no agent query" $?
+w=$(sed -n '/^is_real_run()/,/^}/p' "$repo/bootstrap.sh")
 eval "$w"
-wants_private_handover && wants_private_handover --tags base; check "bootstrap: real runs hand over" $?
-! wants_private_handover --check && ! wants_private_handover -C --diff && ! wants_private_handover --list-tasks \
-    && ! WORKSTATION_PRIVATE=0 wants_private_handover
-check "bootstrap: --check/-C/--list-*/WORKSTATION_PRIVATE=0 skip the handover" $?
+is_real_run && is_real_run --tags base && ! is_real_run --check && ! is_real_run -C --diff && ! is_real_run --list-tasks
+check "bootstrap: next steps only after real runs" $?
 
 [ $fail -eq 0 ] && echo "private-handover: all checks passed"
 exit $fail

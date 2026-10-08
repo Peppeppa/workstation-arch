@@ -44,7 +44,8 @@ required.
 
 Personal configuration comes from a **separate private repository**
 (`Peppeppa/dotfiles-provision`), reached only after a credential provider
-(the Bitwarden desktop SSH agent) works - see "Private handover" below.
+(the Bitwarden desktop SSH agent) works - phase 2, `./bootstrap-personal.sh`,
+see the Quickstart below.
 Its contents never come into this repository; only its name and clone
 path are known here.
 
@@ -97,6 +98,11 @@ see "Firewall and SSH". The SSH client works everywhere.
 
 ## Quickstart (fresh Arch)
 
+Two phases: the system from a plain TTY, then - once Bitwarden is set up
+in the graphical session - your personal environment.
+
+**Phase 1 - system (TTY, no credentials):**
+
 ```sh
 sudo pacman -Syu --needed git ansible
 git clone https://github.com/Peppeppa/workstation-arch.git
@@ -115,42 +121,53 @@ it for whichever tasks in the run actually need root - the play itself
 does not run entirely as root, and `bootstrap.sh` never sees or stores
 that password itself.
 
-`./bootstrap.sh` is safe to run again; so is `ansible-playbook local.yml`
-directly. Both are idempotent - already-satisfied state is reported as
-unchanged, nothing is reinstalled or reconfigured unnecessarily.
+`./bootstrap.sh` provisions the whole system (desktop, apps incl.
+Bitwarden and Nextcloud, GNU Stow, the Bitwarden SSH-agent client config,
+github.com's pinned host keys, ...) and nothing private: no GitHub SSH,
+no Bitwarden request, no private repository. It is safe to run again; a
+second run reports no changes. At the end it prints the next steps.
 
-### Private handover
+**Phase 2 - personal (graphical session, once, by hand):**
 
-After a successful real run (not `--check`, `--syntax-check`, `--list-*`;
-skip with `WORKSTATION_PRIVATE=0 ./bootstrap.sh`) `bootstrap.sh` runs
-`scripts/private-handover.sh`:
+1. Reboot and log in at the login screen (Hyprland).
+2. Open Bitwarden (OS menu -> Bitwarden). Self-hosted server: on the
+   login screen pick "Self-hosted" and enter your server URL. Log in and
+   unlock the vault.
+3. Bitwarden Settings -> "Enable SSH agent": on. "Ask for authorization":
+   Never - or click Authorize in the "Confirm SSH key usage" dialog when
+   it appears. Your GitHub key must be an "SSH key" item in the vault.
+4. In a terminal:
 
-1. **GitHub over SSH via Bitwarden**: the agent socket
-   `~/.bitwarden-ssh-agent.sock` exists, the agent lists a key, and
-   `ssh -T git@github.com` authenticates (github.com's host keys are
-   pinned by `roles/base`, `StrictHostKeyChecking=yes`). If not, it
-   prints **one ACTION REQUIRED**: by hand in the Bitwarden app,
-   self-hosted server URL on the login screen, log in + unlock, Settings
-   -> Enable SSH agent, "Ask for authorization" Never (or click
-   Authorize in each "Confirm SSH key usage" dialog), your GitHub key as
-   an SSH key item. In a terminal the bootstrap then **waits** and goes
-   on by itself once GitHub accepts the key (the local agent is checked
-   every 3 s without any dialog; GitHub is only asked once the agent
-   offers a key, after a rejection again 15 s later; Ctrl+C or 30 min
-   stop it - re-run `./bootstrap.sh`). Without a terminal it exits 3.
-   Nothing here unlocks Bitwarden, asks for its master password, reads
-   the vault or exports a key.
-2. **Clone or fast-forward** `~/repos/peppeppa/dotfiles-provision`. An
+   ```sh
+   cd ~/workstation-arch    # wherever you cloned it
+   ./bootstrap-personal.sh
+   ```
+
+`bootstrap-personal.sh` is never started on its own (no autostart, unit
+or prompt). It:
+
+1. **Preflight**: normal user; `git`, `stow`; phase 1's Bitwarden
+   integration (Bitwarden installed, the managed `IdentityAgent` block in
+   `~/.ssh/config`, github.com's host keys pinned). Missing -> stop with
+   "run ./bootstrap.sh first" (exit 1); it never provisions phase 1 itself.
+2. **GitHub over SSH via Bitwarden** (`scripts/private-handover.sh`): the
+   agent socket `~/.bitwarden-ssh-agent.sock` exists, the agent lists a
+   key, and `ssh -T git@github.com` authenticates (`StrictHostKeyChecking=yes`
+   against the pinned keys). If not, it prints **one ACTION REQUIRED**
+   (the Bitwarden steps above) and exits **3** at once - no waiting; re-run
+   `./bootstrap-personal.sh` afterwards. Nothing here unlocks Bitwarden,
+   asks for its master password, reads the vault or exports a key.
+3. **Clone or fast-forward** `~/repos/peppeppa/dotfiles-provision`. An
    existing clone is only fast-forwarded when it is a git checkout with
    the expected origin, on a branch, with a clean working tree - local
    changes, a divergence, a detached HEAD or a foreign directory stop the
    run with nothing changed (never reset/stash/discard).
-3. Runs the private repo's `bootstrap.sh` (its exit code is the
-   bootstrap's).
+4. Runs the private repo's `bootstrap.sh` (its exit code is phase 2's).
 
-Bitwarden must be running for its agent to exist; this session runs no
-XDG autostart, so its "start on login" option has no effect - open it
-from the launcher.
+Running it again is safe (up to date -> the private bootstrap runs again
+and changes nothing). Bitwarden must be running for its agent to exist;
+this session runs no XDG autostart, so its "start on login" option has no
+effect - open it from the launcher.
 
 ## Privilege escalation
 

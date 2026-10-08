@@ -135,7 +135,7 @@ direct upstream dependency.
 | Scratchpad notes | Quickshell `scratchpad/` (top-level window, mainMod+N, bar icon); files `~/.local/share/workstation/scratchpad/{1..4}.txt` |
 | System snapshots (snapper config `root`, cleanup) | snapper + `snapper-cleanup.timer` (the one allowed timer; `roles/recovery`, host capability `recovery_enabled`) - no timeline, no snap-pac |
 | Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them |
-| Public -> private handover (GitHub SSH checkpoint, private repo clone/update) | `scripts/private-handover.sh`, called by `bootstrap.sh` after a real run: Bitwarden agent socket + key + `ssh -T git@github.com` (host keys pinned by `roles/base`) or ONE ACTION REQUIRED (Bitwarden set up by hand; in a terminal it then waits and continues by itself, else exit 3); clone / fast-forward-only update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes/divergence/detached/foreign - never reset); then its `bootstrap.sh`. Private contents never come into this repository |
+| Public -> private handover (GitHub SSH checkpoint, private repo clone/update) | `./bootstrap-personal.sh` (phase 2, started by hand in the graphical session; never by `bootstrap.sh`, no autostart): preflight (git, stow, phase 1's Bitwarden SSH config + pinned github.com keys), then its helper `scripts/private-handover.sh`: Bitwarden agent socket + key + `ssh -T git@github.com` (host keys pinned by `roles/base`) or ONE ACTION REQUIRED (Bitwarden set up by hand) and exit 3 - no waiting; clone / fast-forward-only update of `~/repos/peppeppa/dotfiles-provision` (stops on local changes/divergence/detached/foreign - never reset); then its `bootstrap.sh`. Private contents never come into this repository |
 | Provisioning / desired state | Ansible |
 | Service supervision | systemd |
 
@@ -243,10 +243,10 @@ roles/*
 verifies it is not run as root, verifies `git` and `ansible-playbook`
 are already installed, then hands off to
 `ansible-playbook --ask-become-pass local.yml "$@"` and propagates its
-exit code; after a successful real run (not `--check`/`--syntax-check`/
-`--list-*`, not `WORKSTATION_PRIVATE=0`) it calls
-`scripts/private-handover.sh` - the public->private interface (see the
-Runtime Ownership row). It does not install packages, write files, manage services,
+exit code; after a successful real run it prints the phase-2 next steps.
+It never touches anything private (no GitHub SSH, no Bitwarden, no
+private repo) - phase 1 runs from a plain TTY; phase 2 is
+`./bootstrap-personal.sh` (see the Runtime Ownership row). It does not install packages, write files, manage services,
 or manage a sudo credential lifecycle of its own (no `sudo -v`, no
 keepalive loop, no NOPASSWD, no password file/env var) — Ansible's own
 `become`, prompted once via `--ask-become-pass`, is the only

@@ -10,7 +10,7 @@ base_packages:
   - less     # the pager (git, man, the keybinding cheatsheet - mainMod + F1)
   - btop     # interactive resource monitor - run on demand, no service/autostart
   - fastfetch # system summary - run on demand only, never from a shell rc file
-  - stow     # GNU Stow - the private provisioning repo (scripts/private-handover.sh) links its dotfiles with it
+  - stow     # GNU Stow - the private provisioning repo (bootstrap-personal.sh -> scripts/private-handover.sh) links its dotfiles with it
 
 # github.com's SSH host keys, pinned in ~/.ssh/known_hosts so the private
 # handover (and every later git over SSH) never trusts a first contact
