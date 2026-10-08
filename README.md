@@ -297,6 +297,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + E` | timer popup on/off (a running timer keeps running) |
 | `Super + G` / `Super + R` | WhatsApp / LocalSend (focus if already open) |
 | `Super + V` | clipboard history |
+| `Super + Y` | Coffee on/off (the bar's coffee icon - same switch) |
 | `Super + S` | scratchpad: four quick notes (also the bar's note icon) |
 | `Super + T` | cheatsheet: Hyprland keys, Tab -> Neovim/LazyVim/VimTeX keys; `j`/`k` scroll, `/` search, `n` next hit, Esc clears the search, then closes |
 | `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
@@ -334,10 +335,11 @@ click secondary action, right click menu, wheel scroll); hidden when
 there are none.
 
 Coffee icon left of the bar clock (hidden until hovered; click to
-toggle): pauses the *automatic* idle lock/display-off while on (icon
-stays visible). Not persistent - off again after any Quickshell or
-session restart. Super+Delete, power menu Lock and lock-before-suspend keep
-working while it's on.
+toggle, or `Super + Y`): pauses the *automatic* idle lock/display-off while
+on (icon stays visible). It survives a Quickshell restart or reload, but
+never a new login or reboot - every session starts with Coffee off.
+Super+Delete, power menu Lock and lock-before-suspend keep working while
+it's on.
 
 Screenshots land in `~/Pictures/Screenshots/` (XDG Pictures dir). OCR
 runs tesseract fully locally (no network), only on the keypress - zero

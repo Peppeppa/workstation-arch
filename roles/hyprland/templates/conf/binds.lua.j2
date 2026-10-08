@@ -52,6 +52,11 @@ return function(v)
     -- "timer" - the same toggles as the bar icons).
     hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("qs ipc call nightlight toggle"))
     hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("qs ipc call timer toggle"))
+{% if lock_idle_enabled %}
+    -- FEATURE: lock_idle - Coffee (pause idle lock/DPMS): the same flag as
+    -- the bar's coffee icon (Quickshell CoffeeMode, IPC "coffee").
+    hl.bind(mainMod .. " + Y", hl.dsp.exec_cmd("qs ipc call coffee toggle"))
+{% endif %}
 
     -- ---- Windows: focus (H/J/K/L and arrows), move, resize ----------------
     hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "l" }))

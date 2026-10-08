@@ -436,7 +436,17 @@ QtObject {
         eq("cheatsheet: no hits -> -1", next(-1, 0, 1), -1);
     }
 
+    function coffee() {
+        const c = read("quickshell/CoffeeMode.qml");
+        const restored = make(c, "restoredState", {});
+        eq("coffee: same session, on -> on", restored("abc_123\n", "abc_123"), true);
+        eq("coffee: other session (new login) -> off", restored("old_1\n", "new_2"), false);
+        eq("coffee: empty file (off) -> off", restored("", "abc_123"), false);
+        eq("coffee: no session known -> off", restored("", ""), false);
+    }
+
     Component.onCompleted: {
+        coffee();
         cheatsheet();
         firewall();
         networkMetrics();
