@@ -64,7 +64,7 @@ mv -f "$MAIN_UKI.rollback" "$MAIN_UKI"
 cp -f "$RECOVERY_TOP/@/usr/lib/modules/$kver/vmlinuz" /boot/vmlinuz-linux
 sync
 say "done: @ = snapshot $n (kernel $kver); previous system: @broken-$stamp, its UKI: $RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"
-say "next: reboot, then repo-healthcheck; bootstrap.sh only once ~/workstation-arch matches the restored system"
+say "next: reboot, then repo-healthcheck; bootstrap.sh only once $WORKSTATION_REPO matches the restored system"
 # nested subvolumes (var/lib/machines, ...) sit inside a read-only parent:
 # writable first, then delete recursively
 say "remove the old system when no longer needed (top level mounted at /mnt: mount -o subvolid=5 $(root_device) /mnt):"

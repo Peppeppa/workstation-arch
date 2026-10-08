@@ -159,6 +159,19 @@
     mode: "0755"
   tags: recovery
 
+# The shared library is a template: it carries the path of the checkout it
+# was deployed from (playbook_dir) for the snapshots' "repo <commit>" label.
+- name: Recovery - shared helper library (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.template:
+    src: recovery-lib.sh.j2
+    dest: /usr/local/lib/workstation/recovery-lib.sh
+    owner: root
+    group: root
+    mode: "0644"
+  tags: recovery
+
 - name: Recovery - helpers (recovery_enabled)
   when: recovery_enabled
   become: true
@@ -169,7 +182,6 @@
     group: root
     mode: "{{ item.mode }}"
   loop:
-    - { src: recovery-lib.sh, dest: /usr/local/lib/workstation/recovery-lib.sh, mode: "0644" }
     - { src: system-update-root, dest: /usr/local/lib/workstation/system-update-root, mode: "0755" }
     - { src: system-update, dest: /usr/local/bin/system-update, mode: "0755" }
     - { src: system-snapshot, dest: /usr/local/bin/system-snapshot, mode: "0755" }

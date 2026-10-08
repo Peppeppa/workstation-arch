@@ -1,4 +1,4 @@
-# Managed by Ansible (roles/recovery/files/recovery-lib.sh) - do not edit by hand.
+# Managed by Ansible (roles/recovery/templates/recovery-lib.sh.j2) - do not edit by hand.
 # Deployed to /usr/local/lib/workstation/recovery-lib.sh, sourced by
 # system-update, system-snapshot and system-rollback (docs/recovery-design.md).
 # Shared pieces only: the top-level mount, recovery slots, UKI building and
@@ -21,6 +21,11 @@ RECOVERY_ENTRY_DIR=/boot/loader/entries
 MAIN_UKI=/boot/EFI/Linux/arch-linux.efi
 KERNEL_CMDLINE=/etc/kernel/cmdline
 SLOTS="before-update previous-update known-good"
+# The public checkout these helpers were deployed from (Ansible's own
+# playbook_dir, rendered at provisioning time - wherever it was cloned).
+# Only labels snapshots; a moved checkout gives "repo ?" until the next
+# ./bootstrap.sh renders the new path.
+WORKSTATION_REPO={{ playbook_dir | quote }}
 
 die() { echo "${0##*/}: $*" >&2; exit 1; }
 say() { echo "${0##*/}: $*"; }
@@ -197,8 +202,8 @@ prune_auto() {
 # the hook (or the documented manual escape: a snapshot failure blocks pacman).
 skip_next_snapshot() { mkdir -p "${SKIP_MARKER%/*}"; echo "$1" > "$SKIP_MARKER"; }
 
+# The checkout's commit for a snapshot description, "?" if unknown. Runs as
+# root on the user's checkout: safe.directory for exactly that path (read only).
 repo_commit() {
-    local repo
-    repo=$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)/workstation-arch
-    git -C "$repo" log -1 --format=%h 2>/dev/null || echo "?"
+    git -c safe.directory="$WORKSTATION_REPO" -C "$WORKSTATION_REPO" log -1 --format=%h 2>/dev/null || echo "?"
 }

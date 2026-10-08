@@ -17,11 +17,23 @@ check() { if [ "$2" -ne 0 ]; then echo "FAIL $1"; fail=1; fi; }
 
 mkdir -p "$tmp/stub" "$tmp/lib" "$tmp/run"
 # The scripts with their fixed paths pointed into $tmp.
-for f in recovery-lib.sh pre-transaction-snapshot recovery-baseline; do
+for f in pre-transaction-snapshot recovery-baseline; do
     sed -e "s#/usr/local/lib/workstation/#$tmp/lib/#g" -e "s#/run/workstation-recovery#$tmp/run#g" \
         "$repo/roles/recovery/files/$f" > "$tmp/lib/$f"
     chmod +x "$tmp/lib/$f"
 done
+# The library is a template: rendered like Ansible does (quote = shlex.quote),
+# with playbook_dir = the checkout given ($1), fixed paths into $tmp too.
+render_lib() { # playbook_dir
+    python3 - "$repo/roles/recovery/templates/recovery-lib.sh.j2" "$1" <<'EOF' |
+import jinja2, shlex, sys
+env = jinja2.Environment(keep_trailing_newline=True, undefined=jinja2.StrictUndefined)
+env.filters["quote"] = shlex.quote
+print(env.from_string(open(sys.argv[1]).read()).render(playbook_dir=sys.argv[2]), end="")
+EOF
+        sed -e "s#/usr/local/lib/workstation/#$tmp/lib/#g" -e "s#/run/workstation-recovery#$tmp/run#g" > "$tmp/lib/recovery-lib.sh"
+}
+render_lib "$tmp/no-checkout"
 
 # Fixture: what `snapper --jsonout -c root list` returns.
 fixture() { # numbers of the auto class...
@@ -126,6 +138,28 @@ json.dump(d, open(sys.argv[1], "w"))
 EOF
 out=$("$tmp/lib/recovery-baseline"); [ "$out" = "created 99" ] && grep -q 'baseline=yes' "$tmp/log"
 rc=$?; check "baseline: none -> one pinned baseline=yes snapshot ($out)" $rc
+
+# ---- repo_commit: the checkout Ansible ran from, wherever it is -------------
+newrepo() { # path -> short commit
+    mkdir -p "$1" && git -C "$1" init -q && git -C "$1" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "$1" \
+        && git -C "$1" rev-parse --short HEAD
+}
+commit_of() { bash -c ". $tmp/lib/recovery-lib.sh; repo_commit"; }
+for co in "$tmp/home/workstation-arch" "$tmp/home/repos/Peppeppa/workstation-arch" \
+          "$tmp/home/my checkouts/work station" "$tmp/home/it's \$HOME"; do
+    want=$(newrepo "$co"); render_lib "$co"; got=$(commit_of)
+    [ -n "$want" ] && [ "$got" = "$want" ]; check "repo_commit: '${co#"$tmp"/}' -> $want (got '$got')" $?
+done
+render_lib "$tmp/home/repos/Peppeppa/workstation-arch"
+git -C "$tmp/home/workstation-arch" -c user.name=t -c user.email=t@t commit -q --allow-empty -m other
+got=$(commit_of); [ "$got" = "$(git -C "$tmp/home/repos/Peppeppa/workstation-arch" rev-parse --short HEAD)" ]
+check "repo_commit: the rendered checkout, not a ~/workstation-arch beside it (got '$got')" $?
+render_lib "$tmp/home/gone"; [ "$(commit_of)" = "?" ]; check "repo_commit: checkout moved/removed -> '?'" $?
+render_lib "$tmp/home/my checkouts/work station"; fixture; : > "$tmp/log"
+python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); d["root"] = [s for s in d["root"] if (s.get("userdata") or {}).get("slot") != "known-good"]; json.dump(d, open(sys.argv[1], "w"))' "$tmp/list.json"
+"$tmp/lib/recovery-baseline" > /dev/null
+grep -q "baseline: first complete provisioning (repo $(git -C "$tmp/home/my checkouts/work station" rev-parse --short HEAD))" "$tmp/log"
+check "baseline: description carries the commit (checkout path with spaces)" $?
 
 [ $fail -eq 0 ] && echo "recovery-snapshots: all checks passed"
 exit $fail
