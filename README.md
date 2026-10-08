@@ -288,7 +288,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 |---|---|
 | `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
 | `Super + Return` | terminal (Ghostty) |
-| `Super + B` / `Super + Shift + B` | Chromium / Bitwarden |
+| `Super + B` / `Super + A` | Chromium / Bitwarden |
 | `Super + E` / `Super + F` | Thunderbird / Nautilus |
 | `Super + G` / `Super + W` | WhatsApp / Obsidian (focus if already open) |
 | `Super + R` / `Super + C` | LocalSend / Planify (focus if already open) |
