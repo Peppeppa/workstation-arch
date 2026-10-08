@@ -786,8 +786,10 @@ is still genuinely not started.
   managed afterwards; Neovim config stays the user's/dotfiles'. The
   theme interface is `lua/plugins/workstation-theme.lua` (dofile of the
   helper's `neovim.lua`).
-- **WebCord**: resolved - Flathub (`io.github.spacingbat3.webcord`,
-  maintained again, no EOL marker as of 2026-10), roles/apps.
+- **Discord**: Chromium web app (`apps_webapps`, 2026-10-08, the user's
+  choice); WebCord (Flathub) retired. The Arch `discord` package is only
+  Discord's self-updating bootstrap (client lives in ~/.config/discord) -
+  not used.
 - **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: neither is set
   for `laptop` or `workstation` — real GPU hardware was not provided
   and must not be guessed. Gaming stays disabled on both real hosts

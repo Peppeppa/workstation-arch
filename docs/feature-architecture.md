@@ -973,8 +973,8 @@ Settings only; no `-wlr`/`-gnome`/`-kde`. Activation env:
 `WAYLAND_DISPLAY`, `XDG_CURRENT_DESKTOP=Hyprland`, `XDG_SESSION_TYPE`
 (roles/hyprland). No RemoteDesktop portal (the Hyprland backend does not
 implement it): remote *control* features (Zoom's "Request remote
-control") are unavailable by design. Clients: Chromium, WebCord and Zoom
-as a Chromium web app (WebRTC `getDisplayMedia` via the portal).
+control") are unavailable by design. Clients: Chromium, and Zoom and Discord
+as Chromium web apps (WebRTC `getDisplayMedia` via the portal).
 
 **Native Zoom: retired (2026-10-06, laptop).** Flathub `us.zoom.Zoom`
 7.2.1 runs on XWayland only (its `xwayland=false` is ignored by the
@@ -1076,5 +1076,5 @@ a password manager. The workstation is not yet deployed.
 | Bluetooth | pairing dialogs, row-click connect/disconnect, hover-X forget (no connect), battery %, audio |
 | Clipboard | browser/terminal/password-manager copies (KeePassXC/Bitwarden must not appear), paste after selecting |
 | Wallpaper | real 4K images, multi-monitor, GIF CPU cost with a real GPU (arch-dev: ~13 % of one core under llvmpipe) |
-| Screen sharing | Chromium (WebRTC), WebCord, Zoom: entire screen / one monitor / one window via hyprland-share-picker; stop ends the PipeWire stream (`pw-cli ls Node` shows no xdph stream), a second share works |
+| Screen sharing | Chromium (WebRTC), Zoom and Discord web apps: entire screen / one monitor / one window via hyprland-share-picker; stop ends the PipeWire stream (`pw-cli ls Node` shows no xdph stream), a second share works |
 | Idle baseline | fresh login: process list, RSS/CPU of Quickshell, PPD, clipboard watcher, hypridle; no timers added |
