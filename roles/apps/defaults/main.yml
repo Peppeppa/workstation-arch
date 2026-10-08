@@ -70,6 +70,11 @@ apps_packages:
   - zathura-pdf-mupdf
   - qpdf
 
+  # LaTeX editor with a GUI (official `extra`), on top of the TeX Live of
+  # roles/development - no second TeX distribution. Neovim + VimTeX and
+  # Zathura stay the defaults (no MIME change here).
+  - texstudio
+
   # Images: imv stays the lean default for PNG (mimeapps.list); Loupe is
   # GNOME's current image viewer (GTK4/libadwaita, follows the theme's
   # color scheme and the text size) for browsing/zooming with a GUI.

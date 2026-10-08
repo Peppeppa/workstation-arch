@@ -242,7 +242,7 @@ first - see the `gaming` row below.
 | `bluetooth`      | `bluetooth`     | BlueZ (`bluetooth.service`, runs only with an adapter)                 |
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
-| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/IntelliJ via Flathub; WhatsApp, Zoom and Discord as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
+| `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, TeXstudio, Loupe, Disks, Anki, Planify; LocalSend/IntelliJ via Flathub; WhatsApp, Zoom and Discord as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
 | `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server), LaTeX (TeX Live collections + biber + latexmk, see "LaTeX") |
 | `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer), bash-completion + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
@@ -484,6 +484,8 @@ the repository creates none.
 
 TeX Live (pdflatex, lualatex, German babel, AMS math, BibLaTeX + biber)
 and `latexmk` come from `roles/development`; Zathura is the PDF viewer.
+TeXstudio (`roles/apps`, in the launcher) is a GUI editor on the same
+TeX Live; it changes no file associations.
 
 ```sh
 n dokument.tex                  # edit in Neovim
