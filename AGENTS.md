@@ -1032,6 +1032,18 @@ history for that milestone's own record):
   checkpoint and clone/fast-forward of the private `dotfiles-provision`,
   whose `bootstrap.sh` (GNU Stow, user-level) it then runs.
 
+- **Enterprise Wi-Fi in the network popup** (2026-10-08, bugfix after the
+  first campus use - eduroam autoconnected, internet fine, popup wrong):
+  Quickshell 0.3.1 attaches a saved profile only with an explicit
+  `802-11-wireless.mode infrastructure`; the CAT profiles eduroam/THWS have
+  none, so they were neither Known nor Connected and a click said
+  "enterprise". The popup now lists NM's Wi-Fi profiles itself (`nmcli`,
+  open/NM events) and switches them by UUID (`nmcli connection up uuid`);
+  bar signal via one `nmcli` per NM event only in that case. Deployed to the
+  laptop (second bootstrap changed=0); logic checked against the laptop's
+  real profiles. Not real-tested: the popup on campus and an actual
+  eduroam <-> THWS switch (at home, both out of range; SSH only via Wi-Fi).
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
