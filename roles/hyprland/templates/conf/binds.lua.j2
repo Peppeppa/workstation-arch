@@ -17,16 +17,18 @@ return function(v)
 
     -- ---- Apps -----------------------------------------------------------
     hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(v.terminal))
-    hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(v.terminal))
     hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("chromium"))
     hl.bind(mainMod .. " + SHIFT + B", hl.dsp.exec_cmd("bitwarden-desktop"))
-    hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(v.terminal .. " -e nvim"))
     hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("thunderbird"))
     hl.bind(mainMod .. " + F", hl.dsp.exec_cmd("nautilus --new-window"))
     -- WhatsApp web app / Obsidian: focus the running window, else start it
     -- (one-shot helper, roles/hyprland files/focus-or-launch.sh).
     hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(focusOrLaunch .. " '^chrome-web\\.whatsapp\\.com__' chromium --app=https://web.whatsapp.com/"))
     hl.bind(mainMod .. " + W", hl.dsp.exec_cmd(focusOrLaunch .. " '^(obsidian|md\\.obsidian\\.Obsidian)$' obsidian"))
+    -- LocalSend (Flatpak org.localsend.localsend_app, Wayland class = the
+    -- app id) / Planify (pacman, class = its app id).
+    hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(focusOrLaunch .. " '^org\\.localsend\\.localsend_app$' flatpak run org.localsend.localsend_app"))
+    hl.bind(mainMod .. " + C", hl.dsp.exec_cmd(focusOrLaunch .. " '^io\\.github\\.alainm23\\.planify$' io.github.alainm23.planify"))
 
     -- OS menu (roles/quickshell osmenu/: type to search apps and menu
     -- entries; Applications, Settings, System). One one-shot IPC call to the
@@ -40,10 +42,14 @@ return function(v)
 {% endif %}
 
     -- Scratchpad / quick notes (Quickshell, IPC target "scratchpad").
-    hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("qs ipc call scratchpad toggle"))
+    hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("qs ipc call scratchpad toggle"))
 
-    -- Keybinding cheatsheet (roles/hyprland cheatsheet.md.j2) in a terminal.
+    -- Keybinding cheatsheet (roles/hyprland cheatsheet.md.j2) in a terminal;
+    -- F1 stays as the alternative key.
+    hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
     hl.bind(mainMod .. " + F1", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
+    -- TODO: mainMod + SHIFT + T is reserved for a Neovim cheatsheet - not
+    -- bound until that exists (no dead bind).
 
     -- ---- Windows: focus (H/J/K/L and arrows), move, resize ----------------
     hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "l" }))
@@ -68,18 +74,20 @@ return function(v)
     hl.bind(mainMod .. " + Q", hl.dsp.window.close())
     hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
     hl.bind(mainMod .. " + SHIFT + G", hl.dsp.window.float({ action = "toggle" }))
-    hl.bind(mainMod .. " + SHIFT + T", hl.dsp.layout("togglesplit"))
+    hl.bind(mainMod .. " + SHIFT + D", hl.dsp.layout("togglesplit"))
 
     -- Move/resize floating windows with the mouse.
     hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
     hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-    -- ---- Workspaces + scratchpad -----------------------------------------
+    -- ---- Workspaces + special workspace ------------------------------------
     for i = 1, 9 do
         hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = i }))
         hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
     end
-    hl.bind(mainMod .. " + S", hl.dsp.workspace.toggle_special("scratchpad"))
+    -- The special workspace "scratchpad" has no show/hide key any more
+    -- (mainMod + S is the Quickshell scratchpad above); moving a window
+    -- there stays as it was.
     hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
 {% if screenshots_enabled %}
 

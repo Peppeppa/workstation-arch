@@ -10,7 +10,7 @@
 // any window (the shell keeps running). It EXISTS only while open
 // (LazyLoader): a window the compositor has closed cannot be shown again,
 // and closed it costs nothing. Notes, the current note and the font size
-// live in the Scope, outside it. Toggle: mainMod+N or the bar icon (IPC
+// live in the Scope, outside it. Toggle: mainMod+S or the bar icon (IPC
 // "scratchpad").
 //
 // Editing: no wrapping (long lines scroll sideways), Enter = new line.
@@ -353,7 +353,7 @@ Scope {
         }
     }
 
-    // IPC "scratchpad": the toggle (mainMod+N) and a read-only state for tests.
+    // IPC "scratchpad": the toggle (mainMod+S) and a read-only state for tests.
     IpcHandler {
         target: "scratchpad"
 

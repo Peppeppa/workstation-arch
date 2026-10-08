@@ -37,6 +37,7 @@ Scope {
         "lstopo",                                    // hwloc (via onetbb <- appstream <- Flatpak)
         "designer", "linguist", "assistant",         // qt6-tools (needed by VirtualBox)
         "qv4l2", "qvidcap",                          // v4l-utils (needed by ffmpeg)
+        "stoken-gui", "stoken-gui-small",            // stoken: RSA soft token (needed by openconnect, NM VPN plugin)
         "jconsole-java25-openjdk", "jshell-java25-openjdk" // jdk25-openjdk (roles/development): JMX monitor + terminal REPL
     ]
 

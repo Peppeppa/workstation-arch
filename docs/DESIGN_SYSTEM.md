@@ -176,7 +176,8 @@ that passes, in this order:
 3. a small denylist of desktop-file ids (`hiddenIds`), each annotated with
    the package that brings it: avahi-discover/bssh/bvnc (avahi), lstopo
    (hwloc), Qt Designer/Linguist/Assistant (qt6-tools via VirtualBox),
-   qv4l2/qvidcap (v4l-utils via ffmpeg). Nautilus adds only "Files" (its
+   qv4l2/qvidcap (v4l-utils via ffmpeg), Software Token / (small)
+   (stoken-gui, stoken-gui-small: stoken via openconnect). Nautilus adds only "Files" (its
    autorun helper is `NoDisplay`).
 
 Hiding an entry never uninstalls anything - those packages are

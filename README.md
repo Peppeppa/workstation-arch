@@ -287,21 +287,21 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | Keybind | Action |
 |---|---|
 | `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
-| `Super + T` / `Super + Return` | terminal (Ghostty) |
+| `Super + Return` | terminal (Ghostty) |
 | `Super + B` / `Super + Shift + B` | Chromium / Bitwarden |
-| `Super + D` | Neovim in a terminal |
 | `Super + E` / `Super + F` | Thunderbird / Nautilus |
 | `Super + G` / `Super + W` | WhatsApp / Obsidian (focus if already open) |
+| `Super + R` / `Super + C` | LocalSend / Planify (focus if already open) |
 | `Super + V` | clipboard history |
-| `Super + N` | scratchpad: four quick notes (also the bar's note icon) |
-| `Super + F1` | keybinding cheatsheet (`hypr-cheatsheet`) |
+| `Super + S` | scratchpad: four quick notes (also the bar's note icon) |
+| `Super + T` / `Super + F1` | keybinding cheatsheet (`hypr-cheatsheet`); `Super + Shift + T` is reserved for a future Neovim cheatsheet (TODO, not bound) |
 | `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
 | `Super + Shift + H/J/K/L` | move the window |
 | `Super + Alt + H/J/K/L` | resize the window (100 px) |
 | `Super + Q` | close the focused window |
-| `Super + Shift + F` / `Shift + G` / `Shift + T` | fullscreen / floating toggle / split toggle |
+| `Super + Shift + F` / `Shift + G` / `Shift + D` | fullscreen / floating toggle / split toggle |
 | `Super + [1-9]` / `Super + Shift + [1-9]` | switch to / move the window to workspace 1-9 |
-| `Super + S` / `Super + Shift + S` | toggle the scratchpad / move the window there |
+| `Super + Shift + S` | move the window to the special workspace (it has no show key at the moment) |
 | `Super` + left/right click drag | move / resize a floating window |
 | `Super + X` | smart screenshot: drag a region or click a window -> PNG file + clipboard |
 | `Super + Shift + X` | screenshot of the whole focused monitor |
@@ -446,11 +446,11 @@ from a pinned AUR commit and never runs by itself (no update timer).
 
 ## Scratchpad
 
-`Super + N` (or the note icon in the bar) opens a small note window at the
+`Super + S` (or the note icon in the bar) opens a small note window at the
 top right: four fixed plain-text notes, Enter = new line, no wrapping (long
 lines scroll sideways). The dots at the bottom or `Alt + 1..4` switch notes;
 `-`/`+` (or `Ctrl + -`/`Ctrl + +`) change only the notes' font size (the
-desktop text size is the default; kept). Escape, `Super + N`, `Super + Q`
+desktop text size is the default; kept). Escape, `Super + S`, `Super + Q`
 or a click elsewhere close it. Text saves itself (shortly after typing and
 on every switch/close) to plain files:
 `~/.local/share/workstation/scratchpad/1.txt` ... `4.txt` (last note + font
