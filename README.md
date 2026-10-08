@@ -239,7 +239,7 @@ first - see the `gaming` row below.
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
 | `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, Loupe, Disks, Anki, Planify; LocalSend/IntelliJ via Flathub; WhatsApp, Zoom and Discord as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
-| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server) |
+| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server), LaTeX (TeX Live collections + biber + latexmk, see "LaTeX") |
 | `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer), bash-completion + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
@@ -475,6 +475,23 @@ Stop the socket too: while `docker.socket` listens, the next `docker`
 call (or an IDE probing it) starts the daemon again. Containers, images,
 volumes and databases (e.g. a MySQL container for a course) are yours -
 the repository creates none.
+
+## LaTeX
+
+TeX Live (pdflatex, lualatex, German babel, AMS math, BibLaTeX + biber)
+and `latexmk` come from `roles/development`; Zathura is the PDF viewer.
+
+```sh
+n dokument.tex                  # edit in Neovim
+latexmk -pdf dokument.tex       # build dokument.pdf (reruns LaTeX/biber as needed)
+latexmk -pvc -pdf dokument.tex  # rebuild on every save until Ctrl+C
+zathura dokument.pdf            # view; Zathura reloads the PDF after each build
+latexmk -c dokument.tex         # remove the auxiliary files (.aux, .log, .fls, ...)
+```
+
+`latexmk -c` cleans up the auxiliary files and normally keeps the PDF;
+`latexmk -C` would delete the PDF too. `latexmk -lualatex` builds with
+lualatex instead of pdflatex.
 
 ## Firewall and SSH
 

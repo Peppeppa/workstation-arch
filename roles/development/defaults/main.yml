@@ -35,6 +35,23 @@ development_packages:
   # package `mariadb`: no local database server in the baseline.
   - mariadb-clients
 
+  # LaTeX for .tex in Neovim -> PDF in Zathura (roles/apps), built with
+  # latexmk. Single TeX Live collections, not the `texlive` group (~2.8 GiB
+  # with music, ConTeXt, publisher classes ...) and not the `texlive-lang`
+  # group (17 language collections) - German only. ~0.7 GiB installed.
+  - texlive-bin             # engines: pdftex, luahbtex (pdflatex, lualatex)
+  - texlive-basic           # plain TeX + the format/kpathsea base
+  - texlive-latex           # LaTeX kernel + formats, article/report/book, amsmath, graphicx, hyperref
+  - texlive-latexrecommended  # fontspec, xcolor, booktabs, ...
+  - texlive-latexextra      # the usual extra packages (pulls texlive-pictures: TikZ)
+  - texlive-fontsrecommended  # Latin Modern, TeX Gyre, the standard Type 1 fonts
+  - texlive-langgerman      # babel ngerman + German hyphenation
+  - texlive-mathscience     # math/science packages (siunitx, ...)
+  - texlive-bibtexextra     # BibLaTeX and bibliography styles
+  - biber                   # BibLaTeX backend
+  - texlive-binextra        # latexmk (no separate Arch package) and other TeX helpers
+  - texlive-luatex          # luaotfload - lualatex aborts without it
+
 # Docker runs only on demand: neither the daemon nor its socket starts at
 # boot (that is also Arch's package default - stated here so it stays
 # so). Start: `sudo systemctl start docker`; stop everything again:
