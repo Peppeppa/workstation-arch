@@ -1046,6 +1046,17 @@ history for that milestone's own record):
   real profiles. Not real-tested: the popup on campus and an actual
   eduroam <-> THWS switch (at home, both out of range; SSH only via Wi-Fi).
 
+- **Discord web app + two-phase bootstrap** (laptop, 2026-10-08,
+  real-hardware-tested): Discord = Chromium web app (`apps_webapps`),
+  WebCord retired; the user tested login, UI, audio/mic and screen sharing
+  (two shares in a row). `./bootstrap.sh` = phase 1 only (no GitHub SSH,
+  no Bitwarden, no private repo): two runs in a row changed=0 failed=0
+  exit 0. `./bootstrap-personal.sh` = phase 2 (preflight + the handover,
+  no wait loop): locked agent -> one ACTION REQUIRED, exit 3 at once;
+  unlocked -> fast-forward + private bootstrap, exit 0; second run
+  idempotent. `nextcloud-client` moved to roles/apps (the private repo
+  has no packages/sudo any more).
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
