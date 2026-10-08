@@ -80,15 +80,11 @@ return function(v)
     hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
     hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-    -- ---- Workspaces + special workspace ------------------------------------
+    -- ---- Workspaces --------------------------------------------------------
     for i = 1, 9 do
         hl.bind(mainMod .. " + " .. i,         hl.dsp.focus({ workspace = i }))
         hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
     end
-    -- The special workspace "scratchpad" has no show/hide key any more
-    -- (mainMod + S is the Quickshell scratchpad above); moving a window
-    -- there stays as it was.
-    hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
 {% if screenshots_enabled %}
 
     -- ---- Screenshots -------------------------------------------------------

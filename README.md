@@ -301,7 +301,6 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Q` | close the focused window |
 | `Super + Shift + F` / `Shift + G` / `Shift + D` | fullscreen / floating toggle / split toggle |
 | `Super + [1-9]` / `Super + Shift + [1-9]` | switch to / move the window to workspace 1-9 |
-| `Super + Shift + S` | move the window to the special workspace (it has no show key at the moment) |
 | `Super` + left/right click drag | move / resize a floating window |
 | `Super + X` | smart screenshot: drag a region or click a window -> PNG file + clipboard |
 | `Super + Shift + X` | screenshot of the whole focused monitor |
