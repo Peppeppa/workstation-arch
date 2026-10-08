@@ -15,6 +15,10 @@
 // so an active VPN (split tunnel: no default route of its own) comes from
 // /run/workstation/vpn-state, kept by roles/network's NetworkManager
 // dispatcher hook on every (vpn-)up/down and watched here (inotify).
+//
+// One exception to "no process": a Wi-Fi connection Quickshell cannot
+// attach to its network (eduroam CAT profiles - see nmWifiNeeded) has its
+// signal read once per NM event with `nmcli`.
 
 import QtQuick
 import Quickshell
@@ -55,8 +59,35 @@ Scope {
     readonly property var wifiDevice: kind === "wifi" ? Networking.devices.values.find(d => d.name === primaryIface) || null : null
     readonly property var wifiNetwork: wifiDevice && wifiDevice.networks ? wifiDevice.networks.values.find(n => n.connected) || null : null
     readonly property real signal: {
-        const s = wifiNetwork ? wifiNetwork.signalStrength : undefined;     // object may be going away
+        const s = wifiNetwork ? wifiNetwork.signalStrength : nmSignal >= 0 ? nmSignal : undefined;  // object may be going away
         return typeof s === "number" ? (s > 1 ? s / 100 : s) : 0;
+    }
+
+    // Wi-Fi up but no connected network in Quickshell: a saved profile
+    // without an explicit 802-11-wireless.mode (eduroam CAT profiles) is
+    // never attached to its network in Quickshell 0.3.1 (see the network
+    // popup's wifiProfiles). Then NM's own active access point gives the
+    // signal: one `nmcli` read per NM event, only in that case - a value as
+    // of the last event, not followed live like Quickshell's.
+    readonly property bool nmWifiNeeded: kind === "wifi" && wifiNetwork === null
+    property real nmSignal: -1
+    onNmWifiNeededChanged: readNmWifi()
+
+    function readNmWifi() {
+        if (!nmWifiNeeded) { nmSignal = -1; return; }
+        if (nmWifi.running) return;
+        nmWifi.command = ["nmcli", "-t", "-f", "ACTIVE,SIGNAL", "device", "wifi", "list", "ifname", primaryIface, "--rescan", "no"];
+        nmWifi.running = true;
+    }
+
+    Process {
+        id: nmWifi
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const a = text.split("\n").find(l => l.startsWith("yes:"));
+                model.nmSignal = a ? parseInt(a.slice(4)) : -1;
+            }
+        }
     }
 
     function signalIcon(s) {
@@ -126,6 +157,7 @@ Scope {
     // Deferred: device objects can emit while a binding reads them.
     onNmStateChanged: {
         Qt.callLater(update);
+        Qt.callLater(readNmWifi);
         settle.restart();
     }
     Component.onCompleted: update()

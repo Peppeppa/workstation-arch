@@ -654,6 +654,12 @@ then Network popup -> Connections... -> `eduroam` -> Wi-Fi Security ->
 type the password -> Save; the same for `THWS`. Never put the password on
 a command line.
 
+Both then appear under Known networks in the Network popup (also out of
+range); a click switches to that profile (`nmcli connection up` of the
+stored profile - nothing about it is changed). They have no hover X:
+remove them in Connections... if ever needed. The same works from a
+terminal: `nmcli connection up THWS` / `nmtui`.
+
 ## Text size and display scale
 
 Main menu -> Appearance. **Text size** (9-18 px, default 11) is one

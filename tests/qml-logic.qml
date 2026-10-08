@@ -193,6 +193,58 @@ QtObject {
         make(pop, "hideQr", qr)();
         eq("network: hideQr clears the shared password", [qr.qrRequested, qr.qrSvg, qr.qrPassword, qr.qrCopied], [false, "", "", false]);
 
+        // Saved profiles Quickshell 0.3.1 does not attach (no explicit
+        // 802-11-wireless.mode - eduroam CAT): rows from nmcli, by UUID.
+        const parseProfiles = make(pop, "parseProfiles", {});
+        const listing = "connection.id:eduroam\nconnection.uuid:u-edu\n802-11-wireless.ssid:eduroam\n802-11-wireless.mode:\n"
+            + "802-11-wireless-security.key-mgmt:wpa-eap\nGENERAL.STATE:activated\nGENERAL.DEVICES:wlp3s0\n\n"
+            + "connection.id:THWS\nconnection.uuid:u-thws\n802-11-wireless.ssid:THWS\n802-11-wireless.mode:\n"
+            + "802-11-wireless-security.key-mgmt:wpa-eap\n\n"
+            + "connection.id:Home\nconnection.uuid:u-home\n802-11-wireless.ssid:a:b\n802-11-wireless.mode:infrastructure\n"
+            + "802-11-wireless-security.key-mgmt:wpa-psk\n\n"
+            + "connection.id:Hotspot\nconnection.uuid:u-ap\n802-11-wireless.ssid:hs\n802-11-wireless.mode:ap\n"
+            + "802-11-wireless-security.key-mgmt:wpa-psk\n";
+        const profiles = parseProfiles(listing);
+        eq("network: profiles parsed (hotspot skipped, ':' in an SSID kept)", profiles.map(p => [p.name, p.uuid, p.ssid, p.keyMgmt, p.state, p.device]),
+           [["eduroam", "u-edu", "eduroam", "wpa-eap", "activated", "wlp3s0"], ["THWS", "u-thws", "THWS", "wpa-eap", "", ""],
+            ["Home", "u-home", "a:b", "wpa-psk", "", ""]]);
+        const ps = {};
+        ps.profileOnly = make(pop, "profileOnly", ps);
+        const known = make(pop, "knownEntries", ps);
+        const nets = [{ name: "eduroam", known: false, connected: false, signalStrength: 0.6 },
+                      { name: "a:b", known: true, connected: false, signalStrength: 0.9 },
+                      { name: "Cafe", known: false, connected: false, signalStrength: 0.8 }];
+        const k = known(nets, profiles, "");
+        eq("network: Known = Quickshell-known + profile-only, active profile first, THWS out of range",
+           k.map(e => [e.profile ? e.profile.name : e.network.name, e.network !== null]),
+           [["eduroam", true], ["a:b", true], ["THWS", false]]);
+        eq("network: the eduroam row is connected via its profile", k[0].profile.state, "activated");
+
+        // A click on an SSID that has a saved profile activates that
+        // profile - never "enterprise", never a new profile.
+        const act = { message: "x", wifiProfiles: profiles, toggled: [], profileOnly: ps.profileOnly,
+                      secured: () => true, personal: () => false };
+        act.toggleProfile = p => act.toggled.push(p.uuid);
+        const activate = make(pop, "activateNetwork", act);
+        let added = 0;
+        const eduNet = { name: "eduroam", known: false, connected: false, connect: () => added++ };
+        activate(eduNet);
+        eq("network: profile SSID -> its profile, no enterprise note", [act.toggled, act.message, added], [["u-edu"], "", 0]);
+        activate({ name: "OtherCorp", known: false, connected: false, connect: () => added++ });
+        eq("network: an unconfigured enterprise network -> note", [act.message, added], ["enterprise", 0]);
+
+        const tg = { wifiBusy: "", message: "x", wifiDevice: { name: "wlp3s0" }, wifiAction: { command: [], running: false } };
+        const toggle = make(pop, "toggleProfile", tg);
+        toggle(profiles[1]);
+        eq("network: up by UUID on the Wi-Fi device", [tg.wifiAction.command, tg.wifiAction.running, tg.wifiBusy],
+           [["nmcli", "connection", "up", "uuid", "u-thws", "ifname", "wlp3s0"], true, "u-thws"]);
+        tg.wifiAction.command = [];
+        toggle(profiles[0]);
+        eq("network: busy -> no second action", tg.wifiAction.command, []);
+        tg.wifiBusy = "";
+        toggle(profiles[0]);
+        eq("network: active profile -> down by UUID", tg.wifiAction.command, ["nmcli", "connection", "down", "uuid", "u-edu"]);
+
         const m = read("quickshell/bar/widgets/Connectivity/Model.qml");
         const v4 = make(m, "v4", {}), v6 = make(m, "v6", {});
         eq("route v4", v4("0202000A"), "10.0.2.2");

@@ -23,7 +23,9 @@
 //   VPN      NetworkManager VPN/WireGuard profiles (`nmcli`, on open, on
 //            NM events, after each action): activate/deactivate only.
 //   Wi-Fi    Quickshell.Networking: radio on/off; Known networks (saved NM
-//            profiles; hover X forgets) and Other networks (visible, not
+//            profiles; hover X forgets; profiles Quickshell does not attach
+//            - eduroam CAT - come from `nmcli` and switch by UUID, see
+//            wifiProfiles) and Other networks (visible, not
 //            saved; password inline for WPA/WPA3-Personal, own scroll area
 //            of ten rows, Up/Down/Enter). Scanning only while open. Secrets
 //            go straight to NetworkManager - never logged, stored, put in
@@ -52,8 +54,28 @@ BarPopup {
     readonly property bool wifiOn: Networking.wifiEnabled && Networking.wifiHardwareEnabled
     readonly property var networks: wifiDevice === null ? []
         : wifiDevice.networks.values.filter(n => n.name !== "")
-    readonly property var knownNetworks: networks.filter(n => n.known && n.name !== authSsid)
-        .sort((a, b) => (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
+    // Known networks: [{network, profile}] - see knownEntries().
+    readonly property var knownNetworks: knownEntries(networks, wifiProfiles, authSsid)
+
+    // NetworkManager's saved Wi-Fi profiles (`nmcli`, on open, on NM
+    // events, after each action): [{name, uuid, ssid, keyMgmt, state,
+    // device}]. Quickshell 0.3.1 attaches a saved profile to its network
+    // only if the profile spells out 802-11-wireless.mode "infrastructure"
+    // (src/network/nm/wireless.cpp onSettingsLoaded); NM's own default for
+    // an unset mode is infrastructure too, and profiles created over D-Bus
+    // without it - the eduroam CAT installer's eduroam/THWS - were neither
+    // "known" nor "connected" there, so they showed up as an enterprise
+    // network to set up (real use at THWS). Those profiles get their rows
+    // from this list: identity = the profile UUID, state = NM's active
+    // connection, activation = `nmcli connection up uuid` of the very
+    // profile (its 802.1X settings untouched, nothing created).
+    property var wifiProfiles: []
+    readonly property var profileSsids: {
+        const m = {};
+        for (const p of profileOnly(networks, wifiProfiles)) m[p.ssid] = true;
+        return m;
+    }
+    property string wifiBusy: ""        // uuid of a running nmcli up/down (Wi-Fi profile)
     // SSID -> network object (the rows look their network up by name).
     readonly property var byName: {
         const m = {};
@@ -72,7 +94,7 @@ BarPopup {
     // order just keeps changing and is applied once, when the box closes
     // (cancel, success, popup closed). Everything else (Known, VPN, status)
     // keeps updating.
-    readonly property var otherWanted: networks.filter(n => !n.known || n.name === authSsid)
+    readonly property var otherWanted: networks.filter(n => (!n.known && !profileSsids[n.name]) || n.name === authSsid)
         .sort((a, b) => b.signalStrength - a.signalStrength).map(n => n.name)
     onOtherWantedChanged: syncOther()
     property string authSsid: ""        // the network of the password box ("" = none)
@@ -118,6 +140,13 @@ BarPopup {
     readonly property int otherVisibleRows: 10
 
     readonly property var currentNetwork: networks.find(n => n.connected) || null
+    // The active Wi-Fi profile Quickshell does not attach (see wifiProfiles).
+    readonly property var currentProfile: wifiDevice === null ? null
+        : profileOnly(networks, wifiProfiles).find(p => p.state === "activated" && p.device === wifiDevice.name) || null
+    // QR share: WPA/WPA3-Personal or open - never enterprise.
+    readonly property bool canShare: currentNetwork !== null
+        ? personal(currentNetwork) || !secured(currentNetwork)
+        : currentProfile !== null && ["wpa-psk", "sae", ""].indexOf(currentProfile.keyMgmt) !== -1
 
     property var passwordFor: null      // network waiting for a password
     property var pendingPsk: null       // network we just sent a password for
@@ -167,10 +196,66 @@ BarPopup {
     function activateNetwork(n) {
         message = "";
         if (n === null) return;
-        if (n.connected) n.disconnect();
+        // A saved profile Quickshell did not attach: that profile, never a new one.
+        const p = profileOnly([n], wifiProfiles).find(p => p.ssid === n.name);
+        if (p !== undefined) toggleProfile(p);
+        else if (n.connected) n.disconnect();
         else if (n.known || !secured(n)) n.connect();
         else if (personal(n)) { pwError = ""; passwordFor = n; authSsid = n.name; }
         else message = "enterprise";
+    }
+
+    // Saved Wi-Fi profiles whose SSID has no network Quickshell knows (see
+    // wifiProfiles) - those rows are the profile's own.
+    function profileOnly(nets, profiles) {
+        return profiles.filter(p => !nets.some(n => n.name === p.ssid && n.known));
+    }
+
+    // Known networks: Quickshell's known networks plus the profile-only
+    // ones (their network object, if in the scan, gives signal + range),
+    // connected first, then by signal.
+    function knownEntries(nets, profiles, auth) {
+        const out = nets.filter(n => n.known && n.name !== auth).map(n => ({ network: n, profile: null }));
+        for (const p of profileOnly(nets, profiles))
+            out.push({ network: nets.find(n => n.name === p.ssid) || null, profile: p });
+        const on = e => e.profile ? e.profile.state === "activated" : e.network.connected;
+        const sig = e => e.network ? e.network.signalStrength : 0;
+        return out.sort((a, b) => (on(b) - on(a)) || (sig(b) - sig(a)));
+    }
+
+    // `nmcli -t -f <fields> connection show uuid ...`: one "field:value"
+    // line per field, a blank line between profiles. Values are NOT escaped
+    // in this multi-line form (measured: BSSIDs keep their bare ':'), so the
+    // value is everything after the first ':'. GENERAL.* only for an active
+    // profile. Hotspot/ad-hoc/mesh profiles are no network to join.
+    function parseProfiles(text) {
+        const out = [];
+        for (const block of text.split(/\n\s*\n/)) {
+            const f = {};
+            for (const line of block.split("\n")) {
+                const i = line.indexOf(":");
+                if (i > 0) f[line.slice(0, i)] = line.slice(i + 1);
+            }
+            const mode = f["802-11-wireless.mode"] || "";
+            if (!f["connection.uuid"] || !f["802-11-wireless.ssid"] || (mode !== "" && mode !== "infrastructure")) continue;
+            out.push({ name: f["connection.id"] || f["802-11-wireless.ssid"], uuid: f["connection.uuid"],
+                       ssid: f["802-11-wireless.ssid"], keyMgmt: f["802-11-wireless-security.key-mgmt"] || "",
+                       state: f["GENERAL.STATE"] || "", device: (f["GENERAL.DEVICES"] || "").split(",")[0] });
+        }
+        return out;
+    }
+
+    // Up/down of a saved Wi-Fi profile by its UUID on this radio. NM does
+    // the work with the profile as stored (802.1X included); its own error
+    // (out of range, secrets required, auth failed) is what the popup says.
+    function toggleProfile(p) {
+        if (wifiBusy !== "" || wifiDevice === null) return;
+        message = "";
+        wifiBusy = p.uuid;
+        wifiAction.command = p.state === "activated" || p.state === "activating"
+            ? ["nmcli", "connection", "down", "uuid", p.uuid]
+            : ["nmcli", "connection", "up", "uuid", p.uuid, "ifname", wifiDevice.name];
+        wifiAction.running = true;
     }
 
     function cancelPassword() {
@@ -301,8 +386,13 @@ BarPopup {
     // loop on primary, every route change with the popup open).
     onTrafficIfaceChanged: { lastRx = -1; lastTx = -1; rxRate = -1; txRate = -1; Qt.callLater(sample); }
 
+    // An NM event during a running listing re-runs it once it is done
+    // (a Wi-Fi switch fires several events in a row - the last state counts).
+    property bool listsAgain: false
+
     function refreshLists() {
-        if (!vpnList.running) vpnList.running = true;
+        if (vpnList.running || wifiList.running) listsAgain = true;
+        else vpnList.running = true;
         if (!addrProc.running) addrProc.running = true;
         if (!routeGet.running) routeGet.running = true;
     }
@@ -396,6 +486,9 @@ BarPopup {
 
     onWifiOnChanged: if (wifiDevice !== null) wifiDevice.scannerEnabled = wifiOn
     onCurrentNetworkChanged: hideQr()
+    // by UUID: each listing parses fresh profile objects
+    readonly property string currentProfileUuid: currentProfile ? currentProfile.uuid : ""
+    onCurrentProfileUuidChanged: hideQr()
 
     // NetworkManager changed something: addresses and VPN states follow.
     Connections {
@@ -604,10 +697,56 @@ BarPopup {
         command: ["nmcli", "-t", "-f", "NAME,UUID,TYPE,ACTIVE", "connection", "show"]
         stdout: StdioCollector {
             onStreamFinished: {
-                popup.vpns = text.split("\n").filter(l => l !== "").map(l => popup.splitTerse(l))
-                    .filter(f => f.length === 4 && (f[2] === "vpn" || f[2] === "wireguard"))
+                const rows = text.split("\n").filter(l => l !== "").map(l => popup.splitTerse(l)).filter(f => f.length === 4);
+                popup.vpns = rows.filter(f => f[2] === "vpn" || f[2] === "wireguard")
                     .map(f => ({ name: f[0], uuid: f[1], type: f[2], active: f[3] === "yes" }));
+                const wifi = rows.filter(f => f[2] === "802-11-wireless").map(f => f[1]);
+                if (wifi.length === 0) { popup.wifiProfiles = []; popup.listsDone(); }
+                else {
+                    wifiList.command = ["nmcli", "-t", "-f",
+                        "connection.id,connection.uuid,802-11-wireless.ssid,802-11-wireless.mode,802-11-wireless-security.key-mgmt,GENERAL.STATE,GENERAL.DEVICES",
+                        "connection", "show"].concat(...wifi.map(u => ["uuid", u]));
+                    wifiList.running = true;
+                }
             }
+        }
+    }
+
+    // Details of the saved Wi-Fi profiles (no secrets: `connection show`
+    // without --show-secrets). A profile removed meanwhile makes nmcli fail
+    // for that one only - the others are still printed.
+    Process {
+        id: wifiList
+        stdout: StdioCollector {
+            onStreamFinished: popup.wifiProfiles = popup.parseProfiles(text)
+        }
+        stderr: StdioCollector {
+            id: wifiListErr
+        }
+        onExited: exitCode => {
+            if (exitCode !== 0) Log.warn("network", "`nmcli connection show` (Wi-Fi profiles) exited " + exitCode + ": " + Log.firstLine(wifiListErr.text));
+            popup.listsDone();
+        }
+    }
+
+    function listsDone() {
+        if (!listsAgain) return;
+        listsAgain = false;
+        vpnList.running = true;
+    }
+
+    Process {
+        id: wifiAction
+        stderr: StdioCollector {
+            id: wifiErr
+        }
+        onExited: exitCode => {
+            if (exitCode !== 0) {
+                popup.message = "Wi-Fi: " + (wifiErr.text.split("\n").filter(l => l.startsWith("Error"))[0] || "failed");
+                Log.warn("network", "`" + command.slice(0, 3).join(" ") + "` (Wi-Fi profile) failed (exit " + exitCode + "): " + Log.firstLine(wifiErr.text));
+            }
+            popup.wifiBusy = "";
+            popup.refreshLists();
         }
     }
 
@@ -860,15 +999,23 @@ BarPopup {
 
     // A Wi-Fi network row. Right side: lock (secured) - for a known network
     // an X replaces it while hovered: forget, without triggering the row.
+    // A profile-only row (profile set, see wifiProfiles) takes name, state
+    // and action from its NM profile; it has no X - such profiles (802.1X)
+    // are removed in nm-connection-editor, never with one hover click.
     component NetworkRow: Rectangle {
         id: row
-        required property var network       // null: no longer in the scan (frozen Other list)
-        property string name: network ? network.name : ""
+        required property var network       // null: no longer in the scan (frozen Other list) / profile out of range
+        property var profile: null
+        property string name: profile ? profile.name : network ? network.name : ""
         property bool selected: false
         readonly property bool present: network !== null
-        readonly property bool connected: present && network.connected
-        readonly property bool changing: present && network.stateChanging
-        readonly property bool known: present && network.known
+        readonly property bool connected: profile ? profile.state === "activated" : present && network.connected
+        readonly property bool changing: profile ? profile.state === "activating" || profile.state === "deactivating"
+                                                   || popup.wifiBusy === profile.uuid
+                                                 : present && network.stateChanging
+        readonly property bool known: profile === null && present && network.known
+        readonly property bool locked: profile ? ["", "owe"].indexOf(profile.keyMgmt) === -1
+                                               : present && popup.secured(network)
         readonly property bool hovered: rowMouse.containsMouse || forgetMouse.containsMouse
 
         Layout.fillWidth: true
@@ -882,7 +1029,7 @@ BarPopup {
             id: rowMouse
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: popup.activateNetwork(row.network)
+            onClicked: row.profile ? popup.toggleProfile(row.profile) : popup.activateNetwork(row.network)
         }
 
         Connections {
@@ -903,7 +1050,7 @@ BarPopup {
             anchors.leftMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: popup.signalIcon(row.present ? row.network.signalStrength : 0)
-            color: row.connected ? Colors.accent : row.present ? Colors.foreground : Colors.foregroundMuted
+            color: row.connected ? Colors.accent : row.present || row.changing ? Colors.foreground : Colors.foregroundMuted
             font.family: Fonts.icons
             font.pixelSize: popup.fontSize + 1
         }
@@ -920,14 +1067,14 @@ BarPopup {
                 text: row.name
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
-                color: row.present ? Colors.foreground : Colors.foregroundMuted
+                color: row.present || row.connected || row.changing ? Colors.foreground : Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 1
             }
 
             Text {
                 visible: row.connected || row.changing || !row.present
-                text: !row.present ? "Out of range" : row.changing ? "Connecting…" : "Connected"
+                text: row.changing ? "Connecting…" : row.connected ? "Connected" : "Out of range"
                 color: row.connected ? Colors.accent : Colors.foregroundMuted
                 font.family: Fonts.family
                 font.pixelSize: popup.fontSize - 3
@@ -944,7 +1091,7 @@ BarPopup {
 
             Text {
                 anchors.centerIn: parent
-                visible: row.present && !(row.known && row.hovered) && popup.secured(row.network)
+                visible: row.locked && !(row.known && row.hovered)
                 text: "\u{F033E}"           // lock
                 color: Colors.foregroundMuted
                 font.family: Fonts.icons
@@ -1240,13 +1387,13 @@ BarPopup {
                 model: popup.wifiOn ? popup.knownNetworks : []
                 delegate: NetworkRow {
                     required property var modelData
-                    network: modelData
+                    network: modelData.network
+                    profile: modelData.profile
                 }
             }
 
             PopupButton {
-                visible: popup.wifiOn && !popup.qrRequested && popup.currentNetwork !== null
-                         && (popup.personal(popup.currentNetwork) || !popup.secured(popup.currentNetwork))
+                visible: popup.wifiOn && !popup.qrRequested && popup.canShare
                 Layout.alignment: Qt.AlignRight
                 label: "\u{F0432}  Share (QR)"
                 onClicked: popup.showQr()
