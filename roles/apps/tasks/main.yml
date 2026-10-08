@@ -183,6 +183,26 @@
     mode: "0644"
   tags: apps
 
+# The Neovim document of Quickshell's cheatsheet (mainMod + T, Tab):
+# Vim, LazyVim, these keymaps and VimTeX - next to the keymaps it lists.
+- name: Ensure the cheatsheet documents directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/share/workstation/cheatsheets"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: apps
+
+- name: Deploy the Neovim keybinding document (cheatsheets/neovim.md)
+  ansible.builtin.copy:
+    src: cheatsheet-neovim.md
+    dest: "{{ ansible_facts.user_dir }}/.local/share/workstation/cheatsheets/neovim.md"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: apps
+
 - name: Deploy the VimTeX plugin spec (lua/plugins/vimtex.lua)
   ansible.builtin.copy:
     src: nvim-vimtex.lua

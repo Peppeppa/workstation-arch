@@ -292,13 +292,13 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 |---|---|
 | `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
 | `Super + Return` | terminal (Ghostty) |
-| `Super + B` / `Super + A` | Chromium / Bitwarden |
-| `Super + E` / `Super + F` | Thunderbird / Nautilus |
-| `Super + G` / `Super + W` | WhatsApp / Obsidian (focus if already open) |
-| `Super + R` / `Super + C` | LocalSend / Planify (focus if already open) |
+| `Super + A` | night light on/off (the bar's Day/Night icon - same toggle) |
+| `Super + D` / `Super + F` | Bitwarden (focus if already open) / Nautilus |
+| `Super + E` | timer popup on/off (a running timer keeps running) |
+| `Super + G` / `Super + R` | WhatsApp / LocalSend (focus if already open) |
 | `Super + V` | clipboard history |
 | `Super + S` | scratchpad: four quick notes (also the bar's note icon) |
-| `Super + T` / `Super + F1` | keybinding cheatsheet (`hypr-cheatsheet`); `Super + Shift + T` is reserved for a future Neovim cheatsheet (TODO, not bound) |
+| `Super + T` | cheatsheet: Hyprland keys, Tab -> Neovim/LazyVim/VimTeX keys; `j`/`k` scroll, `/` search, `n` next hit, Esc clears the search, then closes |
 | `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
 | `Super + Shift + H/J/K/L` | move the window |
 | `Super + Alt + H/J/K/L` | resize the window (100 px) |
@@ -314,7 +314,9 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + E` | exit Hyprland (back to Ly / the TTY) |
 
 Caps Lock is a second Ctrl (`hyprland_keyboard_options: ctrl:nocaps`). The
-full, generated list is `Super + F1`.
+full, generated list is the cheatsheet (`Super + T`). Chromium, Thunderbird,
+Obsidian, Planify and every other app start from the launcher (`Super +
+Space`).
 
 Notifications: toasts top-right (Quickshell). Click/x closes; normal
 ones expire after ~5 s (or the sender's timeout, paused on hover),

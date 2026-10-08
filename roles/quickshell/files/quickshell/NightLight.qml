@@ -19,6 +19,8 @@
 //
 // Deliberately not persisted (like Coffee): every Quickshell start is Day;
 // if Quickshell exits or crashes, hyprsunset goes with it (fail-safe).
+// Switched by the bar icon and by mainMod+A (IPC "nightlight" in shell.qml)
+// - both call toggle(), so there is one process and one state.
 
 pragma Singleton
 
@@ -36,6 +38,7 @@ Singleton {
 
     property bool active: false                 // Night (the target, set at the click)
     property bool busy: false                   // a fade is running
+    readonly property bool running: proc.running  // the real state: hyprsunset is up
     property int step: 0
     property int from: neutral
     property int to: neutral

@@ -1,6 +1,0 @@
-#!/bin/sh
-# Managed by Ansible (roles/hyprland/templates/hypr-cheatsheet.j2) - do not
-# edit. The keybinding cheatsheet (~/.config/hypr/cheatsheet.md, generated
-# from the same feature flags as the binds) in a terminal pager; bound to
-# mainMod + F1. Exits with the pager.
-exec {{ hyprland_terminal }} -e less "{{ ansible_facts.user_dir }}/.config/hypr/cheatsheet.md"

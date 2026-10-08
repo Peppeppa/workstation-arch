@@ -6,7 +6,9 @@
 // popups live in bar/, see docs/feature-architecture.md "Bar"), the OS
 // menu (osmenu/, `qs ipc call osmenu toggle`: Applications, Appearance,
 // Network, Settings, System), the Appearance window (appearance/), the
-// Firewall window (firewall/), the low-battery
+// Firewall window (firewall/), the scratchpad, the cheatsheet
+// (cheatsheet/), the keyboard entry points to the Visuals timer and night
+// light (IPC "timer" / "nightlight"), the low-battery
 // warning, and the optional features composed below (power menu,
 // notifications, clipboard history, wallpaper - each inside a Jinja
 // if-block on its <name>_enabled flag, so a disabled feature is not even
@@ -17,10 +19,12 @@
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import qs
 import qs.appearance
 import qs.bar
+import qs.cheatsheet
 import qs.firewall
 import qs.scratchpad
 import qs.osmenu
@@ -88,6 +92,46 @@ ShellRoot {
 
     // Scratchpad / quick notes (mainMod+S, bar icon): four plain-text notes.
     ScratchpadWindow {}
+
+    // Cheatsheet (mainMod+T): the Hyprland and Neovim keybinding documents.
+    CheatsheetWindow {}
+
+    // mainMod+A: Day/Night - the same NightLight.toggle() as the bar icon
+    // (one hyprsunset, owned by NightLight; no state of its own here).
+    IpcHandler {
+        target: "nightlight"
+
+        // -> the new target state "on"/"off", or "busy" during a fade
+        function toggle(): string {
+            if (NightLight.busy) return "busy";
+            NightLight.toggle();
+            return NightLight.active ? "on" : "off";
+        }
+
+        // {active (target), busy (fading), running (hyprsunset is up)}
+        function state(): string {
+            return JSON.stringify({ active: NightLight.active, busy: NightLight.busy, running: NightLight.running });
+        }
+    }
+
+    // mainMod+E: the Visuals timer popup on the focused output's bar (or
+    // closed again). Opening/closing never stops a running countdown.
+    IpcHandler {
+        target: "timer"
+
+        // -> "open" / "closed", or why it could not open
+        function toggle(): string {
+            const wasOpen = Countdown.popupOpen;
+            Countdown.togglePopup(Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "");
+            if (!wasOpen && !Countdown.popupOpen) return "unavailable: no Visuals widget on the focused output's bar";
+            return Countdown.popupOpen ? "open" : "closed";
+        }
+
+        // {popupOpen, active (a countdown runs), remaining (s)}
+        function state(): string {
+            return JSON.stringify({ popupOpen: Countdown.popupOpen, active: Countdown.active, remaining: Countdown.remaining });
+        }
+    }
 {% if wallpaper_enabled %}
 
     // FEATURE: wallpaper (group_vars/all.yml wallpaper_enabled): the

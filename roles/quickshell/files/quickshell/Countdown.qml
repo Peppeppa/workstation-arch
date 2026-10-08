@@ -28,6 +28,18 @@ Singleton {
     readonly property int remaining: active ? Math.max(0, Math.ceil((deadline - now) / 1000)) : 0
     readonly property string sound: "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
 
+    // The timer popup (Visuals bar widget) toggled from outside the bar:
+    // mainMod+E -> IPC "timer" (shell.qml) -> togglePopup(focused output).
+    // The widget reports popupOpen; it opens on the bar of `screenName`,
+    // and "" closes it wherever it is. Opening/closing never touches the
+    // countdown itself.
+    property bool popupOpen: false
+    signal popupRequested(string screenName)
+
+    function togglePopup(screenName) {
+        popupRequested(popupOpen ? "" : screenName);
+    }
+
     // Typed duration -> seconds, or -1 (also for 0 and anything >= 100 h).
     //   digits only, read from the right as [H]MM:SS like a microwave:
     //     5 -> 0:05, 230 / 0230 -> 2:30, 9000 -> 90:00, 13000 -> 1:30:00;

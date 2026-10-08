@@ -419,7 +419,25 @@ QtObject {
         eq("mbit: 406e6", mbit(406123456), "406"); eq("mbit: 8.1e6", mbit(8100000), "8.1");
     }
 
+    function cheatsheet() {
+        const cs = read("quickshell/cheatsheet/CheatsheetWindow.qml");
+        const find = make(cs, "findMatches", {});
+        eq("cheatsheet: case-insensitive, every hit", find("Super + D | Bitwarden\nsuper + d", "SUPER + d"), [0, 22]);
+        eq("cheatsheet: non-overlapping", find("aaaa", "aa"), [0, 2]);
+        eq("cheatsheet: empty query -> nothing", find("abc", ""), []);
+        eq("cheatsheet: no hit", find("abc", "x"), []);
+        // a lower-cased length change (U+0130) would shift positions: then case-sensitive
+        eq("cheatsheet: length-changing lower case -> exact positions", find("\u0130x X x", "x"), [1, 5]);
+        const next = make(cs, "nextIndex", {});
+        eq("cheatsheet: n from nothing -> first", next(-1, 3, 1), 0);
+        eq("cheatsheet: n wraps last -> first", next(2, 3, 1), 0);
+        eq("cheatsheet: N wraps first -> last", next(0, 3, -1), 2);
+        eq("cheatsheet: N from nothing -> last", next(-1, 3, -1), 2);
+        eq("cheatsheet: no hits -> -1", next(-1, 0, 1), -1);
+    }
+
     Component.onCompleted: {
+        cheatsheet();
         firewall();
         networkMetrics();
         nightLight();

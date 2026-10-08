@@ -58,4 +58,13 @@ return function(v)
         pin = true,
         move = { "(monitor_w-window_w-12)", "48" },
     })
+
+    -- Quickshell's cheatsheet (roles/quickshell cheatsheet/, mainMod+T): a
+    -- floating viewer centered on the focused output; its size comes from
+    -- the window itself (kept inside the output).
+    hl.window_rule({
+        match = { title = "^workstation-cheatsheet$" },
+        float = true,
+        center = true,
+    })
 end

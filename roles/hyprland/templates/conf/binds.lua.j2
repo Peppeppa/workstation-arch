@@ -6,8 +6,9 @@
 -- migrated once from the user's former Omarchy bindings - no runtime link
 -- to that repository): left hand = apps and system actions, right hand =
 -- H/J/K/L window navigation, Shift = move / secondary action. Every bind
--- here is listed in the cheatsheet (cheatsheet.md.j2, mainMod + F1) -
--- change both together.
+-- here is listed in the cheatsheet document (cheatsheet.md.j2, shown by
+-- Quickshell's cheatsheet on mainMod + T) - change both together
+-- (tests/run.sh compares the two).
 return function(v)
     local mainMod = v.mainMod
     local focusOrLaunch = v.userDir .. "/.local/bin/focus-or-launch"
@@ -16,19 +17,17 @@ return function(v)
     local resizeMod = mainMod == "ALT" and "CTRL" or "ALT"
 
     -- ---- Apps -----------------------------------------------------------
+    -- Only these apps have a key; every other app (Chromium, Thunderbird,
+    -- Obsidian, Planify, ...) is started from the launcher (mainMod+Space).
     hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(v.terminal))
-    hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("chromium"))
-    hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("bitwarden-desktop"))
-    hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("thunderbird"))
     hl.bind(mainMod .. " + F", hl.dsp.exec_cmd("nautilus --new-window"))
-    -- WhatsApp web app / Obsidian: focus the running window, else start it
-    -- (one-shot helper, roles/hyprland files/focus-or-launch.sh).
+    -- Bitwarden (class Bitwarden, its .desktop StartupWMClass) / WhatsApp
+    -- web app / LocalSend (Flatpak, Wayland class = the app id): focus the
+    -- running window, else start it (one-shot helper, roles/hyprland
+    -- files/focus-or-launch.sh).
+    hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(focusOrLaunch .. " '^Bitwarden$' bitwarden-desktop"))
     hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(focusOrLaunch .. " '^chrome-web\\.whatsapp\\.com__' chromium --app=https://web.whatsapp.com/"))
-    hl.bind(mainMod .. " + W", hl.dsp.exec_cmd(focusOrLaunch .. " '^(obsidian|md\\.obsidian\\.Obsidian)$' obsidian"))
-    -- LocalSend (Flatpak org.localsend.localsend_app, Wayland class = the
-    -- app id) / Planify (pacman, class = its app id).
     hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(focusOrLaunch .. " '^org\\.localsend\\.localsend_app$' flatpak run org.localsend.localsend_app"))
-    hl.bind(mainMod .. " + C", hl.dsp.exec_cmd(focusOrLaunch .. " '^io\\.github\\.alainm23\\.planify$' io.github.alainm23.planify"))
 
     -- OS menu (roles/quickshell osmenu/: type to search apps and menu
     -- entries; Applications, Settings, System). One one-shot IPC call to the
@@ -44,12 +43,15 @@ return function(v)
     -- Scratchpad / quick notes (Quickshell, IPC target "scratchpad").
     hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("qs ipc call scratchpad toggle"))
 
-    -- Keybinding cheatsheet (roles/hyprland cheatsheet.md.j2) in a terminal;
-    -- F1 stays as the alternative key.
-    hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
-    hl.bind(mainMod .. " + F1", hl.dsp.exec_cmd(v.userDir .. "/.local/bin/hypr-cheatsheet"))
-    -- TODO: mainMod + SHIFT + T is reserved for a Neovim cheatsheet - not
-    -- bound until that exists (no dead bind).
+    -- Cheatsheet: the Hyprland + Neovim keybinding documents in Quickshell's
+    -- viewer (IPC "cheatsheet"; Tab switches documents inside it).
+    hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("qs ipc call cheatsheet toggle"))
+
+    -- Visuals bar widget from the keyboard: Day/Night (hyprsunset, owned by
+    -- Quickshell's NightLight) and the timer popup (IPC "nightlight" /
+    -- "timer" - the same toggles as the bar icons).
+    hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("qs ipc call nightlight toggle"))
+    hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("qs ipc call timer toggle"))
 
     -- ---- Windows: focus (H/J/K/L and arrows), move, resize ----------------
     hl.bind(mainMod .. " + H", hl.dsp.focus({ direction = "l" }))

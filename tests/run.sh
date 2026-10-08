@@ -3,7 +3,9 @@
 # on any machine (nothing touches a live session; see each test's header):
 #   1. syntax: bootstrap.sh, shell helpers, playbook, inventory, every YAML file
 #   2. tests/theme-helper.sh  - the `theme` helper against a copy of themes/
-#   3. tests/qml-logic.qml    - pure logic cut out of the shipped QML (qml6)
+#   3. tests/qml-logic.qml    - pure logic cut out of the shipped QML (qml6);
+#      tests/keybindings.py + tests/cheatsheet-render.qml - binds vs. the
+#      cheatsheet, and its Markdown documents rendered by Qt
 #   4. tests/firewall.sh      - ruleset + firewall-rules helper, real packets
 #                               in a private user/network namespace
 # Exit 0 = everything passed. Live-system invariants are repo-healthcheck's
@@ -85,12 +87,18 @@ if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
 else
     echo "skip  tests/firewall.sh (needs nft and unprivileged user namespaces)"
 fi
+# Binds vs. cheatsheet per host: no duplicates, no stale or missing rows.
+cheat=$(mktemp -d)
+step "tests/keybindings.py" python3 tests/keybindings.py "$cheat"
 if command -v qml6 >/dev/null; then
     step "tests/qml-logic.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
         timeout 60 qml6 tests/qml-logic.qml
+    step "tests/cheatsheet-render.qml" env QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
+        timeout 60 qml6 tests/cheatsheet-render.qml -- "$cheat"
 else
     echo "skip  tests/qml-logic.qml (qml6 not installed - comes with quickshell's qt6-declarative)"
 fi
+rm -rf "$cheat"
 
 echo
 [ $fail -eq 0 ] && echo "all checks passed" || echo "CHECKS FAILED"

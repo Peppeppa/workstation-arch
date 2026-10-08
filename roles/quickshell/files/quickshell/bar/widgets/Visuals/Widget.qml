@@ -2,9 +2,11 @@
 // id in bar-layout.json, one drag handle) but stay separately clickable,
 // each a normal icon frame (BarWidget - same size, hitbox, hover and
 // active look as every bar icon), in this order:
-//   Timer      click: the timer popup (TimerPopup.qml, Countdown.qml);
-//              while running the remaining time stands next to the icon
-//   Day/Night  click: warm display colors on/off with a 0.5 s fade
+//   Timer      click (or mainMod+E, IPC "timer"): the timer popup
+//              (TimerPopup.qml, Countdown.qml); while running the
+//              remaining time stands next to the icon
+//   Day/Night  click (or mainMod+A, IPC "nightlight"): warm display
+//              colors on/off with a 0.5 s fade
 //              (NightLight.qml; clicks during the fade do nothing)
 //   Light/Dark left click: `theme toggle`; right click: the theme popup
 //              (bar/widgets/Theme/Popup.qml) - the existing theme system
@@ -58,6 +60,17 @@ Item {
             text: Countdown.active ? Countdown.format(Countdown.remaining) : ""
             active: Countdown.active
             onClicked: button => { if (button === Qt.LeftButton) timer.togglePopup(); }
+            onPopupOpenChanged: Countdown.popupOpen = popupOpen
+
+            // mainMod+E (Countdown.togglePopup): open on this bar's output,
+            // or close ("") wherever it is open.
+            Connections {
+                target: Countdown
+                function onPopupRequested(screenName) {
+                    if (screenName === "") timer.closePopup();
+                    else if (root.bar.screen && root.bar.screen.name === screenName) timer.openPopup();
+                }
+            }
 
             Loader {
                 active: timer.popupOpen

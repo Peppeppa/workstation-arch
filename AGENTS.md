@@ -92,7 +92,8 @@ direct upstream dependency.
 | Login (display manager) | Ly - `ly@tty2.service` (package unit + PAM), `roles/display_manager`, feature `display_manager_enabled`; starts the hyprland package's `hyprland.desktop` (`start-hyprland`); tty1 keeps its getty for recovery/manual start |
 | Compositor / window manager | Hyprland |
 | OS menu / app launcher | Quickshell (`osmenu/`, `qs ipc call osmenu toggle` on `mainMod+Space`; type-to-search over its own entries + apps; Applications = the former launcher - fuzzel retired as of Core Desktop v1). Navigation only: Appearance/Network/Firewall/System hand over to their owners |
-| Hyprland keybindings, input, cheatsheet | `roles/hyprland` (`conf/binds.lua`, `conf/input.lua`, generated `~/.config/hypr/cheatsheet.md` + `hypr-cheatsheet` on mainMod+F1) - migrated once from the former dotfiles, no runtime link to them |
+| Hyprland keybindings, input, cheatsheet documents | `roles/hyprland` (`conf/binds.lua`, `conf/input.lua`, generated `~/.local/share/workstation/cheatsheets/hyprland.md`; the Neovim document `neovim.md` = `roles/apps`) - migrated once from the former dotfiles, no runtime link to them |
+| Cheatsheet viewer | Quickshell `cheatsheet/` (top-level window, only while open; mainMod+T, IPC `cheatsheet`): Qt's Markdown rendering, Tab / j / k / search |
 | Neovim keymaps + VimTeX spec | `roles/apps` (`~/.config/nvim/lua/config/keymaps.lua` and `lua/plugins/vimtex.lua`, the two managed Neovim files; plugins = lazy.nvim's, the rest of the config stays the user's) |
 | SSH client agent | `~/.ssh/config` managed block (`roles/base`): `IdentityAgent ~/.bitwarden-ssh-agent.sock` - Bitwarden desktop's agent; no keys here |
 | Appearance (theme/wallpaper/bar background/brightness/text size/display) | Quickshell `appearance/` window + shared `services/` models; theme state stays the `theme` helper's, bar background = BarLayout's setting, brightness = `brightnessctl` (backlight only) |
