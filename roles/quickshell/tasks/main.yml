@@ -276,6 +276,27 @@
     mode: "0755"
   tags: quickshell
 
+- name: Deploy the captive portal watcher (connectivity_enabled)
+  when: connectivity_enabled
+  ansible.builtin.copy:
+    src: connectivity/PortalWatcher.qml
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/PortalWatcher.qml"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  notify: Reload running Quickshell config
+  tags: quickshell
+
+- name: Deploy the captive portal login helper (connectivity_enabled)
+  when: connectivity_enabled
+  ansible.builtin.copy:
+    src: connectivity/portal-login.py
+    dest: "{{ ansible_facts.user_dir }}/.local/libexec/workstation/portal-login"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: quickshell
+
 - name: Deploy the Wi-Fi QR helper (connectivity_enabled)
   when: connectivity_enabled
   ansible.builtin.copy:

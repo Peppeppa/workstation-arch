@@ -7,7 +7,8 @@
 //
 // A BarPopup (click outside / Escape closes, exists only while open).
 //   Status   NetworkManager's connectivity (portal -> "Login required":
-//            opens NM's own check URL in Chromium so the portal redirects),
+//            "Log in" runs the portal-login helper - a Chromium window of
+//            its own on a plain-HTTP page the portal redirects, see there),
 //            global addresses per interface (`ip -j -d addr`, on open and on
 //            NM events), the default gateway (Model.qml, kernel routes),
 //            "via VPN" also for a policy-routed full tunnel (`ip route get`,
@@ -45,6 +46,7 @@ BarPopup {
     required property var net               // Model.qml of the bar widget
 
     readonly property string qrCommand: Quickshell.env("HOME") + "/.local/libexec/workstation/wifi-qr"
+    readonly property string portalCommand: Quickshell.env("HOME") + "/.local/libexec/workstation/portal-login"
 
     // The client radio (a radio running a hotspot is not where networks are joined).
     readonly property var wifiDevice: {
@@ -76,6 +78,7 @@ BarPopup {
         return m;
     }
     property string wifiBusy: ""        // uuid of a running nmcli up/down (Wi-Fi profile)
+    property string wifiBusyName: ""    // that profile's name, for its error message
     // SSID -> network object (the rows look their network up by name).
     readonly property var byName: {
         const m = {};
@@ -252,10 +255,20 @@ BarPopup {
         if (wifiBusy !== "" || wifiDevice === null) return;
         message = "";
         wifiBusy = p.uuid;
+        wifiBusyName = p.name;
         wifiAction.command = p.state === "activated" || p.state === "activating"
             ? ["nmcli", "connection", "down", "uuid", p.uuid]
             : ["nmcli", "connection", "up", "uuid", p.uuid, "ifname", wifiDevice.name];
         wifiAction.running = true;
+    }
+
+    // NM had no password for a saved profile ("no-secrets"): the eduroam CAT
+    // installer stores it agent-owned, and this desktop runs no secret agent
+    // (README "eduroam") - re-running the installer brings that back (real
+    // use at THWS 2026-10-09: both profiles failed silently). Say where the
+    // password goes instead of NM's "Secrets were required".
+    function noPasswordMessage(name) {
+        return "\"" + name + "\": no password saved - Connections\u2026 \u2192 " + name + " \u2192 Wi-Fi Security";
     }
 
     function cancelPassword() {
@@ -405,7 +418,9 @@ BarPopup {
     }
 
     function openPortal() {
-        portalUri.running = true;
+        Quickshell.execDetached(["systemd-cat", "-t", "app-launch", "-p", "err", "--",
+                                 "systemd-run", "--user", "--quiet", "--collect", "--", portalCommand]);
+        popup.closeRequested();
     }
 
     function showQr() {
@@ -636,24 +651,6 @@ BarPopup {
     }
 
     Process {
-        id: portalUri
-        command: ["busctl", "get-property", "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
-                  "org.freedesktop.NetworkManager", "ConnectivityCheckUri"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const m = text.match(/^s "(.*)"\s*$/);
-                if (m && m[1] !== "") {
-                    Quickshell.execDetached(["chromium", m[1]]);
-                    popup.closeRequested();
-                } else {
-                    popup.message = "NetworkManager has no connectivity check URL";
-                    Log.warn("network", "captive portal: NetworkManager reports no ConnectivityCheckUri - check /usr/lib/NetworkManager/conf.d/*connectivity*");
-                }
-            }
-        }
-    }
-
-    Process {
         id: qrProc
         stdout: StdioCollector {
             onStreamFinished: {
@@ -742,7 +739,8 @@ BarPopup {
         }
         onExited: exitCode => {
             if (exitCode !== 0) {
-                popup.message = "Wi-Fi: " + (wifiErr.text.split("\n").filter(l => l.startsWith("Error"))[0] || "failed");
+                const err = wifiErr.text.split("\n").filter(l => l.startsWith("Error"))[0] || "failed";
+                popup.message = /secrets were required/i.test(err) ? popup.noPasswordMessage(popup.wifiBusyName) : "Wi-Fi: " + err;
                 Log.warn("network", "`" + command.slice(0, 3).join(" ") + "` (Wi-Fi profile) failed (exit " + exitCode + "): " + Log.firstLine(wifiErr.text));
             }
             popup.wifiBusy = "";
@@ -1039,8 +1037,11 @@ BarPopup {
             // handler may run first (then pendingPsk is already cleared and
             // passwordFor is set again) - either order must not log twice.
             function onConnectionFailed(reason) {
-                if (popup.pendingPsk !== row.network && popup.passwordFor !== row.network)
+                if (popup.pendingPsk !== row.network && popup.passwordFor !== row.network) {
                     Log.warn("network", "Wi-Fi \"" + row.network.name + "\": connection failed (" + ConnectionFailReason.toString(reason) + ")");
+                    if (reason === ConnectionFailReason.NoSecrets)
+                        popup.message = popup.noPasswordMessage(row.profile ? row.profile.name : row.network.name);
+                }
             }
         }
 

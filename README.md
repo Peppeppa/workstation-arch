@@ -695,6 +695,16 @@ Microphone/camera/notification permissions of the web apps are
 Chromium's per-site permissions (asked once; change them via the lock
 icon / site settings in the app window).
 
+## Public Wi-Fi with a login page (captive portal)
+
+When NetworkManager's connectivity check reports a portal (e.g.
+@BayernWLAN), a Chromium window with the portal's login page opens by
+itself, once per portal; the Network popup shows "Login required" and its
+**Log in** button opens it again. It is a separate Chromium profile
+(`~/.cache/workstation/portal-browser`, no extensions, the library PAC
+skipped) so it loads at once even while the normal Chromium is running;
+close it after logging in.
+
 ## eduroam
 
 Enrollment uses the university's official CAT installer (THWS: download
@@ -720,6 +730,11 @@ sudo nmcli connection modify THWS 802-1x.password-flags 0
 then Network popup -> Connections... -> `eduroam` -> Wi-Fi Security ->
 type the password -> Save; the same for `THWS`. Never put the password on
 a command line.
+
+Re-running the installer replaces both profiles and makes the password
+agent-owned again: repeat both steps. Until then neither connects, and the
+Network popup says `"eduroam": no password saved - Connections… → eduroam
+→ Wi-Fi Security`.
 
 Both then appear under Known networks in the Network popup (also out of
 range); a click switches to that profile (`nmcli connection up` of the

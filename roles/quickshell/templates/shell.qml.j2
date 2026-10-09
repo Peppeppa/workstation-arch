@@ -154,6 +154,12 @@ ShellRoot {
         lockAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
     }
 {% endif %}
+{% if connectivity_enabled %}
+
+    // FEATURE: connectivity - a captive portal reported by NetworkManager
+    // opens its login page once (portal-login helper).
+    PortalWatcher {}
+{% endif %}
 {% if clipboard_history_enabled %}
 
     // FEATURE: clipboard_history (group_vars/all.yml
