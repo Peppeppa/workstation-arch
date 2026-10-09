@@ -215,12 +215,16 @@ BarPopup {
     }
 
     // Known networks: Quickshell's known networks plus the profile-only
-    // ones (their network object, if in the scan, gives signal + range),
-    // connected first, then by signal.
+    // ones (their network object gives signal + range), connected first,
+    // then by signal. Only what is in range: a saved profile out of range
+    // gets no row (every network ever joined would pile up here - the
+    // user's wish), unless NM is on it right now (activating/activated).
     function knownEntries(nets, profiles, auth) {
         const out = nets.filter(n => n.known && n.name !== auth).map(n => ({ network: n, profile: null }));
-        for (const p of profileOnly(nets, profiles))
-            out.push({ network: nets.find(n => n.name === p.ssid) || null, profile: p });
+        for (const p of profileOnly(nets, profiles)) {
+            const n = nets.find(n => n.name === p.ssid) || null;
+            if (n !== null || p.state !== "") out.push({ network: n, profile: p });
+        }
         const on = e => e.profile ? e.profile.state === "activated" : e.network.connected;
         const sig = e => e.network ? e.network.signalStrength : 0;
         return out.sort((a, b) => (on(b) - on(a)) || (sig(b) - sig(a)));

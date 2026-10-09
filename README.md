@@ -736,9 +736,10 @@ agent-owned again: repeat both steps. Until then neither connects, and the
 Network popup says `"eduroam": no password saved - Connections… → eduroam
 → Wi-Fi Security`.
 
-Both then appear under Known networks in the Network popup (also out of
-range); a click switches to that profile (`nmcli connection up` of the
-stored profile - nothing about it is changed). They have no hover X:
+Both then appear under Known networks in the Network popup while in
+range (out of range only while NetworkManager is connecting to them); a
+click switches to that profile (`nmcli connection up` of the stored
+profile - nothing about it is changed). They have no hover X:
 remove them in Connections... if ever needed. The same works from a
 terminal: `nmcli connection up THWS` / `nmtui`.
 

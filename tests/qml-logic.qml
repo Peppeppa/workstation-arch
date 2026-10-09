@@ -215,9 +215,12 @@ QtObject {
                       { name: "a:b", known: true, connected: false, signalStrength: 0.9 },
                       { name: "Cafe", known: false, connected: false, signalStrength: 0.8 }];
         const k = known(nets, profiles, "");
-        eq("network: Known = Quickshell-known + profile-only, active profile first, THWS out of range",
+        eq("network: Known = Quickshell-known + profile-only in range, active profile first, THWS out of range hidden",
            k.map(e => [e.profile ? e.profile.name : e.network.name, e.network !== null]),
-           [["eduroam", true], ["a:b", true], ["THWS", false]]);
+           [["eduroam", true], ["a:b", true]]);
+        const busy = profiles.map(p => p.uuid === "u-thws" ? Object.assign({}, p, { state: "activating" }) : p);
+        eq("network: an out-of-range profile NM is activating keeps its row",
+           known(nets, busy, "").map(e => e.profile ? e.profile.name : e.network.name), ["eduroam", "a:b", "THWS"]);
         eq("network: the eduroam row is connected via its profile", k[0].profile.state, "activated");
 
         // A click on an SSID that has a saved profile activates that
