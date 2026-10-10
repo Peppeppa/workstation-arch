@@ -196,3 +196,14 @@ hyprland_session_helpers: >-
   {{ ['hyprpolkitagent', 'quickshell']
      + (['hypridle'] if lock_idle_enabled else [])
      + (['wl-paste'] if clipboard_history_enabled else []) }}
+
+# Window geometry (RICE v1 phase 5, docs/DESIGN_SYSTEM.md "Windows"):
+# Omarchy-like small gaps on the Quickshell spacing scale (Style.qml:
+# spacingSm 4 / spacingMd 8), a subtle 1 px border in the theme's border
+# roles, rounding = Style.controlRadius (4). No blur, no shadow, no
+# animation (appearance.lua). gaps_in is per side: 8 px between windows.
+# Per host overridable; 0/0/1/0 gives Hyprland-style square tiling.
+hyprland_gaps_in: 4
+hyprland_gaps_out: 8
+hyprland_border_size: 1
+hyprland_rounding: 4

@@ -12,20 +12,26 @@ return function(v)
     local theme_ok, theme = pcall(dofile, v.userDir .. "/.config/workstation/theme/hyprland.lua")
 
     hl.config({
-        -- border_active = focused window, border = the rest; Hyprland's
-        -- default border width.
-        general = theme_ok and {
-            col = {
+        -- Window geometry (RICE v1, docs/DESIGN_SYSTEM.md "Windows"): small
+        -- gaps on the Style spacing scale (gaps_in is per side: 2 x {{ hyprland_gaps_in }}
+        -- between two windows), a 1 px border, the control radius.
+        -- border_active = focused window, border = the rest (theme roles).
+        general = {
+            gaps_in = {{ hyprland_gaps_in }},
+            gaps_out = {{ hyprland_gaps_out }},
+            border_size = {{ hyprland_border_size }},
+            col = theme_ok and {
                 active_border   = theme.border_active,
                 inactive_border = theme.border,
-            },
-        } or {},
+            } or nil,
+        },
 
         animations = {
             enabled = false,
         },
 
         decoration = {
+            rounding = {{ hyprland_rounding }},
             shadow = { enabled = false },
             blur   = { enabled = false },
         },

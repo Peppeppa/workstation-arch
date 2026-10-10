@@ -115,7 +115,25 @@ then their own numbers stay - no partial edits outside a phase.
 - The wallpaper picker's thumbnail grid (620) is wider than `widePanelWidth`
   by its content.
 - hyprlock and Hyprland are not QML: their sizes are set in their
-  templates (RICE phases 5 and 6) from the same base values.
+  templates from the same base values (Hyprland: phase 5, below; hyprlock:
+  phase 6).
+
+### Windows (Hyprland, RICE v1 phase 5)
+
+`roles/hyprland` `conf/appearance.lua`, values in `roles/hyprland/defaults`
+(per host overridable):
+
+| Setting | Value | Token it follows |
+|---|---|---|
+| `general.gaps_in` | 4 (per side: 8 px between windows) | `spacingSm` / `spacingMd` |
+| `general.gaps_out` | 8 (to the screen edge and the bar) | `spacingMd` |
+| `general.border_size` | 1 | the 1 px hairline of every panel |
+| `decoration.rounding` | 4 | `controlRadius` |
+| border colors | `border_active` (focused) / `border` | theme roles |
+| blur / shadow / animations | off | Direction |
+
+Before: Hyprland's defaults (gaps 5/20, rounding 0). Square tiling again:
+`hyprland_gaps_in: 0`, `hyprland_gaps_out: 0`, `hyprland_rounding: 0`.
 
 **Rules for new QML components**
 
