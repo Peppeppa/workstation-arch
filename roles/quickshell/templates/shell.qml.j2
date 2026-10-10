@@ -187,6 +187,13 @@ ShellRoot {
         fontSize: root.fontSize
         helper: "{{ recovery_snapshot_helper }}"
     }
+
+    // Snapshot boot (boot menu "Snapshot ..."): the snapshot-mode strip and
+    // dialog with the permanent restore; inert in a normal boot.
+    SnapshotMode {
+        fontSize: root.fontSize
+        helper: "{{ recovery_restore_helper }}"
+    }
 {% endif %}
 {% if connectivity_enabled %}
 

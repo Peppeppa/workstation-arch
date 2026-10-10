@@ -1,0 +1,31 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/snapshot-restore) - do not edit by hand.
+# Deployed to /usr/local/libexec/workstation/snapshot-restore: the root helper
+# behind the Quickshell snapshot-mode dialog's "Dauerhaft wiederherstellen"
+# (`pkexec <this> <number>`, polkit action org.workstation.snapshot.restore,
+# admin password every time). Not a user interface.
+#
+# Exactly one thing: make the snapshot this system is BOOTED FROM (the
+# workstation.snapshot=<n> of the snapshot boot) the regular system, through
+# system-rollback (new @ from the snapshot, the old @ kept as @broken-<date>,
+# /home and the other subvolumes untouched). Any other number is refused -
+# a restore is only offered from inside the state that was tested. No reboot.
+#
+# Output (stdout, one JSON line): {"ok": true, "snapshot": N, "previous": "@broken-..."}
+# Errors: "snapshot-restore: <reason>" on stderr, exit 1 (2 = bad argument).
+set -euo pipefail
+. /usr/local/lib/workstation/recovery-lib.sh
+
+fail() { logger -t snapshot-restore -p user.err -- "$1"; echo "snapshot-restore: $1" >&2; exit "${2:-1}"; }
+
+[ "$(id -u)" -eq 0 ] || fail "run through pkexec (root)"
+[ $# -eq 1 ] && [[ $1 =~ ^[0-9]+$ ]] || fail "usage: snapshot-restore <snapshot number>" 2
+n=$1
+booted=$(snapshot_mode)
+[ -n "$booted" ] || fail "not booted from a snapshot - a restore is started from the snapshot boot"
+[ "$booted" = "$n" ] || fail "booted from snapshot $booted, not $n"
+
+out=$(/usr/local/bin/system-rollback "$n" --yes 2>&1) || fail "$(printf '%s\n' "$out" | grep -v '^$' | tail -1)"
+prev=$(printf '%s\n' "$out" | sed -n 's/.*previous system: \(@broken-[0-9-]*\).*/\1/p' | head -1)
+logger -t snapshot-restore -p user.notice -- "snapshot $n restored as the regular system (previous: ${prev:-?})"
+printf '{"ok": true, "snapshot": %s, "previous": "%s"}\n' "$n" "${prev:-?}"

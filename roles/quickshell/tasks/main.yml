@@ -211,6 +211,7 @@
     - { src: Updates.qml, dest: updates/Updates.qml }
     - { src: UpdaterDialog.qml, dest: updates/UpdaterDialog.qml }
     - { src: SnapshotDialog.qml, dest: updates/SnapshotDialog.qml }
+    - { src: SnapshotMode.qml, dest: updates/SnapshotMode.qml }
     - { src: Widget.qml, dest: bar/widgets/Updates/Widget.qml }
   notify: Reload running Quickshell config
   tags: quickshell

@@ -313,6 +313,28 @@
     mode: "0755"
   tags: recovery
 
+- name: Recovery - snapshot-restore helper (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: snapshot-restore
+    dest: "{{ recovery_restore_helper }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: recovery
+
+- name: Recovery - polkit action for snapshot-restore (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.template:
+    src: snapshot-restore.policy.j2
+    dest: "/usr/share/polkit-1/actions/{{ recovery_restore_polkit_action }}.policy"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: recovery
+
 - name: Recovery - polkit action for snapshot-create (recovery_enabled)
   when: recovery_enabled
   become: true

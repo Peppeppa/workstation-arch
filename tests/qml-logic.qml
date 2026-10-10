@@ -687,7 +687,58 @@ QtObject {
         eq("no logout key bind (SHIFT + E / dsp.exit)", [/SHIFT \+ E"/.test(binds), /hl\.dsp\.exit\(\)/.test(binds)], [false, false]);
     }
 
+    // Snapshot mode (updates/SnapshotMode.qml): detection, snapper's info.xml
+    // (UTC), the stages and their safe answers, keys.
+    function snapshotMode() {
+        const sm = read("updates/SnapshotMode.qml");
+        const scope = { Qt: Qt, Log: { firstLine: t => (t || "").split("\n")[0] } };
+        const parse = make(sm, "parseCmdline", scope);
+        eq("snapshot mode: cmdline", [parse("root=x rootflags=subvol=@snapshots/30/snapshot workstation.snapshot=30\n"),
+                                      parse("rootflags=subvol=@ rw"), parse("workstation.snapshot=abc"), parse("")], [30, -1, -1, -1]);
+        scope.unescapeXml = make(sm, "unescapeXml", scope);
+        const info = make(sm, "parseInfo", scope)("<snapshot><num>30</num><date>2026-10-10 16:46:21</date>"
+                                                 + "<description>Test &amp; &quot;A&quot;</description></snapshot>");
+        eq("snapshot mode: info.xml date is UTC -> local", info.date,
+           Qt.formatDateTime(new Date(Date.UTC(2026, 9, 10, 16, 46, 21)), "yyyy-MM-dd HH:mm"));
+        eq("snapshot mode: description unescaped", info.description, "Test & \"A\"");
+        const bf = make(sm, "buttonsFor", scope);
+        eq("snapshot mode: safe answer first", ["intro", "confirm", "working", "done", "failed"].map(st => bf(st)[0].id),
+           ["test", "cancel", "wait", "later", "close"]);
+        // the flow: restore -> confirm (Abbrechen preselected) -> yes runs pkexec with the number
+        const calls = [];
+        const st = { stage: "intro", selected: 0, error: "", number: 30, helper: "/usr/local/libexec/workstation/snapshot-restore",
+                     root: null, dialog: { visible: true }, restoreProc: { command: [], set running(v) { calls.push(this.command); } },
+                     Hyprland: { dispatch: d => calls.push(d) } };
+        st.root = st;
+        st.closeDialog = make(sm, "closeDialog", st);
+        const press = make(sm, "press", st);
+        press("restore");
+        eq("restore -> confirm, Abbrechen preselected", [st.stage, st.selected], ["confirm", 0]);
+        press("cancel");
+        eq("cancel -> back to intro", st.stage, "intro");
+        press("restore"); press("yes");
+        eq("yes -> working + pkexec helper <number>", [st.stage, calls[0]], ["working", ["pkexec", "/usr/local/libexec/workstation/snapshot-restore", "30"]]);
+        st.closeDialog();
+        eq("no close while working", st.dialog.visible, true);
+        st.stage = "done";
+        press("reboot");
+        eq("reboot through Hyprland's session end", calls[1], "workstation_end_session(\"reboot\")");
+        st.stage = "intro"; st.dialog.visible = true;
+        press("test");
+        eq("Nur testen closes", st.dialog.visible, false);
+        // keys: Escape = safe answer, Right/Enter selects + presses
+        const ks = { stage: "confirm", selected: 0, buttons: bf("confirm"), pressed: [], Qt: Qt };
+        ks.press = id => ks.pressed.push(id);
+        const key = make(sm, "handleKey", ks);
+        key(Qt.Key_Escape); key(Qt.Key_Right); key(Qt.Key_Return);
+        eq("keys: Escape = Abbrechen, Right + Enter = Wiederherstellen", ks.pressed, ["cancel", "yes"]);
+        const fail = make(sm, "failure", scope);
+        eq("pkexec dismissed", fail(126, ""), "Keine Berechtigung (polkit) - es wurde nichts verändert.");
+        eq("helper reason shown", fail(1, "snapshot-restore: booted from snapshot 29, not 30\n"), "booted from snapshot 29, not 30");
+    }
+
     Component.onCompleted: {
+        snapshotMode();
         powerMenu();
         firewallEditor();
         scratchpad();

@@ -15,8 +15,14 @@
 #      it - a newer one there would break the next rebuild)
 # @home, @log, @pkg, @snapshots, @swap are never touched. rootflags=subvol=@
 # stays: "@" always is the live system. No reboot without asking.
-# A snapshot number without a slot has no saved UKI: only allowed when its
-# kernel is the one installed now (/usr/lib/modules has it).
+# A snapshot number: its kernel's UKI comes from the snapshot-boot copies
+# (/boot/EFI/workstation/snapshots/<kernel>.efi), else the main UKI when it
+# carries that kernel. Works from the normal system and from a snapshot boot
+# (workstation.snapshot=<n>: the overlay root is not @, so @ is not in use).
+# The switch is guarded: a failure after @ was moved puts it back - never a
+# system without @. The result is recorded in the NEW system
+# (/var/lib/workstation/snapshot-restore.json, read by repo-healthcheck) and
+# in the journal (-t system-rollback).
 . /usr/local/lib/workstation/recovery-lib.sh
 
 [ $# -ge 1 ] && [ $# -le 2 ] || { echo "usage: system-rollback <before-update|previous-update|known-good|NUMBER> [--yes]" >&2; exit 2; }
@@ -36,8 +42,14 @@ snap="/.snapshots/$n/snapshot"
 kver=$(ls "$snap/usr/lib/modules" | head -1)
 [ -n "$kver" ] && [ -f "$snap/usr/lib/modules/$kver/vmlinuz" ] || die "snapshot $n has no kernel in /usr/lib/modules"
 if [ -z "$uki" ]; then
-    [ "$kver" = "$(uki_uname "$MAIN_UKI")" ] || die "snapshot $n has kernel $kver, the current UKI $(uki_uname "$MAIN_UKI") - roll back to a recovery slot instead"
-    uki=$MAIN_UKI
+    stored="/boot/EFI/workstation/snapshots/$kver.efi"
+    if [ -f "$stored" ] && [ "$(uki_uname "$stored")" = "$kver" ]; then
+        uki=$stored
+    elif [ "$kver" = "$(uki_uname "$MAIN_UKI")" ]; then
+        uki=$MAIN_UKI
+    else
+        die "snapshot $n has kernel $kver: no stored UKI for it and the current UKI is $(uki_uname "$MAIN_UKI")"
+    fi
 fi
 
 desc=$(snapper -c root --csvout --separator '|' list --columns number,date,description | awk -F'|' -v n="$n" '$1 == n {print $2 " - " $3}')
@@ -49,19 +61,50 @@ if [ "$yes" != "--yes" ]; then
 fi
 
 top_mount
-trap top_umount EXIT
 stamp=$(date +%Y%m%d-%H%M%S)
 [ -d "$RECOVERY_TOP/@" ] || die "no @ at the top level"
+[ ! -e "$RECOVERY_TOP/@rollback-new" ] || die "$RECOVERY_TOP/@rollback-new exists (an interrupted rollback?) - remove it first"
+moved=0
+# Until the new @ is in place: undo whatever was done. After that: done.
+cleanup() {
+    local rc=$?
+    if [ "$moved" = 1 ] && [ ! -d "$RECOVERY_TOP/@" ] && [ -d "$RECOVERY_TOP/@broken-$stamp" ]; then
+        if mv "$RECOVERY_TOP/@broken-$stamp" "$RECOVERY_TOP/@"; then
+            echo "system-rollback: FAILED - the previous system is back in place as @" >&2
+        else
+            echo "system-rollback: CRITICAL - there is no @ now; the previous system is @broken-$stamp: rename it back to @ (top level) before rebooting" >&2
+            logger -t system-rollback -p user.crit "no @ after a failed rollback - rename @broken-$stamp back to @ (top level) before rebooting"
+        fi
+    fi
+    if [ "$moved" != done ]; then
+        [ -d "$RECOVERY_TOP/@rollback-new" ] && btrfs subvolume delete "$RECOVERY_TOP/@rollback-new" >/dev/null 2>&1
+        rm -f "$MAIN_UKI.rollback"
+        logger -t system-rollback -p user.err "rollback to snapshot $n FAILED (exit $rc) - system unchanged"
+    elif [ "$rc" -ne 0 ]; then
+        logger -t system-rollback -p user.err "rollback to snapshot $n: @ replaced, but a later step failed (exit $rc) - check $MAIN_UKI and /boot/vmlinuz-linux"
+    fi
+    top_umount
+}
+trap cleanup EXIT
 btrfs subvolume snapshot "$RECOVERY_TOP/@snapshots/$n/snapshot" "$RECOVERY_TOP/@rollback-new" >/dev/null
 # the kernel side first: build the new main UKI before anything is renamed
 build_uki "$uki" "$(tr -d '\n' < "$RECOVERY_TOP/@rollback-new$KERNEL_CMDLINE")" "$MAIN_UKI.rollback"
 mkdir -p "$RECOVERY_BROKEN_DIR"
 cp -f "$MAIN_UKI" "$RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"
+moved=1
 mv "$RECOVERY_TOP/@" "$RECOVERY_TOP/@broken-$stamp"
 mv "$RECOVERY_TOP/@rollback-new" "$RECOVERY_TOP/@"
+moved=done
 btrfs property set "$RECOVERY_TOP/@broken-$stamp" ro true
 mv -f "$MAIN_UKI.rollback" "$MAIN_UKI"
 cp -f "$RECOVERY_TOP/@/usr/lib/modules/$kver/vmlinuz" /boot/vmlinuz-linux
+# the record lives in the restored system - what repo-healthcheck reads after the reboot
+mkdir -p "$RECOVERY_TOP/@/var/lib/workstation"
+printf '{"snapshot": %s, "time": %s, "kernel": "%s", "previous": "@broken-%s", "from_snapshot_boot": %s, "description": "%s"}\n' \
+    "$n" "$(date +%s)" "$kver" "$stamp" "$([ -n "$(snapshot_mode)" ] && echo true || echo false)" \
+    "$(printf '%s' "$desc" | tr -d '"\\' | tr -d '\000-\037')" > "$RECOVERY_TOP/@/var/lib/workstation/snapshot-restore.json"
+chmod 0644 "$RECOVERY_TOP/@/var/lib/workstation/snapshot-restore.json"
+logger -t system-rollback -p user.notice "system restored to snapshot $n ($desc); previous system: @broken-$stamp"
 sync
 say "done: @ = snapshot $n (kernel $kver); previous system: @broken-$stamp, its UKI: $RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"
 say "next: reboot, then repo-healthcheck; bootstrap.sh only once $WORKSTATION_REPO matches the restored system"

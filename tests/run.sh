@@ -27,7 +27,7 @@ step() { # name, command...
 step "bash -n bootstrap.sh" bash -n bootstrap.sh
 step "bash -n bootstrap-personal.sh" bash -n bootstrap-personal.sh
 for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
-for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline roles/recovery/files/snapshot-create roles/recovery/files/workstation-checkupdates; do step "bash -n $f" bash -n "$f"; done
+for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline roles/recovery/files/snapshot-create roles/recovery/files/snapshot-restore roles/recovery/files/workstation-checkupdates; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc
 step "sh -n roles/network/files/50-workstation-vpn-state" sh -n roles/network/files/50-workstation-vpn-state
 step "sh -n roles/recovery/files/50-workstation-snapshot-boot.plugin" sh -n roles/recovery/files/50-workstation-snapshot-boot.plugin
@@ -88,6 +88,7 @@ step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "tests/diaglib.py" python3 tests/diaglib.py
 step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py
+step "tests/system-rollback.sh" bash tests/system-rollback.sh
 step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
 step "bash -n scripts/git-sync.sh" bash -n scripts/git-sync.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then

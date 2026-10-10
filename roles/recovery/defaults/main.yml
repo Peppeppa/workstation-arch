@@ -30,3 +30,6 @@ recovery_top_mount: /run/workstation-recovery/top
 # cleanup keeps NUMBER_LIMIT_IMPORTANT). Remote/inactive: admin password.
 recovery_snapshot_helper: /usr/local/libexec/workstation/snapshot-create
 recovery_snapshot_polkit_action: org.workstation.snapshot.create
+# Snapshot boot: the snapshot-mode dialog's permanent restore (pkexec, admin password).
+recovery_restore_helper: /usr/local/libexec/workstation/snapshot-restore
+recovery_restore_polkit_action: org.workstation.snapshot.restore
