@@ -116,6 +116,24 @@ wait: which-key lists every group. Sources: **Vim** = built in,
 | `Space u w` / `Space u s` | Wrap on/off / spelling on/off |
 | `Space l` | Lazy (plugins) |
 
+## LazyVim: language servers and debugging
+
+| Key | Action |
+| --- | --- |
+| `gd` / `gr` | Go to definition / references |
+| `gI` / `gy` | Go to implementation / type definition |
+| `K` / `gK` | Hover documentation / signature help |
+| `Space c a` | Code action (quick fix, organize imports, ...) |
+| `Space c r` | Rename symbol |
+| `Space c l` | Language servers of this buffer (LSP info) |
+| `Space c m` | Mason (servers, debuggers, formatters) |
+| `Space c v` | Python: pick the virtual environment |
+| `Space d b` | Toggle breakpoint |
+| `Space d c` | Start / continue debugging |
+| `Space d i` / `Space d O` / `Space d o` | Step into / over / out |
+| `Space d u` | Debugger UI on/off |
+| `Space d t` | Stop debugging |
+
 ## VimTeX (.tex files, local leader `\`)
 
 | Key | Action |

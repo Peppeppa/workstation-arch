@@ -211,3 +211,77 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   tags: apps
+
+# Languages (README "Shell and Neovim" -> "Languages"): the third managed
+# Neovim file (what no LazyVim extra provides) ...
+- name: Deploy the Neovim language spec (lua/plugins/workstation-languages.lua)
+  ansible.builtin.copy:
+    src: nvim-languages.lua
+    dest: "{{ ansible_facts.user_dir }}/.config/nvim/lua/plugins/workstation-languages.lua"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: apps
+
+# ... and the LazyVim extras, ADDED to lazyvim.json's list (LazyVim's own
+# place for extras - loaded in the right order before lua/plugins/). Other
+# extras and keys in the file stay; created minimal when LazyVim has not
+# written it yet. Prints "changed" only when an extra was added.
+- name: Enable the LazyVim language extras (lazyvim.json)
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import json, os, sys
+        path, wanted = sys.argv[1], sys.argv[2:]
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = {}
+        extras = data.setdefault("extras", [])
+        added = [e for e in wanted if e not in extras]
+        if added:
+            extras.extend(added)
+            tmp = path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f, indent=2)
+                f.write("\n")
+            os.replace(tmp, path)
+        print("changed" if added else "unchanged")
+      - "{{ ansible_facts.user_dir }}/.config/nvim/lazyvim.json"
+      - "{{ apps_nvim_extras }}"
+  register: apps_nvim_extras_result
+  changed_when: apps_nvim_extras_result.stdout == "changed"
+  tags: apps
+
+- name: Ensure ~/.local/share/workstation exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/share/workstation"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: apps
+
+- name: Deploy the Neovim headless installer (nvim-install.lua)
+  ansible.builtin.copy:
+    src: nvim-install.lua
+    dest: "{{ ansible_facts.user_dir }}/.local/share/workstation/nvim-install.lua"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: apps
+
+# Plugins, Mason packages and Tree-sitter parsers are installed now (as the
+# user, headless), not at the first interactive start: missing ones only,
+# nothing updated (nvim-install.lua). Fails when one could not be installed.
+- name: Install missing Neovim plugins, Mason packages and parsers (headless)
+  ansible.builtin.command:
+    cmd: timeout 1800 nvim --headless "+luafile {{ ansible_facts.user_dir }}/.local/share/workstation/nvim-install.lua"
+  environment:
+    WS_MASON: "{{ apps_nvim_mason_packages | join(' ') }}"
+  register: apps_nvim_tools
+  changed_when: "'WS_CHANGED yes' in apps_nvim_tools.stdout"
+  tags: apps

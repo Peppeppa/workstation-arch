@@ -27,6 +27,18 @@ development_packages:
   - python
   - uv
 
+  # C / Rust / Assembly toolchains (Neovim language support, README "Shell
+  # and Neovim" -> "Languages"). C: gcc (roles/apps) + make, gdb (CLI
+  # debugger; Neovim debugs through Mason's codelldb). Rust: the Arch
+  # toolchain package (rustc, cargo, rustfmt, clippy) and rust-analyzer -
+  # rustaceanvim takes it from PATH; no rustup (one toolchain, pacman-owned).
+  # Assembly: nasm for NASM syntax; GAS (`as`) comes with binutils.
+  - make
+  - gdb
+  - rust
+  - rust-analyzer
+  - nasm
+
   # Docker Engine + Compose (CLI plugin, `docker compose`) + Buildx
   # (Compose builds images through it) + lazydocker (TUI). Containers,
   # images, volumes and databases are the user's - nothing is created

@@ -777,14 +777,52 @@ first `nvim` start. Its `lua/plugins/workstation-theme.lua` makes Neovim
 use the active workstation theme's own Neovim port (exact theme, not just
 dark/light - table in `docs/DESIGN_SYSTEM.md`), and a theme switch
 recolors running Neovims too. Bring your own config (dotfiles) any time -
-keep that one file to stay themed. `lua/plugins/vimtex.lua` (see "LaTeX")
-and `lua/config/keymaps.lua` are the two files workstation-arch keeps
-managed (deployed on every bootstrap). Keymaps: Space as
+keep that one file to stay themed. `lua/plugins/vimtex.lua` (see "LaTeX"),
+`lua/plugins/workstation-languages.lua` (see "Languages" below) and
+`lua/config/keymaps.lua` are the files workstation-arch keeps managed
+(deployed on every bootstrap), plus the language extras it adds to
+`lazyvim.json`. Keymaps: Space as
 leader, `<leader>pv` explorer, visual `J`/`K` move lines, centered
 `<C-d>`/`<C-u>`/`n`/`N`, `<leader>p` paste keeping the yank, `<leader>y`/`Y`
 system clipboard, `jk` leaves insert, `<Esc>` saves, `<leader>x` chmod +x,
 visual `<leader>c` comments with `#`, `<C-h/j/k/l>` windows, `<C-c>`/`<C-v>`
 system clipboard. Personal additions go into another file under `lua/`.
+
+### Languages (Neovim)
+
+Ready after the bootstrap - plugins, Mason servers/tools and Tree-sitter
+parsers are installed headless (`nvim-install.lua`, missing ones only,
+nothing updated; later updates: `:Lazy update`, `:MasonUpdate`):
+
+| Language | Syntax | LSP / completion | Format | Lint / diagnostics | Debug |
+|---|---|---|---|---|---|
+| Java | Tree-sitter | jdtls (nvim-jdtls) | jdtls | jdtls | java-debug-adapter + java-test |
+| Python | Tree-sitter | pyright (uses the project's `.venv`; `Space c v` picks another) + ruff | ruff | ruff, pyright | debugpy |
+| Markdown | Tree-sitter | marksman | prettier | markdownlint-cli2 | - (preview: `Space c p`) |
+| Ansible | Tree-sitter (yaml) | ansiblels | - | ansible-lint (via ansiblels) | - |
+| YAML | Tree-sitter | yamlls + SchemaStore | prettier | yamlls | - |
+| C | Tree-sitter | clangd | clang-format (clangd) | clangd | codelldb (gdb on the CLI) |
+| Rust | Tree-sitter | rust-analyzer (pacman) via rustaceanvim | rustfmt | clippy | codelldb |
+| HTML / CSS | Tree-sitter | html, cssls | prettier | the servers | - |
+| JavaScript | Tree-sitter | vtsls | prettier | vtsls | js-debug-adapter |
+| JSON / TOML | Tree-sitter | jsonls + SchemaStore / taplo | prettier / taplo | the servers | - |
+| Bash | Tree-sitter | bashls | shfmt | shellcheck (via bashls) | - |
+| Dockerfile | Tree-sitter | dockerls (+ compose LS) | - | hadolint | - |
+| Lua | Tree-sitter | lua_ls | stylua | lua_ls | - |
+| Assembly | Tree-sitter `asm` / `nasm` | asm-lsp: instruction/register docs + completion (GAS, NASM, ...) - **no** semantic checking, errors come from the assembler (`as`, `nasm`) | - | - | gdb |
+| LaTeX | VimTeX (see "LaTeX") | VimTeX completion (omnifunc in blink.cmp) - still no texlab | - | VimTeX (`\le`) | - |
+
+How: LazyVim's own extras (`dap.core`, `formatting.prettier`,
+`lang.{ansible,clangd,docker,java,json,markdown,python,rust,toml,typescript,yaml}`)
+are added to `~/.config/nvim/lazyvim.json` (your own `:LazyExtras` choices
+stay); `lua/plugins/workstation-languages.lua` (the third managed file) adds
+only what no extra has: HTML/CSS/Bash/Assembly servers, parsers, the
+project-`.venv` rule for pyright, VimTeX completion. One server per
+language - Ansible files (roles/*/tasks, handlers, playbooks) are
+`yaml.ansible` -> ansiblels, every other YAML file -> yamlls. Toolchains
+are pacman's: gcc/make/gdb, JDK 25, rust + rust-analyzer, nasm, nodejs/npm
+(the runtime of Mason's npm-based servers, no global npm packages).
+Checks: `:checkhealth`, `:Lazy`, `:Mason`, `Space c l`.
 
 SSH client: `~/.ssh/config` gets one managed block (at its end - your own
 entries above it win) that points every host at the Bitwarden SSH agent:

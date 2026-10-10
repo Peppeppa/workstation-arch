@@ -49,6 +49,10 @@ apps_packages:
   - fd
   - tree-sitter-cli
   - gcc
+  # Mason installs most language servers as npm packages into its own
+  # directory (no global npm install): nodejs + npm are their runtime.
+  - nodejs
+  - npm
 
   # Notes
   - obsidian
@@ -222,3 +226,57 @@ chromium_extension_update_url: https://clients2.google.com/service/update2/crx
 # login dialog, saved (if at all) by Chromium's password manager, whose
 # key lives in the Secret Service (gnome-keyring) - never here.
 chromium_proxy_pac_url: https://www.bibliothek.thws.de/proxy.pac
+
+# Neovim languages (README "Shell and Neovim" -> "Languages"): LazyVim
+# extras that are switched on in ~/.config/nvim/lazyvim.json - ADDED to the
+# list there (extras chosen with :LazyExtras stay; nothing is removed).
+apps_nvim_extras:
+  - lazyvim.plugins.extras.dap.core            # debugging (nvim-dap + UI): Java, Python, C, Rust
+  - lazyvim.plugins.extras.formatting.prettier # HTML/CSS/JS/JSON/YAML/Markdown formatting
+  - lazyvim.plugins.extras.lang.ansible        # ansiblels + ansible-lint, yaml.ansible filetype
+  - lazyvim.plugins.extras.lang.clangd         # C: clangd (+ clang-format inside), codelldb
+  - lazyvim.plugins.extras.lang.docker         # dockerls, compose LS, hadolint
+  - lazyvim.plugins.extras.lang.java           # nvim-jdtls: jdtls, java-debug-adapter, java-test
+  - lazyvim.plugins.extras.lang.json           # jsonls + SchemaStore
+  - lazyvim.plugins.extras.lang.markdown       # marksman, markdownlint-cli2, preview
+  - lazyvim.plugins.extras.lang.python         # pyright + ruff, debugpy, venv selector
+  - lazyvim.plugins.extras.lang.rust           # rustaceanvim (rust-analyzer: pacman), codelldb
+  - lazyvim.plugins.extras.lang.toml           # taplo
+  - lazyvim.plugins.extras.lang.typescript     # JavaScript/TypeScript: vtsls
+  - lazyvim.plugins.extras.lang.yaml           # yamlls + SchemaStore
+
+# Installed by the bootstrap (headless, nvim-install.lua) so every language
+# works at the first start - the same packages LazyVim's extras and
+# workstation-languages.lua would fetch on their own. Already installed =
+# untouched (updates stay :Mason's / :MasonUpdate).
+apps_nvim_mason_packages:
+  - jdtls
+  - java-debug-adapter
+  - java-test
+  - pyright
+  - ruff
+  - debugpy
+  - marksman
+  - markdownlint-cli2
+  - markdown-toc
+  - ansible-language-server
+  - ansible-lint
+  - yaml-language-server
+  - clangd
+  - codelldb
+  - json-lsp
+  - taplo
+  - dockerfile-language-server
+  - docker-compose-language-service
+  - hadolint
+  - vtsls
+  - js-debug-adapter
+  - prettier
+  - html-lsp
+  - css-lsp
+  - bash-language-server
+  - shellcheck
+  - shfmt
+  - lua-language-server
+  - stylua
+  - asm-lsp
