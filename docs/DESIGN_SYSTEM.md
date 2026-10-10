@@ -135,6 +135,22 @@ then their own numbers stay - no partial edits outside a phase.
 Before: Hyprland's defaults (gaps 5/20, rounding 0). Square tiling again:
 `hyprland_gaps_in: 0`, `hyprland_gaps_out: 0`, `hyprland_rounding: 0`.
 
+### Toasts and lockscreen (RICE v1 phase 6)
+
+- Toasts (`Notifications.qml`): panel radius `panelRadius`, padding
+  `spacingLg`, icon gap `spacingMd`, type `body`/`secondary`/`caption`,
+  8 px (`spacingMd`) from the screen's top/right edge below the bar - the
+  same as Hyprland's `gaps_out`, so toasts line up with the windows. Width
+  360 (`Style.grow`; a toast sits between the narrow and standard panel
+  classes).
+- Lockscreen (`hyprlock.conf`): input field rounding 4 (`controlRadius`),
+  2 px `border_active` outline (the one 2 px outline: the field must be
+  findable on a plain background), colors from the theme roles, fonts from
+  `group_vars`. Clock 72 / date 18 px stay fixed: hyprlock is configured by
+  Ansible, the text size is runtime state (`theme` helper) and never
+  reaches it. Validated statically only - the unattended batch never locks
+  the session.
+
 **Rules for new QML components**
 
 - Sizes from `Style`, colors from `Colors`, families from `Fonts` - nothing

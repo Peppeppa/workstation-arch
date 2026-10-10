@@ -68,16 +68,16 @@ Scope {
             top: true
             right: true
         }
-        margins {
-            top: 8
-            right: 8
+        margins {                    // = Hyprland's gaps_out: toasts line up with the windows
+            top: Style.spacingMd
+            right: Style.spacingMd
         }
         // Normal: two-edge anchored surface without own exclusive zone,
         // so the compositor places it below the bar's.
         exclusionMode: ExclusionMode.Normal
         WlrLayershell.namespace: "quickshell-notifications"
         color: "transparent"
-        implicitWidth: Fonts.px(360)
+        implicitWidth: Style.grow(360)       // a toast: between the narrow and standard panel classes
         implicitHeight: stack.implicitHeight
 
         // GridLayout with one column so each toast can pick its row:
@@ -113,7 +113,7 @@ Scope {
                     Layout.fillWidth: true
                     visible: index >= toastWindow.count - root.maxVisible
                     implicitHeight: content.implicitHeight + 20
-                    radius: 6
+                    radius: Style.panelRadius
                     color: Colors.background
                     border.color: critical ? Colors.error : Colors.border
                     border.width: 1
@@ -136,8 +136,8 @@ Scope {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: 10
-                        spacing: 10
+                        anchors.margins: Style.spacingLg
+                        spacing: Style.spacingMd
 
                         Image {
                             Layout.alignment: Qt.AlignTop
@@ -152,7 +152,7 @@ Scope {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
+                            spacing: Style.spacingXs
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -164,14 +164,14 @@ Scope {
                                     elide: Text.ElideRight
                                     color: Colors.foregroundMuted
                                     font.family: Fonts.family
-                                    font.pixelSize: root.fontSize - 2
+                                    font.pixelSize: Style.caption
                                 }
 
                                 Text {
                                     text: ""   // x - the whole toast is clickable too
                                     color: Colors.foregroundMuted
                                     font.family: Fonts.icons
-                                    font.pixelSize: root.fontSize - 1
+                                    font.pixelSize: Style.secondary
                                 }
                             }
 
@@ -185,7 +185,7 @@ Scope {
                                 elide: Text.ElideRight
                                 color: Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: root.fontSize
+                                font.pixelSize: Style.body
                                 font.bold: true
                             }
 
@@ -199,7 +199,7 @@ Scope {
                                 elide: Text.ElideRight
                                 color: Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: root.fontSize - 1
+                                font.pixelSize: Style.secondary
                             }
                         }
                     }
