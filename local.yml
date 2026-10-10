@@ -133,13 +133,16 @@
     - role: diagnostics
       tags: [diagnostics]
 
-    - role: apps
-      tags: [apps]
-
-    # Development tools (gh, lazygit, JDK, Python/uv) and Docker -
-    # installed, never started at boot (start/stop on demand: README).
+    # Development tools (gh, lazygit, JDK, Python/uv, C/Rust/Assembly
+    # toolchains) and Docker - installed, never started at boot (start/stop
+    # on demand: README). Before apps: Neovim's headless Mason install there
+    # builds some servers with these toolchains (asm-lsp needs cargo - found
+    # on the laptop when apps ran first).
     - role: development
       tags: [development]
+
+    - role: apps
+      tags: [apps]
 
     # Packages menu (OS menu -> Packages): fzf picker helper + the AUR helper
     # (yay, pinned build) for the user's own runtime installs/removals.
