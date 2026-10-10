@@ -61,5 +61,9 @@ if pacman_sysupgrade; then extra="upgrade=yes"; fi
 n=$(auto_snapshot "$what" "$extra" | tail -1) && [ -n "$n" ] \
     || die "snapper could not take the pre-transaction snapshot - transaction ABORTED. Fix snapper, or once without a snapshot: see the header of $0"
 say "snapshot $n before this transaction ($what)"
-say "snapshot $n is ${extra:+an update recovery snapshot (system upgrade)}${extra:-a package-change snapshot (not in the boot menu)}"
+if [ -n "$extra" ]; then
+    say "snapshot $n is an update recovery snapshot (system upgrade)"
+else
+    say "snapshot $n is a package-change snapshot (not in the boot menu)"
+fi
 prune_auto || say "WARNING: retention failed (snapshot-boot prune) - old snapshots stay for now"

@@ -599,7 +599,7 @@ QtObject {
         eq("slots: delete passes the shown number", argv("delete", full, ""), ["pkexec", H, "delete", "1", "35"]);
         const stx = make(sd, "statusText", {});
         eq("slots: status lines", [stx(full), stx({ empty: false, status: "not-bootable", reason: "no stored UKI" }), stx({ empty: false, status: "unknown" }), stx(empty)],
-           ["bootfähig - im Bootmenü", "nicht bootfähig: no stored UKI", "Bootstatus noch unbekannt", ""]);
+           ["bootfähig", "nicht bootfähig: no stored UKI", "Bootstatus noch unbekannt", ""]);
         const fl = make(sd, "failure", {});
         eq("slots: helper reason without prefix", fl(1, "snapshot-boot: slot 1 holds snapshot 36 - overwrite it only after confirming that one\n"),
            "slot 1 holds snapshot 36 - overwrite it only after confirming that one");

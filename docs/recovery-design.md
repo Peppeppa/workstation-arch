@@ -707,4 +707,20 @@ snapshot, then the menu sync. UKI copies stay while any kept update or slot
 snapshot has their kernel (also when no entry is written, e.g. Secure Boot
 on) and are removed once none has.
 
-Hardware results: see the end of this section after the laptop run.
+Hardware results (ThinkPad T440p, 2026-10-10):
+
+| Test | Result |
+|---|---|
+| real pacman: `-Su cowsay` x3 / `-R cowsay` x3 | `-Su` -> `upgrade=yes`, `-R` -> other; after the third upgrade transaction exactly 2 update (#38, #40, both in the menu) and 2 other (#39, #41); legacy slot #27, baseline, unslotted manual snapshots untouched |
+| Create Snapshot dialog with real keys | empty slot 1 -> #42; overwrite: question, Escape = unchanged, confirm -> #43 in slot 1 and #42 deleted; slots 2, 3; delete: question, Escape = unchanged, confirm -> slot 3 empty; menu followed every step |
+| `snapper -c root cleanup number` | slots #43, #44 kept (cleanup "") |
+| menu | Arch Linux (default), 2 "Update snapshot", 2 "Slot n" (+ the legacy recovery slot) |
+| repo-healthcheck | HEALTHY: retention 2 + 2, slot overview, entries |
+| bootstrap twice | second run: only the accepted mirror-sync cosmetic of the central `pacman -Syu` |
+
+Found and fixed on the laptop: Quickshell refused the dialog's inline
+component ("is not a type" at its own declaration) - plain Text now; the
+first deploy did not re-sync the menu (a changed snapshot-boot notifies the
+sync now). Not on hardware: booting / restoring a slot snapshot (same
+mechanism as section 22, unchanged), a real update through system-update
+with the new classes (only `pacman -Su`), Secure Boot.

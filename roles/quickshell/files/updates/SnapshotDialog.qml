@@ -105,7 +105,7 @@ PanelWindow {
     // A slot's status line. Pure (tests).
     function statusText(s) {
         if (!s || s.empty) return "";
-        if (s.status === "bootable") return "bootfähig - im Bootmenü";
+        if (s.status === "bootable") return "bootfähig";
         if (s.status === "not-bootable") return "nicht bootfähig: " + s.reason;
         return "Bootstatus noch unbekannt";
     }
