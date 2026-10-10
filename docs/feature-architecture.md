@@ -1181,7 +1181,7 @@ Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
 
 ## Snapshot boot + snapshot mode (host capability recovery)
 
-The boot menu offers the newest 2 update + 2 manual snapper snapshots
+The boot menu offers the 2 update recovery snapshots + the 3 manual slots
 (`snapshot-boot`, synced by a snapper plugin); booting one gives a
 read-only snapshot root with a RAM overlay (`workstation.snapshot=<n>`),
 pacman blocked. Quickshell `updates/SnapshotMode.qml` (deployed with
@@ -1212,7 +1212,7 @@ nothing here is deployed or referenced.
 | Icon | visible with >= 1 pending update (any - no major/minor classification), dimmed while checks fail after a result with updates, accent while an update runs; tooltip = count + names; click = the updater dialog |
 | Update | the dialog asks (Nein preselected; Escape / click outside = Nein), then `systemd-run --user --unit=workstation-system-update -- <terminal> -e system-update --ui`: the transaction (sudo, pre-update snapshot + slot, interactive `pacman -Syu`, checks, result) is `system-update`'s, in the terminal, not Quickshell's child - closing the dialog or restarting Quickshell never stops it. One at a time: the unit name + `system-update`'s flock |
 | Snapshot failure | `system-update` exit 3 before pacman + IPC `updates.snapshotFailed <reason>` -> second question, Nein (empfohlen) preselected; Ja = `system-update --ui --no-snapshot` (skip marker for the pacman hook, `logger -t system-update`, result says no snapshot). Preflight (pacman lock, space, ESP, battery, boot state), sudo, health and pacman failures have no such override |
-| Create Snapshot | `pkexec snapshot-create <label>`: validated again in the helper (1-100 bytes, no control characters, no leading `-`), one argv element, then `system-snapshot "<label>"`. Polkit: the active local session without a password (only this helper, which only creates), remote/inactive = admin password - the dialog is an overlay, a polkit prompt would sit under it |
+| Create Snapshot | the three manual slots (`updates/SnapshotDialog.qml`): the list without root (`snapshot-boot slot-list --json`: info.xml + the snapshot-boot state, read on open and after each action), then `pkexec snapshot-create set <slot> <label> [<confirmed number>]` / `delete <slot> <number>` - label validated again in the helper (1-100 bytes, no control characters, no leading `-`), one argv element; overwrite and delete only after a question naming the snapshot (Abbrechen preselected); the helper refuses when the slot holds another snapshot than the one confirmed. Polkit: the active local session without a password (only this helper: manual slots, never update snapshots, never a rollback), remote/inactive = admin password - the dialog is an overlay, a polkit prompt would sit under it. Mechanism: docs/recovery-design.md 23 |
 | IPC | `updates`: open/close/state/check + system-update's reports `snapshotFailed`/`finished`; `snapshot`: open/close/state. None runs a command by itself |
 | Disable | `recovery_enabled: false` - nothing deployed/referenced; already-deployed files stay (Disable vs. Purge) |
 | Persistent user data | none (the last result lives in memory) |

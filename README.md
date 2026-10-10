@@ -433,7 +433,9 @@ back by itself.
 
 ```sh
 system-update                               # the update transaction
-sudo system-snapshot "label"                # a manual snapshot (also: OS menu -> System -> Create Snapshot)
+sudo system-snapshot --slot 1 "label"       # manual slot 1-3 (also: OS menu -> System -> Create Snapshot)
+sudo system-snapshot --slot 1 "label" --replace <n>   # overwrite slot 1 (n = its current snapshot)
+sudo system-snapshot --delete-slot 1 <n>    # empty slot 1
 sudo system-snapshot --list                 # snapshots (+ legacy recovery slots)
 /usr/local/lib/workstation/snapshot-boot status   # which snapshots are in the boot menu, and why not the others
 sudo system-rollback <number>               # permanent, from the next boot; /home stays
@@ -443,9 +445,9 @@ sudo system-rollback <number>               # permanent, from the next boot; /ho
 
 The systemd-boot menu (shown for 3 s at every start - press an arrow key
 to keep it) lists, below the normal **Arch Linux** entry (always the
-default), the newest **2 update snapshots** (`Snapshot (before update) #n
-<date> - pacman: ...` / `system-update ...`) and the newest **2 manual
-snapshots** (`Snapshot #n <date> - <your name>`). The entries follow
+default), the **2 update recovery snapshots** (`Update snapshot <date> -
+pacman: ... (#n)` / `system-update ...`, taken before every system
+upgrade) and your **3 manual slots** (`Slot 1: <name> - <date> (#n)`). The entries follow
 snapper by themselves: a new snapshot appears, a deleted one disappears
 (a snapper plugin, no timer). Only snapshots that can really boot are
 offered; `snapshot-boot status` lists the others with the reason (e.g.
@@ -479,11 +481,15 @@ shared by all snapshots of that kernel, removed when no entry uses it).
 Automatic snapshots: **every** package transaction (`pacman -S`, `-R`,
 `-U`, a bare `pacman -Syu`, package tasks of a bootstrap) first takes ONE
 snapshot of the system (a pacman hook), described `pacman: <packages>`.
-`system-update` takes that snapshot itself - still one per update. Only the newest **3** automatic snapshots are kept; the
-`known-good` snapshot (the protected baseline - a host without one gets a
-single `baseline` snapshot after its first complete bootstrap) and your
-`system-snapshot "label"` snapshots (snapper keeps the last 4) are never
-touched by that cleanup. If a snapshot cannot be taken, pacman stops
+`system-update` takes that snapshot itself - still one per update. A
+snapshot before a **system upgrade** (`pacman -Syu`/`-Su`, system-update) is
+an *update recovery snapshot*: the newest **2** are kept and both are in the
+boot menu (a third one removes the oldest - but never the last one that can
+boot). Snapshots before installs/removals: the newest **2**, never in the
+menu. Your **3 manual slots** are never removed automatically, only by you
+(✕ or overwrite, each confirmed). Older kinds (an unslotted
+`system-snapshot "label"`, the `known-good`/baseline snapshot) are left to
+snapper's own count limits. If a snapshot cannot be taken, pacman stops
 instead of updating without one (once without:
 `sudo sh -c 'echo manual > /run/workstation-recovery/skip-pre-snapshot'`).
 A pre-transaction snapshot is a read-only recovery point: browse it under
@@ -525,11 +531,16 @@ boot (system-update makes no new ones); it still boots its saved system
   snapshot". Only a failed snapshot has this way past it - a pacman lock,
   too little space, a recovery boot, a refused sudo, a failed health check
   or a pacman error still end the update.
-- **OS menu -> System -> Create Snapshot**: an optional name (e.g. "Vor
-  Installation von Software"; empty = "Manueller Snapshot <date time>"),
-  Erstellen / Abbrechen; shows number, description and time. Same as
-  `sudo system-snapshot "<name>"` (manual, kept by count: the last 4) - the
-  active desktop session may do exactly this without a password
+- **OS menu -> System -> Create Snapshot**: your **three manual slots**,
+  each "Leer" or one snapshot with name, date/time, number and whether the
+  boot menu offers it ("bootfähig" / "nicht bootfähig: <why>"). **Erstellen**
+  (empty slot): an optional name (empty = "Manueller Snapshot <date time>")
+  -> created at once. **Überschreiben** (occupied): name -> "Slot n
+  überschreiben?" naming the old snapshot, **Abbrechen** preselected - the
+  new snapshot is made and checked first, the old one is deleted only after
+  that; a failure leaves the slot as it was. **✕**: "Snapshot löschen?" with
+  name and date, Abbrechen preselected. Keys: Up/Down, Enter, Delete,
+  Escape. The active desktop session may do exactly this without a password
   (polkit `org.workstation.snapshot.create`), nothing else.
 
 What a snapshot contains: the system subvolume `@` (`/`, incl. `/etc`,

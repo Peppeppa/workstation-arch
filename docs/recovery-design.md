@@ -664,3 +664,47 @@ Not tested on hardware: a restore failing halfway (tests/system-rollback.sh
 only), a snapshot with an older kernel (logic + tests only), Secure Boot
 on, ESP budget exhaustion, the resync unit after a restore (deployed after
 the restore test; logic tested).
+
+## 23. Retention and manual slots (2026-10-10)
+
+**Classes** (snapper userdata only - never the description; `snapshot-boot
+classify`):
+
+| Class | Userdata | Created by | Kept | Boot menu |
+|---|---|---|---|---|
+| update recovery | `auto=pre-transaction` + `upgrade=yes` (pacman hook: the pacman that runs it was started with `-S..u` / `--sync --sysupgrade`) or `update=<id>` (system-update) | before every system upgrade | newest 2 - plus the newest *bootable* one while neither of those two can boot (a failed new snapshot never costs the last working recovery point) | all of them (2) |
+| other pacman | `auto=pre-transaction` without the above | installs / removals / `-U` | newest 2 | never |
+| manual slot | `mslot=1|2|3` (+ `important=yes`), cleanup algorithm `""` | Create Snapshot / `system-snapshot --slot` | one per slot until deleted or overwritten by the user | one entry per slot (3) |
+| legacy | `slot=`, `baseline=yes`, unslotted `important=yes` (cleanup `number`), old pre/post pairs | earlier versions | untouched by us; snapper's number cleanup handles the `number` ones (important: 4, others: 10) | legacy slot entries only |
+
+Retention runs in `snapshot-boot prune`, called right after the new
+snapshot by the pacman hook and system-update (never from the menu sync:
+nothing is deleted because it is not shown). Never deleted there: manual
+slots, legacy slots, the baseline, unclassified snapshots; nothing runs in
+a snapshot boot (pacman is blocked, `prune`/slot changes refuse), so the
+booted snapshot cannot go.
+
+**Slot metadata** lives in snapper's own `@snapshots/<n>/info.xml`
+(userdata `mslot`), not in a file of ours: outside `@`, so a rollback
+cannot lose or desynchronise it; the first boot after a restore re-syncs
+the menu from it (section 22). The newest holder wins if two snapshots
+carry the same slot (an interrupted overwrite); the next change of that
+slot removes the other, the healthcheck warns meanwhile.
+
+**Overwrite / create** (`snapshot-boot slot-set S LABEL [--replace N]`, root;
+the dialog through `pkexec snapshot-create set ...`):
+1. refuse unless booted normally; an occupied slot only with `--replace` =
+   the number the user saw and confirmed (else "holds snapshot X");
+2. remove leftovers of an interrupted run (`mslot-new=S`), store the UKI;
+3. `snapper create` with `mslot-new=S`, cleanup `""`;
+4. check it can boot (same rules as the menu) - if not: delete it again, slot unchanged;
+5. `snapper modify` -> `mslot=S` - if that fails: delete it again, slot unchanged;
+6. delete the old snapshot (and any second holder);
+7. sync the menu - a failure here keeps the new slot and is reported as a warning.
+
+**Delete** (`slot-delete S N`): only N = the slot's current snapshot; the
+snapshot, then the menu sync. UKI copies stay while any kept update or slot
+snapshot has their kernel (also when no entry is written, e.g. Secure Boot
+on) and are removed once none has.
+
+Hardware results: see the end of this section after the laptop run.
