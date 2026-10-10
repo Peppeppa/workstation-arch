@@ -69,7 +69,8 @@ log_lines = []
 def log(msg, err=False):
     log_lines.append(msg)
     print("snapshot-boot: " + msg, file=sys.stderr if err else sys.stdout)
-    if not R:
+    # under systemd (the sync service) stdout/stderr already are the journal
+    if not R and not os.environ.get("INVOCATION_ID"):
         subprocess.run(["logger", "-t", "snapshot-boot", "-p", "user.err" if err else "user.info", "--", msg], check=False)
 
 
