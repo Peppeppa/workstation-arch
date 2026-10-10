@@ -12,6 +12,13 @@ development_packages:
   # jdk-openjdk would be the latest non-LTS release (27); IntelliJ can
   # still download/select other JDKs per project itself.
   - jdk25-openjdk
+  # Build tools (official extra; both run on the JDK above, no own JDK):
+  - maven
+  - gradle
+  # The Java language server (jdtls) and the debug/test adapters are not in
+  # the official repositories - Neovim's Mason installs them per user
+  # (roles/apps, LazyVim lang.java extra). No second IDE here (IntelliJ is
+  # roles/apps).
 
   # Python: the interpreter (core) + uv for virtual environments, project
   # dependencies and other Python versions. No global pip packages -

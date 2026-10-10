@@ -243,7 +243,7 @@ first - see the `gaming` row below.
 | `power`          | `power`         | Lid switch -> suspend (logind drop-in); power-profiles-daemon (`power_profiles_enabled`) |
 | `quickshell`     | `quickshell`    | Quickshell (official `extra` package): top bar, launcher, notifications, tray, popups (power, audio, connectivity, Bluetooth), clipboard history, wallpaper |
 | `apps`           | `apps`          | End-user applications (browser, mail, Nautilus + yazi as file managers, editor, PDF, TeXstudio, Loupe, Disks, Anki, Planify; LocalSend/IntelliJ via Flathub; WhatsApp, Zoom and Discord as Chromium web apps); default handlers: folders -> Nautilus, PDF -> zathura, PNG -> imv |
-| `development`    | `development`   | gh, lazygit, JDK 25, Python + uv, Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server), LaTeX (TeX Live collections + biber + latexmk, see "LaTeX") |
+| `development`    | `development`   | gh, lazygit, JDK 25 + Maven + Gradle (see "Java"), Python + uv + the Data Science environment (see "Python / Data Science"), Docker Engine + Compose + lazydocker (Docker never starts at boot - see "Docker"), the MariaDB client `mariadb-clients` (no server), LaTeX (TeX Live collections + biber + latexmk, see "LaTeX") |
 | `shell`          | `shell`         | Starship, zoxide, fzf, eza, bat, tldr (tealdeer), bash-completion + one sourced shell integration file - see "Shell and Neovim" |
 | `virtualization` | `virtualization`| VirtualBox host (kernel modules via DKMS, `vboxusers` group)           |
 | `gaming`         | `gaming`        | Steam, Lutris, gamemode - needs a host-specific GPU driver var first   |
@@ -578,6 +578,24 @@ leaves it as it was; packages you added yourself with
 `uv pip install --python ~/.local/share/venvs/data-science/bin/python ...`
 stay). After a pacman Python minor upgrade (3.14 -> 3.15) the next bootstrap
 rebuilds the environment for the new interpreter.
+
+## Java
+
+JDK **25** (`jdk25-openjdk`, the current LTS - `java`, `javac`, `jar`,
+`jshell`, `jdb`; `archlinux-java status` shows the default), **Maven**
+(`mvn`) and **Gradle** (`gradle`) from the official repositories, all on
+that one JDK. No JDK 21 in parallel: nothing here needs it; a project that
+does can use Gradle/Maven toolchains or IntelliJ's per-project JDK download.
+In Neovim (LazyVim `lang.java` extra, see "Shell and Neovim"): jdtls (the
+Eclipse language server: completion, diagnostics, formatting, refactoring)
+and the Java debug + test adapters, installed per user by Mason - they are
+not in the official repositories.
+
+```sh
+javac Hello.java && java Hello        # single file (or just: java Hello.java)
+mvn -B package                        # Maven project
+gradle init && ./gradlew build        # new Gradle project (the wrapper pins Gradle per project)
+```
 
 ## LaTeX
 
