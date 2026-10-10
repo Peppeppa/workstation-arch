@@ -234,24 +234,27 @@
       - -c
       - |
         import json, os, sys
-        path, wanted = sys.argv[1], sys.argv[2:]
+        path, wanted = sys.argv[1], [e for e in sys.argv[2].split(",") if e]
         try:
             with open(path) as f:
                 data = json.load(f)
         except FileNotFoundError:
             data = {}
         extras = data.setdefault("extras", [])
+        # One-time cleanup (2026-10-10): the first version of this task wrote
+        # the whole list as ONE string entry "['lazyvim.plugins.extras...']".
+        bad = [e for e in extras if e.startswith("['lazyvim.plugins.extras.")]
         added = [e for e in wanted if e not in extras]
-        if added:
-            extras.extend(added)
+        if added or bad:
+            extras[:] = [e for e in extras if e not in bad] + added
             tmp = path + ".tmp"
             with open(tmp, "w") as f:
                 json.dump(data, f, indent=2)
                 f.write("\n")
             os.replace(tmp, path)
-        print("changed" if added else "unchanged")
+        print("changed" if added or bad else "unchanged")
       - "{{ ansible_facts.user_dir }}/.config/nvim/lazyvim.json"
-      - "{{ apps_nvim_extras }}"
+      - "{{ apps_nvim_extras | join(',') }}"
   register: apps_nvim_extras_result
   changed_when: apps_nvim_extras_result.stdout == "changed"
   tags: apps
