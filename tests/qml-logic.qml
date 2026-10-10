@@ -718,6 +718,8 @@ QtObject {
         eq("cancel -> back to intro", st.stage, "intro");
         press("restore"); press("yes");
         eq("yes -> working + pkexec helper <number>", [st.stage, calls[0]], ["working", ["pkexec", "/usr/local/libexec/workstation/snapshot-restore", "30"]]);
+        eq("yes -> the dialog is hidden (the polkit window needs the keyboard)", st.dialog.visible, false);
+        st.dialog.visible = true;
         st.closeDialog();
         eq("no close while working", st.dialog.visible, true);
         st.stage = "done";

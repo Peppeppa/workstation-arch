@@ -11,7 +11,11 @@
 //     "Dauerhaft wiederherstellen" -> a second question that says what
 //     changes (Abbrechen preselected) -> `pkexec <helper> <n>` (polkit
 //     org.workstation.snapshot.restore, administrator password) ->
-//     system-rollback. Success: "Jetzt neu starten" through Hyprland's own
+//     system-rollback. While pkexec runs the dialog is HIDDEN: the polkit
+//     agent's password window is a normal window, and a full-screen overlay
+//     holding the keyboard left it unusable behind the dialog (laptop
+//     2026-10-10); the strip says what is going on, the dialog comes back
+//     with the result. Success: "Jetzt neu starten" through Hyprland's own
 //     session end (workstation_end_session, like the power menu) or later;
 //     failure: the helper's reason, nothing changed.
 // Outside a snapshot boot nothing is shown and nothing runs after the one
@@ -117,6 +121,8 @@ Scope {
         case "yes":
             stage = "working";
             error = "";
+            dialog.visible = false;                // the polkit agent's window needs the keyboard
+
             restoreProc.command = ["pkexec", root.helper, String(root.number)];
             restoreProc.running = true;
             break;
@@ -190,6 +196,7 @@ Scope {
                 root.selected = 0;
                 Log.warn("snapshot", "snapshot-restore failed (exit " + code + "): " + Log.firstLine(restoreErr.text));
             }
+            dialog.visible = true;
         }
     }
 
@@ -237,7 +244,9 @@ Scope {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
-                text: (root.stage === "done" ? "SNAPSHOT-MODUS - wiederhergestellt, Neustart ausstehend" : "SNAPSHOT-MODUS")
+                text: (root.stage === "done" ? "SNAPSHOT-MODUS - wiederhergestellt, Neustart ausstehend"
+                       : root.stage === "working" ? "SNAPSHOT-MODUS - Wiederherstellung läuft: Administrator-Passwort im Anmeldefenster eingeben"
+                       : "SNAPSHOT-MODUS")
                       + "  ·  #" + root.number + (root.date ? "  " + root.date : "")
                       + (root.description ? "  " + root.description : "")
                       + "  ·  Normales System unverändert  ·  Klicken für Optionen"
