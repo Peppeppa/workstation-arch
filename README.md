@@ -312,7 +312,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + X` | screenshot of the whole focused monitor |
 | `Super + Ctrl + X` | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + Delete` | lock now (hyprlock) |
-| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - type to search (e.g. `reb`, `restart`), Up/Down wrap around, Enter runs immediately (no confirmation), Escape clears the search, then closes |
+| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Reboot / Shutdown - type to search (e.g. `reb`, `restart`), Up/Down wrap around, Enter runs immediately (no confirmation), Escape clears the search, then closes |
 | `Super + Shift + E` | exit Hyprland (back to Ly / the TTY) |
 
 Caps Lock is a second Ctrl (`hyprland_keyboard_options: ctrl:nocaps`). The
@@ -381,7 +381,7 @@ defaults in the meantime.
    - bootstrap: the `fatal:` task (role, file:line) in its own output;
      rerun one role with `./bootstrap.sh --tags <role> -v`
 
-Logout (power menu, `mainMod+SHIFT+E`) and the power menu's Reboot/Shutdown
+Logout (`mainMod+SHIFT+E`) and the power menu's Reboot/Shutdown
 end the session in order: Hyprland's shutdown hook stops its session
 helpers and the portals while the display still exists (`session-stop`,
 roles/hyprland) - no coredumps, no "failed" portal units. A session ended
@@ -442,7 +442,7 @@ by hand.
   shown as such (icon dimmed only if the last good check had updates,
   tooltip "veraltet") - an old result is never shown as fresh.
   Manual check: `workstation-checkupdates` (JSON), `qs ipc call updates check`.
-- **Power menu -> Update** (`Super+Escape`, type `upd`) or the icon: the
+- **OS menu -> System -> Update** (`Super+Space`, type `upd`) or the icon: the
   dialog lists the pending packages and asks "System aktualisieren?" -
   **Nein** is preselected (Enter on it, Escape and a click outside all
   cancel). **Ja** opens the terminal with `system-update`: sudo password,
@@ -459,7 +459,7 @@ by hand.
   snapshot". Only a failed snapshot has this way past it - a pacman lock,
   too little space, a recovery boot, a refused sudo, a failed health check
   or a pacman error still end the update.
-- **Power menu -> Create Snapshot**: an optional name (e.g. "Vor
+- **OS menu -> System -> Create Snapshot**: an optional name (e.g. "Vor
   Installation von Software"; empty = "Manueller Snapshot <date time>"),
   Erstellen / Abbrechen; shows number, description and time. Same as
   `sudo system-snapshot "<name>"` (manual, kept by count: the last 4) - the
@@ -654,55 +654,66 @@ nothing extra in Neovim - `\usepackage[ngerman]{babel}` in the document.
 ## Firewall and SSH
 
 Inbound traffic is dropped unless it answers something this machine
-started, or is one of: LocalSend (discovery + transfers), DHCP, the ICMP
-IPv4/IPv6 need, SSH (only on a host with `ssh_server_enabled`), or one of
-**your sharing rules**. Outbound is not filtered - browsing, VPN clients
+started, is needed infrastructure (loopback, ICMP errors, IPv6 neighbor
+discovery, Docker bridges to the host) or matches one of the **port rules**
+in Settings -> Firewall. Outbound is not filtered - browsing, VPN clients
 (WireGuard/OpenVPN via NetworkManager), Docker pulls need no rule.
 Mechanism: one nftables table (`inet workstation`) loaded at boot by
 `workstation-firewall.service`; nothing keeps running.
 
-**Share a service with colleagues on the LAN**: OS menu -> Settings ->
-Firewall -> **Hinzufügen** (e.g. `Test Database` / `1234` / `TCP`). A new
-rule starts **disabled** - nothing opens until you click **Aktivieren**;
-then colleagues can connect to `<your-ip>:1234`. **Deaktivieren** closes it again
-immediately (the row stays), **Aktivieren** reopens it, **×** closes and
-deletes the rule. Rules survive reboots.
+**The rule list** (OS menu -> Settings -> Firewall) is every port this
+firewall opens - nothing is opened anywhere else. On a fresh host it holds
+the five **standard rules**:
+
+| Rule | Port | nft rule (exact) |
+|---|---|---|
+| DHCP | UDP 68 | `udp sport 67 udp dport 68` (IPv4 + IPv6) |
+| DHCPv6 | UDP 546 | `ip6 saddr fe80::/10 udp sport 547 udp dport 546` (IPv6, link-local servers only) |
+| LocalSend – Geräteerkennung | UDP 53317 | `ip daddr 224.0.0.167 udp dport 53317` (IPv4 multicast group only) |
+| LocalSend – Dateiübertragung | TCP 53317 | `tcp dport 53317` (IPv4 + IPv6) |
+| SSH | TCP 22 | `tcp dport 22` (IPv4 + IPv6; only on hosts with `ssh_server_enabled`) |
+
+They are ordinary rules: **Aktivieren / Deaktivieren** (the button shows
+what is live in the kernel), **×** deletes, a click on the row's text
+**edits** it (label, port, protocol - for DHCP, DHCPv6 and LocalSend
+discovery only the label: their port is part of their restriction).
+**Hinzufügen** adds your own rule (e.g. `Test Database` / `1234` / `TCP`;
+any source, IPv4 + IPv6, also Docker-published host ports) - added
+**disabled**, nothing opens until you click Aktivieren.
+**Standardregeln wiederherstellen** (bottom; asks first, Abbrechen is
+preselected) sets the list back to the five standard rules, all active:
+your own rules are removed, deleted or disabled standard rules come back.
+
+Everything you change is persistent (`/var/lib/workstation/firewall/
+rules.json`): it survives reboots, and a bootstrap never resets it - a
+deleted rule stays deleted, a disabled one disabled. Every change is one
+atomic nftables transaction (checked with `nft -c` first; on any error
+neither the kernel nor the saved list changes).
 
 - A rule opens the port in the firewall - it does not start or stop your
   service. Rule on + nothing listening = connection refused; rule off +
   service running = it works on this machine, the LAN is blocked.
-- Docker: `docker run -p 1234:5432 ...` is LAN-blocked until a rule for
-  the **host** port (1234) exists; `-p 127.0.0.1:1234:5432` stays local
-  regardless. Container networking and outbound traffic are not affected.
-- Bind dev servers to `127.0.0.1` anyway when the LAN never needs them.
+- Docker: `docker run -p 1234:5432 ...` is LAN-blocked until a rule of your
+  own for the **host** port (1234) is active; `-p 127.0.0.1:1234:5432` stays
+  local regardless. The standard rules never open Docker-published ports.
+- Not in the list and not touched by it: Docker's own nftables tables and
+  anything else outside `inet workstation`.
 
-**What is really allowed** (read-only, below your rules in the same
-window, "Wirksamer Zustand"): every inbound rule of the LIVE table with its
-protocol/port, source, interface and IP version ("alle" only when the rule
-really has no such condition), whether it comes from the configuration
-(persistent) or exists only at runtime, which program listens on the port,
-and established connections right now (peer + interface). Also: services
-that listen but are not allowed ("von außen blockiert"), loopback-only
-services, configured rules missing from the live table, and other nftables
-tables (e.g. Docker's - named, not evaluated). Names appear only where the
-configuration put the rule there (SSH from `ssh_server_enabled`, LocalSend,
-DHCP; your rules by their label) - never guessed from a port number.
-Listening is not the same as allowed, and an allowed port is not proof that
-a given network can reach it (router, VPN, other firewalls) - the window
-says so. Opening it changes nothing; it reads once per opening and after
-each change, no polling.
-
-Why SSH works on the laptop: `ssh_server_enabled: true` (host_vars) puts
-`tcp dport 22 accept` into the base ruleset - for **every** source, every
-interface, IPv4 and IPv6 - and sshd listens on `0.0.0.0:22` and `[::]:22`
-(key-only). So any network the laptop is on can reach sshd; only the key
-protects it. Narrowing it (e.g. to the home LAN) would be a policy change
-(`roles/firewall`), not done here.
+**SSH**: disabling, deleting or editing the SSH rule asks first and warns:
+new SSH connections to this machine are then blocked (also remote
+administration); established ones stay. It is never prevented. There is no
+timed automatic undo on purpose: the editor runs only in the local desktop
+session, which a firewall rule cannot lock out - you undo it right there
+(Aktivieren, or Standardregeln wiederherstellen). **Recovery** when the
+desktop is unusable: log in on a text console (Ctrl+Alt+F3) and run
+`sudo /usr/local/libexec/workstation/firewall-rules reset` (the five
+standard rules), or `sudo systemctl stop workstation-firewall` (removes the
+table: no inbound filtering until the next boot / `systemctl start`).
 
 CLI (what the window runs):
-`pkexec /usr/local/libexec/workstation/firewall-rules status` (read-only,
-JSON), `... list` (also `add
-<label> <port> <tcp|udp>`, `enable|disable|remove <port> <tcp|udp>`);
+`pkexec /usr/local/libexec/workstation/firewall-rules list` (also `add
+<label> <port> <tcp|udp>`, `edit <port> <tcp|udp> <label> <port> <tcp|udp>`,
+`enable|disable|remove <port> <tcp|udp>`, `reset`);
 the full ruleset: `sudo nft list table inet workstation`.
 
 SSH: inbound logins are public-key only on every host (no passwords, no

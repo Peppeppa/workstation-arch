@@ -1,6 +1,7 @@
 # Managed by Ansible (roles/firewall) - do not edit by hand.
-# Loads the table `inet {{ firewall_table }}` once and refills the user's
-# sharing rules; then exits (oneshot) - the kernel does the filtering, no
+# Loads the table `inet {{ firewall_table }}` and the port rules (rules.json)
+# in ONE nft transaction (`firewall-rules restore` includes the ruleset
+# file); then exits (oneshot) - the kernel does the filtering, no
 # process stays. Ordered like Arch's nftables.service (before the network
 # comes up), but never `flush ruleset`.
 [Unit]
@@ -10,7 +11,7 @@ Wants=network-pre.target
 Before=network-pre.target shutdown.target
 Conflicts=shutdown.target
 DefaultDependencies=no
-# the sharing rules (firewall-rules restore) live there
+# the port rules (firewall-rules restore) live there
 RequiresMountsFor={{ firewall_state_dir }}
 
 [Service]
@@ -19,9 +20,7 @@ RemainAfterExit=yes
 StandardInput=null
 ProtectSystem=full
 ProtectHome=true
-ExecStart=/usr/bin/nft -f {{ firewall_ruleset }}
 ExecStart={{ firewall_helper }} restore
-ExecReload=/usr/bin/nft -f {{ firewall_ruleset }}
 ExecReload={{ firewall_helper }} restore
 ExecStop=/usr/bin/nft delete table inet {{ firewall_table }}
 

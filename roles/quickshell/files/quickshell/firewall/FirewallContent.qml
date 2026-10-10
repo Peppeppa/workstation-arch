@@ -1,13 +1,19 @@
 // Firewall - the window's content. Managed by Ansible: do not edit by
 // hand, see roles/quickshell in workstation-arch.
 //
-// The user's LAN sharing rules only ("Bezeichnung / Port / Protokoll"):
-// each row's button shows what is LIVE in the kernel - enabled: red
-// "Deaktivieren", disabled: green "Aktivieren" - and × deletes the rule
-// (the helper closes the port first). The base policy (loopback, ICMP,
-// DHCP, LocalSend, SSH) is infrastructure and not listed here. A rule
-// opens a port in the firewall; it does not start or stop the service
-// behind it. All work is the root helper's (services/FirewallModel).
+// ALL port rules of this firewall ("Bezeichnung / Port / Protokoll"): the
+// factory rules (DHCP, DHCPv6, LocalSend discovery + transfer, SSH) and the
+// user's own, one list, all handled the same: each row's button shows what
+// is LIVE in the kernel - enabled: red "Deaktivieren", disabled: green
+// "Aktivieren"; × deletes the rule; a click on the row's text edits it
+// (AddRule.qml). "Standardregeln wiederherstellen" (bottom) brings back the
+// five factory rules and removes the user's - after a question (Confirm.qml,
+// Abbrechen preselected). Disabling, removing or editing the SSH rule
+// (TCP 22) asks first and says that new SSH connections will be blocked -
+// it is never prevented. Infrastructure that is not a port rule (loopback,
+// replies, ICMP, Docker bridges) is not listed. A rule opens a port in the
+// firewall; it does not start or stop the service behind it. All work is
+// the root helper's (services/FirewallModel).
 
 import QtQuick
 import QtQuick.Layouts
@@ -25,8 +31,34 @@ FocusScope {
     focus: true
     Component.onCompleted: forceActiveFocus()
     Keys.onEscapePressed: {
-        if (root.window.addOpen) root.window.addOpen = false;
+        if (confirm.visible) confirm.answer(false);
+        else if (root.window.addOpen) root.window.addOpen = false;
         else root.window.close();
+    }
+
+    // The question before a reset or an SSH-rule change; `pending` runs on Ja.
+    property var pending: null
+    readonly property string sshWarning: "Neue SSH-Verbindungen zu diesem Rechner werden dann blockiert (auch für Fernwartung); bestehende Verbindungen bleiben. Rückgängig: die Regel wieder aktivieren oder \"Standardregeln wiederherstellen\"."
+
+    function askThen(title, body, warning, label, action) {
+        pending = action;
+        confirm.ask(title, body, warning, label, true);
+    }
+
+    function openEdit(rule) {
+        dialog.rule = rule;
+        root.window.addOpen = true;
+    }
+
+    function openAdd() {
+        dialog.rule = null;
+        root.window.addOpen = true;
+    }
+
+    function askReset() {
+        askThen("Standardregeln wiederherstellen?",
+                "Die Firewall-Regeln werden auf die fünf Standardregeln zurückgesetzt: DHCP (UDP 68), DHCPv6 (UDP 546), LocalSend - Geräteerkennung (UDP 53317), LocalSend - Dateiübertragung (TCP 53317) und SSH (TCP 22), alle aktiv. Eigene Regeln werden entfernt; gelöschte oder deaktivierte Standardregeln kommen aktiv zurück.",
+                "", "Wiederherstellen", () => fw.reset());
     }
 
     FirewallModel {
@@ -39,18 +71,53 @@ FocusScope {
     }
 
     function submitDialog(label, port, protocol) {
+        if (dialog.rule !== null) {
+            dialog.rule = null;
+            dialog.reset();
+        }
+        dialog.fill(label, port, protocol);
+        dialog.submit();
+    }
+
+    // Edit row `index` through the dialog (same path as a click on the row).
+    function editRow(index, label, port, protocol) {
+        const r = fw.rules[index];
+        if (!r) return;
+        openEdit(r);
         dialog.fill(label, port, protocol);
         dialog.submit();
     }
 
     function toggleRow(index) {
         const r = fw.rules[index];
-        if (r && !fw.busy) fw.setEnabled(r, !r.active);
+        if (!r || fw.busy) return;
+        if (r.active && fw.touchesSsh(r))
+            askThen("SSH-Regel deaktivieren?", r.label + " / " + r.port + " / " + r.protocol, sshWarning,
+                    "Deaktivieren", () => fw.setEnabled(r, false));
+        else fw.setEnabled(r, !r.active);
     }
 
     function removeRow(index) {
         const r = fw.rules[index];
-        if (r && !fw.busy) fw.remove(r);
+        if (!r || fw.busy) return;
+        if (fw.touchesSsh(r))
+            askThen("SSH-Regel löschen?", r.label + " / " + r.port + " / " + r.protocol, sshWarning,
+                    "Löschen", () => fw.remove(r));
+        else fw.remove(r);
+    }
+
+    // For the IPC hooks: the reset question / its answer, the edit dialog.
+    function resetRow() {
+        askReset();
+    }
+
+    function answerConfirm(yes) {
+        if (confirm.visible) confirm.answer(yes);
+    }
+
+    function confirmState() {
+        return { visible: confirm.visible, title: confirm.title, warning: confirm.warning,
+                 selected: confirm.selected === 0 ? "Abbrechen" : confirm.confirmLabel };
     }
 
     Rectangle {
@@ -93,7 +160,7 @@ FocusScope {
                     PopupButton {
                         label: "Hinzufügen"
                         fontSize: root.fontSize - 2
-                        onClicked: root.window.addOpen = true
+                        onClicked: root.openAdd()
                     }
                 }
 
@@ -119,7 +186,7 @@ FocusScope {
                             visible: fw.listed && fw.rules.length === 0
                             Layout.fillWidth: true
                             Layout.margins: 4
-                            text: "Keine Regeln - nichts ist im LAN freigegeben."
+                            text: "Keine Regeln - kein Port ist von außen erreichbar."
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
                             font.pixelSize: root.fontSize - 1
@@ -149,10 +216,13 @@ FocusScope {
                                 radius: 4
                                 color: rowMouse.containsMouse ? Colors.surface : "transparent"
 
+                                // A click on the row (not its buttons) edits the rule.
                                 MouseArea {
                                     id: rowMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (!fw.busy) root.openEdit(row.modelData)
                                 }
 
                                 RowLayout {
@@ -222,7 +292,35 @@ FocusScope {
                     font.family: Fonts.family
                     font.pixelSize: root.fontSize - 2
                 }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    Item { Layout.fillWidth: true }
+                    PopupButton {
+                        label: "Standardregeln wiederherstellen"
+                        opacity: fw.busy ? 0.6 : 1
+                        fontSize: root.fontSize - 2
+                        onClicked: if (!fw.busy) root.askReset()
+                    }
+                }
             }
+        }
+    }
+
+    Confirm {
+        id: confirm
+        anchors.fill: parent
+        fontSize: root.fontSize
+        onAccepted: {
+            const action = root.pending;
+            root.pending = null;
+            if (action) action();
+            root.forceActiveFocus();
+        }
+        onCancelled: {
+            root.pending = null;
+            root.forceActiveFocus();
         }
     }
 

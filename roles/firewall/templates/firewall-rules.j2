@@ -2,28 +2,40 @@
 # Managed by Ansible (roles/firewall/templates/firewall-rules.j2) - do not
 # edit by hand. docs/feature-architecture.md "Firewall".
 #
-# `firewall-rules` - the ONLY code that changes the user's LAN sharing
-# rules (Settings -> Firewall). Runs as root: through
+# `firewall-rules` - the ONLY code that changes the firewall's port rules
+# (Settings -> Firewall). Runs as root: through
 # `pkexec {{ firewall_helper }} ...` from Quickshell (polkit action
 # {{ firewall_polkit_action }}: the active local session, no password) and
-# as `restore` from workstation-firewall.service at boot.
+# as `restore` from workstation-firewall.service at boot / reload.
 #
 # Its whole interface:
 #   list                              JSON: the rules + whether each is live
 #   add <label> <port> <protocol>     new rule, added DISABLED (nothing opens
 #                                     until the user enables it)
+#   edit <port> <protocol> <label> <new port> <new protocol>
 #   enable|disable|remove <port> <protocol>
-#   restore                           refill the nft sets from the state
+#   reset                             back to the factory rules (below)
+#   restore                           load the base ruleset + the rules in
+#                                     ONE nft transaction (boot, reload)
 #
-# A rule = (label, port 1-65535, TCP|UDP, enabled). Every argument is
-# validated here; nothing from argv ever reaches nft except a validated
-# port number and one of two fixed set names, and nft runs from an argv
-# list, never a shell. The state ({{ firewall_state_dir }}/rules.json,
-# root-owned, written atomically under a lock) is the desired list; the
-# kernel sets share_tcp/share_udp in table inet {{ firewall_table }} are
-# what is live - every change touches the kernel first and only then the
-# state, and rolls the kernel back if the state cannot be written, so the
-# two never disagree after a successful call.
+# The rule set is ONE list, {{ firewall_state_dir }}/rules.json - every port
+# this firewall opens is in it, the factory rules too (DHCP, DHCPv6, LocalSend
+# x2{{ ', SSH' if ssh_server_enabled else '' }}); nothing is opened anywhere else. A rule = label, port 1-65535,
+# TCP|UDP, enabled, and `match`: null (a user rule: any source, any interface,
+# IPv4+IPv6, also Docker-published host ports) or the fixed shape of a factory
+# rule (below) - a factory rule keeps its restriction (DHCPv6 only from
+# fe80::/10, LocalSend discovery only to its multicast group, ...); its port
+# and protocol therefore cannot be edited, its label can. Every rule can be
+# disabled, enabled, removed; `reset` restores the factory list.
+#
+# Applying: the rules become the chain `repo_rules` (input jumps to it) and
+# the sets share_tcp/share_udp (forward, user rules only). Every change is
+# built as one nft script, checked with `nft -c`, the new state written to a
+# temp file, the script applied (one atomic transaction), and only then the
+# state renamed into place; a failed apply leaves kernel and state as they
+# were. Every argument is validated here; nothing from argv reaches nft
+# except validated numbers and fixed text, and nft runs from an argv list
+# (script on stdin), never a shell.
 
 import fcntl
 import json
@@ -36,24 +48,35 @@ import unicodedata
 
 NFT = "/usr/bin/nft"
 TABLE = "{{ firewall_table }}"
+RULESET = "{{ firewall_ruleset }}"
 STATE_DIR = "{{ firewall_state_dir }}"
 STATE = os.path.join(STATE_DIR, "rules.json")
 LOCK = "/run/lock/workstation-firewall.lock"
 LABEL_MAX = 48
 RULES_MAX = 64
+LOCALSEND_MCAST = "{{ firewall_localsend_multicast }}"
 
-# Ports the base ruleset already opens (system rules, not in the UI): a
-# user rule for one of them could never really be disabled, so it is
-# refused instead of shown as a switch that does nothing.
-SYSTEM_PORTS = {
-    ("TCP", {{ firewall_localsend_port }}): "LocalSend",
-    ("UDP", {{ firewall_localsend_port }}): "LocalSend",
-    ("UDP", 68): "DHCP",
-    ("UDP", 546): "DHCPv6",
-{% if ssh_server_enabled %}
-    ("TCP", 22): "SSH",
-{% endif %}
+# The nft shape of each kind of rule (port/protocol filled in for user and
+# host rules; the others are fixed to their own port).
+SHAPES = {
+    None: "{proto} dport {port} accept",                         # user rule (+ forward)
+    "host": "{proto} dport {port} accept",                       # input only
+    "dhcp4": "udp sport 67 udp dport 68 accept",
+    "dhcp6": "ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept",
+    "localsend-discovery": "ip daddr " + LOCALSEND_MCAST + " udp dport {port} accept",
 }
+FIXED = {"dhcp4": ("UDP", 68), "dhcp6": ("UDP", 546), "localsend-discovery": ("UDP", {{ firewall_localsend_port }})}
+
+# Factory rules = what this firewall opened before the editor managed them.
+DEFAULTS = [
+    {"label": "DHCP", "port": 68, "protocol": "UDP", "match": "dhcp4"},
+    {"label": "DHCPv6", "port": 546, "protocol": "UDP", "match": "dhcp6"},
+    {"label": "LocalSend – Geräteerkennung", "port": {{ firewall_localsend_port }}, "protocol": "UDP", "match": "localsend-discovery"},
+    {"label": "LocalSend – Dateiübertragung", "port": {{ firewall_localsend_port }}, "protocol": "TCP", "match": "host"},
+{% if ssh_server_enabled %}
+    {"label": "SSH", "port": 22, "protocol": "TCP", "match": "host"},
+{% endif %}
+]
 
 
 class Refused(Exception):
@@ -74,10 +97,6 @@ def parse_label(raw):
         raise Refused(f"Bezeichnung zu lang (höchstens {LABEL_MAX} Zeichen)")
     if any(unicodedata.category(c)[0] == "C" for c in label):
         raise Refused("Bezeichnung enthält Steuerzeichen")
-    try:
-        label.encode("utf-8")
-    except UnicodeEncodeError:
-        raise Refused("Bezeichnung ist kein gültiger Text")
     return label
 
 
@@ -98,55 +117,52 @@ def parse_protocol(raw):
     return proto
 
 
+def factory():
+    return [dict(r, enabled=True) for r in DEFAULTS]
+
+
 # ---- state -----------------------------------------------------------------
 
+def clean(r, v1=False):
+    rule = {
+        "label": parse_label(str(r["label"])),
+        "port": parse_port(str(r["port"])),
+        "protocol": parse_protocol(str(r["protocol"])),
+        "enabled": r["enabled"] is True,
+        "match": None if v1 else r.get("match"),
+    }
+    if rule["match"] not in SHAPES:
+        raise Refused(f"unbekannte Regelart {rule['match']!r}")
+    fixed = FIXED.get(rule["match"])
+    if fixed and (rule["protocol"], rule["port"]) != fixed:
+        raise Refused("Port/Protokoll passen nicht zur Regelart")
+    return rule
+
+
 def load():
+    """The rule list. No file yet = the factory rules; a version-1 file
+    (only the user's sharing rules - the factory ports were fixed in the
+    ruleset then) = the factory rules + those."""
     try:
         with open(STATE, encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        return []
+        return factory()
     except (OSError, ValueError) as e:
         raise Failed(f"{STATE} nicht lesbar: {e}")
     rules = data.get("rules") if isinstance(data, dict) else None
     if not isinstance(rules, list):
         raise Failed(f"{STATE} enthält keine Regelliste")
-    out = []
+    v1 = data.get("version", 1) == 1
+    out = factory() if v1 else []
     for r in rules:
         try:
-            out.append({
-                "label": parse_label(str(r["label"])),
-                "port": parse_port(str(r["port"])),
-                "protocol": parse_protocol(str(r["protocol"])),
-                "enabled": r["enabled"] is True,
-            })
+            rule = clean(r, v1)
         except (KeyError, TypeError, Refused) as e:
             raise Failed(f"{STATE} enthält eine ungültige Regel ({e})")
+        if find(out, rule["port"], rule["protocol"]) < 0:
+            out.append(rule)
     return out
-
-
-def save(rules):
-    os.makedirs(STATE_DIR, mode=0o755, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=".rules.", suffix=".json")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump({"version": 1, "rules": rules}, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.chmod(tmp, 0o644)
-        os.replace(tmp, STATE)
-        dfd = os.open(STATE_DIR, os.O_DIRECTORY)
-        try:
-            os.fsync(dfd)
-        finally:
-            os.close(dfd)
-    except OSError as e:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise Failed(f"{STATE} nicht schreibbar: {e}")
 
 
 def find(rules, port, proto):
@@ -156,15 +172,39 @@ def find(rules, port, proto):
     return -1
 
 
-# ---- kernel sets -----------------------------------------------------------
-
-def set_name(proto):
-    return "share_tcp" if proto == "TCP" else "share_udp"
-
-
-def nft(*args):
+def write_temp(rules):
+    os.makedirs(STATE_DIR, mode=0o755, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=".rules.", suffix=".json")
     try:
-        p = subprocess.run([NFT, *args], capture_output=True, text=True, timeout=10)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "rules": rules}, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, 0o644)
+    except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise Failed(f"{STATE} nicht schreibbar: {e}")
+    return tmp
+
+
+def commit_temp(tmp):
+    os.replace(tmp, STATE)
+    dfd = os.open(STATE_DIR, os.O_DIRECTORY)
+    try:
+        os.fsync(dfd)
+    finally:
+        os.close(dfd)
+
+
+# ---- nft -------------------------------------------------------------------
+
+def nft(args, script=None):
+    try:
+        p = subprocess.run([NFT, *args], input=script, capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"nft: {e}")
     if p.returncode != 0:
@@ -174,24 +214,54 @@ def nft(*args):
     return p.stdout
 
 
-def live(proto):
+def tag(r):
+    return f"repo {r['protocol']} {r['port']}"
+
+
+def script_for(rules, with_base=False):
+    """The nft script that makes the kernel match `rules` - one transaction."""
+    lines = [f'include "{RULESET}"'] if with_base else []
+    lines += [f"flush chain inet {TABLE} repo_rules",
+              f"flush set inet {TABLE} share_tcp",
+              f"flush set inet {TABLE} share_udp"]
+    for r in rules:
+        if not r["enabled"]:
+            continue
+        expr = SHAPES[r["match"]].format(proto=r["protocol"].lower(), port=r["port"])
+        lines.append(f'add rule inet {TABLE} repo_rules {expr} comment "{tag(r)}"')
+        if r["match"] is None:
+            lines.append("add element inet %s share_%s { %d }" % (TABLE, r["protocol"].lower(), r["port"]))
+    return "\n".join(lines) + "\n"
+
+
+def apply(rules, old, with_base=False):
+    """Kernel + state to `rules`, all or nothing."""
+    script = script_for(rules, with_base)
+    nft(["-c", "-f", "-"], script)              # syntax + consistency first
+    tmp = write_temp(rules)
     try:
-        out = json.loads(nft("-j", "list", "set", "inet", TABLE, set_name(proto)))
+        nft(["-f", "-"], script)                 # one atomic transaction
+    except Failed:
+        os.unlink(tmp)
+        raise
+    try:
+        commit_temp(tmp)
+    except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        if old is not None:
+            nft(["-f", "-"], script_for(old, with_base))
+        raise Failed(f"{STATE} nicht schreibbar: {e}")
+
+
+def live_tags():
+    try:
+        out = json.loads(nft(["-j", "list", "chain", "inet", TABLE, "repo_rules"]))
     except ValueError:
         raise Failed("unerwartete nft-Ausgabe")
-    for item in out.get("nftables", []):
-        if "set" in item:
-            return {e for e in item["set"].get("elem", []) if isinstance(e, int)}
-    raise Failed("unerwartete nft-Ausgabe")
-
-
-def open_port(port, proto):
-    nft("add", "element", "inet", TABLE, set_name(proto), "{ %d }" % port)
-
-
-def close_port(port, proto):
-    if port in live(proto):
-        nft("delete", "element", "inet", TABLE, set_name(proto), "{ %d }" % port)
+    return {item["rule"].get("comment") for item in out.get("nftables", []) if "rule" in item}
 
 
 # ---- commands --------------------------------------------------------------
@@ -199,18 +269,17 @@ def close_port(port, proto):
 def cmd_list():
     rules = load()
     try:
-        tcp, udp, loaded = live("TCP"), live("UDP"), True
+        live, loaded = live_tags(), True
     except Failed:
-        tcp, udp, loaded = set(), set(), False
+        live, loaded = set(), False
     for r in rules:
-        r["active"] = r["port"] in (tcp if r["protocol"] == "TCP" else udp)
+        r["active"] = tag(r) in live
+        r["fixed"] = r["match"] in FIXED          # port/protocol not editable
     print(json.dumps({"loaded": loaded, "rules": rules}, ensure_ascii=False))
 
 
 def cmd_add(label, port, proto):
     label, port, proto = parse_label(label), parse_port(port), parse_protocol(proto)
-    if (proto, port) in SYSTEM_PORTS:
-        raise Refused(f"{proto} {port} ist immer offen ({SYSTEM_PORTS[(proto, port)]})")
     rules = load()
     if find(rules, port, proto) >= 0:
         raise Refused(f"Eine Regel für {proto} {port} gibt es schon")
@@ -218,8 +287,26 @@ def cmd_add(label, port, proto):
         raise Refused(f"Höchstens {RULES_MAX} Regeln")
     # Added disabled: opening a port is always a separate, deliberate
     # "enable" - a typo in the dialog can never expose anything.
-    rules.append({"label": label, "port": port, "protocol": proto, "enabled": False})
-    save(rules)
+    new = rules + [{"label": label, "port": port, "protocol": proto, "enabled": False, "match": None}]
+    apply(new, rules)
+
+
+def cmd_edit(port, proto, label, new_port, new_proto):
+    port, proto = parse_port(port), parse_protocol(proto)
+    label, new_port, new_proto = parse_label(label), parse_port(new_port), parse_protocol(new_proto)
+    rules = load()
+    i = find(rules, port, proto)
+    if i < 0:
+        raise Refused(f"Keine Regel für {proto} {port}")
+    r = dict(rules[i])
+    if r["match"] in FIXED and (new_port, new_proto) != (port, proto):
+        raise Refused("Port und Protokoll dieser Standardregel sind fest (nur die Bezeichnung ist änderbar)")
+    j = find(rules, new_port, new_proto)
+    if j >= 0 and j != i:
+        raise Refused(f"Eine Regel für {new_proto} {new_port} gibt es schon")
+    r.update(label=label, port=new_port, protocol=new_proto)
+    new = rules[:i] + [r] + rules[i + 1:]
+    apply(new, rules)
 
 
 def cmd_set(port, proto, enabled):
@@ -228,17 +315,9 @@ def cmd_set(port, proto, enabled):
     i = find(rules, port, proto)
     if i < 0:
         raise Refused(f"Keine Regel für {proto} {port}")
-    if enabled:
-        open_port(port, proto)
-    else:
-        close_port(port, proto)
-    rules[i]["enabled"] = enabled
-    try:
-        save(rules)
-    except Failed:
-        # back to what the (unchanged) state says
-        (close_port if enabled else open_port)(port, proto)
-        raise
+    new = [dict(r) for r in rules]
+    new[i]["enabled"] = enabled
+    apply(new, rules)
 
 
 def cmd_remove(port, proto):
@@ -247,27 +326,21 @@ def cmd_remove(port, proto):
     i = find(rules, port, proto)
     if i < 0:
         raise Refused(f"Keine Regel für {proto} {port}")
-    close_port(port, proto)
-    was = rules.pop(i)
-    try:
-        save(rules)
-    except Failed:
-        if was["enabled"]:
-            open_port(port, proto)
-        raise
+    apply(rules[:i] + rules[i + 1:], rules)
+
+
+def cmd_reset():
+    apply(factory(), load())
 
 
 def cmd_restore():
     rules = load()
-    nft("flush", "set", "inet", TABLE, "share_tcp")
-    nft("flush", "set", "inet", TABLE, "share_udp")
-    for r in rules:
-        if r["enabled"] and (r["protocol"], r["port"]) not in SYSTEM_PORTS:
-            open_port(r["port"], r["protocol"])
+    apply(rules, None, with_base=True)
 
 
 USAGE = ("usage: firewall-rules list | add <label> <port> <tcp|udp> | "
-         "enable|disable|remove <port> <tcp|udp> | restore")
+         "edit <port> <tcp|udp> <label> <new port> <new tcp|udp> | "
+         "enable|disable|remove <port> <tcp|udp> | reset | restore")
 
 
 def main(argv):
@@ -277,7 +350,9 @@ def main(argv):
     table = {
         ("list", 0): cmd_list,
         ("restore", 0): cmd_restore,
+        ("reset", 0): cmd_reset,
         ("add", 3): cmd_add,
+        ("edit", 5): cmd_edit,
         ("enable", 2): lambda p, q: cmd_set(p, q, True),
         ("disable", 2): lambda p, q: cmd_set(p, q, False),
         ("remove", 2): cmd_remove,

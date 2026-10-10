@@ -1,4 +1,4 @@
-// Firewall -> Hinzufügen (over the Firewall window). Managed by Ansible: do
+// Firewall -> Hinzufügen / Bearbeiten (over the Firewall window). Managed by Ansible: do
 // not edit by hand, see roles/quickshell in workstation-arch.
 //
 // Exactly three inputs: Bezeichnung (free text, only for the user),
@@ -7,7 +7,11 @@
 // Checked here for feedback, decided by the root helper; the dialog closes
 // only when the helper accepted the rule. A new rule is added DISABLED -
 // the port opens only with the row's "Aktivieren" (no accidental exposure
-// from a typo). Escape / a click outside / Abbrechen closes.
+// from a typo). With `rule` set (a click on a row's text) the same dialog
+// edits that rule ("Speichern"): label, port, protocol - for a factory rule
+// with a fixed restriction (DHCP, DHCPv6, LocalSend discovery: `fixed`)
+// only the label. Editing the SSH rule (TCP 22) shows a warning. Escape / a
+// click outside / Abbrechen closes.
 
 import QtQuick
 import QtQuick.Layouts
@@ -19,6 +23,8 @@ Item {
 
     required property var model
     required property int fontSize
+    property var rule: null             // null = add a new rule, else edit this one
+    readonly property bool fixed: rule !== null && rule.fixed === true
     signal done
 
     property bool tried: false          // show input errors only after a first submit
@@ -29,9 +35,9 @@ Item {
     readonly property string message: waiting ? "" : tried && inputError !== "" ? inputError : model.errorText
 
     function reset() {
-        labelField.text = "";
-        portField.text = "";
-        protoField.text = "";
+        labelField.text = rule ? rule.label : "";
+        portField.text = rule ? String(rule.port) : "";
+        protoField.text = rule ? rule.protocol : "";
         tried = false;
         waiting = false;
         model.errorText = "";
@@ -47,7 +53,9 @@ Item {
     function submit() {
         tried = true;
         if (inputError !== "" || model.busy) return;
-        waiting = model.add(labelField.text, portField.text, model.normalizeProtocol(protoField.text));
+        const proto = model.normalizeProtocol(protoField.text);
+        waiting = rule ? model.edit(rule, labelField.text, portField.text, proto)
+                       : model.add(labelField.text, portField.text, proto);
     }
 
     Connections {
@@ -88,6 +96,8 @@ Item {
         property string placeholder
         property Item tabTarget: null
         property Item backtabTarget: null
+        property bool locked: false
+        opacity: locked ? 0.6 : 1
         Layout.fillWidth: true
         implicitHeight: Fonts.px(30)
         radius: 4
@@ -97,6 +107,7 @@ Item {
 
         TextInput {
             id: input
+            readOnly: field.locked
             anchors.fill: parent
             anchors.leftMargin: 8
             anchors.rightMargin: 8
@@ -145,7 +156,7 @@ Item {
             spacing: 8
 
             Text {
-                text: "Regel hinzufügen"
+                text: dialog.rule ? "Regel bearbeiten" : "Regel hinzufügen"
                 color: Colors.foreground
                 font.family: Fonts.family
                 font.pixelSize: dialog.fontSize + 1
@@ -162,6 +173,7 @@ Item {
             Caption { text: "Port" }
             Field {
                 id: portField
+                locked: dialog.fixed
                 placeholder: "1 bis 65535, z. B. 1234"
                 tabTarget: protoField.input
                 backtabTarget: labelField.input
@@ -170,8 +182,26 @@ Item {
             Caption { text: "Protokoll" }
             Field {
                 id: protoField
+                locked: dialog.fixed
                 placeholder: "TCP oder UDP"
                 backtabTarget: portField.input
+            }
+
+            Caption {
+                visible: dialog.fixed
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: "Standardregel mit fester Einschränkung - Port und Protokoll sind fest, nur die Bezeichnung ist änderbar."
+            }
+
+            Text {
+                visible: dialog.rule !== null && dialog.model.touchesSsh(dialog.rule)
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: "Achtung: Das ist die SSH-Regel. Ändern Port oder Protokoll, werden neue SSH-Verbindungen zu diesem Rechner blockiert (bestehende bleiben)."
+                color: Colors.error
+                font.family: Fonts.family
+                font.pixelSize: dialog.fontSize - 2
             }
 
             RowLayout {
@@ -194,7 +224,7 @@ Item {
                 PopupButton {
                     primary: dialog.inputError === "" && !dialog.model.busy
                     opacity: primary ? 1 : 0.6
-                    label: dialog.waiting ? "…" : "Hinzufügen"
+                    label: dialog.waiting ? "…" : dialog.rule ? "Speichern" : "Hinzufügen"
                     fontSize: dialog.fontSize - 1
                     onClicked: dialog.submit()
                 }

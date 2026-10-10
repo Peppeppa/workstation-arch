@@ -451,6 +451,9 @@
     - bar/widgets/Coffee
     - bar/widgets/Theme/Widget.qml
     - services/TextScaleModel.qml
+    # 2026-10-10: the firewall window is the rule editor again (the
+    # read-only "Wirksamer Zustand" view is gone)
+    - firewall/FirewallStatus.qml
   notify: Reload running Quickshell config
   tags: quickshell
 

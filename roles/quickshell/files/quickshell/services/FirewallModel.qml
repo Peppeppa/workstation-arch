@@ -1,4 +1,4 @@
-// Firewall sharing rules model (non-visual). Managed by Ansible: do not
+// Firewall port rules model (non-visual). Managed by Ansible: do not
 // edit by hand, see roles/quickshell in workstation-arch.
 //
 // The QML side of the ONE implementation, the root helper
@@ -8,8 +8,12 @@
 // password. The helper validates everything itself; the checks here only
 // give feedback before a click.
 //
-// `list` reports each rule's desired state AND whether it is live in the
-// kernel; the rows show the live state. Every change ends in a fresh
+// The rules are ALL ports this firewall opens: the factory rules (DHCP,
+// DHCPv6, LocalSend x2, SSH - `fixed`: port/protocol bound to their
+// restriction) and the user's own; every one can be enabled, disabled,
+// edited, removed; `reset` brings back the factory list. `list` reports each
+// rule's desired state AND whether it is live in the kernel; the rows show
+// the live state. Every change ends in a fresh
 // `list` - that is the refresh event. Created only while the Firewall
 // window is open: no watcher, no timer.
 
@@ -23,7 +27,7 @@ Scope {
 
     readonly property string helper: "/usr/local/libexec/workstation/firewall-rules"
 
-    // [{label, port, protocol, enabled, active}]
+    // [{label, port, protocol, enabled, active, match, fixed}]
     property var rules: []
     property bool loaded: true          // false: the table is not loaded
     property bool listed: false         // a first `list` came back
@@ -68,6 +72,19 @@ Scope {
 
     function add(label, port, protocol) {
         return run(["add", label.trim(), port, protocol]);
+    }
+
+    function edit(rule, label, port, protocol) {
+        return run(["edit", String(rule.port), rule.protocol, label.trim(), port, protocol]);
+    }
+
+    function reset() {
+        run(["reset"]);
+    }
+
+    // Does changing this rule affect SSH logins to this machine (sshd: TCP 22)?
+    function touchesSsh(rule) {
+        return rule.protocol === "TCP" && rule.port === 22;
     }
 
     function setEnabled(rule, on) {

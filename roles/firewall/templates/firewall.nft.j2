@@ -10,15 +10,21 @@ table inet {{ firewall_table }}
 delete table inet {{ firewall_table }}
 
 table inet {{ firewall_table }} {
-	# The user's LAN sharing rules (Settings -> Firewall), filled only by
-	# {{ firewall_helper }} - empty after this file loads, the service then
-	# runs `firewall-rules restore`.
+	# Every port rule (Settings -> Firewall: the factory rules DHCP, DHCPv6,
+	# LocalSend, SSH and the user's own) lives in the chain repo_rules and,
+	# for the user's rules, in these sets (Docker-published ports, forward) -
+	# both filled ONLY by {{ firewall_helper }} from its rules.json, in the
+	# same transaction that loads this file (`firewall-rules restore`
+	# includes it). Empty here on purpose: no port is opened by this file.
 	set share_tcp {
 		type inet_service
 	}
 
 	set share_udp {
 		type inet_service
+	}
+
+	chain repo_rules {
 	}
 
 	# Inbound to this host: default drop.
@@ -40,23 +46,9 @@ table inet {{ firewall_table }} {
 		icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
 		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
 
-		# DHCP client replies (v4 broadcast offers/acks are not conntrack
-		# replies; DHCPv6 answers come from link-local servers).
-		udp sport 67 udp dport 68 accept
-		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
-
-		# LocalSend: discovery (multicast) + its HTTPS API.
-		ip daddr {{ firewall_localsend_multicast }} udp dport {{ firewall_localsend_port }} accept
-		tcp dport {{ firewall_localsend_port }} accept
-{% if ssh_server_enabled %}
-
-		# ssh_server_enabled (host capability): key-only sshd.
-		tcp dport 22 accept
-{% endif %}
-
-		# User sharing rules.
-		tcp dport @share_tcp accept
-		udp dport @share_udp accept
+		# The port rules (DHCP, DHCPv6, LocalSend, SSH, the user's) - see
+		# repo_rules above.
+		jump repo_rules
 	}
 
 	# Forwarded traffic: only NEW connections from outside towards Docker

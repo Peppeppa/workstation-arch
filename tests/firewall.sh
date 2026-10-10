@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Regression test for the firewall (roles/firewall): the nftables ruleset
-# and the `firewall-rules` helper, with real packets.
+# and the `firewall-rules` helper (the ONE rule list incl. the factory rules
+# DHCP, DHCPv6, LocalSend x2, SSH), with real packets for a test port.
 #
 # Safe anywhere, also on a running desktop: everything runs inside a fresh
 # unprivileged user + network namespace (`unshare -rn`) - its own empty
 # netfilter, its own interfaces; the host's firewall/Docker never see it.
-# Inside, three namespaces model the real packet paths:
+# SSH is only checked as a RULE here (listed, enabled/disabled/removed in
+# the test kernel) - never reachability. Inside, three namespaces model the
+# real packet paths:
 #   host  - loads the ruleset; a service on :1234; a Docker-like DNAT of
 #           :2345 to the "container" behind an interface named docker0
 #   lan   - a colleague on the LAN (veth "lan0" <-> host "eth0")
@@ -28,7 +31,15 @@ check() { # name, condition result (0 = ok)
     if [ "$2" -ne 0 ]; then echo "FAIL $1"; fail=1; fi
 }
 
-# ---- render ruleset + helper (test paths for state and lock) --------------
+# ---- render ruleset + helper (test paths for state, lock, nft) --------------
+# nft goes through a wrapper: FAIL_APPLY=1 makes a real (non -c) apply fail,
+# to prove that a failed apply leaves kernel and state as they were.
+cat > "$tmp/nft" <<'EOF'
+#!/bin/bash
+if [ -n "${FAIL_APPLY:-}" ] && [ "$1" = -f ]; then echo "simulated failure" >&2; exit 1; fi
+exec nft "$@"
+EOF
+chmod +x "$tmp/nft"
 python3 - "$repo/roles/firewall" "$tmp" <<'EOF' || exit 1
 import sys, jinja2, yaml
 role, tmp = sys.argv[1:]
@@ -41,25 +52,45 @@ def render(src, dst, fix=lambda s: s):
 render("firewall.nft.j2", tmp + "/firewall.nft")
 render("firewall-rules.j2", tmp + "/firewall-rules",
        lambda s: s.replace('"/run/lock/workstation-firewall.lock"', repr(tmp + "/lock"))
+                  .replace('NFT = "/usr/bin/nft"', "NFT = " + repr(tmp + "/nft"))
                   .replace("#!/usr/bin/python3 -I", "#!/usr/bin/env -S python3 -I"))
 EOF
 chmod +x "$tmp/firewall-rules"
 H="$tmp/firewall-rules"
+S="$tmp/state/rules.json"
 
-nft -f "$tmp/firewall.nft"; check "ruleset loads" $?
-nft -f "$tmp/firewall.nft"; check "ruleset reloads (idempotent)" $?
+# ---- the base ruleset opens no port by itself --------------------------------
+nft -c -f "$tmp/firewall.nft"; check "ruleset: syntax valid" $?
+! grep -E '^\s*[^#]*dport [0-9@]+.* accept' "$tmp/firewall.nft" | grep -v 'proto-dst'; check "ruleset: no port rule outside repo_rules" $?
 nft add table ip filter && nft add chain ip filter DOCKER
-nft -f "$tmp/firewall.nft"
-nft list chain ip filter DOCKER >/dev/null 2>&1; check "a reload leaves other tables (Docker's) alone" $?
+
+# ---- first restore = the factory rules, in one transaction --------------------
+"$H" restore; check "restore (no state yet)" $?
+nft list chain ip filter DOCKER >/dev/null 2>&1; check "restore leaves other tables (Docker's) alone" $?
+"$H" restore; check "restore again (reload, idempotent)" $?
+chain() { nft list chain inet workstation repo_rules; }
+lst() { "$H" list | python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
+[ "$(lst '[(x["label"], x["protocol"], x["port"], x["enabled"], x["active"]) for x in d["rules"]]')" = \
+  "[('DHCP', 'UDP', 68, True, True), ('DHCPv6', 'UDP', 546, True, True), ('LocalSend – Geräteerkennung', 'UDP', 53317, True, True), ('LocalSend – Dateiübertragung', 'TCP', 53317, True, True), ('SSH', 'TCP', 22, True, True)]" ]
+check "factory: the five rules, all enabled and live" $?
+chain | grep -q 'udp sport 67 udp dport 68 accept';                         check "DHCP keeps its source port 67" $?
+chain | grep -q 'ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept';     check "DHCPv6 only from fe80::/10 (IPv6)" $?
+chain | grep -q 'ip daddr 224.0.0.167 udp dport 53317 accept';               check "LocalSend discovery only to its multicast group (IPv4)" $?
+chain | grep -qE '^\s*tcp dport 53317 accept';                              check "LocalSend transfer TCP 53317 (IPv4+IPv6)" $?
+chain | grep -qE '^\s*tcp dport 22 accept';                                 check "SSH TCP 22 (IPv4+IPv6)" $?
+[ "$(chain | grep -c accept)" = 5 ]; check "exactly five accept rules" $?
+[ "$(nft list table inet workstation | grep -cE 'dport 22 ')" = 1 ]; check "no hidden second SSH rule anywhere in the table" $?
+[ "$(nft -j list set inet workstation share_tcp | grep -c '"elem"')" = 0 ]; check "factory rules are not forwarded to Docker (sets empty)" $?
+python3 -c "import json; d=json.load(open('$S')); assert d['version'] == 2 and len(d['rules']) == 5"; check "state written (version 2)" $?
 
 # ---- validation ------------------------------------------------------------
-refused() { # args... -> must exit 1 and change nothing
-    local before after
-    before=$(cat "$tmp/state/rules.json" 2>/dev/null)
+refused() { # args... -> must exit 1 and change nothing (state + kernel)
+    local before after kb ka
+    before=$(cat "$S" 2>/dev/null); kb=$(nft list table inet workstation)
     "$H" "$@" >/dev/null 2>"$tmp/err"
     local rc=$?
-    after=$(cat "$tmp/state/rules.json" 2>/dev/null)
-    [ $rc -eq 1 ] && [ "$before" = "$after" ] && ! grep -q Traceback "$tmp/err"
+    after=$(cat "$S" 2>/dev/null); ka=$(nft list table inet workstation)
+    [ $rc -eq 1 ] && [ "$before" = "$after" ] && [ "$kb" = "$ka" ] && ! grep -q Traceback "$tmp/err"
 }
 refused add "X" 0 tcp;          check "port 0 refused" $?
 refused add "X" 65536 tcp;      check "port 65536 refused" $?
@@ -73,48 +104,59 @@ refused add "" 1234 tcp;        check "empty label refused" $?
 refused add "   " 1234 tcp;     check "blank label refused" $?
 refused add "$(printf 'a\tb')" 1234 tcp; check "control character in label refused" $?
 refused add "$(printf '%049d' 0)" 1234 tcp; check "label > 48 chars refused" $?
-refused add "LS" 53317 TCP;     check "LocalSend port refused (system rule)" $?
-refused add "SSH" 22 tcp;       check "SSH port refused (system rule)" $?
+refused add "SSH2" 22 tcp;      check "a second rule for an existing port refused" $?
 refused frobnicate;             check "unknown command refused" $?
 refused enable 1234 tcp;        check "enable of a missing rule refused" $?
 refused add "x" 1 tcp extra;    check "extra argument refused" $?
+refused edit 546 udp "DHCPv6" 547 udp;  check "edit: port of a restricted factory rule is fixed" $?
 
-# ---- add / normalize / enable / disable / remove ----------------------------
+# ---- user rules: add / enable / disable / edit / remove ---------------------
 in_set() { nft -j list set inet workstation "$1" | grep -q "\"elem\": \[[^]]*\b$2\b"; }
+live() { chain | grep -q "comment \"repo $1 $2\""; }
 "$H" add 'Test DB; $(rm -rf /)' 1234 Tcp; check "add TCP (Tcp)" $?
-! in_set share_tcp 1234; check "a new rule is added disabled (not live)" $?
-"$H" enable 1234 tcp && in_set share_tcp 1234; check "enabled TCP rule is live" $?
-"$H" add "Game" 4000 uDp; check "add UDP (uDp)" $?
-! in_set share_udp 4000; check "a new UDP rule is added disabled" $?
-"$H" enable 4000 udp && in_set share_udp 4000; check "enabled UDP rule is live" $?
-refused add "dup" 1234 TCP; check "duplicate rule refused" $?
-"$H" add "Other" 1234 udp; check "same port, other protocol is a separate rule" $?
-python3 - "$tmp/state/rules.json" <<'EOF'; check "state normalized (TCP/UDP), label kept verbatim" $?
+! live TCP 1234 && ! in_set share_tcp 1234; check "a new rule is added disabled (not live)" $?
+"$H" enable 1234 tcp && live TCP 1234 && in_set share_tcp 1234; check "enabled user rule: input + forward set" $?
+"$H" add "Game" 4000 uDp && "$H" enable 4000 udp && live UDP 4000; check "add + enable UDP (uDp)" $?
+"$H" add "Edit me" 7000 tcp && "$H" enable 7000 tcp; check "add + enable a rule to edit" $?
+"$H" edit 7000 tcp "Edited" 7001 udp; check "edit label/port/protocol" $?
+! live TCP 7000 && live UDP 7001 && [ "$(lst '[x["label"] for x in d["rules"] if x["port"] == 7001]')" = "['Edited']" ]; check "edit: old rule gone, new one live, label changed" $?
+"$H" remove 7001 udp && ! live UDP 7001 && [ "$(lst '[x for x in d["rules"] if x["port"] in (7000, 7001)]')" = "[]" ]; check "remove a user rule" $?
+python3 - "$S" <<'EOF'; check "state: label kept verbatim, protocol normalized" $?
 import json, sys
-r = json.load(open(sys.argv[1]))["rules"]
-assert [(x["port"], x["protocol"], x["enabled"]) for x in r] == [(1234, "TCP", True), (4000, "UDP", True), (1234, "UDP", False)], r
-assert r[0]["label"] == "Test DB; $(rm -rf /)"
+r = {(x["port"], x["protocol"]): x for x in json.load(open(sys.argv[1]))["rules"]}
+assert r[(1234, "TCP")]["label"] == "Test DB; $(rm -rf /)" and r[(4000, "UDP")]["enabled"] is True
 EOF
-for p in tcp TCP; do refused add "dup" 1234 $p; done; check "tcp/TCP duplicates refused" $?
 
-"$H" disable 1234 TCP; check "disable" $?
-! in_set share_tcp 1234; check "disabled rule is not live" $?
-"$H" list | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-assert d["loaded"]
-r = {(x["port"], x["protocol"]): x for x in d["rules"]}
-assert r[(1234, "TCP")]["enabled"] is False and r[(1234, "TCP")]["active"] is False
-assert r[(4000, "UDP")]["enabled"] is True and r[(4000, "UDP")]["active"] is True
-'; check "list reports desired + live state" $?
-"$H" enable 1234 tcp; check "enable" $?
-in_set share_tcp 1234; check "enabled rule is live again" $?
+# ---- factory rules are ordinary rules (SSH checked as a rule only) ---------
+"$H" edit 546 udp "DHCPv6 (Router)" 546 udp && chain | grep -q 'ip6 saddr fe80::/10 udp sport 547 udp dport 546'; check "factory rule: label editable, restriction kept" $?
+"$H" disable 22 tcp; check "disable SSH rule" $?
+! live TCP 22 && [ "$(lst '[(x["enabled"], x["active"]) for x in d["rules"] if x["port"] == 22]')" = "[(False, False)]" ]; check "disabled SSH rule: still listed, not in the kernel" $?
+"$H" restore && ! live TCP 22; check "disabled stays disabled after restore (boot / bootstrap)" $?
+"$H" enable 22 tcp && live TCP 22; check "re-enable SSH rule" $?
+"$H" remove 53317 udp && ! live UDP 53317; check "remove a factory rule (LocalSend discovery)" $?
+"$H" restore && ! live UDP 53317 && [ "$(lst '[x for x in d["rules"] if x["port"] == 53317 and x["protocol"] == "UDP"]')" = "[]" ]; check "a removed factory rule stays removed after restore" $?
 
-# ---- restore after a ruleset reload (boot / bootstrap) ----------------------
-nft -f "$tmp/firewall.nft"
-! in_set share_tcp 1234; check "reload empties the sets" $?
-"$H" restore; check "restore" $?
-in_set share_tcp 1234 && in_set share_udp 4000; check "restore refills enabled rules" $?
+# ---- a failed apply changes nothing ----------------------------------------
+kb=$(nft list table inet workstation); sb=$(cat "$S")
+FAIL_APPLY=1 "$H" disable 1234 tcp 2>/dev/null; rc=$?
+[ $rc -eq 2 ] && [ "$kb" = "$(nft list table inet workstation)" ] && [ "$sb" = "$(cat "$S")" ] && ! ls "$tmp"/state/.rules.* >/dev/null 2>&1
+check "failed apply: kernel + state unchanged, no temp file left" $?
+
+# ---- reset to the factory rules ----------------------------------------------
+"$H" reset; check "reset" $?
+[ "$(lst '[(x["label"], x["port"], x["protocol"], x["enabled"], x["active"]) for x in d["rules"]]')" = \
+  "[('DHCP', 68, 'UDP', True, True), ('DHCPv6', 546, 'UDP', True, True), ('LocalSend – Geräteerkennung', 53317, 'UDP', True, True), ('LocalSend – Dateiübertragung', 53317, 'TCP', True, True), ('SSH', 22, 'TCP', True, True)]" ]
+check "reset: five factory rules back (removed one restored, labels reset), all live" $?
+! live TCP 1234 && ! in_set share_tcp 1234 && [ "$(chain | grep -c accept)" = 5 ]; check "reset: user rules gone from list, chain and sets" $?
+
+# ---- a version-1 state (before the editor managed the factory rules) -------
+printf '{"version": 1, "rules": [{"label": "Old", "port": 8080, "protocol": "TCP", "enabled": true}]}\n' > "$S"
+"$H" restore; check "restore of a version-1 state" $?
+[ "$(lst '[x["port"] for x in d["rules"]]')" = "[68, 546, 53317, 53317, 22, 8080]" ] && live TCP 8080 && live TCP 22; check "v1: factory rules + the old sharing rule" $?
+"$H" reset
+
+# setup for the packet tests: one enabled user rule on 1234
+"$H" add "Test DB" 1234 tcp && "$H" enable 1234 tcp
 
 # ---- real packets: host service + Docker-like DNAT --------------------------
 ip link set lo up
@@ -185,75 +227,13 @@ reach $ctrpid 10.0.0.2 8080; check "docker: container outbound works" $?
 refused remove 2345 tcp; check "remove of a removed rule refused" $?
 
 
-# ---- status: the effective state, read-only ----------------------------------
-st() { "$H" status > "$tmp/status.json" 2>"$tmp/err"; }
-q() { python3 -c "import json,sys; d=json.load(open('$tmp/status.json')); print($1)"; }
-serve_at() { # addr port: a listener on exactly that address
-    python3 -c 'import socket,sys
-fam = socket.AF_INET6 if ":" in sys.argv[1] else socket.AF_INET
-s=socket.socket(fam); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind((sys.argv[1], int(sys.argv[2]))); s.listen()
-held = []
-while True: held.append(s.accept()[0])     # keeps connections open (ESTABLISHED)' "$1" "$2" & pids+=($!)
-}
-serve_at 0.0.0.0 22              # "sshd": all addresses
-serve_at 127.0.0.1 5555          # loopback only
-serve "" 7777                    # listens, but no rule
-sleep 0.4
-before=$(nft list ruleset | sha256sum)
-st; check "status: runs" $?
-[ "$(nft list ruleset | sha256sum)" = "$before" ]; check "status: ruleset unchanged (read-only)" $?
-[ "$(q 'd["loaded"], d["policy"]')" = "True drop" ]; check "status: loaded, input policy drop" $?
-[ "$(q '[(x["service"], x["source"], x["iface"], x["family"], x["persistence"]) for x in d["inbound"] if x["ports"] == "22"]')" = "[('SSH (sshd, ssh_server_enabled)', [], [], None, 'persistent')]" ]
-check "status: SSH = configured service, any source/interface, IPv4+IPv6, persistent" $?
-[ "$(q '[s["scope"] for x in d["inbound"] if x["ports"] == "22" for s in x["listening"]]')" = "['alle IPv4-Adressen']" ]; check "status: SSH rule shows its listener" $?
-[ "$(q '[s["port"] for s in d["localOnly"] if s["port"] == 5555]')" = "[5555]" ]; check "status: loopback-only listener reported as local" $?
-[ "$(q '[s["port"] for s in d["blocked"] if s["port"] == 7777]')" = "[7777]" ]; check "status: listening without a rule = blocked" $?
-[ "$(q '[s["port"] for s in d["blocked"] if s["port"] in (22, 5555)]')" = "[]" ]; check "status: allowed / loopback listeners are not 'blocked'" $?
-# an established connection from the LAN to :22 is shown with its interface
-nsenter -t $lanpid -n python3 -c 'import socket,time; s=socket.create_connection(("10.0.0.1", 22)); time.sleep(3)' & pids+=($!)
-sleep 0.5; st
-[ "$(q '[c for x in d["inbound"] if x["ports"] == "22" for c in x["connections"]]')" = "[{'peer': '10.0.0.2', 'iface': 'eth0'}]" ]; check "status: live connection to SSH with peer + interface" $?
-
-# a rule only for one subnet (IPv4) and one only for IPv6, added at runtime
-nft add rule inet workstation input ip saddr 10.0.0.0/24 tcp dport 8080 accept
-nft add rule inet workstation input ip6 saddr fd00::/8 tcp dport 9090 accept
-st
-[ "$(q '[(x["source"], x["family"], x["persistence"], x["service"]) for x in d["inbound"] if x["ports"] == "8080"]')" = "[(['10.0.0.0/24'], 'IPv4', 'nur zur Laufzeit', None)]" ]
-check "status: subnet-only rule: its source, IPv4 only, runtime-only, no invented name" $?
-[ "$(q '[(x["source"], x["family"]) for x in d["inbound"] if x["ports"] == "9090"]')" = "[(['fd00::/8'], 'IPv6')]" ]; check "status: IPv6-only rule" $?
-nft -f "$tmp/firewall.nft"; "$H" restore      # back to the configuration
-
-# sharing rules: saved+enabled = persistent with its label; a set element nobody saved = runtime-only
-"$H" add "Spiel" 6000 udp; "$H" enable 6000 udp
-nft add element inet workstation share_tcp '{ 6100 }'
-st
-[ "$(q '[(x["proto"], x["service"], x["persistence"], x["origin"]) for x in d["inbound"] if x["ports"] in ("6000", "6100")]')" = "[('TCP', None, 'nur zur Laufzeit', 'Freigabe (Einstellungen)'), ('UDP', 'Spiel', 'persistent', 'Freigabe (Einstellungen)')]" ]
-check "status: sharing rules - saved = persistent + label, unsaved element = runtime" $?
-"$H" disable 6000 udp; "$H" remove 6000 udp; nft delete element inet workstation share_tcp '{ 6100 }'
-st
-[ "$(q '[x["ports"] for x in d["inbound"] if x["origin"].startswith("Freigabe")]')" = "['4000']" ]; check "status: removed sharing rules are gone (only the earlier enabled UDP 4000 left)" $?
-
-# a configured rule missing from the live table
-h=$(nft -a list chain inet workstation input | sed -n 's/.*tcp dport 22 accept # handle \([0-9]*\)/\1/p')
-nft delete rule inet workstation input handle "$h"
-st
-[ "$(q '[x["ports"] for x in d["missing"]]')" = "['22']" ]; check "status: configured but not live (SSH rule removed at runtime)" $?
-[ "$(q '[s["port"] for s in d["blocked"] if s["port"] == 22]')" = "[22]" ]; check "status: sshd listening + rule gone = blocked" $?
-nft -f "$tmp/firewall.nft"; "$H" restore
-
-# firewall not loaded: said, and listeners are not called blocked by it
-nft delete table inet workstation
-st; check "status: works without the table" $?
-[ "$(q 'd["loaded"], d["inbound"]')" = "False []" ]; check "status: firewall not loaded" $?
-[ "$(q 'sorted(x["table"] for x in d["foreign"])')" = "['ip filter', 'ip nat']" ]; check "status: other tables named, not evaluated" $?
-nft -f "$tmp/firewall.nft"; "$H" restore
 
 # ---- corrupt state: refused, never overwritten -------------------------------
-echo '{not json' > "$tmp/state/rules.json"
+kb=$(nft list table inet workstation)
+echo '{not json' > "$S"
 "$H" list >/dev/null 2>"$tmp/err"; [ $? -eq 2 ] && ! grep -q Traceback "$tmp/err"; check "corrupt state: list fails cleanly" $?
-"$H" add "x" 5555 tcp 2>/dev/null; [ "$(cat "$tmp/state/rules.json")" = '{not json' ]; check "corrupt state is never overwritten" $?
-! in_set share_tcp 5555; check "corrupt state: nothing opened" $?
+"$H" add "x" 5555 tcp 2>/dev/null; [ "$(cat "$S")" = '{not json' ]; check "corrupt state is never overwritten" $?
+"$H" restore 2>/dev/null; [ $? -eq 2 ] && [ "$kb" = "$(nft list table inet workstation)" ]; check "corrupt state: restore fails, the loaded firewall stays" $?
 
 [ $fail -eq 0 ] && echo "firewall: all checks passed"
 exit $fail

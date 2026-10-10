@@ -107,9 +107,28 @@ PanelWindow {
             if (content.item) content.item.submitDialog(label, port, protocol);
         }
 
+        // "Standardregeln wiederherstellen" (asks; answer with confirm(true/false)).
+        function reset(): void {
+            if (!win.visible) win.open();
+            if (content.item) content.item.resetRow();
+        }
+
+        function confirm(yes: bool): void {
+            if (content.item) content.item.answerConfirm(yes);
+        }
+
+        // {visible, title, warning, selected}
+        function confirmState(): string {
+            return JSON.stringify(content.item ? content.item.confirmState() : null);
+        }
+
         // The row's state button / its ×, by list index.
         function toggleRow(index: int): void {
             if (content.item) content.item.toggleRow(index);
+        }
+
+        function editRow(index: int, label: string, port: string, protocol: string): void {
+            if (content.item) content.item.editRow(index, label, port, protocol);
         }
 
         function removeRow(index: int): void {

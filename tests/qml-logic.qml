@@ -628,35 +628,39 @@ QtObject {
         eq("scratchpad: remote version taken over + shown + notice", [st.notes[0], shown, st.notice !== ""], ["second remote edit", 1, true]);
     }
 
-    function firewallStatus() {
-        // Effective-state texts: built only from the helper's fields.
-        const fs = read("quickshell/firewall/FirewallStatus.qml");
-        const sc = {};
-        for (const n of ["familyText", "listText", "ruleTitle", "ruleScope", "originText", "listenText", "connText", "infraText", "actionText", "sockText"])
-            sc[n] = make(fs, n, sc);
-        const ssh = { proto: "TCP", ports: "22", service: "SSH (sshd, ssh_server_enabled)", source: [], iface: [], family: null, dest: [], other: [],
-                      action: "accept", origin: "Basis-Konfiguration", persistence: "persistent",
-                      listening: [{ process: "sshd", scope: "alle Adressen" }], connections: [{ peer: "172.22.3.68", iface: "enp0s25" }] };
-        eq("fw: SSH title", sc.ruleTitle(ssh), "SSH (sshd, ssh_server_enabled) - TCP 22");
-        eq("fw: no condition = all", sc.ruleScope(ssh), "Quelle: alle Adressen · Schnittstelle: alle · IPv4 + IPv6");
-        eq("fw: listener", sc.listenText(ssh), "Lauscht: sshd (alle Adressen)");
-        eq("fw: connection", sc.connText(ssh), "Aktive Verbindungen: 172.22.3.68 über enp0s25");
-        const sub = { proto: "TCP", ports: "8080", service: null, source: ["10.0.0.0/24"], iface: ["eth0"], family: "IPv4", dest: [], other: [],
-                      action: "accept", origin: "nicht aus der Konfiguration", persistence: "nur zur Laufzeit", listening: [], connections: [] };
-        eq("fw: subnet rule is never 'all'", sc.ruleScope(sub), "Quelle: 10.0.0.0/24 · Schnittstelle: eth0 · nur IPv4");
-        eq("fw: no invented name", sc.ruleTitle(sub), "TCP 8080");
-        eq("fw: runtime-only said", sc.originText(sub), "nicht aus der Konfiguration · nur zur Laufzeit");
-        eq("fw: nobody listening", sc.listenText(sub), "Kein Programm lauscht gerade auf diesem Port (ss)");
-        eq("fw: listeners unknown", sc.listenText({}), "Lauschen: unbekannt");
-        eq("fw: unknown condition shown verbatim", sc.ruleScope(Object.assign({}, sub, { other: ["{\"match\": 1}"] })).endsWith("weitere Bedingung: {\"match\": 1}"), true);
-        eq("fw: infra loopback", sc.infraText({ iface: ["lo"], action: "accept" }), "Schnittstelle lo → erlauben");
-        eq("fw: infra invalid", sc.infraText({ ct: "invalid", action: "drop" }), "Verbindungsstatus invalid → verwerfen");
-        eq("fw: infra icmpv6", sc.infraText({ icmp: "nd-neighbor-solicit", family: "IPv6", action: "accept" }), "ICMPv6 nd-neighbor-solicit → erlauben");
+
+    function firewallEditor() {
+        // Reset / SSH question: Abbrechen preselected, Escape cancels, only
+        // the confirm button (selected + Enter, or clicked) runs the action.
+        const cf = read("quickshell/firewall/Confirm.qml");
+        const answers = [];
+        const d = { Qt: Qt, selected: 0, answer: yes => answers.push(yes) };
+        const key = make(cf, "handleKey", d);
+        key(Qt.Key_Return);
+        eq("confirm: Enter on the default = Abbrechen", answers, [false]);
+        key(Qt.Key_Right); key(Qt.Key_Escape);
+        eq("confirm: Escape cancels even with the confirm button selected", answers, [false, false]);
+        key(Qt.Key_Return);
+        eq("confirm: selected confirm + Enter", answers, [false, false, true]);
+        eq("confirm: letters do nothing", key(Qt.Key_J), false);
+        const fm = read("quickshell/services/FirewallModel.qml");
+        const ssh = make(fm, "touchesSsh", {});
+        eq("firewall: TCP 22 is the SSH rule", [ssh({ protocol: "TCP", port: 22 }), ssh({ protocol: "UDP", port: 22 }), ssh({ protocol: "TCP", port: 2222 })], [true, false, false]);
+
+        // OS menu -> System: Update / Create Snapshot / Power, each only when its owner exists.
+        const om = read("quickshell/osmenu/OsMenu.qml");
+        const expr = om.match(/readonly property var systemEntries: (\[[\s\S]*?\]\.filter\([\s\S]*?\)\))\n/)[1];
+        const ids = o => new Function("o", "with (o) { return (" + expr + ").map(e => e.id); }")(o);
+        eq("osmenu system: all three", ids({ updater: {}, snapshotDialog: {}, powerMenu: {} }), ["update", "snapshot", "power"]);
+        eq("osmenu system: no recovery -> only Power", ids({ updater: null, snapshotDialog: null, powerMenu: {} }), ["power"]);
+        // Power menu: exactly Lock/Suspend/(Hibernate)/Reboot/Shutdown.
+        const pm = read("PowerMenu.qml");
+        eq("power menu entries", (pm.match(/\{ id: "(\w+)",/g) || []).map(x => x.slice(7, -2)), ["lock", "suspend", "hibernate", "reboot", "shutdown"]);
     }
 
     Component.onCompleted: {
         powerMenu();
-        firewallStatus();
+        firewallEditor();
         scratchpad();
         updates();
         coffee();
