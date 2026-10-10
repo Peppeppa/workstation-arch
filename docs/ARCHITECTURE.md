@@ -97,8 +97,10 @@ Responsibility split within the provisioning layer:
   (Settings -> Firewall, through pkexec + one polkit action), not of
   Ansible. sshd runs only with the host capability `ssh_server_enabled`,
   always key-only.
-- `repo-healthcheck` (PASS/FAIL of these invariants) and `repo-diagnose`
-  (details) are on-demand tools - no daemon, no timer.
+- `repo-healthcheck` (PASS/FAIL of these invariants), `repo-diagnose`
+  (details) and `repo-logs` (log viewer + rule-based log analysis, OS menu
+  -> System -> Diagnostic) are on-demand, read-only tools sharing one
+  library (`diaglib.py`) - no daemon, no timer.
 - Recovery (host capability `recovery_enabled`, `docs/recovery-design.md`):
   snapper snapshots of `@` (never `@home`/`@swap`), bootable recovery
   slots, and the on-demand `system-update`/`system-snapshot`/

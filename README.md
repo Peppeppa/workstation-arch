@@ -304,7 +304,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + H/J/K/L` (or arrows) | focus left/down/up/right |
 | `Super + Shift + H/J/K/L` | move the window |
 | `Super + Alt + H/J/K/L` | resize the window (100 px) |
-| `Super + Q` | close the focused window |
+| `Super + Q` | close the focused window - or, while one is open, the shell menu / popup / dialog (never the window behind it) |
 | `Super + Shift + F` / `Shift + G` / `Shift + D` | fullscreen / floating toggle / split toggle |
 | `Super + [1-9]` / `Super + Shift + [1-9]` | switch to / move the window to workspace 1-9 |
 | `Super` + left/right click drag | move / resize a floating window |
@@ -389,6 +389,36 @@ terminate-session`) SIGTERMs everything at once: then the helpers may
 still dump core, and `repo-diagnose` lists those as "before this session".
 hyprlock logs ~100 debug lines per lock (`-t hypridle`): its `-q` also
 drops real errors, so it stays verbose on purpose.
+
+From the desktop: OS menu -> System -> **Diagnostic** -> Healthcheck /
+Full Diagnostic / Log Analysis / Logs (each in the terminal, read-only, no
+password):
+- **Healthcheck** / **Full Diagnostic** - the two commands above, FAIL/WARN
+  highlighted, the exit code spelled out; Enter closes.
+- **Log Analysis** (`repo-logs analyze`) - local rules over the current
+  boot's journal, failed units, kernel, Quickshell, Hyprland, coredumps,
+  firewall, pacman.log, updates and snapshots: `Critical / Warning / Info`
+  for the current state, identical messages grouped (count, first/last
+  time, pid, boot, source command), **history** apart (an error of an
+  earlier Quickshell instance, a failed transaction that a later one fixed,
+  ...). Type a finding's number to open its original lines. Known harmless
+  messages are labelled with their reason; unknown ones keep their text.
+- **Logs** (`repo-logs view <source>`) - System Journal (24 h), Current
+  Boot, Boot Errors, Kernel Messages, User Services, Pacman, Quickshell,
+  Hyprland, Firewall (+ Snapper, Update History with recovery): a private
+  read-only copy in Neovim (`/` search, opened at the newest line,
+  ERR/WARN highlighted), deleted when you quit (`:q`).
+
+A QML error of an earlier Quickshell instance or an earlier config load
+(e.g. a reload that caught a deploy half-way) no longer makes
+`repo-healthcheck` UNHEALTHY: only the running instance's newest load
+counts; the history is named in its detail and listed by the Log Analysis.
+
+Closing shell windows: Escape, `Super + Q` or a click outside closes every
+menu, popup and dialog of the shell (Escape clears a search or cancels an
+inner question first). `Super + Q` on a shell menu never closes the window
+behind it. A running snapshot, a firewall change or theme import in flight
+keeps its window until done; an update keeps running in its terminal.
 
 Checks of the repository itself (no live system needed): `tests/run.sh`.
 

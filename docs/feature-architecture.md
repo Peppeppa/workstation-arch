@@ -311,7 +311,8 @@ Core (no flag). `mainMod+Space` -> `qs ipc call osmenu toggle`
 |---|---|
 | Applications | page inside the menu (selected on every open) |
 | Settings | page inside the menu: **Appearance** (close the menu, open the Appearance window), **Network** (close the menu, start `nm-connection-editor` on demand) and **Firewall** (close the menu, open the Firewall window - see "Firewall") |
-| System | its page (ListPage): **Update** (close, the existing updater dialog - same as the bar's update icon) and **Create Snapshot** (close, the existing snapshot dialog) on hosts with `recovery_enabled`; **Power** (close, the existing Power Menu - sole owner of lock/suspend/hibernate/reboot/shutdown; hidden without `power_menu_enabled`). Entry hidden when the page would be empty |
+| System | its page (ListPage): **Update** (close, the existing updater dialog - same as the bar's update icon) and **Create Snapshot** (close, the existing snapshot dialog) on hosts with `recovery_enabled`; **Diagnostic** (page, see "Diagnostic menu"); **Power** (close, the existing Power Menu - sole owner of lock/suspend/hibernate/logout/reboot/shutdown; hidden without `power_menu_enabled`). Entry hidden when the page would be empty |
+| System -> Diagnostic | page: **Healthcheck**, **Full Diagnostic**, **Log Analysis** (each: close, `repo-logs show healthcheck` / `show diagnose` / `analyze --interactive` in the terminal) and **Logs** (page: one entry per `repo-logs` source -> `repo-logs view <source>` in the terminal). Left/Backspace/header: Logs -> Diagnostic -> System -> root |
 
 Keyboard: **type to search**. The first printable key on a list page
 (any letter - `j`/`k` included - digit, umlaut) opens `SearchPage.qml`: the
@@ -334,7 +335,113 @@ the menu maps under a resting pointer, whose first hover report must not
 replace the preselection; same in the power menu and clipboard history),
 click opens, the page header goes back, a click outside the panel closes. Surface: overlay on the focused output below the
 bar strip, only while open (unmapped when closed). IPC `osmenu`:
-`toggle`, `close`, `openPage <root|apps|settings>`, `state` (JSON, tests: page, query, results, selection).
+`toggle`, `close`, `openPage <root|apps|settings|system|system-diagnostic|system-logs|packages>`, `state` (JSON, tests: page, query, results, selection).
+
+## Close policy (all Quickshell surfaces)
+
+Every transient surface closes the same three ways - **Escape**, **Super+Q**
+and **a click outside** - through ONE controller: `bar/BarPopups.qml`. Each
+surface registers when it opens (`request`) and implements `closePopup()`;
+every close path ends there, so surface-specific guards apply to all paths
+alike. No surface, no input region exists while closed (Loader or unmapped
+window) - no permanent full-screen input layer.
+
+- **Escape** closes the surface, after its own inner state first (documented
+  exceptions): a non-empty search (power menu, clipboard history, OS menu
+  Applications) is cleared first; an open question (firewall confirm,
+  updater stages, Bluetooth PIN, Wi-Fi password, theme picker slot,
+  Appearance wallpaper picker / theme import, firewall add/edit dialog) is
+  cancelled first; the cheatsheet clears its search hits first; the OS menu
+  search returns to the menu. OS menu sub pages: Escape closes the whole
+  menu (Left/Backspace go back - the existing concept).
+- **Super+Q** (`roles/hyprland` binds.lua `closeFocused`): an overlay never
+  is Hyprland's active window, so a plain `window.close()` closed the
+  application BEHIND an open menu (measured on the laptop). At the key press
+  the bind asks Hyprland's own layer list (`hl.get_layers()`): a mapped
+  `quickshell-*` layer with keyboard interactivity -> `qs ipc call shell
+  closeActive` -> `BarPopups.closeActive()` (nothing active: nothing
+  happens, never a window close); otherwise `window.close()`. No flag, no
+  state, no second handler. Scratchpad and cheatsheet are normal windows:
+  `window.close()`, their own close path saves/cleans up.
+- **Click outside**: overlays cover the output while open (OS menu,
+  Appearance, Firewall below the bar strip; power menu, clipboard,
+  updater, snapshot over everything; bar popups below the bar - a click on
+  another bar widget switches popups in one click, a click on the own
+  widget toggles it closed, never reopens). Nested: the first outside
+  click closes the inner dialog (firewall add/edit, Appearance picker /
+  import, updater stage = its safe answer). Scratchpad / cheatsheet:
+  focus lost to another window, or a click on free desktop (a non-
+  interactive Bottom-layer catcher, only while open).
+- **Guards** (all paths): a running snapshot keeps its dialog
+  (`stage === "working"`); a firewall rule change in flight (`busy`) keeps
+  the Firewall window and a theme action/import keeps Appearance - closing
+  would destroy the helper's Process. A running system update is a
+  terminal unit, not Quickshell's child: closing the updater never stops
+  it. The scratchpad saves on every close path (incl. Super+Q), conflict
+  copies unchanged. A running countdown survives its popup.
+- **Notifications** are toasts (no keyboard, click/x closes) - not part of
+  the policy; Night light / Coffee are toggles without a window.
+
+## Diagnostic menu (OS menu -> System -> Diagnostic)
+
+`repo-logs` (`roles/diagnostics`, `/usr/local/bin`, read-only, no root, on
+demand) in the terminal (OS menu `runInTerminal`, a transient user unit -
+the Packages pattern). Fixed argv only; no free text reaches a command.
+
+| Entry | Runs |
+|---|---|
+| Healthcheck | `repo-logs show healthcheck` -> `repo-healthcheck`: FAIL/UNHEALTHY red, WARN yellow, PASS green, "Ergebnis: ... (Exit-Code N)", Enter closes |
+| Full Diagnostic | `repo-logs show diagnose` -> `repo-diagnose --full`, `!!` lines red, same footer |
+| Log Analysis | `repo-logs analyze --interactive` - see below |
+| Logs -> source | `repo-logs view <source>`: System Journal (24 h), Current Boot, Boot Errors (prio err+, system + user), Kernel Messages, User Services, Pacman (last 5000 lines), Quickshell, Hyprland (running instance's `hyprland.log`), Firewall (`workstation-firewall.service`); with `recovery_enabled` also Snapper (30 days: snapperd, snapper-cleanup, our snapshot helpers; `/var/log/snapper.log` is root-only - named, not read) and Update History (90 days of pacman transactions + `journalctl -t system-update`) |
+
+Viewer: journal sources come from `journalctl -o json` (never the binary
+files as text), formatted `date time  PRIO  ident[pid]: message`,
+chronological, bounded (boot / 24 h / 30 d, at most 20000 lines), into a
+private copy `$XDG_RUNTIME_DIR/workstation-logs/<source>-*.log` (dir 0700,
+file 0400, tmpfs) opened with `nvim -R -M -n` at the newest line (ERR/CRIT/
+FAILED and WARN highlighted, `/` searches). The copy is deleted when Neovim
+ends (also on SIGHUP/SIGTERM when the terminal closes); leftovers of a
+killed viewer are removed on the next run. A source that is not readable
+says so in the copy's header instead of failing.
+
+### Log Analysis (`repo-logs analyze`, diaglib.analyze)
+
+Local, deterministic rules (`roles/diagnostics/files/diaglib.py`) - no
+network, no model. Collectors: failed system/user units, the current boot's
+system + user journal at priority err and above (Quickshell and kernel
+apart), kernel messages (priority warning and above), Quickshell (runs, see
+below), Hyprland (`ERR` lines of the running instance's log, `hyprctl
+configerrors`, crash reports), coredumps of this boot, the firewall unit,
+pacman.log (30 days of transactions), `system-update` journal lines, and
+Snapper's snapshot list (`/.snapshots/*/info.xml`, world-readable).
+
+Severity comes from priority + source + repetition + a short table of known
+harmless messages, never from one word: Critical = a failed core unit
+(NetworkManager, logind, firewall, ...), priority emerg/alert/crit, a
+filesystem/disk error pattern, a failed/interrupted pacman transaction that
+is the latest, an inactive firewall; Warning = other failed units, priority
+err, QML errors, repeated (5+) kernel warnings, Hyprland errors/crash
+reports, coredumps, 3+ sudo authentication failures, updates without a
+snapshot; Info = known harmless messages (with the reason - kvm_amd on Intel,
+TDX unsupported, wpa_supplicant multicast RX, gkr-pam before the keyring,
+portal RealtimeKit), single kernel warnings (one summary), QML warnings,
+successful transactions/updates, the last snapshot, the loaded firewall.
+Identical messages are grouped (numbers, hex, pids folded): count, first and
+last time, pids, boot, the original lines and the command that shows them.
+Unknown events keep their own text - no invented explanation.
+
+**Current vs. history**: a finding is history (own section, not counted in
+"Aktuell") when it belongs to an earlier Quickshell instance/config load, a
+user unit that failed before this Hyprland started, a pacman failure
+followed by a successful transaction, or a coredump/crash report from before
+this session. Interactive mode: a finding's number opens its original lines
+in the same viewer.
+
+Not covered (limits): only the current boot's journal (earlier boots via
+`journalctl -b -1`); `/var/log/snapper.log` and other root-only files;
+messages below priority err outside the kernel/Quickshell; the meaning of
+an unknown message.
 
 ## Appearance
 
@@ -442,7 +549,22 @@ structure (unknown/duplicate ids: WARN - the bar ignores them), theme registry
 state (valid ids/modes; vanished wallpaper choice: WARN), theme outputs
 current (colors.json = the active theme's colors, wallpaper file exists),
 coredumps in this session (earlier this boot: WARN), QML exceptions/binding
-loops in this session, `hyprctl configerrors`. Absent hardware (battery,
+loops of the RUNNING Quickshell, `hyprctl configerrors`.
+
+QML runtime check (`diaglib.qml_status`, shared with repo-diagnose and the
+Log Analysis): the journal lines `-t quickshell` are split into runs - a new
+run per process (`_PID`) and per config load inside one process
+(`Reloading configuration...`). Only the running desktop instance's newest
+run counts (with `--since`, also any error from that moment on): a failed
+newest load stays FAIL until a later load succeeds (the old config keeps
+running). Errors of earlier runs are named in the PASS detail as history
+("earlier this session: N error(s) in pid P load G") and listed by the Log
+Analysis - never a FAIL. Found on the laptop 2026-10-10: Quickshell's file
+watcher reloaded halfway through a deploy (new PowerMenu.qml, old
+shell.qml: `Cannot assign to non-existent property "snapshotDialog"`), the
+next reload 13 s later loaded cleanly and the process was replaced - but the
+old check (every line since the session start) kept the session UNHEALTHY.
+Journal unreadable: WARN, not PASS. Absent hardware (battery,
 backlight, Bluetooth, Wi-Fi) is never a failure. Details stay repo-diagnose's.
 
 `repo-diagnose [--full]` (`roles/diagnostics`, `/usr/local/bin`): read-only
