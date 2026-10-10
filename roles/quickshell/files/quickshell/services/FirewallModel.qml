@@ -82,11 +82,6 @@ Scope {
         run(["reset"]);
     }
 
-    // Does changing this rule affect SSH logins to this machine (sshd: TCP 22)?
-    function touchesSsh(rule) {
-        return rule.protocol === "TCP" && rule.port === 22;
-    }
-
     function setEnabled(rule, on) {
         run([on ? "enable" : "disable", String(rule.port), rule.protocol]);
     }

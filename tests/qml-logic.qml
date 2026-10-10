@@ -643,9 +643,6 @@ QtObject {
         key(Qt.Key_Return);
         eq("confirm: selected confirm + Enter", answers, [false, false, true]);
         eq("confirm: letters do nothing", key(Qt.Key_J), false);
-        const fm = read("quickshell/services/FirewallModel.qml");
-        const ssh = make(fm, "touchesSsh", {});
-        eq("firewall: TCP 22 is the SSH rule", [ssh({ protocol: "TCP", port: 22 }), ssh({ protocol: "UDP", port: 22 }), ssh({ protocol: "TCP", port: 2222 })], [true, false, false]);
 
         // OS menu -> System: Update / Create Snapshot / Power, each only when its owner exists.
         const om = read("quickshell/osmenu/OsMenu.qml");
@@ -653,9 +650,12 @@ QtObject {
         const ids = o => new Function("o", "with (o) { return (" + expr + ").map(e => e.id); }")(o);
         eq("osmenu system: all three", ids({ updater: {}, snapshotDialog: {}, powerMenu: {} }), ["update", "snapshot", "power"]);
         eq("osmenu system: no recovery -> only Power", ids({ updater: null, snapshotDialog: null, powerMenu: {} }), ["power"]);
-        // Power menu: exactly Lock/Suspend/(Hibernate)/Reboot/Shutdown.
+        // Power menu: exactly Lock/Suspend/(Hibernate)/Logout/Reboot/Shutdown; logout = Hyprland's exit.
         const pm = read("PowerMenu.qml");
-        eq("power menu entries", (pm.match(/\{ id: "(\w+)",/g) || []).map(x => x.slice(7, -2)), ["lock", "suspend", "hibernate", "reboot", "shutdown"]);
+        eq("power menu entries", (pm.match(/\{ id: "(\w+)",/g) || []).map(x => x.slice(7, -2)), ["lock", "suspend", "hibernate", "logout", "reboot", "shutdown"]);
+        eq("power menu: logout = hl.dsp.exit()", make(pm, "commandFor", {})("logout"), { dispatch: "hl.dsp.exit()" });
+        const binds = read("../../hyprland/templates/conf/binds.lua.j2");
+        eq("no logout key bind (SHIFT + E / dsp.exit)", [/SHIFT \+ E"/.test(binds), /hl\.dsp\.exit\(\)/.test(binds)], [false, false]);
     }
 
     Component.onCompleted: {

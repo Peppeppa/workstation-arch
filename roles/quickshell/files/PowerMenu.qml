@@ -20,6 +20,8 @@
 //     (`workstation_end_session`, roles/hyprland session.lua) - a direct
 //     systemctl call killed the session scope at once and its helpers
 //     crashed (coredumps)
+//   logout: Hyprland's own exit dispatcher - its shutdown hook stops the
+//     session helpers in order (session-stop), then Ly is back
 //   lock: `loginctl lock-session` - the one lock path of the lock_idle
 //     feature (logind Lock -> hypridle -> hyprlock); this menu never
 //     locks by itself. Without lock_idle (lockAvailable false) it is
@@ -29,8 +31,9 @@
 //     only activating them does nothing.
 // Every action runs immediately on Enter/click - no confirm step, by
 // explicit user decision. Exactly these entries (user decision 2026-10-10):
-// Lock, Suspend, Hibernate (only where logind can), Reboot, Shutdown - logout
-// is mainMod+SHIFT+E; Update and Create Snapshot live in OS menu -> System.
+// Lock, Suspend, Hibernate (only where logind can), Logout, Reboot, Shutdown -
+// the menu is the only logout path (no key bind); Update and Create Snapshot
+// live in OS menu -> System.
 //
 // Keyboard: the search field has the focus from the moment the menu opens -
 // typing filters the actions (case-insensitive, every word must occur in
@@ -65,6 +68,7 @@ PanelWindow {
         { id: "lock",      label: "Lock",      icon: "", available: lockAvailable, hint: "not set up", keywords: "screen lock-screen" },
         { id: "suspend",   label: "Suspend",   icon: "", available: true, keywords: "sleep standby" },
         { id: "hibernate", label: "Hibernate", icon: "", available: true, keywords: "disk sleep" },
+        { id: "logout",    label: "Logout",    icon: "", available: true, danger: true, keywords: "log out sign out exit session" },
         { id: "reboot",    label: "Reboot",    icon: "", available: true, danger: true, keywords: "restart" },
         { id: "shutdown",  label: "Shutdown",  icon: "", available: true, danger: true, keywords: "power off poweroff halt" }
     ].filter(item => item.id !== "hibernate" || hibernateAvailable)
@@ -177,7 +181,7 @@ PanelWindow {
         case "hibernate": return { argv: ["systemctl", "hibernate"] };
         case "reboot":    return { dispatch: "workstation_end_session(\"reboot\")" };
         case "shutdown":  return { dispatch: "workstation_end_session(\"poweroff\")" };
-
+        case "logout":    return { dispatch: "hl.dsp.exit()" };
         default:          return null;
         }
     }

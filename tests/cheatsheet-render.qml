@@ -74,7 +74,7 @@ Item {
         const dir = args[args.length - 1];
         // table cells, headings, inline code, the last table row of a document
         checkDoc("hyprland", "file://" + dir + "/hyprland.md",
-                 ["bitwarden", "Night light", "Super + E", "Timer popup", "Exit Hyprland", "Media player", "Esc"]);
+                 ["bitwarden", "Night light", "Super + E", "Timer popup", "Power menu", "Media player", "Esc"]);
         checkDoc("neovim", repo + "roles/apps/files/cheatsheet-neovim.md",
                  ["\\ll", "forward search", "Lazygit", "Space s r", "Shift + h", "documentation of the package"]);
         console.info(failures === 0 ? "cheatsheet-render: all checks passed" : "cheatsheet-render: " + failures + " FAILED");

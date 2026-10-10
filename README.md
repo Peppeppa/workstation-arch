@@ -258,7 +258,7 @@ for the intended stack.
 Boot ends in **Ly** (official `ly` package, minimal TUI login) on tty2:
 user + password -> the Hyprland session (the hyprland package's
 `hyprland.desktop`, i.e. `start-hyprland`). Logging out of Hyprland
-(`Super + Shift + E` or the power menu) returns to Ly. No autologin, no
+(power menu -> Logout) returns to Ly. No autologin, no
 `.bash_profile`/`exec Hyprland` hack. Feature `display_manager_enabled`
 (`roles/display_manager`).
 
@@ -312,8 +312,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + X` | screenshot of the whole focused monitor |
 | `Super + Ctrl + X` | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + Delete` | lock now (hyprlock) |
-| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Reboot / Shutdown - type to search (e.g. `reb`, `restart`), Up/Down wrap around, Enter runs immediately (no confirmation), Escape clears the search, then closes |
-| `Super + Shift + E` | exit Hyprland (back to Ly / the TTY) |
+| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - type to search (e.g. `reb`, `restart`), Up/Down wrap around, Enter runs immediately (no confirmation), Escape clears the search, then closes |
 
 Caps Lock is a second Ctrl (`hyprland_keyboard_options: ctrl:nocaps`). The
 full, generated list is the cheatsheet (`Super + T`). Chromium, Thunderbird,
@@ -381,7 +380,7 @@ defaults in the meantime.
    - bootstrap: the `fatal:` task (role, file:line) in its own output;
      rerun one role with `./bootstrap.sh --tags <role> -v`
 
-Logout (`mainMod+SHIFT+E`) and the power menu's Reboot/Shutdown
+The power menu's Logout, Reboot and Shutdown
 end the session in order: Hyprland's shutdown hook stops its session
 helpers and the portals while the display still exists (`session-stop`,
 roles/hyprland) - no coredumps, no "failed" portal units. A session ended
@@ -699,12 +698,13 @@ neither the kernel nor the saved list changes).
 - Not in the list and not touched by it: Docker's own nftables tables and
   anything else outside `inet workstation`.
 
-**SSH**: disabling, deleting or editing the SSH rule asks first and warns:
-new SSH connections to this machine are then blocked (also remote
-administration); established ones stay. It is never prevented. There is no
-timed automatic undo on purpose: the editor runs only in the local desktop
-session, which a firewall rule cannot lock out - you undo it right there
-(Aktivieren, or Standardregeln wiederherstellen). **Recovery** when the
+**SSH**: the SSH rule is handled like every other rule - switch and × act
+at once, without a question or warning of its own. Disabled or deleted, new
+SSH connections to this machine are blocked (also remote administration);
+established ones stay. There is no timed automatic undo on purpose: the
+editor runs only in the local desktop session, which a firewall rule cannot
+lock out - you undo it right there (Aktivieren, or Standardregeln
+wiederherstellen). **Recovery** when the
 desktop is unusable: log in on a text console (Ctrl+Alt+F3) and run
 `sudo /usr/local/libexec/workstation/firewall-rules reset` (the five
 standard rules), or `sudo systemctl stop workstation-firewall` (removes the

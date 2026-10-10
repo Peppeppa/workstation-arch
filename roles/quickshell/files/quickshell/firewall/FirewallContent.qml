@@ -8,9 +8,8 @@
 // "Aktivieren"; × deletes the rule; a click on the row's text edits it
 // (AddRule.qml). "Standardregeln wiederherstellen" (bottom) brings back the
 // five factory rules and removes the user's - after a question (Confirm.qml,
-// Abbrechen preselected). Disabling, removing or editing the SSH rule
-// (TCP 22) asks first and says that new SSH connections will be blocked -
-// it is never prevented. Infrastructure that is not a port rule (loopback,
+// Abbrechen preselected). The SSH rule is a rule like any other: switch and
+// × act at once, no question of its own. Infrastructure that is not a port rule (loopback,
 // replies, ICMP, Docker bridges) is not listed. A rule opens a port in the
 // firewall; it does not start or stop the service behind it. All work is
 // the root helper's (services/FirewallModel).
@@ -36,9 +35,8 @@ FocusScope {
         else root.window.close();
     }
 
-    // The question before a reset or an SSH-rule change; `pending` runs on Ja.
+    // The question before a reset; `pending` runs on Ja.
     property var pending: null
-    readonly property string sshWarning: "Neue SSH-Verbindungen zu diesem Rechner werden dann blockiert (auch für Fernwartung); bestehende Verbindungen bleiben. Rückgängig: die Regel wieder aktivieren oder \"Standardregeln wiederherstellen\"."
 
     function askThen(title, body, warning, label, action) {
         pending = action;
@@ -91,19 +89,13 @@ FocusScope {
     function toggleRow(index) {
         const r = fw.rules[index];
         if (!r || fw.busy) return;
-        if (r.active && fw.touchesSsh(r))
-            askThen("SSH-Regel deaktivieren?", r.label + " / " + r.port + " / " + r.protocol, sshWarning,
-                    "Deaktivieren", () => fw.setEnabled(r, false));
-        else fw.setEnabled(r, !r.active);
+        fw.setEnabled(r, !r.active);
     }
 
     function removeRow(index) {
         const r = fw.rules[index];
         if (!r || fw.busy) return;
-        if (fw.touchesSsh(r))
-            askThen("SSH-Regel löschen?", r.label + " / " + r.port + " / " + r.protocol, sshWarning,
-                    "Löschen", () => fw.remove(r));
-        else fw.remove(r);
+        fw.remove(r);
     }
 
     // For the IPC hooks: the reset question / its answer, the edit dialog.

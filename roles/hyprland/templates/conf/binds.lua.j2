@@ -123,7 +123,6 @@ return function(v)
     -- FEATURE: power_menu: the power menu inside the running Quickshell.
     hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd("qs ipc call powermenu toggle"))
 {% endif %}
-    hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 
     -- Hardware keys (laptop keyboards, media keyboards). locked: also work
     -- on the lockscreen; repeating: hold to keep stepping. Audio goes to

@@ -1,6 +1,5 @@
 // Firewall -> a yes/no question over the window (reset to the factory
-// rules; disabling or removing the SSH rule). Managed by Ansible: do not
-// edit by hand, see roles/quickshell in workstation-arch.
+// rules). Managed by Ansible: do not edit by hand, see roles/quickshell in workstation-arch.
 //
 // "Abbrechen" is preselected: Enter on it, Escape and a click outside all
 // cancel. Left/Right/Tab move between the two buttons. The question only

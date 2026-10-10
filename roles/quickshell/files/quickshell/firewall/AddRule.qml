@@ -10,8 +10,7 @@
 // from a typo). With `rule` set (a click on a row's text) the same dialog
 // edits that rule ("Speichern"): label, port, protocol - for a factory rule
 // with a fixed restriction (DHCP, DHCPv6, LocalSend discovery: `fixed`)
-// only the label. Editing the SSH rule (TCP 22) shows a warning. Escape / a
-// click outside / Abbrechen closes.
+// only the label. Escape / a click outside / Abbrechen closes.
 
 import QtQuick
 import QtQuick.Layouts
@@ -192,16 +191,6 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 text: "Standardregel mit fester Einschränkung - Port und Protokoll sind fest, nur die Bezeichnung ist änderbar."
-            }
-
-            Text {
-                visible: dialog.rule !== null && dialog.model.touchesSsh(dialog.rule)
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: "Achtung: Das ist die SSH-Regel. Ändern Port oder Protokoll, werden neue SSH-Verbindungen zu diesem Rechner blockiert (bestehende bleiben)."
-                color: Colors.error
-                font.family: Fonts.family
-                font.pixelSize: dialog.fontSize - 2
             }
 
             RowLayout {
