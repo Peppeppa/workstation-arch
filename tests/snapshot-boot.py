@@ -73,13 +73,13 @@ def uki(path, uname, hook=True):
     return w(path, "UNAME=%s\nHOOK=%s\nKERNEL\n" % (uname, "yes" if hook else "no"))
 
 
-def snap(n, kernels=("7.2.9",), support=True, writable=False, cmdline=CMDLINE):
+def snap(n, kernels=("7.2.9",), support=2, writable=False, cmdline=CMDLINE):
     base = "/.snapshots/%d/snapshot" % n
     for k in kernels:
         w(base + "/usr/lib/modules/%s/vmlinuz" % k, "k")
     w(base + "/etc/kernel/cmdline", cmdline)
     if support:
-        w(base + "/usr/local/lib/workstation/snapshot-boot-support", "1\n")
+        w(base + "/usr/local/lib/workstation/snapshot-boot-support", "# marker\n%d\n" % support)
     if writable:
         w(base + ".rw", "")
 
@@ -129,7 +129,8 @@ try:
 
     # --- snapshots
     snap(21, kernels=("7.1.0",))                 # update, older kernel - its UKI copy exists
-    snap(23, support=False)                      # manual, before support
+    snap(23, support=0)                          # manual, before support
+    snap(24, support=1)                          # manual, support version 1 (restore broken in a snapshot boot)
     snap(25)                                     # update
     snap(27)                                     # update
     snap(28)                                     # manual
@@ -141,6 +142,7 @@ try:
     snapper([(13, "baseline", "2026-10-08 15:40:13", "baseline"),
              (21, "update", "2026-10-01 09:00:00", "pacman: linux"),
              (23, "manual", "2026-10-10 13:19:15", "Test Updater"),
+             (24, "manual", "2026-10-10 13:20:00", "support v1"),
              (25, "update", "2026-10-10 13:39:59", "pacman: 7 packages"),
              (27, "update-slot", "2026-10-10 17:04:11", "system-update (repo 3276cfd)"),
              (28, "manual", "2026-10-10 17:42:50", "test (repo b655739)\twith a tab"),
@@ -154,7 +156,8 @@ try:
        ["workstation-snapshot-21.conf", "workstation-snapshot-25.conf", "workstation-snapshot-28.conf"])
     st = state()
     reasons = {s["number"]: s["reason"] for s in st["skipped"]}
-    want = {27: "already in the boot menu as recovery slot before-update", 23: "taken before snapshot boot support", 29: "no stored UKI for its kernel 7.0.0",
+    want = {27: "already in the boot menu as recovery slot before-update", 23: "taken before snapshot boot support",
+            24: "snapshot boot support version 1 inside, 2 needed", 29: "no stored UKI for its kernel 7.0.0",
             30: "needs exactly one kernel", 31: "snapshot is writable", 32: "its /etc/kernel/cmdline has no rootflags"}
     eq("skip reasons", {n: reasons.get(n, "").startswith(t) for n, t in want.items()}, {n: True for n in want})
     e28 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-28.conf")).read()

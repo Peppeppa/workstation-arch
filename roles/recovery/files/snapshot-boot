@@ -58,6 +58,7 @@ STATE = R + "/var/lib/workstation/snapshot-boot.json"
 DIRTY = R + "/run/workstation-recovery/snapshot-boot.dirty"
 LOCK = R + "/run/lock/workstation-snapshot-boot.lock"
 SUPPORT = "usr/local/lib/workstation/snapshot-boot-support"
+SUPPORT_MIN = 2      # version 1: its system-rollback asked snapper, which fails in a snapshot boot
 HOOK = "workstation-snapshot-overlay"
 PER_CLASS = 2
 ESP_RESERVE = 150 * 1024 * 1024        # never fill the ESP below this (system-update's own limit)
@@ -268,6 +269,12 @@ def bootable(s, ukis):
         return None, "snapshot is writable (not read-only)"
     if not os.path.isfile(os.path.join(snap, SUPPORT)):
         return None, "taken before snapshot boot support (no %s inside)" % SUPPORT
+    try:
+        ver = int([l for l in open(os.path.join(snap, SUPPORT)) if l.strip() and not l.startswith("#")][0])
+    except (OSError, ValueError, IndexError):
+        ver = 0
+    if ver < SUPPORT_MIN:
+        return None, "snapshot boot support version %d inside, %d needed (its restore cannot work)" % (ver, SUPPORT_MIN)
     kernels = snapshot_kernels(snap)
     if len(kernels) != 1:
         return None, "needs exactly one kernel in /usr/lib/modules, found %d" % len(kernels)

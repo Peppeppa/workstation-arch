@@ -1,5 +1,7 @@
 # Managed by Ansible (roles/recovery) - do not edit by hand.
 # Marker: a snapshot of / that contains this file carries the snapshot-boot
 # mechanism (its own restore helper, polkit action and pacman block) - only
-# such snapshots are offered in the boot menu (snapshot-boot).
-1
+# such snapshots are offered in the boot menu (snapshot-boot). The number is
+# the version: 2 = system-rollback works inside a snapshot boot (no snapper
+# call there); snapshots with 1 are not offered.
+2

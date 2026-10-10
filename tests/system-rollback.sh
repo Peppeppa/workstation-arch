@@ -38,7 +38,7 @@ stub umount ':'
 stub mountpoint 'exit 0'
 stub logger "echo \"logger \$*\" >> $tmp/log"
 stub findmnt 'case "$*" in *FSTYPE*) echo btrfs;; *SOURCE*) echo /dev/mapper/root;; *) echo rw,subvol=/@;; esac'
-stub snapper 'echo "number|date|description"; echo "30|2026-10-10 18:46:21|Test A"'
+stub snapper 'echo "snapper must not be needed" >&2; exit 1'
 stub btrfs 'case "$1 $2" in "subvolume snapshot") cp -a "$3" "$4";; "subvolume delete") rm -rf "$3";; "property set") :;; *) exit 9;; esac'
 # objcopy: the fake UKI is "UNAME=<k>" text
 stub objcopy 'for a; do case $a in --only-section=.uname) u=1;; esac; done; eval "in=\${$(($#-1))}"; eval "out=\${$#}"
@@ -56,10 +56,11 @@ setup() { # fresh top level: @ (current), snapshot 30 (kernel $1), stored UKI fo
     echo snapshot > "$tmp/top/@snapshots/30/snapshot/etc/state"
     echo "rootflags=subvol=@ rw" > "$tmp/top/@snapshots/30/snapshot/etc/kernel/cmdline"
     echo "vmlinuz $1" > "$tmp/top/@snapshots/30/snapshot/usr/lib/modules/$1/vmlinuz"
+    printf '<snapshot>\n  <num>30</num>\n  <date>2026-10-10 16:46:21</date>\n  <description>Test A</description>\n</snapshot>\n' > "$tmp/top/@snapshots/30/info.xml"
     printf 'UNAME=7.2.9\nMAIN\n' > "$tmp/boot/EFI/Linux/arch-linux.efi"
     printf 'UNAME=7.2.9\nSTORED\n' > "$tmp/boot/EFI/workstation/snapshots/7.2.9.efi"
 }
-run() { bash "$tmp/system-rollback" 30 --yes >"$tmp/out" 2>&1; }
+run() { TZ=Europe/Berlin bash "$tmp/system-rollback" 30 --yes >"$tmp/out" 2>&1; }
 broken() { ls -d "$tmp/top"/@broken-* 2>/dev/null | wc -l; }
 
 # ---- success

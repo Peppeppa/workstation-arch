@@ -52,7 +52,13 @@ if [ -z "$uki" ]; then
     fi
 fi
 
-desc=$(snapper -c root --csvout --separator '|' list --columns number,date,description | awk -F'|' -v n="$n" '$1 == n {print $2 " - " $3}')
+# Date + description from snapper's own metadata file, not through snapper:
+# in a snapshot boot / is an overlay and snapper's root config refuses to
+# work ("query default id failed" - laptop 2026-10-10).
+info="/.snapshots/$n/info.xml"
+when=$(sed -n 's:.*<date>\(.*\)</date>.*:\1:p' "$info" 2>/dev/null | head -1)
+[ -n "$when" ] && when=$(date -d "$when UTC" '+%F %T' 2>/dev/null || echo "$when")
+desc="${when:-?} - $(sed -n 's:.*<description>\(.*\)</description>.*:\1:p' "$info" 2>/dev/null | head -1)"
 echo "Roll the system back to snapshot $n ($desc), kernel $kver."
 echo "The current system is kept as @broken-<date>; /home is not touched."
 if [ "$yes" != "--yes" ]; then
