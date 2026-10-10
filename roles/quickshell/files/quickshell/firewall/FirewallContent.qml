@@ -124,7 +124,7 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 420) / 2))
-        width: Fonts.px(480)
+        width: Fonts.px(560)               // room for "LocalSend – Dateiübertragung / 53317 / TCP"
         height: Math.min(column.implicitHeight + 32, root.height - y - 40)
         radius: 8
         color: Colors.background
