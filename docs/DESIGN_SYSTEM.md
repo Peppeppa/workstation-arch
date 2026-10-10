@@ -483,6 +483,8 @@ without the block gets Neovim's `default` colorscheme in its mode.
 | Shell tools (Starship, bat, eza, fzf, lazygit) | follow through Ghostty's 16-color palette (Starship default config: named ANSI colors; `BAT_THEME=ansi`) |
 | btop | follows the theme at btop's start: `~/.config/btop/themes/workstation.theme` -> the helper's `btop.theme` (the source's own btop theme, else one from the palette); `btop.conf` only created if missing. No live reload exists |
 | GTK/libadwaita apps (Nautilus, ...) | follow the GTK light/dark preference natively (libadwaita: `color-scheme`; GTK3: `gtk-theme`) |
+| Qt apps (Anki, Nextcloud, VirtualBox, ...) | follow light/dark through Qt's `xdgdesktopportal` platform theme (`QT_QPA_PLATFORMTHEME`, session env from Hyprland's config): the portal's `color-scheme`, live by its signal. Fusion's own dark/light palette, not the theme's colors (no qt6ct/Kvantum: no extra package or config). Before (measured): light palette in the dark theme. Quickshell is started without it |
+| Cursor | Adwaita 24 px for the whole session (`XCURSOR_THEME`/`XCURSOR_SIZE`, `group_vars` `desktop_cursor_*`; Hyprland syncs gsettings) |
 | Zathura | deferred: its config isn't repo-managed and a running window only re-reads colors via its own `:source` command (no signal/IPC) |
 | Browsers, Thunderbird, Bitwarden, Flatpaks | not themed by design (no CSS/app hacks; native preference only) |
 

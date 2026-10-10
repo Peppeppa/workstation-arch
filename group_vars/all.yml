@@ -166,6 +166,26 @@ desktop_icon_font_family: "FiraCode Nerd Font Propo"
 # keep Adwaita (gsettings icon-theme is not touched).
 desktop_icon_theme: Papirus
 
+# Cursor (RICE v1 phase 6b): Adwaita (adwaita-cursors, already pulled in by
+# GTK and the system default /usr/share/icons/default) at 24 px, now set
+# explicitly for the whole session (XCURSOR_THEME/XCURSOR_SIZE from
+# Hyprland's config, handed to the systemd/D-Bus activation environment) so
+# Hyprland, GTK, Qt and XWayland apps draw the same cursor. Hyprland mirrors
+# it into gsettings itself (cursor.sync_gsettings_theme, default on).
+desktop_cursor_theme: Adwaita
+desktop_cursor_size: 24
+
+# Qt applications (Anki, Nextcloud, VirtualBox, ...) follow the light/dark
+# mode through Qt's own xdg-desktop-portal platform theme (qt6-base,
+# libqxdgdesktopportal.so): it reads org.freedesktop.appearance color-scheme
+# from the portal - the value the `theme` helper already sets (gsettings
+# color-scheme -> xdg-desktop-portal-gtk) - and follows a switch live by
+# the portal's signal; no extra package, no daemon, no qt6ct. Measured on
+# the laptop before: Qt apps reported colorScheme unknown and a LIGHT
+# palette in the dark theme. Quickshell itself is started without it
+# (hyprland_quickshell_exec): its colors come only from Colors.
+desktop_qt_platform_theme: xdgdesktopportal
+
 # Gaming is an OPT-IN host capability, not a common-role concern (see
 # AGENTS.md VM / Hardware Separation): the shared daily-driver stack
 # (base/graphics/hyprland/desktop/audio/network/apps/virtualization)

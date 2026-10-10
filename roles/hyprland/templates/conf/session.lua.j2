@@ -40,6 +40,14 @@
 -- host_vars/arch-dev.yml) for a real, VM/hardware-confirmed reason,
 -- same pattern as hyprland_terminal below.
 return function(v)
+    -- Session environment (RICE v1 phase 6b, group_vars desktop_cursor_* /
+    -- desktop_qt_platform_theme): one cursor everywhere, Qt apps follow the
+    -- portal's light/dark. Set at config load, before anything is started;
+    -- handed to the systemd/D-Bus activation environment below.
+    hl.env("XCURSOR_THEME", "{{ desktop_cursor_theme }}")
+    hl.env("XCURSOR_SIZE", "{{ desktop_cursor_size }}")
+    hl.env("QT_QPA_PLATFORMTHEME", "{{ desktop_qt_platform_theme }}")
+
     hl.on("hyprland.start", function()
         -- Hyprland hands the systemd user manager (= the D-Bus activation
         -- environment) WAYLAND_DISPLAY/DISPLAY/XDG_CURRENT_DESKTOP itself,
@@ -48,9 +56,10 @@ return function(v)
         -- handed to the manager. D-Bus-activated GNOME apps need them:
         -- without them Nautilus as "open folder" handler (gio/portal/
         -- FileManager1) exits ("missing session type"; localsearch-3 is
-        -- gated on ConditionEnvironment=XDG_SESSION_CLASS=user). One-shot,
-        -- no process stays.
-        hl.exec_cmd("systemctl --user import-environment XDG_SESSION_TYPE XDG_SESSION_CLASS XDG_SESSION_DESKTOP")
+        -- gated on ConditionEnvironment=XDG_SESSION_CLASS=user). The cursor
+        -- and Qt theme variables above go along, so activated/autostarted
+        -- apps match the session. One-shot, no process stays.
+        hl.exec_cmd("systemctl --user import-environment XDG_SESSION_TYPE XDG_SESSION_CLASS XDG_SESSION_DESKTOP XCURSOR_THEME XCURSOR_SIZE QT_QPA_PLATFORMTHEME")
 {% if hyprland_activation_environment %}
         -- Host-specific extra variables for D-Bus/systemd-activated apps
         -- (hyprland_activation_environment, host_vars).

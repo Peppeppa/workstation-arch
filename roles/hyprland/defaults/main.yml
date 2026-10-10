@@ -48,7 +48,10 @@ hyprland_quickshell_cmd: quickshell
 # persistent journal: `journalctl --user -t quickshell`. NO_COLOR=1: no
 # ANSI color codes in the journal (the --no-color flag would change the
 # command line the restart tasks look for).
-hyprland_quickshell_exec: "systemd-cat -t quickshell -- env NO_COLOR=1 QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprland_quickshell_cmd }}"
+# env -u QT_QPA_PLATFORMTHEME: the session's Qt platform theme
+# (desktop_qt_platform_theme) is for applications; Quickshell's colors come
+# only from the Colors singleton, so it keeps Qt's plain default.
+hyprland_quickshell_exec: "systemd-cat -t quickshell -- env -u QT_QPA_PLATFORMTHEME NO_COLOR=1 QS_ICON_THEME={{ desktop_icon_theme }} {{ hyprland_quickshell_cmd }}"
 
 # Monitor scale for hl.monitor() in hyprland.lua.j2. "auto" is correct
 # on real target hosts (laptop/workstation report real physical monitor
