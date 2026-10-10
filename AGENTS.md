@@ -1061,6 +1061,22 @@ history for that milestone's own record):
   idempotent. `nextcloud-client` moved to roles/apps (the private repo
   has no packages/sudo any more).
 
+- **Power menu search, updater, Python/Java/Neovim languages** (laptop,
+  2026-10-10, explicitly requested): power menu type-to-search + wrapping
+  Up/Down; Update / Create Snapshot (recovery hosts) + bar update icon on top
+  of system-update/system-snapshot (`--ui`, `--no-snapshot` only after a
+  failed snapshot + explicit Ja; `snapshot-create` via pkexec); the locked uv
+  Data Science environment with JupyterLab (127.0.0.1); Maven + Gradle on JDK
+  25; LazyVim language extras + `workstation-languages.lua`, Mason/parsers
+  installed headless by the bootstrap. Real-hardware-tested: menu keys incl.
+  wrap/zero matches, dialogs (Nein default, Escape, snapshot-failed question,
+  the Ja launch up to sudo), a real Create Snapshot, all Python imports +
+  notebook + Streamlit, Java compile/Maven/Gradle, every language's LSP/
+  diagnostics/completion/formatter/DAP config headless, VimTeX compile; two
+  bootstraps changed=0. NOT tested live: a real update through the dialog
+  (not released), a real snapshot failure, the icon with real pending updates
+  (none pending; logic tests only), Zathura forward search after this change.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
