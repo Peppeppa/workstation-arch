@@ -22,7 +22,7 @@ FocusScope {
 
     required property var menu
 
-    readonly property int rowHeight: 34
+    readonly property int rowHeight: Style.comfortableRowHeight
     readonly property int maxResults: apps.maxResults
     property string query: ""
     property int selectedIndex: 0
@@ -174,8 +174,8 @@ FocusScope {
                             anchors.fill: parent
                             visible: row.iconSource !== "" && status === Image.Ready
                             source: row.iconSource
-                            sourceSize.width: 22
-                            sourceSize.height: 22
+                            sourceSize.width: Style.iconLarge
+                            sourceSize.height: Style.iconLarge
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
                             smooth: true

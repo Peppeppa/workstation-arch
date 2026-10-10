@@ -112,7 +112,7 @@ Scope {
                     Layout.row: toastWindow.count - 1 - index
                     Layout.fillWidth: true
                     visible: index >= toastWindow.count - root.maxVisible
-                    implicitHeight: content.implicitHeight + 20
+                    implicitHeight: content.implicitHeight + 2 * Style.spacingLg
                     radius: Style.panelRadius
                     color: Colors.background
                     border.color: critical ? Colors.error : Colors.border

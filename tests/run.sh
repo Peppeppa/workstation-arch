@@ -74,6 +74,26 @@ for f in sys.argv[1:]:
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 ' $(git ls-files "roles/quickshell/*.qml" "roles/quickshell/*.qml.j2")
+# Design system (docs/DESIGN_SYSTEM.md): no opacity-faked muted/disabled
+# state (allowed: the drag lift, the hover reveals, the Bluetooth pairing
+# dim - listed exceptions), and a box height/width never adds a literal
+# padding sum to a child's implicit size (it must follow the margins'
+# Style token, or it drifts at other text sizes - RICE v1 audit finding).
+step "design lint: opacity, padding sums" python3 -c '
+import re, sys
+allowed_opacity = {"Bar.qml", "Visuals/Widget.qml", "Tray/Widget.qml", "tray/Widget.qml", "bluetooth/Popup.qml"}
+bad = []
+for f in sys.argv[1:]:
+    for n, line in enumerate(open(f), 1):
+        code = line.split("//")[0]
+        if re.search(r"\bopacity:\s*[^\n]*\?\s*[0-9.]+\s*:\s*[0-9.]+", code) and not any(f.endswith(a) for a in allowed_opacity):
+            bad.append("%s:%d: opacity state: %s" % (f, n, code.strip()))
+        if re.search(r"implicit(Height|Width) \+ (?:[2-9]|[1-9][0-9])\b", code) and "Style." not in code \
+                and not re.search(r"(tipText|clearText|cancelText|rows)\.implicit", code):
+            bad.append("%s:%d: literal padding sum: %s" % (f, n, code.strip()))
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+' $(git ls-files "roles/quickshell/*.qml" "roles/quickshell/*.qml.j2")
 # Snapper's empty-pre-post cleanup ignores the pin of a recovery slot's pre
 # snapshot (it deleted one on the laptop) - it must stay off.
 step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"' roles/recovery/templates/snapper-root.j2

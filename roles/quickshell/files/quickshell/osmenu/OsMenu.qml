@@ -341,16 +341,16 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((menu.height - 420) / 2))
         width: Style.fitWidth(Style.standardPanelWidth, menu.width)
-        height: menu.page === "apps" ? appsPage.implicitHeight + 24
-              : menu.page === "settings" ? settingsPage.implicitHeight + 24
-              : menu.page === "system" ? systemPage.implicitHeight + 24
-              : menu.page === "system-diagnostic" ? diagnosticPage.implicitHeight + 24
-              : menu.page === "system-logs" ? logsPage.implicitHeight + 24
-              : menu.page === "search" ? searchPage.implicitHeight + 24
-              : menu.page === "packages" ? packagesPage.implicitHeight + 24
-              : menu.page === "packages-install" ? installPage.implicitHeight + 24
-              : menu.page === "packages-remove" ? removePage.implicitHeight + 24
-              : rootPage.implicitHeight + 24
+        height: menu.page === "apps" ? appsPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "settings" ? settingsPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "system" ? systemPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "system-diagnostic" ? diagnosticPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "system-logs" ? logsPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "search" ? searchPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "packages" ? packagesPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "packages-install" ? installPage.implicitHeight + 2 * Style.spacingLg
+              : menu.page === "packages-remove" ? removePage.implicitHeight + 2 * Style.spacingLg
+              : rootPage.implicitHeight + 2 * Style.spacingLg
         radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive

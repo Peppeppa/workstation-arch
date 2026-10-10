@@ -118,6 +118,18 @@ for line in shell.splitlines(True):
     out.append(line)
 open(os.path.join(DEST, "shell.qml"), "w").write("".join(out))
 
+# QS_CAND_COLORS=<colors.json>: the test instance reads that file instead of
+# the user's (another theme / mode / text size for the visual audit - the
+# user's theme state is never touched)
+if os.environ.get("QS_CAND_COLORS"):
+    cq = os.path.join(DEST, "Colors.qml")
+    c = open(cq).read()
+    c2 = re.sub(r'path: \(Quickshell\.env\("XDG_CONFIG_HOME"\)[^\n]*\n\s*\+ "/workstation/theme/colors\.json"',
+                'path: ' + json.dumps(os.path.abspath(os.environ["QS_CAND_COLORS"])), c)
+    if c2 == c:
+        sys.exit("QS_CAND_COLORS: Colors.qml path not found")
+    open(cq, "w").write(c2)
+
 # ---- run -------------------------------------------------------------------
 prod = None
 for p in os.listdir("/proc"):

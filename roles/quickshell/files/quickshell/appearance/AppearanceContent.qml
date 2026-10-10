@@ -105,7 +105,7 @@ FocusScope {
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 760) / 2))
         width: Style.standardPanelWidth
-        height: Math.min(column.implicitHeight + 32, root.height - y - 40)
+        height: Math.min(column.implicitHeight + 2 * Style.spacingXl, root.height - y - 40)
         radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
@@ -131,7 +131,7 @@ FocusScope {
                     text: "Appearance"
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: root.fontSize + 3
+                    font.pixelSize: Style.title
                     font.bold: true
                 }
 

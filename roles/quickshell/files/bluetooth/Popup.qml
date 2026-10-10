@@ -441,7 +441,7 @@ BarPopup {
             visible: popup.agentRequest !== null
             Layout.fillWidth: true
             Layout.topMargin: Style.spacingSm
-            implicitHeight: pairBox.implicitHeight + 16
+            implicitHeight: pairBox.implicitHeight + 2 * Style.spacingMd
             radius: 6
             color: Colors.surface
             border.color: Colors.borderActive

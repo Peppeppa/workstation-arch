@@ -240,7 +240,7 @@ PanelWindow {
         id: panel
         anchors.centerIn: parent
         width: Style.fitWidth(Style.narrowPanelWidth, menu.width)
-        implicitHeight: content.implicitHeight + 20
+        implicitHeight: content.implicitHeight + 2 * Style.spacingLg
         radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive

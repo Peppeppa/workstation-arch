@@ -19,7 +19,7 @@ FocusScope {
 
     required property var menu
 
-    readonly property int rowHeight: 34
+    readonly property int rowHeight: Style.comfortableRowHeight
     property string query: ""
     property int selectedIndex: 0
     readonly property var results: apps.search(query)
@@ -42,7 +42,7 @@ FocusScope {
         entry.execute();
     }
 
-    implicitHeight: header.implicitHeight + 8 + 36 + 8 + apps.maxResults * rowHeight
+    implicitHeight: header.implicitHeight + 2 * Style.spacingMd + Style.comfortableRowHeight + apps.maxResults * rowHeight
 
     AppModel {
         id: apps
@@ -129,8 +129,8 @@ FocusScope {
                         anchors.fill: parent
                         visible: resultDelegate.iconSource !== "" && status === Image.Ready
                         source: resultDelegate.iconSource
-                        sourceSize.width: 22
-                        sourceSize.height: 22
+                        sourceSize.width: Style.iconLarge
+                        sourceSize.height: Style.iconLarge
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         smooth: true

@@ -863,7 +863,7 @@ BarPopup {
         property bool reveal: false
         Layout.fillWidth: true
         Layout.topMargin: Style.spacingSm
-        implicitHeight: pwBox.implicitHeight + 16
+        implicitHeight: pwBox.implicitHeight + 2 * Style.spacingMd
         radius: 6
         color: Colors.surface
         border.color: popup.pwError !== "" ? Colors.error : Colors.borderActive

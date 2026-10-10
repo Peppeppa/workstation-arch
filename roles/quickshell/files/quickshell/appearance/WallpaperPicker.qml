@@ -31,7 +31,7 @@ Item {
     Rectangle {
         anchors.centerIn: parent
         width: Fonts.px(620)
-        height: Math.min(box.implicitHeight + 32, picker.height - 80)
+        height: Math.min(box.implicitHeight + 2 * Style.spacingXl, picker.height - 80)
         radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
