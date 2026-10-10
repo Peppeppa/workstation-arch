@@ -133,7 +133,7 @@ FocusScope {
                             visible: fw.listed && fw.rules.length === 0
                             Layout.fillWidth: true
                             Layout.margins: 4
-                            text: "Keine Regeln - nichts ist im LAN freigegeben."
+                            text: "Keine eigenen Freigaben - die Basis-Freigaben (z. B. SSH, LocalSend) stehen unten."
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
                             font.pixelSize: root.fontSize - 1

@@ -206,7 +206,7 @@ st; check "status: runs" $?
 [ "$(q 'd["loaded"], d["policy"]')" = "True drop" ]; check "status: loaded, input policy drop" $?
 [ "$(q '[(x["service"], x["source"], x["iface"], x["family"], x["persistence"]) for x in d["inbound"] if x["ports"] == "22"]')" = "[('SSH (sshd, ssh_server_enabled)', [], [], None, 'persistent')]" ]
 check "status: SSH = configured service, any source/interface, IPv4+IPv6, persistent" $?
-[ "$(q '[s["scope"] for x in d["inbound"] if x["ports"] == "22" for s in x["listening"]]')" = "['alle Adressen']" ]; check "status: SSH rule shows its listener" $?
+[ "$(q '[s["scope"] for x in d["inbound"] if x["ports"] == "22" for s in x["listening"]]')" = "['alle IPv4-Adressen']" ]; check "status: SSH rule shows its listener" $?
 [ "$(q '[s["port"] for s in d["localOnly"] if s["port"] == 5555]')" = "[5555]" ]; check "status: loopback-only listener reported as local" $?
 [ "$(q '[s["port"] for s in d["blocked"] if s["port"] == 7777]')" = "[7777]" ]; check "status: listening without a rule = blocked" $?
 [ "$(q '[s["port"] for s in d["blocked"] if s["port"] in (22, 5555)]')" = "[]" ]; check "status: allowed / loopback listeners are not 'blocked'" $?

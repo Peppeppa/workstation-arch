@@ -420,7 +420,9 @@ def listeners():
         addr = addr.strip("[]").split("%")[0]
         proc = re.search(r'"([^"]+)"', line)
         scope = ("lokal (Loopback)" if addr.startswith("127.") or addr == "::1"
-                 else "alle Adressen" if addr in ("0.0.0.0", "::", "*") else addr)
+                 else "alle IPv4-Adressen" if addr == "0.0.0.0"
+                 else "alle IPv6-Adressen" if addr == "::"
+                 else "alle Adressen" if addr == "*" else addr)
         try:
             out.append({"proto": f[0].upper(), "addr": addr, "port": int(port),
                         "process": proc.group(1) if proc else "", "scope": scope})

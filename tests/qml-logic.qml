@@ -646,7 +646,7 @@ QtObject {
         eq("fw: subnet rule is never 'all'", sc.ruleScope(sub), "Quelle: 10.0.0.0/24 · Schnittstelle: eth0 · nur IPv4");
         eq("fw: no invented name", sc.ruleTitle(sub), "TCP 8080");
         eq("fw: runtime-only said", sc.originText(sub), "nicht aus der Konfiguration · nur zur Laufzeit");
-        eq("fw: nobody listening", sc.listenText(sub), "Niemand lauscht auf diesem Port");
+        eq("fw: nobody listening", sc.listenText(sub), "Kein Programm lauscht gerade auf diesem Port (ss)");
         eq("fw: listeners unknown", sc.listenText({}), "Lauschen: unbekannt");
         eq("fw: unknown condition shown verbatim", sc.ruleScope(Object.assign({}, sub, { other: ["{\"match\": 1}"] })).endsWith("weitere Bedingung: {\"match\": 1}"), true);
         eq("fw: infra loopback", sc.infraText({ iface: ["lo"], action: "accept" }), "Schnittstelle lo → erlauben");

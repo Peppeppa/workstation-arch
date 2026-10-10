@@ -59,7 +59,7 @@ ColumnLayout {
 
     function listenText(x) {
         if (!x.listening) return "Lauschen: unbekannt";
-        if (x.listening.length === 0) return "Niemand lauscht auf diesem Port";
+        if (x.listening.length === 0) return "Kein Programm lauscht gerade auf diesem Port (ss)";
         return "Lauscht: " + x.listening.map(s => (s.process || "?") + " (" + s.scope + ")").join(", ");
     }
 
