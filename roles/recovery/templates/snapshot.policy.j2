@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Managed by Ansible (roles/recovery) - do not edit by hand.
+     Power menu -> Create Snapshot runs `pkexec {{ recovery_snapshot_helper }} <label>`:
+     the user in the ACTIVE local session (seat) may run exactly this helper as
+     root without a password - it only creates ONE snapper snapshot of / with a
+     validated description (no delete, no rollback, no recovery slot). Remote
+     (SSH) or inactive sessions need administrator authentication. -->
+<policyconfig>
+  <action id="{{ recovery_snapshot_polkit_action }}">
+    <description>Create a manual system snapshot</description>
+    <message>Authentication is required to create a system snapshot</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">{{ recovery_snapshot_helper }}</annotate>
+  </action>
+</policyconfig>

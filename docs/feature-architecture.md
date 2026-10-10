@@ -1055,6 +1055,28 @@ Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
 | Hyprland itself SIGSEGV at every logout **with two outputs** (laptop: eDP-1 + LG 4K over the dock's HDMI); never with one | stack in `exit()` -> `__cxa_finalize` -> `~CDRMBackend` -> `SDRMConnector::disconnect` -> `cancelAsyncOutput` -> `flushAsyncCommitEvents` (aquamarine 0.15.1, Hyprland 0.56.2), 4/4 with two outputs (also when the session started with both), 0/1 with one; the same without our shutdown hook (diagnostic run), so not `session-stop`; the session's helpers stay clean. Same class as hyprwm/aquamarine#272 (connector teardown in static destruction) | upstream; after Hyprland is done, no user-visible effect besides the core dump; `repo-healthcheck` shows it as WARN (earlier session) |
 | Quickshell start: `org.bluez` ObjectManager warning, "Could not register app ID: Connection already associated" | once per start | no BlueZ on a host without controller / Qt's portal registration order - harmless |
 
+## System updates (update icon, updater, Create Snapshot)
+
+Not a `<name>_enabled` feature: the UI of the host capability
+`recovery_enabled` (`roles/recovery` owns the update transaction and the
+snapshots - `system-update`, `system-snapshot`); on a host without it
+nothing here is deployed or referenced.
+
+| Contract | |
+|---|---|
+| Scope | bar widget `updates`, power menu entries Update / Create Snapshot, two dialogs, one shared model (`updates/Updates.qml`) |
+| Packages | `pacman-contrib` (checkupdates) + `fakeroot` (`recovery_packages`) |
+| Config ownership | `roles/quickshell` (`files/updates/`, `shell.qml.j2`, `BarFeatures.updates`), `roles/recovery` (`workstation-checkupdates`, `system-update --ui/--no-snapshot`, `snapshot-create` + polkit action) |
+| Check | `workstation-checkupdates` (user, no root): checkupdates against a private copy of the sync databases - the system's own are never synced outside `pacman -Syu` (no partial upgrade). Official repositories only (AUR/Flatpak not counted, README). Once when the bar starts (the model is created with the icon), then a 60-minute QML Timer in the running Quickshell, on dialog open and after an update; never while one runs. A systemd user timer was the alternative: it would need a unit + timer + a channel back into the bar for the same one call per hour - the Timer in the existing process is simpler and adds no process or unit (and the design allows one timer, snapper's) |
+| Status | `ok` (fresh list) / `offline` (NetworkManager connectivity is not `full`) / `error`; a failed check empties the list - the last good count is only shown as such in the tooltip ("veraltet") |
+| Icon | visible with >= 1 pending update (any - no major/minor classification), dimmed while checks fail after a result with updates, accent while an update runs; tooltip = count + names; click = the updater dialog |
+| Update | the dialog asks (Nein preselected; Escape / click outside = Nein), then `systemd-run --user --unit=workstation-system-update -- <terminal> -e system-update --ui`: the transaction (sudo, pre-update snapshot + slot, interactive `pacman -Syu`, checks, result) is `system-update`'s, in the terminal, not Quickshell's child - closing the dialog or restarting Quickshell never stops it. One at a time: the unit name + `system-update`'s flock |
+| Snapshot failure | `system-update` exit 3 before pacman + IPC `updates.snapshotFailed <reason>` -> second question, Nein (empfohlen) preselected; Ja = `system-update --ui --no-snapshot` (skip marker for the pacman hook, `logger -t system-update`, result says no snapshot). Preflight (pacman lock, space, ESP, battery, boot state), sudo, health and pacman failures have no such override |
+| Create Snapshot | `pkexec snapshot-create <label>`: validated again in the helper (1-100 bytes, no control characters, no leading `-`), one argv element, then `system-snapshot "<label>"`. Polkit: the active local session without a password (only this helper, which only creates), remote/inactive = admin password - the dialog is an overlay, a polkit prompt would sit under it |
+| IPC | `updates`: open/close/state/check + system-update's reports `snapshotFailed`/`finished`; `snapshot`: open/close/state. None runs a command by itself |
+| Disable | `recovery_enabled: false` - nothing deployed/referenced; already-deployed files stay (Disable vs. Purge) |
+| Persistent user data | none (the last result lives in memory) |
+
 ## Hardware-only validation
 
 What `arch-dev` (VirtualBox, no battery/Wi-Fi/Bluetooth adapter/GPU,

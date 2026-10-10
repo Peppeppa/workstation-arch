@@ -503,8 +503,97 @@ QtObject {
         eq("power menu: letters are not handled as keys", key(Qt.Key_J), false);
     }
 
+    function updates() {
+        // Update check result -> model: fresh list only on "ok"; offline/error
+        // empty the list (the last good one is not re-presented as fresh).
+        const up = read("updates/Updates.qml");
+        const parse = make(up, "parseResult", {});
+        const now = new Date(2026, 9, 10, 12, 0);
+        const two = parse('{"status":"ok","packages":[{"name":"linux","from":"1","to":"2"},{"name":"mesa","from":"1","to":"2"}]}', now);
+        eq("updates: two pending", [two.status, two.packages.length, two.lastGood.count], ["ok", 2, 2]);
+        const one = parse('{"status":"ok","packages":[{"name":"linux","from":"1","to":"2"}]}', now);
+        eq("updates: one pending", [one.status, one.packages.length], ["ok", 1]);
+        const none = parse('{"status":"ok","packages":[]}', now);
+        eq("updates: none", [none.status, none.packages.length, none.lastGood.count], ["ok", 0, 0]);
+        const off = parse('{"status":"offline","message":"no internet"}', now);
+        eq("updates: offline keeps no list, no lastGood", [off.status, off.packages.length, off.lastGood, off.message], ["offline", 0, null, "no internet"]);
+        eq("updates: error", parse('{"status":"error","message":"x"}', now).status, "error");
+        eq("updates: garbage = error", parse("Traceback ...", now).status, "error");
+        eq("updates: empty output = error", parse("", now).status, "error");
+
+        // Icon: any pending update shows it; stale = dimmed only if the last
+        // good result had updates; hidden with none.
+        const iconExpr = up.match(/readonly property bool iconVisible: ([\s\S]*?)\n\n/)[1];
+        const icon = o => new Function("o", "with (o) { return " + iconExpr + "; }")(o);
+        eq("icon: 1 update -> shown", icon({ updating: false, count: 1, status: "ok", lastGood: { count: 1 } }), true);
+        eq("icon: 0 updates -> hidden", icon({ updating: false, count: 0, status: "ok", lastGood: { count: 0 } }), false);
+        eq("icon: offline after updates -> shown (dimmed)", icon({ updating: false, count: 0, status: "offline", lastGood: { count: 3 } }), true);
+        eq("icon: error, never checked ok -> hidden", icon({ updating: false, count: 0, status: "error", lastGood: null }), false);
+        eq("icon: while updating -> shown", icon({ updating: true, count: 0, status: "ok", lastGood: null }), true);
+
+        // Updater dialog: Nein preselected (index 0) everywhere it asks;
+        // Escape presses the safe choice; Enter presses the selection.
+        const ud = read("updates/UpdaterDialog.qml");
+        const pressed = [];
+        const dlg = { Qt: Qt, selected: 0, buttons: [{ id: "no" }, { id: "yes" }], press: id => pressed.push(id) };
+        dlg.cancelIndex = make(ud, "cancelIndex", dlg);
+        const key = make(ud, "handleKey", dlg);
+        key(Qt.Key_Return);
+        eq("updater: Enter on the default = Nein", pressed, ["no"]);
+        key(Qt.Key_Right); key(Qt.Key_Escape);
+        eq("updater: Escape = Nein even with Ja selected", pressed, ["no", "no"]);
+        key(Qt.Key_Return);
+        eq("updater: Ja only when selected + Enter", pressed, ["no", "no", "yes"]);
+        key(Qt.Key_Right);
+        eq("updater: Right wraps back to Nein", dlg.selected, 0);
+        eq("updater: letters do nothing", key(Qt.Key_J), false);
+        dlg.buttons = [{ id: "no" }, { id: "yesNoSnapshot" }]; dlg.selected = 0; pressed.length = 0;
+        key(Qt.Key_Escape); key(Qt.Key_Enter);
+        eq("updater: snapshot failed -> Escape/Enter on default = Nein", pressed, ["no", "no"]);
+
+        // settle(): which stage follows the check.
+        const st = { stage: "checking", detail: "", selected: 1, Updates: { updating: false, status: "ok", count: 2, message: "" } };
+        const settle = make(ud, "settle", st);
+        settle();
+        eq("updater: updates -> confirm, Nein selected", [st.stage, st.selected], ["confirm", 0]);
+        st.stage = "checking"; st.Updates.count = 0; settle();
+        eq("updater: none -> none", st.stage, "none");
+        st.stage = "checking"; st.Updates.status = "offline"; st.Updates.message = "nm: none"; settle();
+        eq("updater: offline -> checkFailed", [st.stage, st.detail], ["checkFailed", "Keine Internetverbindung: nm: none"]);
+        st.stage = "confirm"; settle();
+        eq("updater: settle only while checking", st.stage, "confirm");
+
+        // launch(): never twice; the command is fixed argv, --no-snapshot only on request.
+        const ls = { starting: false, Updates: { updating: false, unit: "workstation-system-update.service" },
+                     launcher: { command: [], running: false }, dlg: { terminal: ["ghostty"] } };
+        const launch = make(ud, "launch", ls);
+        launch(false);
+        eq("updater: launch argv", ls.launcher.command, ["systemd-run", "--user", "--quiet", "--collect", "--unit=workstation-system-update", "--",
+                                                        "ghostty", "-e", "/usr/local/bin/system-update", "--ui"]);
+        ls.launcher.command = []; launch(true);
+        eq("updater: no second launch while starting", ls.launcher.command, []);
+        ls.starting = false; launch(true);
+        eq("updater: --no-snapshot only after the second question", ls.launcher.command.slice(-3), ["/usr/local/bin/system-update", "--ui", "--no-snapshot"]);
+        ls.starting = false; ls.Updates.updating = true; ls.launcher.command = []; launch(false);
+        eq("updater: no launch while an update runs", ls.launcher.command, []);
+
+        // Snapshot dialog: label rules (the helper checks again).
+        const sd = read("updates/SnapshotDialog.qml");
+        const sc = {};
+        sc.pad = make(sd, "pad", sc);
+        const label = make(sd, "labelFor", sc);
+        eq("snapshot: empty -> date/time", label("   ", now), { label: "Manueller Snapshot 2026-10-10 12:00", error: "" });
+        eq("snapshot: text kept, trimmed", label("  Vor Installation von Software ", now).label, "Vor Installation von Software");
+        eq("snapshot: special characters kept literally", label('a "b" $(c) `d` ; ä', now).label, 'a "b" $(c) `d` ; ä');
+        eq("snapshot: tab rejected", label("a\tb", now).label, "");
+        eq("snapshot: leading - rejected", label("-x", now).label, "");
+        eq("snapshot: 100 bytes ok", label("x".repeat(100), now).error, "");
+        eq("snapshot: 51 umlauts = 102 bytes rejected", label("ä".repeat(51), now).label, "");
+    }
+
     Component.onCompleted: {
         powerMenu();
+        updates();
         coffee();
         cheatsheet();
         firewall();

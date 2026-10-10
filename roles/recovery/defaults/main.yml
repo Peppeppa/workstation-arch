@@ -8,6 +8,11 @@
 recovery_packages:
   - snapper        # snapshots of @ (official extra)
   - systemd-ukify  # builds the recovery-slot UKIs from the booted UKI (official core)
+  # The bar's update icon + the updater dialog: checkupdates compares a private
+  # copy of the sync databases (as the user, through fakeroot) - the system's
+  # own databases are never synced outside `pacman -Syu` (no partial upgrade).
+  - pacman-contrib # checkupdates (official extra)
+  - fakeroot       # checkupdates' optional dependency (official core)
 
 # Snapper retention (section 13): last 5 update pre/post pairs, last 4
 # manual (important) snapshots; recovery-slot snapshots are pinned by the
@@ -17,3 +22,11 @@ recovery_number_limit_important: 4
 
 # Btrfs mount options for the extra subvolumes = the root's (read from fstab).
 recovery_top_mount: /run/workstation-recovery/top
+
+# Power menu -> Create Snapshot: the root helper (pkexec) and its polkit
+# action. The active local session may run exactly this helper without a
+# password - it only CREATES one snapper snapshot of / with a validated
+# description (never deletes, modifies or rolls back; snapper's number
+# cleanup keeps NUMBER_LIMIT_IMPORTANT). Remote/inactive: admin password.
+recovery_snapshot_helper: /usr/local/libexec/workstation/snapshot-create
+recovery_snapshot_polkit_action: org.workstation.snapshot.create

@@ -47,6 +47,7 @@ Singleton {
     readonly property var widgets: [
         { id: "workspaces", available: true },
         { id: "clock", available: true },
+        { id: "updates", path: "widgets/Updates/Widget.qml", available: BarFeatures.updates },
         { id: "tray", path: "widgets/Tray/Widget.qml", available: BarFeatures.tray },
         { id: "connectivity", available: true },
         { id: "bluetooth", path: "widgets/Bluetooth/Widget.qml", available: BarFeatures.bluetooth },

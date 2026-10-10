@@ -26,7 +26,7 @@ step() { # name, command...
 step "bash -n bootstrap.sh" bash -n bootstrap.sh
 step "bash -n bootstrap-personal.sh" bash -n bootstrap-personal.sh
 for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
-for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline; do step "bash -n $f" bash -n "$f"; done
+for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline roles/recovery/files/snapshot-create roles/recovery/files/workstation-checkupdates; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc
 step "sh -n roles/network/files/50-workstation-vpn-state" sh -n roles/network/files/50-workstation-vpn-state
 step "ansible-playbook --syntax-check local.yml" ansible-playbook --syntax-check local.yml </dev/null
@@ -78,6 +78,7 @@ step "snapper: no empty-pre-post cleanup" grep -qx 'EMPTY_PRE_POST_CLEANUP="no"'
 step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]*qrPassword" roles/quickshell/files/connectivity/Popup.qml'
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
+step "tests/system-update.sh" bash tests/system-update.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh

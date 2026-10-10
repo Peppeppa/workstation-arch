@@ -56,7 +56,7 @@ PanelWindow {
         { id: "packages", label: "Packages", icon: "\u{F03D6}", sub: true,
           keywords: "install remove uninstall software arch pacman aur yay flatpak flathub" },
         { id: "system", label: "System", icon: "\u{F0425}", sub: false,
-          keywords: "power lock suspend hibernate logout reboot restart shutdown" }
+          keywords: "power lock suspend hibernate logout reboot restart shutdown update upgrade snapshot" }
     ].filter(e => e.id !== "system" || powerMenu !== null)
     readonly property var settingsEntries: [
         { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false,

@@ -568,3 +568,15 @@ Possible later improvement: systemd-boot boot counting (`+3` in the UKI
 name + `systemd-bless-boot`) would demote a main UKI that failed to boot
 a few times (each attempt still needs a manual reset when it hangs) - not
 in v1 (it changes the normal boot path).
+
+### 21.x Desktop UI (2026-10-10)
+
+`system-update` gained `--ui` (reports back to the Quickshell updater over
+IPC, keeps the terminal open) and `--no-snapshot` (the only way past a
+failed pre-update snapshot: exit 3 = only the snapshot failed, nothing
+changed; with the option the hook's skip marker is set and the decision is
+logged with `logger -t system-update`), plus a flock (one run at a time).
+`snapshot-create` (pkexec, polkit `org.workstation.snapshot.create`) is the
+desktop's Create Snapshot - a validated label into `system-snapshot`.
+`workstation-checkupdates` feeds the bar's update icon. Details:
+`docs/feature-architecture.md` "System updates".

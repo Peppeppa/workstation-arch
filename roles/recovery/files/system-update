@@ -1,7 +1,8 @@
 #!/bin/bash
 # Managed by Ansible (roles/recovery/files/system-update) - do not edit by hand.
 #
-# system-update [--force]   the update transaction (docs/recovery-design.md 6)
+# system-update [--force] [--ui] [--no-snapshot]
+#                           the update transaction (docs/recovery-design.md 6)
 #
 #   1 preflight         booted from @ with the UKI it booted; free space; ESP;
 #                       battery/AC; no pacman lock
@@ -17,19 +18,52 @@
 # (boot "Recovery: before the last update", `sudo system-rollback
 # before-update`). Run as the desktop user (sudo is asked for once); the
 # health checks run as that user, everything else as root.
+#
+# Exit: 0 updated + healthy, 1 failed (anything), 2 usage, 3 ONLY the
+# pre-update snapshot failed - nothing was changed, pacman never ran.
+#   --no-snapshot  the one way past exit 3: no new snapshot/slot for this
+#                  update (the pacman hook is told to skip its own too); the
+#                  decision goes to the journal (system-update) and the result
+#                  says so. Every other check (preflight: pacman lock, space,
+#                  boot state; sudo; health) still stops the update.
+#   --ui           started by the updater dialog (Quickshell, in a terminal):
+#                  reports the outcome back over Quickshell's IPC (`updates`
+#                  target: snapshotFailed / finished) and keeps the window
+#                  open at the end. Nothing else differs.
+# One system-update at a time (flock on $XDG_RUNTIME_DIR/system-update.lock).
 set -euo pipefail
 
-force=0
-case ${1:-} in
-    "") ;;
-    --force) force=1 ;;
-    *) echo "usage: system-update [--force]" >&2; exit 2 ;;
-esac
+force=0 ui=0 nosnap=0
+for arg in "$@"; do
+    case $arg in
+        --force) force=1 ;;
+        --ui) ui=1 ;;
+        --no-snapshot) nosnap=1 ;;
+        *) echo "usage: system-update [--force] [--ui] [--no-snapshot]" >&2; exit 2 ;;
+    esac
+done
 [ "$(id -u)" -ne 0 ] || { echo "system-update: run as your user, not root (it uses sudo itself)" >&2; exit 1; }
 
 say() { printf '\n==> %s\n' "$*"; }
 fail() { printf '\nsystem-update: %s\n' "$*" >&2; exit 1; }
 root() { sudo /usr/local/lib/workstation/system-update-root "$@"; }
+
+# --ui: tell the updater dialog (no-op without a running Quickshell).
+ui_call() { [ "$ui" -eq 1 ] || return 0; qs ipc --any-display call updates "$@" >/dev/null 2>&1 || true; }
+pre=none
+reported=0
+on_exit() {
+    local rc=$?
+    if [ "$reported" -eq 0 ]; then ui_call finished "$rc" "$pre"; fi
+    if [ "$ui" -eq 1 ] && [ -t 0 ]; then
+        printf '\nPress Enter to close this window.'
+        read -r _ || true
+    fi
+}
+trap on_exit EXIT
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/system-update.lock"
+flock -n 9 || fail "another system-update is already running"
 
 health() { # args for repo-healthcheck; prints its result, returns its exit code
     local mode=()
@@ -49,8 +83,27 @@ if ! health; then
     echo "(--force: going on despite the failed checks)"
 fi
 
-say "recovery slot: before-update"
-pre=$(root pre "$T0")
+if [ "$nosnap" -eq 1 ]; then
+    say "NO pre-update snapshot (--no-snapshot: your decision after a failed snapshot)"
+    root skipsnapshot "system-update --no-snapshot: the user chose to update without a pre-update snapshot"
+else
+    say "recovery slot: before-update"
+    errf=$(mktemp)
+    if ! pre=$(root pre "$T0" 2>"$errf"); then
+        cat "$errf" >&2
+        why=$(grep -v '^$' "$errf" | tail -1)
+        rm -f "$errf"
+        pre=none
+        printf '\nsystem-update: the pre-update snapshot FAILED - nothing was updated.\n' >&2
+        printf '  %s\n' "${why:-snapper failed}" >&2
+        printf '  To update anyway (no new snapshot): system-update --no-snapshot\n' >&2
+        ui_call snapshotFailed "${why:-snapper failed}"
+        reported=1
+        exit 3
+    fi
+    cat "$errf" >&2
+    rm -f "$errf"
+fi
 
 say "pacman -Syu"
 set +e
@@ -59,7 +112,7 @@ pacman_rc=$?
 set -e
 
 say "recovery point"
-root post "$pre" "$pacman_rc"
+if [ "$nosnap" -eq 0 ]; then root post "$pre" "$pacman_rc"; else echo "none taken for this update (--no-snapshot)"; fi
 
 say "boot image check"
 uki_ok=1
@@ -78,6 +131,12 @@ elif [ "$health_ok" -eq 0 ]; then
     echo "RESULT: updated, but repo-healthcheck FAILED (see above, details: repo-diagnose)."
 else
     echo "RESULT: updated, healthy."
+fi
+if [ "$nosnap" -eq 1 ]; then
+    echo "NOTE: NO new pre-update snapshot was taken for this update (--no-snapshot)."
+    echo "      \"Recovery: before the last update\" is still the state before an EARLIER update."
+else
+    echo "Pre-update snapshot: $pre (recovery slot \"before-update\")."
 fi
 if [ "$pacman_rc" -ne 0 ] || [ "$uki_ok" -eq 0 ] || [ "$health_ok" -eq 0 ]; then
     echo "Nothing was rolled back. Your choices:"

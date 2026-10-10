@@ -21,6 +21,8 @@
 //     systemctl call killed the session scope at once and its helpers
 //     crashed (coredumps)
 //   logout: Hyprland's own exit dispatcher (same as mainMod+SHIFT+E)
+//   update / create snapshot (host capability recovery only): open the
+//     updater / snapshot dialog (updates/), which ask before anything runs
 //   lock: `loginctl lock-session` - the one lock path of the lock_idle
 //     feature (logind Lock -> hypridle -> hyprlock); this menu never
 //     locks by itself. Without lock_idle (lockAvailable false) it is
@@ -29,7 +31,8 @@
 //     Unavailable entries stay selectable so navigation stays linear;
 //     only activating them does nothing.
 // Every action runs immediately on Enter/click - no confirm step, by
-// explicit user decision.
+// explicit user decision (Update / Create Snapshot only open their dialog,
+// and that one asks).
 //
 // Keyboard: the search field has the focus from the moment the menu opens -
 // typing filters the actions (case-insensitive, every word must occur in
@@ -57,6 +60,9 @@ PanelWindow {
     required property int fontSize
     required property bool hibernateAvailable
     required property bool lockAvailable
+    // UpdaterDialog / SnapshotDialog (updates/, host capability recovery) or null.
+    property var updater: null
+    property var snapshotDialog: null
 
     // danger: icon drawn in Colors.error (session-ending actions);
     // keywords: extra search words (the label always counts).
@@ -64,10 +70,16 @@ PanelWindow {
         { id: "lock",      label: "Lock",      icon: "", available: lockAvailable, hint: "not set up", keywords: "screen lock-screen" },
         { id: "suspend",   label: "Suspend",   icon: "", available: true, keywords: "sleep standby" },
         { id: "hibernate", label: "Hibernate", icon: "", available: true, keywords: "disk sleep" },
+        { id: "update",    label: "Update",    icon: "\uf019", available: true,
+          keywords: "upgrade system packages pacman" },
+        { id: "snapshot",  label: "Create Snapshot", icon: "\uf030", available: true,
+          keywords: "snapper backup recovery restore point" },
         { id: "logout",    label: "Logout",    icon: "", available: true, danger: true, keywords: "log out sign out exit session" },
         { id: "reboot",    label: "Reboot",    icon: "", available: true, danger: true, keywords: "restart" },
         { id: "shutdown",  label: "Shutdown",  icon: "", available: true, danger: true, keywords: "power off poweroff halt" }
-    ].filter(item => item.id !== "hibernate" || hibernateAvailable)
+    ].filter(item => (item.id !== "hibernate" || hibernateAvailable)
+                   && (item.id !== "update" || updater !== null)
+                   && (item.id !== "snapshot" || snapshotDialog !== null))
 
     property string query: ""
     readonly property var shown: filterItems(items, query)
@@ -178,6 +190,8 @@ PanelWindow {
         case "reboot":    return { dispatch: "workstation_end_session(\"reboot\")" };
         case "shutdown":  return { dispatch: "workstation_end_session(\"poweroff\")" };
         case "logout":    return { dispatch: "hl.dsp.exit()" };
+        case "update":    return { dialog: updater };
+        case "snapshot":  return { dialog: snapshotDialog };
         default:          return null;
         }
     }
@@ -187,7 +201,8 @@ PanelWindow {
         // Close first so the menu is not still showing after resume.
         visible = false;
         if (!cmd) return;
-        if (cmd.argv) Quickshell.execDetached(cmd.argv);
+        if (cmd.dialog) cmd.dialog.open();        // asks first - never runs anything itself
+        else if (cmd.argv) Quickshell.execDetached(cmd.argv);
         else Hyprland.dispatch(cmd.dispatch);
     }
 

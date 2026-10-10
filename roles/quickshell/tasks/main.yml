@@ -163,6 +163,40 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
+# HOST CAPABILITY: recovery (roles/recovery: system-update, system-snapshot,
+# workstation-checkupdates, the snapshot-create helper). The updater dialog,
+# the snapshot dialog and their shared model into updates/, the bar's update
+# icon into bar/widgets/Updates/. Disabled: not referenced by shell.qml /
+# BarFeatures, already-deployed files stay (Disable vs. Purge).
+- name: Ensure the updater directories exist (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  loop:
+    - updates
+    - bar/widgets/Updates
+  tags: quickshell
+
+- name: Deploy the updater + snapshot dialogs (recovery_enabled)
+  when: recovery_enabled
+  ansible.builtin.copy:
+    src: "updates/{{ item.src }}"
+    dest: "{{ ansible_facts.user_dir }}/.config/quickshell/{{ item.dest }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop:
+    - { src: Updates.qml, dest: updates/Updates.qml }
+    - { src: UpdaterDialog.qml, dest: updates/UpdaterDialog.qml }
+    - { src: SnapshotDialog.qml, dest: updates/SnapshotDialog.qml }
+    - { src: Widget.qml, dest: bar/widgets/Updates/Widget.qml }
+  notify: Reload running Quickshell config
+  tags: quickshell
+
 # FEATURE: notifications (see group_vars/all.yml notifications_enabled).
 # No packages: Quickshell itself is the daemon. Disabling drops the
 # component from shell.qml (no D-Bus owner at all then); an already-

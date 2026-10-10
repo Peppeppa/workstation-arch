@@ -428,6 +428,56 @@ one), look around, then `sudo system-rollback <slot>` and reboot. The old
 system is kept as `@broken-<date>` at the Btrfs top level until deleted
 by hand.
 
+### From the desktop: update icon, Update, Create Snapshot
+
+- **Update icon in the bar**: appears as soon as **at least one** update
+  from the official Arch repositories is pending (any update counts - no
+  "major update" classification), hidden when there is none. Tooltip:
+  how many + the package names; click = the updater dialog. Checked with
+  `checkupdates` (pacman-contrib) as your user - it syncs a private copy
+  of the databases, never the system's own, so the check can never cause
+  a partial upgrade - once when the bar starts, then every **60 minutes**,
+  when the dialog opens and after an update. Offline / failed checks are
+  shown as such (icon dimmed only if the last good check had updates,
+  tooltip "veraltet") - an old result is never shown as fresh.
+  Manual check: `workstation-checkupdates` (JSON), `qs ipc call updates check`.
+- **Power menu -> Update** (`Super+Escape`, type `upd`) or the icon: the
+  dialog lists the pending packages and asks "System aktualisieren?" -
+  **Nein** is preselected (Enter on it, Escape and a click outside all
+  cancel). **Ja** opens the terminal with `system-update`: sudo password,
+  the pre-update snapshot + recovery slot, then the interactive
+  `pacman -Syu` (its own questions stay yours), the checks and the result.
+  Closing the dialog never stops it; a second update cannot be started
+  while one runs; no automatic reboot.
+- **Snapshot failed**: `system-update` stops before pacman (nothing
+  updated) and the dialog asks "Snapshot fehlgeschlagen. Trotzdem mit dem
+  Update fortfahren?" with the error. **Nein (empfohlen)** is preselected
+  (also Escape). **Ja** runs `system-update --no-snapshot`: no new
+  snapshot, the pacman hook skips its own once, the decision is logged
+  (`journalctl -t system-update`) and the result says "NO new pre-update
+  snapshot". Only a failed snapshot has this way past it - a pacman lock,
+  too little space, a recovery boot, a refused sudo, a failed health check
+  or a pacman error still end the update.
+- **Power menu -> Create Snapshot**: an optional name (e.g. "Vor
+  Installation von Software"; empty = "Manueller Snapshot <date time>"),
+  Erstellen / Abbrechen; shows number, description and time. Same as
+  `sudo system-snapshot "<name>"` (manual, kept by count: the last 4) - the
+  active desktop session may do exactly this without a password
+  (polkit `org.workstation.snapshot.create`), nothing else.
+
+What a snapshot contains: the system subvolume `@` (`/`, incl. `/etc`,
+`/usr`, `/var/lib` - pacman's database) only. **Not** in it: `@home`
+(`/home`, your files), `@log` (`/var/log`), `@pkg` (pacman's package
+cache), `@snapshots` itself, the ESP `/boot` (kernel images; the recovery
+slots carry their own), and nested subvolumes inside `/` (systemd's
+`/var/lib/machines`, `/var/lib/portables`; Docker's image layers if it uses
+the btrfs storage driver). A snapshot is on the same disk - **not a backup**.
+
+AUR and Flatpak are **not** counted or updated by the icon/dialog
+(official repositories only): AUR packages installed with yay update with
+`yay -Sua` (AUR only, after `system-update`), Flatpaks with
+`flatpak update` - both your call, each with its own confirmation.
+
 ## Packages (install / remove)
 
 OS menu -> **Packages** -> Install / Remove -> Arch Packages | AUR Packages |

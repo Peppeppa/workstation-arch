@@ -8,6 +8,7 @@
       { "id": "clock" }
     ],
     "right": [
+      { "id": "updates" },
       { "id": "tray" },
       { "id": "connectivity" },
       { "id": "bluetooth" },

@@ -1,0 +1,57 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/workstation-checkupdates) - do not edit by hand.
+#
+# workstation-checkupdates   pending updates of the OFFICIAL repositories as
+#                            one JSON line, for the bar's update icon and the
+#                            updater dialog (Quickshell, roles/quickshell updates/)
+#
+# As the user, no root: pacman-contrib's checkupdates syncs a private COPY of
+# the databases (fakeroot, $CHECKUPDATES_DB, default /tmp/checkup-db-<uid>) and
+# compares - the system's own sync databases in /var/lib/pacman are never
+# touched, so this can never cause a partial upgrade. AUR (yay) and Flatpak
+# updates are NOT counted (README "System updates").
+#
+# Output, exit 0 for every known outcome:
+#   {"status": "ok", "packages": [{"name": "...", "from": "...", "to": "..."}, ...]}
+#   {"status": "offline", "message": "..."}    NetworkManager reports no full connectivity
+#   {"status": "error", "message": "..."}      the check itself failed
+set -uo pipefail
+
+msg() { python3 -c 'import json, sys; print(json.dumps({"status": sys.argv[1], "message": sys.argv[2]}))' "$1" "$2"; }
+
+if ! command -v checkupdates >/dev/null; then
+    msg error "checkupdates is not installed (pacman-contrib)"
+    exit 0
+fi
+
+errf=$(mktemp)
+trap 'rm -f "$errf"' EXIT
+out=$(checkupdates --nocolor 2>"$errf")
+rc=$?
+err=$(head -c 400 "$errf" | tr '\n' ' ')
+
+case $rc in
+0|2)
+    # 0 = updates (lines "name old -> new"), 2 = none
+    printf '%s\n' "$out" | python3 -c '
+import json, sys
+pkgs = []
+for line in sys.stdin:
+    f = line.split()
+    if len(f) >= 4 and f[2] == "->":
+        pkgs.append({"name": f[0], "from": f[1], "to": f[3]})
+print(json.dumps({"status": "ok", "packages": pkgs}))
+'
+    ;;
+*)
+    # The check failed: offline (NetworkManager's own connectivity state, not a
+    # guess of ours) or a real error.
+    conn=$(nmcli -t -f CONNECTIVITY general 2>/dev/null || echo unknown)
+    if [ "$conn" != "full" ]; then
+        msg offline "no internet connection (NetworkManager: ${conn:-unknown})"
+    else
+        msg error "checkupdates failed (exit $rc)${err:+: $err}"
+    fi
+    ;;
+esac
+exit 0

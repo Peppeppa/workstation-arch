@@ -3,6 +3,7 @@
 # Deployed to /usr/local/lib/workstation/system-update-root: the root half of
 # system-update (which calls it through sudo). Not a user interface.
 #   preflight | pre <T0> | post <pre-number> <pacman-rc> | ukicheck | rebootneeded <T0>
+#   | skipsnapshot <reason>   (--no-snapshot: the hook skips once, journal entry)
 # The pre step takes THE pre-transaction snapshot of this update (class
 # auto=pre-transaction, recovery-lib.sh) and tells the pacman hook to skip
 # its own for the next transaction - one snapshot per update, not two.
@@ -49,6 +50,12 @@ post)
     rm -f "$SKIP_MARKER"
     echo "ok: snapshot $2 (before the update, recovery slot \"before-update\"), pacman exit $3"
     ;;
+skipsnapshot)
+    [ -n "${2:-}" ] || die "skipsnapshot needs a reason"
+    skip_next_snapshot "$2"
+    logger -t system-update -p user.warning -- "$2"
+    echo "ok: the pacman hook skips its snapshot for this transaction (logged: journalctl -t system-update)"
+    ;;
 ukicheck)
     [ -s "$MAIN_UKI" ] || die "$MAIN_UKI is missing or empty"
     ukify inspect "$MAIN_UKI" >/dev/null 2>&1 || die "$MAIN_UKI is not a readable UKI"
@@ -64,6 +71,6 @@ rebootneeded)
         | grep -qE '\[ALPM\] (upgraded|installed) (linux|linux-firmware|intel-ucode|amd-ucode|systemd|mesa|hyprland|quickshell|glibc|dbus) '
     ;;
 *)
-    die "usage: system-update-root preflight | pre T0 | post N RC | ukicheck | rebootneeded T0"
+    die "usage: system-update-root preflight | pre T0 | post N RC | skipsnapshot REASON | ukicheck | rebootneeded T0"
     ;;
 esac

@@ -17,4 +17,6 @@ Singleton {
     readonly property bool audioPopup: {{ 'true' if audio_popup_enabled else 'false' }}
     readonly property bool connectivity: {{ 'true' if connectivity_enabled else 'false' }}
     readonly property bool wallpaper: {{ 'true' if wallpaper_enabled else 'false' }}
+    // Update icon + updater: system-update exists only with recovery.
+    readonly property bool updates: {{ 'true' if recovery_enabled else 'false' }}
 }

@@ -1,0 +1,46 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/snapshot-create) - do not edit by hand.
+# Deployed to /usr/local/libexec/workstation/snapshot-create: the root helper
+# behind power menu -> Create Snapshot (Quickshell, `pkexec <this> <label>`,
+# polkit action org.workstation.snapshot.create). Not a user interface.
+#
+# Exactly one thing: ONE manual snapshot of / through system-snapshot (snapper
+# config root, important, kept by count) with the given description. Never
+# deletes, modifies or rolls back anything; no recovery slot (--known-good
+# stays a terminal command). The label arrives as one argv element (no shell);
+# it is validated again here - the dialog's own check is not trusted.
+#
+# Output (stdout, one JSON line): {"number": N, "date": "...", "description": "..."}
+# Errors: "snapshot-create: <reason>" on stderr, exit 1 (2 = bad label).
+set -euo pipefail
+
+die() { echo "snapshot-create: $*" >&2; exit "${2:-1}"; }
+
+[ "$(id -u)" -eq 0 ] || die "run through pkexec (root)"
+[ $# -eq 1 ] || die "usage: snapshot-create <label>" 2
+label=$1
+
+# 1-100 bytes (UTF-8), printable only (no newline/tab/control characters -
+# the description is shown in snapper lists and the boot menu), never an option.
+LC_ALL=C
+[ -n "$label" ] || die "empty label" 2
+[ "${#label}" -le 100 ] || die "label longer than 100 bytes" 2
+case $label in -*) die "label must not start with '-'" 2 ;; esac
+if [[ $label =~ [[:cntrl:]] ]]; then
+    die "label contains control characters (newline, tab, ...)" 2
+fi
+unset LC_ALL
+
+out=$(/usr/local/bin/system-snapshot "$label" 2>&1) || die "$(printf '%s' "$out" | tail -1)"
+n=$(printf '%s\n' "$out" | sed -n 's/^system-snapshot: snapshot \([0-9]\+\): .*/\1/p' | tail -1)
+[ -n "$n" ] || die "system-snapshot reported no snapshot number: $(printf '%s' "$out" | tail -1)"
+
+snapper --jsonout -c root list | python3 -c '
+import json, sys
+n = int(sys.argv[1])
+for s in json.load(sys.stdin).get("root", []):
+    if s["number"] == n:
+        print(json.dumps({"number": n, "date": s.get("date", ""), "description": s.get("description", "")}))
+        sys.exit(0)
+sys.exit("snapshot-create: snapshot %d not in the snapper list" % n)
+' "$n"

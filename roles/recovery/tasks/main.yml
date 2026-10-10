@@ -188,6 +188,42 @@
     - { src: system-rollback, dest: /usr/local/bin/system-rollback, mode: "0755" }
     - { src: pre-transaction-snapshot, dest: /usr/local/lib/workstation/pre-transaction-snapshot, mode: "0755" }
     - { src: recovery-baseline, dest: /usr/local/lib/workstation/recovery-baseline, mode: "0755" }
+    - { src: workstation-checkupdates, dest: /usr/local/bin/workstation-checkupdates, mode: "0755" }
+  tags: recovery
+
+# Power menu -> Create Snapshot (Quickshell updates/SnapshotDialog.qml):
+# `pkexec snapshot-create <label>` - one manual snapshot, nothing else.
+- name: Recovery - /usr/local/libexec/workstation (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/libexec/workstation
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: recovery
+
+- name: Recovery - snapshot-create helper (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: snapshot-create
+    dest: "{{ recovery_snapshot_helper }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: recovery
+
+- name: Recovery - polkit action for snapshot-create (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.template:
+    src: snapshot.policy.j2
+    dest: "/usr/share/polkit-1/actions/{{ recovery_snapshot_polkit_action }}.policy"
+    owner: root
+    group: root
+    mode: "0644"
   tags: recovery
 
 # pacman PreTransaction hook: one snapshot before every package transaction
