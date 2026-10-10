@@ -95,9 +95,22 @@ PanelWindow {
 
     // Coffee mode: a Wayland idle inhibitor on this (always visible) bar
     // surface while active (CoffeeMode.qml); any one bar is enough.
+    // Armed only once the bar's surface is shown (+ one short one-shot
+    // delay): Coffee restored at a Quickshell START would otherwise create
+    // the inhibitor before the compositor maps the surface - observed
+    // 2026-10-11 after a deploy restart: Coffee "on", yet hypridle locked
+    // exactly one idle timeout later. Toggling Coffee on a running bar is
+    // unaffected (armed long before).
+    property bool inhibitArmed: false
+    onBackingWindowVisibleChanged: if (backingWindowVisible) inhibitArm.restart()
+    Timer {
+        id: inhibitArm
+        interval: 500                       // one-shot, only at the bar's start
+        onTriggered: bar.inhibitArmed = true
+    }
     IdleInhibitor {
         window: bar
-        enabled: BarFeatures.coffee && CoffeeMode.active
+        enabled: BarFeatures.coffee && CoffeeMode.active && bar.inhibitArmed && bar.backingWindowVisible
     }
 
     // ---- layout engine ---------------------------------------------------
