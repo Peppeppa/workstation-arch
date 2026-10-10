@@ -62,7 +62,7 @@ FocusScope {
         signal picked
         Layout.fillWidth: true
         implicitHeight: Fonts.px(28)
-        radius: 4
+        radius: Style.controlRadius
         color: current ? Colors.accent : chipMouse.containsMouse ? Colors.surface : "transparent"
         border.color: current ? Colors.accent : Colors.border
         border.width: 1
@@ -72,7 +72,7 @@ FocusScope {
             text: chip.label
             color: chip.current ? Colors.accentForeground : Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: root.fontSize - 2
+            font.pixelSize: Style.caption
         }
 
         MouseArea {
@@ -88,14 +88,14 @@ FocusScope {
         Layout.topMargin: 10
         color: Colors.foreground
         font.family: Fonts.family
-        font.pixelSize: root.fontSize
+        font.pixelSize: Style.body
         font.bold: true
     }
 
     component Label: Text {
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: root.fontSize - 1
+        font.pixelSize: Style.secondary
     }
 
     // Fixed top edge (placed for the tallest content, then centered once):
@@ -104,9 +104,9 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 760) / 2))
-        width: Fonts.px(480)
+        width: Style.standardPanelWidth
         height: Math.min(column.implicitHeight + 32, root.height - y - 40)
-        radius: 8
+        radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
@@ -117,7 +117,7 @@ FocusScope {
 
         Flickable {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Style.spacingXl
             contentHeight: column.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -144,12 +144,12 @@ FocusScope {
                         text: "Theme"
                         color: Colors.foreground
                         font.family: Fonts.family
-                        font.pixelSize: root.fontSize
+                        font.pixelSize: Style.body
                         font.bold: true
                     }
                     PopupButton {
                         label: "Import"
-                        fontSize: root.fontSize - 2
+                        fontSize: Style.caption
                         onClicked: root.window.importOpen = true
                     }
                 }
@@ -178,7 +178,7 @@ FocusScope {
                     textFormat: Text.PlainText
                     color: Colors.error
                     font.family: Fonts.family
-                    font.pixelSize: root.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
 
                 // ---- Wallpaper ------------------------------------------
@@ -198,11 +198,11 @@ FocusScope {
                     Rectangle {
                         id: thumb
                         anchors.left: parent.left
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: Style.spacingMd
                         anchors.verticalCenter: parent.verticalCenter
                         width: 100
                         height: 56
-                        radius: 4
+                        radius: Style.controlRadius
                         color: Colors.surface
                         clip: true
 
@@ -220,11 +220,11 @@ FocusScope {
 
                     Column {
                         anchors.left: thumb.right
-                        anchors.leftMargin: 12
+                        anchors.leftMargin: Style.spacingLg
                         anchors.right: parent.right
-                        anchors.rightMargin: 12
+                        anchors.rightMargin: Style.spacingLg
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 2
+                        spacing: Style.spacingXs
 
                         Text {
                             width: parent.width
@@ -234,7 +234,7 @@ FocusScope {
                             textFormat: Text.PlainText
                             color: Colors.foreground
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize
+                            font.pixelSize: Style.body
                         }
 
                         Text {
@@ -242,7 +242,7 @@ FocusScope {
                             text: "Choose…"
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize - 2
+                            font.pixelSize: Style.caption
                         }
                     }
 
@@ -263,7 +263,7 @@ FocusScope {
                 // same value, so both always agree.
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Style.spacingMd
 
                     Rectangle {
                         implicitWidth: Fonts.px(16)
@@ -279,7 +279,7 @@ FocusScope {
                             text: "\u{F012C}"         // check
                             color: Colors.accentForeground
                             font.family: Fonts.icons
-                            font.pixelSize: root.fontSize - 2
+                            font.pixelSize: Style.caption
                         }
                     }
 
@@ -288,7 +288,7 @@ FocusScope {
                         text: "Transparent bar background"
                         color: Colors.foreground
                         font.family: Fonts.family
-                        font.pixelSize: root.fontSize - 1
+                        font.pixelSize: Style.secondary
 
                         MouseArea {
                             anchors.fill: parent
@@ -305,13 +305,13 @@ FocusScope {
                 RowLayout {
                     visible: brightness.available
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Style.spacingMd
 
                     Text {
                         text: "\u{F00DF}"
                         color: Colors.foreground
                         font.family: Fonts.icons
-                        font.pixelSize: root.fontSize + 2
+                        font.pixelSize: Style.title
                     }
 
                     LevelSlider {
@@ -326,7 +326,7 @@ FocusScope {
                         text: Math.round(brightness.value * 100) + "%"
                         color: Colors.foreground
                         font.family: Fonts.family
-                        font.pixelSize: root.fontSize - 1
+                        font.pixelSize: Style.secondary
                     }
                 }
 
@@ -340,7 +340,7 @@ FocusScope {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Style.spacingSm
 
                     Repeater {
                         model: themeModel.textSizes
@@ -365,17 +365,17 @@ FocusScope {
                         required property var modelData
                         readonly property bool overridden: display.overrides[modelData.name] !== undefined
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: Style.spacingSm
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: Style.spacingMd
 
                             Text {
                                 text: "\u{F0379}"       // monitor
                                 color: Colors.foreground
                                 font.family: Fonts.icons
-                                font.pixelSize: root.fontSize + 2
+                                font.pixelSize: Style.title
                             }
 
                             Column {
@@ -388,21 +388,21 @@ FocusScope {
                                     textFormat: Text.PlainText
                                     color: Colors.foreground
                                     font.family: Fonts.family
-                                    font.pixelSize: root.fontSize
+                                    font.pixelSize: Style.body
                                 }
 
                                 Text {
                                     text: mon.modelData.width + "×" + mon.modelData.height + " @ " + Math.round(mon.modelData.refreshRate) + " Hz"
                                     color: Colors.foregroundMuted
                                     font.family: Fonts.family
-                                    font.pixelSize: root.fontSize - 1
+                                    font.pixelSize: Style.secondary
                                 }
                             }
 
                             // The real monitor configuration (host_vars) in Neovim.
                             PopupButton {
                                 label: "Change"
-                                fontSize: root.fontSize - 1
+                                fontSize: Style.secondary
                                 onClicked: {
                                     display.openConfig();
                                     root.window.close();
@@ -412,7 +412,7 @@ FocusScope {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Style.spacingSm
 
                             Repeater {
                                 model: display.scales
@@ -431,7 +431,7 @@ FocusScope {
                             text: "Use the host default"
                             color: Colors.accent
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize - 2
+                            font.pixelSize: Style.caption
                             font.underline: resetMouse.containsMouse
 
                             MouseArea {
@@ -450,7 +450,7 @@ FocusScope {
                     wrapMode: Text.Wrap
                     visible: display.monitors.length === 0
                     text: "No output information"
-                    font.pixelSize: root.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
             }
         }

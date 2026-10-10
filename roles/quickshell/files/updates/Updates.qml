@@ -102,13 +102,13 @@ Singleton {
     }
 
     readonly property string tooltip: {
-        if (updating) return "Systemupdate läuft im Terminal";
+        if (updating) return "System update running in the terminal";
         if (status === "ok") {
             const names = packages.slice(0, 8).map(p => p.name).join(", ") + (packages.length > 8 ? ", …" : "");
-            return (count === 1 ? "1 Update verfügbar" : count + " Updates verfügbar") + "\n" + names;
+            return (count === 1 ? "1 update available" : count + " updates available") + "\n" + names;
         }
-        const why = status === "offline" ? "offline" : "Prüfung fehlgeschlagen";
-        return "Updates: " + why + (lastGood ? " - zuletzt " + lastGood.count + " um " + hhmm(lastGood.at) + " (veraltet)" : "");
+        const why = status === "offline" ? "offline" : "check failed";
+        return "Updates: " + why + (lastGood ? " - last " + lastGood.count + " at " + hhmm(lastGood.at) + " (stale)" : "");
     }
 
     Timer {

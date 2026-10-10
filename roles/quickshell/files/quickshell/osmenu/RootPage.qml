@@ -66,7 +66,7 @@ FocusScope {
         id: list
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 2
+        spacing: Style.spacingXs
 
         Repeater {
             model: page.entries
@@ -79,7 +79,7 @@ FocusScope {
 
                 Layout.fillWidth: true
                 implicitHeight: Fonts.px(34)
-                radius: 4
+                radius: Style.controlRadius
                 color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
                 Text {
@@ -102,7 +102,7 @@ FocusScope {
                     text: row.modelData.label
                     color: row.selected ? Colors.accentForeground : Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: page.menu.fontSize
+                    font.pixelSize: Style.body
                 }
 
                 Text {
@@ -113,7 +113,7 @@ FocusScope {
                     text: "\u{F0142}"           // chevron-right: opens a page
                     color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
                     font.family: Fonts.icons
-                    font.pixelSize: page.menu.fontSize
+                    font.pixelSize: Style.body
                 }
 
                 MouseArea {

@@ -32,7 +32,7 @@ Item {
         anchors.centerIn: parent
         width: Fonts.px(620)
         height: Math.min(box.implicitHeight + 32, picker.height - 80)
-        radius: 8
+        radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
@@ -46,14 +46,14 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 16
+            anchors.margins: Style.spacingXl
             spacing: 10
 
             Text {
                 text: "Wallpaper  ·  " + (picker.model.wallpaper ? picker.model.nameOf(picker.model.activeMode(), picker.model.wallpaper.theme) : "")
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: picker.fontSize + 1
+                font.pixelSize: Style.sectionTitle
                 font.bold: true
             }
 
@@ -104,7 +104,7 @@ Item {
                                 z: -1
                                 anchors.fill: parent
                                 anchors.margins: -2
-                                radius: 2
+                                radius: Style.smallRadius
                                 color: Colors.accent
                             }
                         }
@@ -127,14 +127,14 @@ Item {
                 text: "No wallpapers in this theme's backgrounds/"
                 color: Colors.foregroundMuted
                 font.family: Fonts.family
-                font.pixelSize: picker.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             Rectangle {
                 Layout.alignment: Qt.AlignRight
                 implicitWidth: cancelText.implicitWidth + 24
                 implicitHeight: Fonts.px(28)
-                radius: 4
+                radius: Style.controlRadius
                 color: cancelMouse.containsMouse ? Colors.surface : "transparent"
                 border.color: Colors.border
                 border.width: 1
@@ -145,7 +145,7 @@ Item {
                     text: "Cancel"
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: picker.fontSize - 1
+                    font.pixelSize: Style.secondary
                 }
 
                 MouseArea {

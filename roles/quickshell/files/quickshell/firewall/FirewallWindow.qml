@@ -19,7 +19,7 @@ PanelWindow {
     id: win
 
     required property int fontSize
-    property bool addOpen: false            // "Hinzufügen" dialog (AddRule.qml)
+    property bool addOpen: false            // "Add" dialog (AddRule.qml)
 
     function open() {
         addOpen = false;
@@ -106,7 +106,7 @@ PanelWindow {
                                     rules: c ? c.model.rules : [] });
         }
 
-        // Type into the "Hinzufügen" dialog and press its button.
+        // Type into the "Add" dialog and press its button.
         function submit(label: string, port: string, protocol: string): void {
             if (!win.visible) win.open();
             win.addOpen = true;

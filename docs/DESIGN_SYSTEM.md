@@ -84,6 +84,24 @@ then their own numbers stay - no partial edits outside a phase.
   Bluetooth rows, 24 px row buttons, the battery track (8 px high, radius =
   half its height), the 6 px volume track, the signal bars, the 196/180 px
   QR plate.
+- Dialogs and menus (phase 3 done): every centred question/form is a
+  `ui/DialogFrame` (width class, `panelRadius`, `spacingXl` padding,
+  `title` heading, clipped at the screen height) with `ui/DialogText`
+  paragraphs (body / detail / hint / error) and `ui/DialogButtons` (right
+  aligned, the keyboard selection = the primary button; the owner keeps
+  stages, keys, focus and the close policy). Updater, snapshot slots,
+  snapshot mode, firewall question and rule form, theme import use it; the
+  OS menu (`standardPanelWidth`), power menu (`narrowPanelWidth`),
+  clipboard, firewall and scratchpad windows (`widePanelWidth`), Appearance
+  (`standardPanelWidth`) and the cheatsheet use the tokens. A button that is
+  not usable right now is `PopupButton.muted` (muted text, no hover plate,
+  still clickable so the owner can say why) - no `opacity`. The interface
+  text of these surfaces is English (snapshot/firewall/updater/scratchpad
+  were German). Stays: button height 24 (`Style.grow`; below
+  `compactRowHeight`, buttons sit inside rows), the OS menu's fixed top
+  edge, clipboard/scratchpad heights 420/380 (`Style.grow`), the Bluetooth
+  popup dimming the other devices during a pairing (row `opacity`, the one
+  remaining use; whole row incl. icons).
 - The wallpaper picker's thumbnail grid (620) is wider than `widePanelWidth`
   by its content.
 - hyprlock and Hyprland are not QML: their sizes are set in their

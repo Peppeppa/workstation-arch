@@ -35,7 +35,7 @@
 // A changed file whose content differs from what this shell last read or
 // wrote is taken over - unless the open note has unsaved typing: then that
 // local version is first written to a conflict copy next to the file
-// ("scratchpad (Konflikt <date time>).md"), the file's content is taken over
+// ("scratchpad (conflict <date time>).md"), the file's content is taken over
 // and the window says where the local version is. Nothing is overwritten
 // silently; conflict copies (ours or Nextcloud's) are never touched again.
 
@@ -151,10 +151,10 @@ Scope {
             local[note] = w.currentText();
             const d = new Date();
             const stamp = Qt.formatDateTime(d, "yyyy-MM-dd HHmmss");
-            conflictView.path = Scratchpad.dir + "/scratchpad (Konflikt " + stamp + ").md";
+            conflictView.path = Scratchpad.dir + "/scratchpad (conflict " + stamp + ").md";
             conflictView.setText(composeNotes(local));
-            notice = "Die Datei wurde außerhalb geändert (z. B. Nextcloud). Deine ungespeicherte Version liegt in "
-                     + "\"scratchpad (Konflikt " + stamp + ").md\" daneben.";
+            notice = "The file was changed outside (e.g. Nextcloud). Your unsaved version is next to it in "
+                     + "\"scratchpad (conflict " + stamp + ").md\".";
             Log.warn("scratchpad", "external change while editing - local version kept in a conflict copy");
         }
         baseline = text;
@@ -185,7 +185,7 @@ Scope {
         onFileChanged: reload()
         onLoaded: root.adoptFile(text())
         onSaveFailed: error => {
-            root.notice = "Speichern fehlgeschlagen (" + error + ") - Ordner " + Scratchpad.dir + " vorhanden?";
+            root.notice = "Saving failed (" + error + ") - does the folder " + Scratchpad.dir + " exist?";
             root.baseline = "";             // retry on the next change
             Log.warn("scratchpad", "cannot save " + path + ": " + error);
         }
@@ -236,8 +236,8 @@ Scope {
             title: "workstation-scratchpad"
             visible: true
             color: Colors.background
-            implicitWidth: Fonts.px(560)
-            implicitHeight: Fonts.px(380)
+            implicitWidth: Style.widePanelWidth
+            implicitHeight: Style.grow(380)
 
             // The compositor closed it (Super+Q): save and drop it.
             onVisibleChanged: if (!visible) root.close()
@@ -290,7 +290,7 @@ Scope {
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 8
+                spacing: Style.spacingMd
 
                 // Conflict / save problem (until the next open).
                 Text {
@@ -307,7 +307,7 @@ Scope {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 4
+                    radius: Style.controlRadius
                     color: Colors.surface
                     border.color: editor.activeFocus ? Colors.borderActive : Colors.border
                     border.width: 1
@@ -366,7 +366,7 @@ Scope {
                     Rectangle {
                         visible: flick.contentHeight > flick.height
                         anchors.right: parent.right
-                        anchors.rightMargin: 2
+                        anchors.rightMargin: Style.spacingXs
                         y: 2 + (parent.height - 4 - height) * (flick.contentY / Math.max(1, flick.contentHeight - flick.height))
                         width: 3
                         height: Math.max(16, (parent.height - 4) * flick.height / flick.contentHeight)
@@ -376,7 +376,7 @@ Scope {
                     Rectangle {
                         visible: flick.contentWidth > flick.width
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 2
+                        anchors.bottomMargin: Style.spacingXs
                         x: 2 + (parent.width - 4 - width) * (flick.contentX / Math.max(1, flick.contentWidth - flick.width))
                         height: 3
                         width: Math.max(16, (parent.width - 4) * flick.width / flick.contentWidth)
@@ -423,18 +423,18 @@ Scope {
                     Row {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 4
+                        spacing: Style.spacingSm
 
                         PopupButton {
                             label: "−"
                             fontSize: Fonts.px(12)
-                            opacity: root.effectiveFontSize > root.minFontSize ? 1 : 0.5
+                            muted: root.effectiveFontSize <= root.minFontSize
                             onClicked: { root.setFontSize(root.effectiveFontSize - 1); editor.forceActiveFocus(); }
                         }
                         PopupButton {
                             label: "+"
                             fontSize: Fonts.px(12)
-                            opacity: root.effectiveFontSize < root.maxFontSize ? 1 : 0.5
+                            muted: root.effectiveFontSize >= root.maxFontSize
                             onClicked: { root.setFontSize(root.effectiveFontSize + 1); editor.forceActiveFocus(); }
                         }
                     }

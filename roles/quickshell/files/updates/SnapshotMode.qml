@@ -34,6 +34,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs
 import qs.bar
+import qs.ui
 
 Scope {
     id: root
@@ -76,18 +77,18 @@ Scope {
     // The buttons of a stage: [{id, label, danger}]; index 0 = the safe answer.
     function buttonsFor(stage) {
         switch (stage) {
-        case "intro":   return [{ id: "test", label: "Nur testen" }, { id: "restore", label: "Dauerhaft wiederherstellen…", danger: true }];
-        case "confirm": return [{ id: "cancel", label: "Abbrechen" }, { id: "yes", label: "Wiederherstellen", danger: true }];
+        case "intro":   return [{ id: "test", label: "Just test" }, { id: "restore", label: "Restore permanently…", danger: true }];
+        case "confirm": return [{ id: "cancel", label: "Cancel" }, { id: "yes", label: "Restore", danger: true }];
         case "working": return [{ id: "wait", label: "…" }];
-        case "done":    return [{ id: "later", label: "Später neu starten" }, { id: "reboot", label: "Jetzt neu starten" }];
-        default:        return [{ id: "close", label: "Schließen" }];
+        case "done":    return [{ id: "later", label: "Reboot later" }, { id: "reboot", label: "Reboot now" }];
+        default:        return [{ id: "close", label: "Close" }];
         }
     }
     readonly property var buttons: buttonsFor(stage)
 
     // pkexec: 126 = dismissed/not authorized, 127 = authentication failed.
     function failure(code, stderr) {
-        if (code === 126 || code === 127) return "Keine Berechtigung (polkit) - es wurde nichts verändert.";
+        if (code === 126 || code === 127) return "Not authorized (polkit) - nothing was changed.";
         return Log.firstLine(stderr).replace(/^snapshot-restore: /, "") || "fehlgeschlagen (Exit " + code + ")";
     }
 
@@ -191,7 +192,7 @@ Scope {
                 root.stage = "done";
                 root.selected = 1;                 // Jetzt neu starten
             } else {
-                root.error = code === 0 ? "Der Helper meldete kein Ergebnis." : root.failure(code, restoreErr.text);
+                root.error = code === 0 ? "The helper reported no result." : root.failure(code, restoreErr.text);
                 root.stage = "failed";
                 root.selected = 0;
                 Log.warn("snapshot", "snapshot-restore failed (exit " + code + "): " + Log.firstLine(restoreErr.text));
@@ -233,26 +234,26 @@ Scope {
                 left: true
                 right: true
             }
-            implicitHeight: Fonts.px(26)
+            implicitHeight: Style.grow(26)
             color: Colors.accent
             WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.namespace: "quickshell-snapshotmode-strip"
 
             Text {
                 anchors.centerIn: parent
-                width: parent.width - 24
+                width: parent.width - 2 * Style.spacingLg
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
-                text: (root.stage === "done" ? "SNAPSHOT-MODUS - wiederhergestellt, Neustart ausstehend"
-                       : root.stage === "working" ? "SNAPSHOT-MODUS - Wiederherstellung läuft: Administrator-Passwort im Anmeldefenster eingeben"
-                       : "SNAPSHOT-MODUS")
+                text: (root.stage === "done" ? "SNAPSHOT MODE - restored, reboot pending"
+                       : root.stage === "working" ? "SNAPSHOT MODE - restoring: enter the administrator password in the authentication window"
+                       : "SNAPSHOT MODE")
                       + "  ·  #" + root.number + (root.date ? "  " + root.date : "")
                       + (root.description ? "  " + root.description : "")
-                      + "  ·  Normales System unverändert  ·  Klicken für Optionen"
+                      + "  ·  Normal system unchanged  ·  Click for options"
                 color: Colors.accentForeground
                 font.family: Fonts.family
-                font.pixelSize: root.fontSize - 1
+                font.pixelSize: Style.secondary
                 font.bold: true
             }
 
@@ -306,131 +307,72 @@ Scope {
             Keys.onPressed: event => event.accepted = root.handleKey(event.key)
         }
 
-        Rectangle {
-            anchors.centerIn: parent
-            width: Fonts.px(540)
-            height: box.implicitHeight + 32
-            radius: 8
-            color: Colors.background
-            border.color: Colors.borderActive
-            border.width: 1
+        DialogFrame {
+            panelWidth: Style.widePanelWidth
+            title: root.stage === "confirm" ? "Restore the snapshot permanently?"
+                 : root.stage === "done" ? "Snapshot restored"
+                 : root.stage === "failed" ? "Restore failed"
+                 : "Snapshot mode"
+            titleColor: root.stage === "failed" ? Colors.error : Colors.foregroundStrong
 
-            MouseArea {
-                anchors.fill: parent
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: Style.spacingLg
+                rowSpacing: Style.spacingSm
+
+                DialogText { Layout.fillWidth: false; kind: "detail"; color: Colors.foregroundMuted; text: "Snapshot" }
+                DialogText { kind: "detail"; text: "#" + root.number }
+                DialogText { Layout.fillWidth: false; kind: "detail"; color: Colors.foregroundMuted; text: "Taken" }
+                DialogText { kind: "detail"; text: root.date || "unknown" }
+                DialogText { Layout.fillWidth: false; kind: "detail"; color: Colors.foregroundMuted; text: "Description" }
+                DialogText { kind: "detail"; text: root.description || "-" }
             }
 
-            ColumnLayout {
-                id: box
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 16
-                spacing: 10
+            DialogText {
+                visible: root.stage === "intro"
+                kind: "detail"
+                text: "REPO is running in the state this snapshot captured. The normal system is unchanged. "
+                    + "Whatever you change on the system in this session is gone after the next reboot; "
+                    + "package installs and updates are blocked here. Your files in /home are the normal ones."
+            }
+            DialogText {
+                visible: root.stage === "intro"
+                kind: "detail"
+                color: Colors.foregroundMuted
+                text: "Just test: keep working and check. A normal reboot returns to the previous system."
+            }
 
-                component Para: Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    color: Colors.foreground
-                    font.family: Fonts.family
-                    font.pixelSize: root.fontSize - 1
-                }
+            DialogText {
+                visible: root.stage === "confirm" || root.stage === "working"
+                kind: "detail"
+                text: "REPO then boots permanently into this snapshot's state:\n"
+                    + "•  The system (/, subvolume @) is replaced by snapshot #" + root.number + " - installed "
+                    + "programs, system settings and /etc as they were then.\n"
+                    + "•  The current system is kept as @broken-<date> (the way back; uses space until it is deleted).\n"
+                    + "•  Unchanged: /home with your files and ~/.config, the logs (/var/log), the package cache.\n"
+                    + "•  Changes made in this test session are not kept.\n"
+                    + "•  A reboot is needed afterwards. The administrator password is requested."
+            }
 
-                Text {
-                    text: root.stage === "confirm" ? "Snapshot dauerhaft wiederherstellen?"
-                        : root.stage === "done" ? "Snapshot wiederhergestellt"
-                        : root.stage === "failed" ? "Wiederherstellung fehlgeschlagen"
-                        : "Snapshot-Modus"
-                    color: root.stage === "failed" ? Colors.error : Colors.foregroundStrong
-                    font.family: Fonts.family
-                    font.pixelSize: root.fontSize + 2
-                    font.bold: true
-                }
+            DialogText {
+                visible: root.stage === "done"
+                kind: "detail"
+                color: Colors.success
+                text: "Snapshot #" + root.number + " is now the regular system - effective after the reboot. "
+                    + "The previous system is kept as " + (root.previous || "@broken-<date>") + "."
+            }
 
-                GridLayout {
-                    columns: 2
-                    columnSpacing: 12
-                    rowSpacing: 4
+            DialogText {
+                visible: root.stage === "failed"
+                kind: "error"
+                text: root.error + "\nThe system was not changed; you are still in snapshot mode."
+            }
 
-                    component Key: Text {
-                        color: Colors.foregroundMuted
-                        font.family: Fonts.family
-                        font.pixelSize: root.fontSize - 1
-                    }
-                    component Val: Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        textFormat: Text.PlainText
-                        color: Colors.foreground
-                        font.family: Fonts.family
-                        font.pixelSize: root.fontSize - 1
-                    }
-
-                    Key { text: "Snapshot" }
-                    Val { text: "#" + root.number }
-                    Key { text: "Zeitpunkt" }
-                    Val { text: root.date || "unbekannt" }
-                    Key { text: "Beschreibung" }
-                    Val { text: root.description || "-" }
-                }
-
-                Para {
-                    visible: root.stage === "intro"
-                    text: "REPO läuft gerade im damaligen Zustand dieses Snapshots. Das normale System ist unverändert. "
-                        + "Alles, was du in dieser Sitzung am System änderst, ist nach dem nächsten Neustart wieder weg; "
-                        + "Paketinstallationen und Updates sind hier gesperrt. Deine Dateien in /home sind die normalen."
-                }
-                Para {
-                    visible: root.stage === "intro"
-                    text: "Nur testen: weiterarbeiten und prüfen. Ein normaler Neustart führt zurück ins bisherige System."
-                    color: Colors.foregroundMuted
-                }
-
-                Para {
-                    visible: root.stage === "confirm" || root.stage === "working"
-                    text: "Danach startet REPO dauerhaft in diesem Snapshot-Zustand:\n"
-                        + "•  Das System (/, Subvolume @) wird durch Snapshot #" + root.number + " ersetzt - installierte "
-                        + "Programme, Systemeinstellungen und /etc wie damals.\n"
-                        + "•  Das bisherige System bleibt als @broken-<Datum> erhalten (Rückweg; belegt Platz, bis es gelöscht wird).\n"
-                        + "•  Unverändert bleiben: /home mit deinen Dateien und ~/.config, die Logs (/var/log), der Paket-Cache.\n"
-                        + "•  Änderungen aus dieser Testsitzung werden nicht übernommen.\n"
-                        + "•  Danach ist ein Neustart nötig. Es wird das Administrator-Passwort abgefragt."
-                }
-
-                Para {
-                    visible: root.stage === "done"
-                    text: "Snapshot #" + root.number + " ist jetzt das reguläre System - wirksam nach dem Neustart. "
-                        + "Das vorherige System liegt als " + (root.previous || "@broken-<Datum>") + " vor."
-                    color: Colors.success
-                }
-
-                Para {
-                    visible: root.stage === "failed"
-                    text: root.error + "\nDas System wurde nicht verändert; du bist weiter im Snapshot-Modus."
-                    color: Colors.error
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    spacing: 8
-
-                    Item { Layout.fillWidth: true }
-
-                    Repeater {
-                        model: root.buttons
-
-                        PopupButton {
-                            required property var modelData
-                            required property int index
-                            label: modelData.label
-                            primary: index === root.selected
-                            danger: modelData.danger === true
-                            fontSize: root.fontSize - 1
-                            onClicked: if (root.stage !== "working") root.press(modelData.id)
-                        }
-                    }
-                }
+            DialogButtons {
+                buttons: root.buttons
+                selected: root.selected
+                onPressed: id => { if (root.stage !== "working") root.press(id); }
             }
         }
     }

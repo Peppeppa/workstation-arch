@@ -31,7 +31,7 @@ FocusScope {
         id: column
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 8
+        spacing: Style.spacingMd
 
         PageHeader {
             Layout.fillWidth: true

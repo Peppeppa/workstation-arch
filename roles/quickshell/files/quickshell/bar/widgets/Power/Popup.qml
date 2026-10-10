@@ -130,7 +130,6 @@ BarPopup {
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(30)
                     radius: Style.controlRadius
-                    opacity: usable ? 1 : 0.4
                     color: current ? Colors.accent : btnMouse.containsMouse && usable ? Colors.surface : "transparent"
                     border.color: current ? Colors.accent : Colors.border
                     border.width: 1

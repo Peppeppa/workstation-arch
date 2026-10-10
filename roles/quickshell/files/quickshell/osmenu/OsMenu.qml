@@ -340,7 +340,7 @@ PanelWindow {
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((menu.height - 420) / 2))
-        width: Fonts.px(460)
+        width: Style.fitWidth(Style.standardPanelWidth, menu.width)
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
               : menu.page === "system" ? systemPage.implicitHeight + 24
@@ -351,7 +351,7 @@ PanelWindow {
               : menu.page === "packages-install" ? installPage.implicitHeight + 24
               : menu.page === "packages-remove" ? removePage.implicitHeight + 24
               : rootPage.implicitHeight + 24
-        radius: 8
+        radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
@@ -365,7 +365,7 @@ PanelWindow {
             id: rootPage
             visible: menu.page === "root"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             entries: menu.rootEntries
         }
@@ -374,7 +374,7 @@ PanelWindow {
             id: appsPage
             visible: menu.page === "apps"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
         }
 
@@ -382,7 +382,7 @@ PanelWindow {
             id: settingsPage
             visible: menu.page === "settings"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
         }
 
@@ -390,7 +390,7 @@ PanelWindow {
             id: systemPage
             visible: menu.page === "system"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "System"
             entries: menu.systemEntries
@@ -400,7 +400,7 @@ PanelWindow {
             id: diagnosticPage
             visible: menu.page === "system-diagnostic"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "System \u203A Diagnostic"
             entries: menu.diagnosticEntries
@@ -410,7 +410,7 @@ PanelWindow {
             id: logsPage
             visible: menu.page === "system-logs"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "Diagnostic \u203A Logs"
             entries: menu.logEntries
@@ -420,7 +420,7 @@ PanelWindow {
             id: packagesPage
             visible: menu.page === "packages"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "Packages"
             entries: menu.packagesEntries
@@ -430,7 +430,7 @@ PanelWindow {
             id: installPage
             visible: menu.page === "packages-install"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "Packages \u203A Install"
             entries: menu.installEntries
@@ -440,7 +440,7 @@ PanelWindow {
             id: removePage
             visible: menu.page === "packages-remove"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
             title: "Packages \u203A Remove"
             entries: menu.removeEntries
@@ -450,7 +450,7 @@ PanelWindow {
             id: searchPage
             visible: menu.page === "search"
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: Style.spacingLg
             menu: menu
         }
     }

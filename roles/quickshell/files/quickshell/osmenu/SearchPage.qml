@@ -90,12 +90,12 @@ FocusScope {
         id: column
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 8
+        spacing: Style.spacingMd
 
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: Fonts.px(36)
-            radius: 4
+            radius: Style.controlRadius
             color: Colors.surface
             border.color: Colors.borderActive
             border.width: 1
@@ -103,10 +103,10 @@ FocusScope {
             TextInput {
                 id: searchInput
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.margins: Style.spacingMd
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: page.menu.fontSize + 2
+                font.pixelSize: Style.title
                 clip: true
 
                 onTextChanged: {
@@ -137,12 +137,12 @@ FocusScope {
             text: "No matches"
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: page.menu.fontSize
+            font.pixelSize: Style.body
         }
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Style.spacingXs
 
             Repeater {
                 model: page.results
@@ -158,7 +158,7 @@ FocusScope {
 
                     Layout.fillWidth: true
                     implicitHeight: page.rowHeight
-                    radius: 4
+                    radius: Style.controlRadius
                     color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
                     Item {
@@ -200,7 +200,7 @@ FocusScope {
                         text: row.isApp ? row.modelData.entry.name : row.modelData.label
                         color: row.selected ? Colors.accentForeground : Colors.foreground
                         font.family: Fonts.family
-                        font.pixelSize: page.menu.fontSize
+                        font.pixelSize: Style.body
                         elide: Text.ElideRight
                     }
 
@@ -213,7 +213,7 @@ FocusScope {
                         text: row.isApp ? "" : row.modelData.hint
                         color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
                         font.family: Fonts.family
-                        font.pixelSize: page.menu.fontSize - 1
+                        font.pixelSize: Style.secondary
                     }
 
                     MouseArea {

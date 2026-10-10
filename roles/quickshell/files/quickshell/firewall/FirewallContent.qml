@@ -6,7 +6,7 @@
 // user's own, one list, all handled the same: each row's button shows what
 // is LIVE in the kernel - enabled: red "Deaktivieren", disabled: green
 // "Aktivieren"; × deletes the rule; a click on the row's text edits it
-// (AddRule.qml). "Standardregeln wiederherstellen" (bottom) brings back the
+// (AddRule.qml). "Restore standard rules" (bottom) brings back the
 // five factory rules and removes the user's - after a question (Confirm.qml,
 // Abbrechen preselected). The SSH rule is a rule like any other: switch and
 // × act at once, no question of its own. Infrastructure that is not a port rule (loopback,
@@ -63,9 +63,9 @@ FocusScope {
     }
 
     function askReset() {
-        askThen("Standardregeln wiederherstellen?",
-                "Die Firewall-Regeln werden auf die fünf Standardregeln zurückgesetzt: DHCP (UDP 68), DHCPv6 (UDP 546), LocalSend - Geräteerkennung (UDP 53317), LocalSend - Dateiübertragung (TCP 53317) und SSH (TCP 22), alle aktiv. Eigene Regeln werden entfernt; gelöschte oder deaktivierte Standardregeln kommen aktiv zurück.",
-                "", "Wiederherstellen", () => fw.reset());
+        askThen("Restore the standard rules?",
+                "The firewall rules are reset to the five standard rules: DHCP (UDP 68), DHCPv6 (UDP 546), LocalSend discovery (UDP 53317), LocalSend file transfer (TCP 53317) and SSH (TCP 22), all enabled. Your own rules are removed; deleted or disabled standard rules come back enabled.",
+                "", "Restore", () => fw.reset());
     }
 
     FirewallModel {
@@ -118,16 +118,16 @@ FocusScope {
 
     function confirmState() {
         return { visible: confirm.visible, title: confirm.title, warning: confirm.warning,
-                 selected: confirm.selected === 0 ? "Abbrechen" : confirm.confirmLabel };
+                 selected: confirm.selected === 0 ? "Cancel" : confirm.confirmLabel };
     }
 
     Rectangle {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 420) / 2))
-        width: Fonts.px(560)               // room for "LocalSend – Dateiübertragung / 53317 / TCP"
+        width: Style.widePanelWidth             // room for the longest factory row label / port / protocol
         height: Math.min(column.implicitHeight + 32, root.height - y - 40)
-        radius: 8
+        radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
@@ -138,7 +138,7 @@ FocusScope {
 
         Flickable {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Style.spacingXl
             contentHeight: column.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -159,8 +159,8 @@ FocusScope {
                         font.bold: true
                     }
                     PopupButton {
-                        label: "Hinzufügen"
-                        fontSize: root.fontSize - 2
+                        label: "Add"
+                        fontSize: Style.caption
                         onClicked: root.openAdd()
                     }
                 }
@@ -181,25 +181,25 @@ FocusScope {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 6
-                        spacing: 2
+                        spacing: Style.spacingXs
 
                         Text {
                             visible: fw.listed && fw.rules.length === 0
                             Layout.fillWidth: true
-                            Layout.margins: 4
-                            text: "Keine Regeln - kein Port ist von außen erreichbar."
+                            Layout.margins: Style.spacingSm
+                            text: "No rules - no port is reachable from outside."
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize - 1
+                            font.pixelSize: Style.secondary
                         }
 
                         Text {
                             visible: !fw.listed
-                            Layout.margins: 4
+                            Layout.margins: Style.spacingSm
                             text: "…"
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
-                            font.pixelSize: root.fontSize - 1
+                            font.pixelSize: Style.secondary
                         }
 
                         Repeater {
@@ -214,7 +214,7 @@ FocusScope {
                                 readonly property bool drift: modelData.enabled !== modelData.active
                                 Layout.fillWidth: true
                                 implicitHeight: Fonts.px(34)
-                                radius: 4
+                                radius: Style.controlRadius
                                 color: rowMouse.containsMouse ? Colors.surface : "transparent"
 
                                 // A click on the row (not its buttons) edits the rule.
@@ -228,8 +228,8 @@ FocusScope {
 
                                 RowLayout {
                                     anchors.fill: parent
-                                    anchors.leftMargin: 8
-                                    anchors.rightMargin: 4
+                                    anchors.leftMargin: Style.spacingMd
+                                    anchors.rightMargin: Style.spacingSm
                                     spacing: 6
 
                                     Column {
@@ -241,11 +241,11 @@ FocusScope {
                                             elide: Text.ElideRight
                                             color: row.modelData.active ? Colors.foreground : Colors.foregroundMuted
                                             font.family: Fonts.family
-                                            font.pixelSize: root.fontSize - 1
+                                            font.pixelSize: Style.secondary
                                         }
                                         Text {
                                             visible: row.drift
-                                            text: "Nicht wie gespeichert aktiv - bitte neu schalten."
+                                            text: "Not active as saved - switch it again."
                                             color: Colors.error
                                             font.family: Fonts.family
                                             font.pixelSize: root.fontSize - 3
@@ -253,18 +253,18 @@ FocusScope {
                                     }
 
                                     PopupButton {
-                                        label: row.modelData.active ? "Deaktivieren" : "Aktivieren"
+                                        label: row.modelData.active ? "Disable" : "Enable"
                                         danger: row.modelData.active
                                         positive: !row.modelData.active
-                                        opacity: fw.busy ? 0.6 : 1
-                                        fontSize: root.fontSize - 2
+                                        muted: fw.busy
+                                        fontSize: Style.caption
                                         onClicked: root.toggleRow(row.index)
                                     }
 
                                     PopupButton {
                                         label: "×"
-                                        opacity: fw.busy ? 0.6 : 1
-                                        fontSize: root.fontSize - 1
+                                        muted: fw.busy
+                                        fontSize: Style.secondary
                                         onClicked: root.removeRow(row.index)
                                     }
                                 }
@@ -277,10 +277,10 @@ FocusScope {
                     visible: fw.listed && !fw.loaded
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Die Firewall ist nicht geladen (workstation-firewall.service)."
+                    text: "The firewall is not loaded (workstation-firewall.service)."
                     color: Colors.error
                     font.family: Fonts.family
-                    font.pixelSize: root.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
 
                 Text {
@@ -291,7 +291,7 @@ FocusScope {
                     text: fw.errorText
                     color: Colors.error
                     font.family: Fonts.family
-                    font.pixelSize: root.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
 
                 RowLayout {
@@ -299,9 +299,9 @@ FocusScope {
                     Layout.topMargin: 6
                     Item { Layout.fillWidth: true }
                     PopupButton {
-                        label: "Standardregeln wiederherstellen"
-                        opacity: fw.busy ? 0.6 : 1
-                        fontSize: root.fontSize - 2
+                        label: "Restore standard rules"
+                        muted: fw.busy
+                        fontSize: Style.caption
                         onClicked: if (!fw.busy) root.askReset()
                     }
                 }

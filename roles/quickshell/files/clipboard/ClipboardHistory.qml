@@ -161,9 +161,9 @@ Scope {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: Fonts.px(560)
-                height: Fonts.px(420)
-                radius: 8
+                width: Style.fitWidth(Style.widePanelWidth, parent.width)
+                height: Style.grow(420)
+                radius: Style.panelRadius
                 color: Colors.background
                 border.color: Colors.borderActive
                 border.width: 1
@@ -175,17 +175,17 @@ Scope {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
+                    anchors.margins: Style.spacingLg
+                    spacing: Style.spacingMd
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: Style.spacingMd
 
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: Fonts.px(36)
-                            radius: 4
+                            radius: Style.controlRadius
                             color: Colors.surface
                             border.color: Colors.borderActive
                             border.width: 1
@@ -193,10 +193,10 @@ Scope {
                             TextInput {
                                 id: searchInput
                                 anchors.fill: parent
-                                anchors.margins: 8
+                                anchors.margins: Style.spacingMd
                                 color: Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: root.fontSize + 1
+                                font.pixelSize: Style.sectionTitle
                                 clip: true
                                 onTextChanged: popup.query = text
 
@@ -223,7 +223,7 @@ Scope {
                         Rectangle {
                             implicitWidth: clearText.implicitWidth + 16
                             implicitHeight: Fonts.px(36)
-                            radius: 4
+                            radius: Style.controlRadius
                             color: clearMouse.containsMouse ? Colors.accent : Colors.surface
                             border.color: Colors.border
                             border.width: clearMouse.containsMouse ? 0 : 1
@@ -235,7 +235,7 @@ Scope {
                                 color: clearMouse.containsMouse ? Colors.accentForeground
                                      : popup.confirmClear ? Colors.error : Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: root.fontSize - 1
+                                font.pixelSize: Style.secondary
                             }
 
                             MouseArea {
@@ -273,7 +273,7 @@ Scope {
 
                             width: ListView.view.width
                             height: Fonts.px(32)
-                            radius: 4
+                            radius: Style.controlRadius
                             color: selected ? Colors.accent : entryMouse.containsMouse ? Colors.surface : "transparent"
 
                             Text {
@@ -288,7 +288,7 @@ Scope {
                                 maximumLineCount: 1
                                 color: entry.selected ? Colors.accentForeground : Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: root.fontSize
+                                font.pixelSize: Style.body
                             }
 
                             MouseArea {
@@ -308,7 +308,7 @@ Scope {
                                 text: ""
                                 color: deleteMouse.containsMouse ? Colors.error : entry.selected ? Colors.accentForeground : Colors.foregroundMuted
                                 font.family: Fonts.icons
-                                font.pixelSize: root.fontSize
+                                font.pixelSize: Style.body
 
                                 MouseArea {
                                     id: deleteMouse
@@ -327,7 +327,7 @@ Scope {
                         text: popup.entries.length === 0 ? "Clipboard history is empty" : "No matches"
                         color: Colors.foregroundMuted
                         font.family: Fonts.family
-                        font.pixelSize: root.fontSize - 1
+                        font.pixelSize: Style.secondary
                     }
 
                     Text {

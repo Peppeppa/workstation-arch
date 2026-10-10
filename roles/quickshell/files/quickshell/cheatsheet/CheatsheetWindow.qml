@@ -262,12 +262,12 @@ Scope {
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 8
+                spacing: Style.spacingMd
 
                 // ---- tabs + close ----
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Style.spacingSm
 
                     Repeater {
                         model: root.docs
@@ -279,7 +279,7 @@ Scope {
                             readonly property bool current: index === root.tab
                             implicitWidth: tabLabel.implicitWidth + Fonts.px(24)
                             implicitHeight: Fonts.px(28)
-                            radius: 4
+                            radius: Style.controlRadius
                             color: current ? Colors.surface : tabMouse.containsMouse ? Colors.surface : "transparent"
                             border.color: current ? Colors.borderActive : "transparent"
                             border.width: 1
@@ -317,7 +317,7 @@ Scope {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 4
+                    radius: Style.controlRadius
                     color: Colors.surface
                     border.color: Colors.border
                     border.width: 1
@@ -326,7 +326,7 @@ Scope {
                     Flickable {
                         id: flick
                         anchors.fill: parent
-                        anchors.margins: 12
+                        anchors.margins: Style.spacingLg
                         contentWidth: width
                         contentHeight: view.height
                         boundsBehavior: Flickable.StopAtBounds
@@ -364,7 +364,7 @@ Scope {
                                     color: "transparent"
                                     border.color: Colors.accent
                                     border.width: 1
-                                    radius: 2
+                                    radius: Style.smallRadius
                                 }
                             }
 
@@ -391,7 +391,7 @@ Scope {
                     Rectangle {
                         visible: flick.contentHeight > flick.height
                         anchors.right: parent.right
-                        anchors.rightMargin: 2
+                        anchors.rightMargin: Style.spacingXs
                         y: 2 + (parent.height - 4 - height) * (flick.contentY / Math.max(1, flick.contentHeight - flick.height))
                         width: 3
                         height: Math.max(16, (parent.height - 4) * flick.height / flick.contentHeight)
@@ -421,7 +421,7 @@ Scope {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            radius: 4
+                            radius: Style.controlRadius
                             color: Colors.surface
                             border.color: win.noHits ? Colors.error : field.activeFocus ? Colors.borderActive : Colors.border
                             border.width: 1

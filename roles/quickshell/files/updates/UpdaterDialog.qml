@@ -6,8 +6,8 @@
 //
 // It asks; system-update (roles/recovery) does the transaction:
 //   1 check (Updates.check) -> count + package names
-//   2 "System aktualisieren?"  Nein (preselected) / Ja
-//   3 Ja: system-update --ui in the terminal, as a transient user unit
+//   2 "Update the system?"  No (preselected) / Yes
+//   3 Yes: system-update --ui in the terminal, as a transient user unit
 //     (`systemd-run --user --unit=workstation-system-update`) - sudo, the
 //     pre-update snapshot (recovery slot), the interactive `pacman -Syu`, the
 //     checks and the result all happen there. The dialog closes (the terminal
@@ -15,9 +15,9 @@
 //     Quickshell's child. A second start is refused (unit already active +
 //     system-update's own lock).
 //   4 snapshot failed (system-update exit 3, IPC snapshotFailed): pacman did
-//     NOT run. Second question "Snapshot fehlgeschlagen. Trotzdem mit dem
-//     Update fortfahren?" Nein (preselected; also Escape / click outside) /
-//     Ja = system-update --ui --no-snapshot. Only this failure has a "go on
+//     NOT run. Second question "Snapshot failed. Continue with the update
+//     anyway?" No (preselected; also Escape / click outside) /
+//     Yes = system-update --ui --no-snapshot. Only this failure has a "go on
 //     anyway": preflight (pacman lock, space, boot state), sudo, health and
 //     pacman errors end the run in the terminal, no second chance here.
 //   5 finished (IPC finished <code> <snapshot>): the result stays in the
@@ -25,7 +25,7 @@
 // The dialog offers buttons only - no free text reaches a command.
 //
 // Keys: Left/Right/Tab move between the buttons, Enter presses the selected
-// one, Escape = Nein/close. Pointer hover never changes the selection.
+// one, Escape = No/close. Pointer hover never changes the selection.
 
 import QtQuick
 import QtQuick.Layouts
@@ -34,6 +34,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs
 import qs.bar
+import qs.ui
 
 PanelWindow {
     id: dlg
@@ -50,11 +51,11 @@ PanelWindow {
 
     readonly property var buttons: {
         switch (stage) {
-        case "confirm":        return [{ id: "no", label: "Nein" }, { id: "yes", label: "Ja" }];
-        case "snapshotFailed": return [{ id: "no", label: "Nein (empfohlen)" }, { id: "yesNoSnapshot", label: "Ja", danger: true }];
-        case "checkFailed":    return [{ id: "close", label: "Schließen" }, { id: "recheck", label: "Erneut prüfen" }];
-        case "checking":       return [{ id: "close", label: "Abbrechen" }];
-        default:               return [{ id: "close", label: "Schließen" }];
+        case "confirm":        return [{ id: "no", label: "No" }, { id: "yes", label: "Yes" }];
+        case "snapshotFailed": return [{ id: "no", label: "No (recommended)" }, { id: "yesNoSnapshot", label: "Yes", danger: true }];
+        case "checkFailed":    return [{ id: "close", label: "Close" }, { id: "recheck", label: "Check again" }];
+        case "checking":       return [{ id: "close", label: "Cancel" }];
+        default:               return [{ id: "close", label: "Close" }];
         }
     }
 
@@ -100,7 +101,7 @@ PanelWindow {
         else if (Updates.status === "ok") stage = Updates.count > 0 ? "confirm" : "none";
         else {
             stage = "checkFailed";
-            detail = Updates.status === "offline" ? "Keine Internetverbindung: " + Updates.message : Updates.message;
+            detail = Updates.status === "offline" ? "No internet connection: " + Updates.message : Updates.message;
         }
         selected = 0;
     }
@@ -150,8 +151,8 @@ PanelWindow {
             } else {
                 dlg.stage = "startFailed";
                 dlg.detail = /already (loaded|exists)/.test(launchErr.text)
-                    ? "Ein Systemupdate läuft bereits."
-                    : "Das Terminal konnte nicht gestartet werden: " + Log.firstLine(launchErr.text);
+                    ? "A system update is already running."
+                    : "Could not start the terminal: " + Log.firstLine(launchErr.text);
                 dlg.selected = 0;
                 Log.warn("updates", "starting system-update failed (exit " + code + "): " + Log.firstLine(launchErr.text));
             }
@@ -172,8 +173,8 @@ PanelWindow {
     function resultText(r) {
         if (!r) return "";
         const when = Qt.formatTime(r.at, "HH:mm");
-        const snap = r.snapshot === "none" ? "OHNE neuen Pre-Update-Snapshot" : "Pre-Update-Snapshot " + r.snapshot;
-        return "Letztes Update (" + when + "): " + (r.code === 0 ? "erfolgreich" : "FEHLGESCHLAGEN (Exit " + r.code + ")") + ", " + snap + ".";
+        const snap = r.snapshot === "none" ? "WITHOUT a new pre-update snapshot" : "pre-update snapshot " + r.snapshot;
+        return "Last update (" + when + "): " + (r.code === 0 ? "succeeded" : "FAILED (exit " + r.code + ")") + ", " + snap + ".";
     }
 
     // ---- IPC "updates" ------------------------------------------------------
@@ -208,7 +209,7 @@ PanelWindow {
             Updates.updating = false;
             dlg.stage = "snapshotFailed";
             dlg.detail = message;
-            dlg.selected = 0;                      // Nein
+            dlg.selected = 0;                      // No
             dlg.visible = true;
         }
 
@@ -246,149 +247,82 @@ PanelWindow {
         Keys.onPressed: event => event.accepted = dlg.handleKey(event.key, event.modifiers)
     }
 
-    Rectangle {
-        anchors.centerIn: parent
-        width: Fonts.px(500)
-        height: box.implicitHeight + 32
-        radius: 8
-        color: Colors.background
-        border.color: Colors.borderActive
-        border.width: 1
+    DialogFrame {
+        title: dlg.stage === "snapshotFailed" ? "Snapshot failed" : "System update"
+        titleColor: dlg.stage === "snapshotFailed" ? Colors.error : Colors.foreground
 
-        MouseArea {
-            anchors.fill: parent
+        DialogText {
+            text: {
+                switch (dlg.stage) {
+                case "checking":       return "Checking for updates …";
+                case "confirm":        return (Updates.count === 1 ? "1 update available" : Updates.count + " updates available")
+                                              + " (official Arch repositories). Update the system?";
+                case "none":           return "The system is up to date - no updates from the official repositories.";
+                case "checkFailed":    return "The update check failed.";
+                case "busy":           return "A system update is running in the terminal window.";
+                case "startFailed":    return "The update was not started.";
+                case "snapshotFailed": return "The pre-update snapshot could not be created. Nothing was updated.\n\nContinue with the update anyway?";
+                }
+                return "";
+            }
         }
 
-        ColumnLayout {
-            id: box
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 16
-            spacing: 10
+        // Package list (confirm only), scrolls past ~12 rows.
+        Rectangle {
+            visible: dlg.stage === "confirm"
+            Layout.fillWidth: true
+            implicitHeight: Math.min(list.contentHeight, Math.ceil(Style.caption * 1.6) * 12) + 2 * Style.spacingSm
+            radius: Style.controlRadius
+            color: Colors.surface
 
-            Text {
-                text: dlg.stage === "snapshotFailed" ? "Snapshot fehlgeschlagen" : "Systemupdate"
-                color: dlg.stage === "snapshotFailed" ? Colors.error : Colors.foreground
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize + 1
-                font.bold: true
-            }
-
-            Text {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                color: Colors.foreground
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize
-                text: {
-                    switch (dlg.stage) {
-                    case "checking":       return "Suche nach Updates …";
-                    case "confirm":        return (Updates.count === 1 ? "1 Update verfügbar" : Updates.count + " Updates verfügbar")
-                                                  + " (offizielle Arch-Repositories). System aktualisieren?";
-                    case "none":           return "Das System ist aktuell - keine Updates aus den offiziellen Repositories.";
-                    case "checkFailed":    return "Die Update-Prüfung ist fehlgeschlagen.";
-                    case "busy":           return "Ein Systemupdate läuft gerade im Terminal-Fenster.";
-                    case "startFailed":    return "Das Update wurde nicht gestartet.";
-                    case "snapshotFailed": return "Der Pre-Update-Snapshot konnte nicht erstellt werden. Es wurde nichts aktualisiert.\n\nTrotzdem mit dem Update fortfahren?";
-                    }
-                    return "";
+            ListView {
+                id: list
+                anchors.fill: parent
+                anchors.margins: Style.spacingSm
+                clip: true
+                model: dlg.stage === "confirm" ? Updates.packages : []
+                delegate: Text {
+                    required property var modelData
+                    width: list.width
+                    elide: Text.ElideRight
+                    textFormat: Text.PlainText
+                    text: modelData.name + "  " + modelData.from + " → " + modelData.to
+                    color: Colors.foreground
+                    font.family: Fonts.family
+                    font.pixelSize: Style.caption
                 }
             }
+        }
 
-            // Package list (confirm only), scrolls past ~12 rows.
-            Rectangle {
-                visible: dlg.stage === "confirm"
-                Layout.fillWidth: true
-                implicitHeight: Math.min(list.contentHeight, Fonts.px(18) * 12) + 12
-                radius: 4
-                color: Colors.surface
+        DialogText {
+            visible: dlg.detail !== ""
+            kind: "error"
+            text: dlg.detail
+        }
 
-                ListView {
-                    id: list
-                    anchors.fill: parent
-                    anchors.margins: 6
-                    clip: true
-                    model: dlg.stage === "confirm" ? Updates.packages : []
-                    delegate: Text {
-                        required property var modelData
-                        width: list.width
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                        text: modelData.name + "  " + modelData.from + " → " + modelData.to
-                        color: Colors.foreground
-                        font.family: Fonts.family
-                        font.pixelSize: dlg.fontSize - 2
-                    }
-                }
-            }
+        DialogText {
+            visible: dlg.stage === "snapshotFailed"
+            kind: "hint"
+            text: "Yes updates WITHOUT a new snapshot (recorded in the journal: journalctl -t system-update). \"Recovery: before the last update\" then stays the state before an earlier update."
+        }
 
-            Text {
-                visible: dlg.detail !== ""
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: dlg.detail
-                color: Colors.error
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize - 1
-            }
+        DialogText {
+            visible: dlg.stage === "confirm"
+            kind: "hint"
+            text: "Yes opens the terminal: sudo password, snapshot before the update, then pacman -Syu (interactive). No automatic reboot."
+        }
 
-            Text {
-                visible: dlg.stage === "snapshotFailed"
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: "Ja aktualisiert OHNE neuen Snapshot (wird im Journal vermerkt: journalctl -t system-update). \"Recovery: before the last update\" bleibt dann der Stand vor einem früheren Update."
-                color: Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize - 2
-            }
+        DialogText {
+            visible: dlg.lastResult !== null && dlg.stage !== "snapshotFailed"
+            kind: dlg.lastResult && dlg.lastResult.code !== 0 ? "error" : "hint"
+            text: dlg.resultText(dlg.lastResult)
+        }
 
-            Text {
-                visible: dlg.stage === "confirm"
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: "Ja öffnet das Terminal: sudo-Passwort, Snapshot vor dem Update, dann pacman -Syu (interaktiv). Kein automatischer Neustart."
-                color: Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize - 2
-            }
-
-            Text {
-                visible: dlg.lastResult !== null && dlg.stage !== "snapshotFailed"
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: dlg.resultText(dlg.lastResult)
-                color: dlg.lastResult && dlg.lastResult.code !== 0 ? Colors.error : Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize - 2
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: 4
-                spacing: 8
-
-                Item { Layout.fillWidth: true }
-
-                Repeater {
-                    model: dlg.buttons
-
-                    PopupButton {
-                        required property var modelData
-                        required property int index
-                        label: dlg.starting && modelData.id.startsWith("yes") ? "…" : modelData.label
-                        primary: index === dlg.selected
-                        danger: modelData.danger === true
-                        fontSize: dlg.fontSize - 1
-                        onClicked: dlg.press(modelData.id)
-                    }
-                }
-            }
+        DialogButtons {
+            buttons: dlg.buttons.map(b => ({ id: b.id, danger: b.danger,
+                                             label: dlg.starting && b.id.startsWith("yes") ? "…" : b.label }))
+            selected: dlg.selected
+            onPressed: id => dlg.press(id)
         }
     }
 

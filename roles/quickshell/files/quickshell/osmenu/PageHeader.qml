@@ -12,7 +12,7 @@ Rectangle {
     required property var menu
 
     implicitHeight: Fonts.px(28)
-    radius: 4
+    radius: Style.controlRadius
     color: backMouse.containsMouse ? Colors.surface : "transparent"
 
     Text {
@@ -23,17 +23,17 @@ Rectangle {
         text: "\u{F0141}"               // chevron-left
         color: Colors.foregroundMuted
         font.family: Fonts.icons
-        font.pixelSize: header.menu.fontSize
+        font.pixelSize: Style.body
     }
 
     Text {
         anchors.left: chevron.right
-        anchors.leftMargin: 8
+        anchors.leftMargin: Style.spacingMd
         anchors.verticalCenter: parent.verticalCenter
         text: header.title
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: header.menu.fontSize - 1
+        font.pixelSize: Style.secondary
     }
 
     MouseArea {

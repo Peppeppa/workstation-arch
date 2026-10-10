@@ -457,16 +457,16 @@ taken before this feature existed).
 2. The system runs in the snapshot's state - **read-only, every change goes
    to RAM** and is gone at the next boot; your normal system is untouched,
    `/home` is the normal one. Package installs/updates are blocked there.
-   A strip along the bottom says **SNAPSHOT-MODUS** for the whole session,
+   A strip along the bottom says **SNAPSHOT MODE** for the whole session,
    and a dialog opens once.
-3. **Nur testen**: close the dialog and look around (the strip reopens it).
+3. **Just test**: close the dialog and look around (the strip reopens it).
    A normal reboot brings back the normal system.
-4. **Dauerhaft wiederherstellen…** -> a second question lists what changes
+4. **Restore permanently…** -> a second question lists what changes
    (/ is replaced by the snapshot; the old system stays as
    `@broken-<date>`; `/home`, `~/.config`, logs and the package cache stay;
-   this session's changes are not taken over) -> **Wiederherstellen** -> the
+   this session's changes are not taken over) -> **Restore** -> the
    dialog steps aside for the administrator password -> "Snapshot
-   wiederhergestellt" -> **Jetzt neu starten** (or later).
+   restored" -> **Reboot now** (or later).
 5. After the reboot the restored state is the normal system;
    `repo-healthcheck` shows "last snapshot restore". The old system stays
    at the Btrfs top level until you remove it (the command is printed by
@@ -512,34 +512,34 @@ boot (system-update makes no new ones); it still boots its saved system
   a partial upgrade - once when the bar starts, then every **60 minutes**,
   when the dialog opens and after an update. Offline / failed checks are
   shown as such (icon dimmed only if the last good check had updates,
-  tooltip "veraltet") - an old result is never shown as fresh.
+  tooltip "stale") - an old result is never shown as fresh.
   Manual check: `workstation-checkupdates` (JSON), `qs ipc call updates check`.
 - **OS menu -> System -> Update** (`Super+Space`, type `upd`) or the icon: the
-  dialog lists the pending packages and asks "System aktualisieren?" -
-  **Nein** is preselected (Enter on it, Escape and a click outside all
-  cancel). **Ja** opens the terminal with `system-update`: sudo password,
+  dialog lists the pending packages and asks "Update the system?" -
+  **No** is preselected (Enter on it, Escape and a click outside all
+  cancel). **Yes** opens the terminal with `system-update`: sudo password,
   the pre-update snapshot (bootable from the menu), then the interactive
   `pacman -Syu` (its own questions stay yours), the checks and the result.
   Closing the dialog never stops it; a second update cannot be started
   while one runs; no automatic reboot.
 - **Snapshot failed**: `system-update` stops before pacman (nothing
-  updated) and the dialog asks "Snapshot fehlgeschlagen. Trotzdem mit dem
-  Update fortfahren?" with the error. **Nein (empfohlen)** is preselected
-  (also Escape). **Ja** runs `system-update --no-snapshot`: no new
+  updated) and the dialog asks "Snapshot failed. Continue with the update
+  anyway?" with the error. **No (recommended)** is preselected
+  (also Escape). **Yes** runs `system-update --no-snapshot`: no new
   snapshot, the pacman hook skips its own once, the decision is logged
   (`journalctl -t system-update`) and the result says "NO new pre-update
   snapshot". Only a failed snapshot has this way past it - a pacman lock,
   too little space, a recovery boot, a refused sudo, a failed health check
   or a pacman error still end the update.
 - **OS menu -> System -> Create Snapshot**: your **three manual slots**,
-  each "Leer" or one snapshot with name, date/time, number and whether the
-  boot menu offers it ("bootfähig" / "nicht bootfähig: <why>"). **Erstellen**
-  (empty slot): an optional name (empty = "Manueller Snapshot <date time>")
-  -> created at once. **Überschreiben** (occupied): name -> "Slot n
-  überschreiben?" naming the old snapshot, **Abbrechen** preselected - the
+  each "Empty" or one snapshot with name, date/time, number and whether the
+  boot menu offers it ("bootable" / "not bootable: <why>"). **Create**
+  (empty slot): an optional name (empty = "Manual snapshot <date time>")
+  -> created at once. **Overwrite** (occupied): name -> "Overwrite slot
+  n?" naming the old snapshot, **Cancel** preselected - the
   new snapshot is made and checked first, the old one is deleted only after
-  that; a failure leaves the slot as it was. **✕**: "Snapshot löschen?" with
-  name and date, Abbrechen preselected. Keys: Up/Down, Enter, Delete,
+  that; a failure leaves the slot as it was. **✕**: "Delete the snapshot?" with
+  name and date, Cancel preselected. Keys: Up/Down, Enter, Delete,
   Escape. The active desktop session may do exactly this without a password
   (polkit `org.workstation.snapshot.create`), nothing else.
 
@@ -599,7 +599,7 @@ has "sync hidden files" on).
 Changes from outside (Nextcloud, another editor) are picked up at once
 (file watch, no polling) and on every open. If the file changes while you
 have unsaved typing in the open note, your version is saved first as
-`~/Documents/.system/scratchpad (Konflikt <date time>).md` and the window
+`~/Documents/.system/scratchpad (conflict <date time>).md` and the window
 says so - merge by hand; conflict copies (also Nextcloud's own "conflicted
 copy" files) are never deleted. The former `~/.local/share/workstation/
 scratchpad/1.txt` ... `4.txt` were moved into the file once by the bootstrap
@@ -750,14 +750,14 @@ the five **standard rules**:
 | LocalSend – Dateiübertragung | TCP 53317 | `tcp dport 53317` (IPv4 + IPv6) |
 | SSH | TCP 22 | `tcp dport 22` (IPv4 + IPv6; only on hosts with `ssh_server_enabled`) |
 
-They are ordinary rules: **Aktivieren / Deaktivieren** (the button shows
+They are ordinary rules: **Enable / Disable** (the button shows
 what is live in the kernel), **×** deletes, a click on the row's text
 **edits** it (label, port, protocol - for DHCP, DHCPv6 and LocalSend
 discovery only the label: their port is part of their restriction).
-**Hinzufügen** adds your own rule (e.g. `Test Database` / `1234` / `TCP`;
+**Add** adds your own rule (e.g. `Test Database` / `1234` / `TCP`;
 any source, IPv4 + IPv6, also Docker-published host ports) - added
-**disabled**, nothing opens until you click Aktivieren.
-**Standardregeln wiederherstellen** (bottom; asks first, Abbrechen is
+**disabled**, nothing opens until you click Enable.
+**Restore standard rules** (bottom; asks first, Cancel is
 preselected) sets the list back to the five standard rules, all active:
 your own rules are removed, deleted or disabled standard rules come back.
 
@@ -781,8 +781,8 @@ at once, without a question or warning of its own. Disabled or deleted, new
 SSH connections to this machine are blocked (also remote administration);
 established ones stay. There is no timed automatic undo on purpose: the
 editor runs only in the local desktop session, which a firewall rule cannot
-lock out - you undo it right there (Aktivieren, or Standardregeln
-wiederherstellen). **Recovery** when the
+lock out - you undo it right there (Enable, or Restore standard
+rules). **Recovery** when the
 desktop is unusable: log in on a text console (Ctrl+Alt+F3) and run
 `sudo /usr/local/libexec/workstation/firewall-rules reset` (the five
 standard rules), or `sudo systemctl stop workstation-firewall` (removes the

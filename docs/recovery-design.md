@@ -632,8 +632,8 @@ restored system's stale state is dropped and
 once at the first boot. No timer, nothing resident.
 
 **Restore** (Quickshell `updates/SnapshotMode.qml`): in a snapshot boot a
-strip on every screen + a dialog (Nur testen / Dauerhaft wiederherstellen ->
-second question with the effects, Abbrechen preselected) -> `pkexec
+strip on every screen + a dialog (Just test / Restore permanently ->
+second question with the effects, Cancel preselected) -> `pkexec
 snapshot-restore <n>` (polkit `org.workstation.snapshot.restore`,
 administrator password every time; the dialog hides while pkexec asks -
 the agent's window is a normal window) -> `system-rollback <n>`, which
@@ -642,7 +642,7 @@ between the renames), keeps the old @ as `@broken-<date>` (read-only), writes
 /var/lib/workstation/snapshot-restore.json into the new system, reads the
 snapshot's date/description from info.xml (snapper refuses to work on an
 overlay root). Only the snapshot the machine is booted from can be
-restored that way; "Jetzt neu starten" uses Hyprland's session end.
+restored that way; "Reboot now" uses Hyprland's session end.
 
 **Legacy slots**: system-update makes no new recovery slot; an existing one
 keeps working ("Recovery: ..." entry, `system-rollback <slot>`) until

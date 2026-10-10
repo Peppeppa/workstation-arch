@@ -1,20 +1,21 @@
-// Firewall -> Hinzufügen / Bearbeiten (over the Firewall window). Managed by Ansible: do
+// Firewall -> Add / Edit (over the Firewall window). Managed by Ansible: do
 // not edit by hand, see roles/quickshell in workstation-arch.
 //
-// Exactly three inputs: Bezeichnung (free text, only for the user),
-// Port (1-65535), Protokoll (TCP or UDP, any case - shown and stored
+// Exactly three inputs: Label (free text, only for the user),
+// Port (1-65535), Protocol (TCP or UDP, any case - shown and stored
 // upper-case). Nothing else - no ranges, sources, interfaces or nft syntax.
 // Checked here for feedback, decided by the root helper; the dialog closes
 // only when the helper accepted the rule. A new rule is added DISABLED -
-// the port opens only with the row's "Aktivieren" (no accidental exposure
+// the port opens only with the row's "Enable" (no accidental exposure
 // from a typo). With `rule` set (a click on a row's text) the same dialog
-// edits that rule ("Speichern"): label, port, protocol - for a factory rule
+// edits that rule ("Save"): label, port, protocol - for a factory rule
 // with a fixed restriction (DHCP, DHCPv6, LocalSend discovery: `fixed`)
-// only the label. Escape / a click outside / Abbrechen closes.
+// only the label. Escape / a click outside / Cancel closes.
 
 import QtQuick
 import QtQuick.Layouts
 import qs
+import qs.ui
 import qs.bar
 
 Item {
@@ -30,7 +31,7 @@ Item {
     property bool waiting: false        // our add is running in the helper
     readonly property string inputError: model.labelError(labelField.text)
         || model.portError(portField.text)
-        || (model.normalizeProtocol(protoField.text) === "" ? "Protokoll: TCP oder UDP." : "")
+        || (model.normalizeProtocol(protoField.text) === "" ? "Protocol: TCP or UDP." : "")
     readonly property string message: waiting ? "" : tried && inputError !== "" ? inputError : model.errorText
 
     function reset() {
@@ -85,7 +86,7 @@ Item {
     component Caption: Text {
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: dialog.fontSize - 1
+        font.pixelSize: Style.secondary
     }
 
     component Field: Rectangle {
@@ -96,10 +97,9 @@ Item {
         property Item tabTarget: null
         property Item backtabTarget: null
         property bool locked: false
-        opacity: locked ? 0.6 : 1
         Layout.fillWidth: true
         implicitHeight: Fonts.px(30)
-        radius: 4
+        radius: Style.controlRadius
         color: Colors.surface
         border.color: input.activeFocus ? Colors.borderActive : Colors.border
         border.width: 1
@@ -108,15 +108,15 @@ Item {
             id: input
             readOnly: field.locked
             anchors.fill: parent
-            anchors.leftMargin: 8
-            anchors.rightMargin: 8
+            anchors.leftMargin: Style.spacingMd
+            anchors.rightMargin: Style.spacingMd
             verticalAlignment: TextInput.AlignVCenter
             clip: true
-            color: Colors.foreground
+            color: field.locked ? Colors.foregroundMuted : Colors.foreground
             selectionColor: Colors.accent
             selectedTextColor: Colors.accentForeground
             font.family: Fonts.family
-            font.pixelSize: dialog.fontSize - 1
+            font.pixelSize: Style.secondary
             Keys.onReturnPressed: dialog.submit()
             Keys.onEnterPressed: dialog.submit()
             Keys.onEscapePressed: dialog.done()
@@ -133,90 +133,64 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.centerIn: parent
-        width: Fonts.px(480)
-        height: Math.min(box.implicitHeight + 32, dialog.height - 80)
-        radius: 8
-        color: Colors.background
-        border.color: Colors.borderActive
-        border.width: 1
+    DialogFrame {
+        panelWidth: Style.standardPanelWidth
+        title: dialog.rule ? "Edit rule" : "Add rule"
 
-        MouseArea {
-            anchors.fill: parent
+        Caption { text: "Label" }
+        Field {
+            id: labelField
+            placeholder: "e.g. Test Database"
+            tabTarget: portField.input
         }
 
-        ColumnLayout {
-            id: box
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 16
-            spacing: 8
+        Caption { text: "Port" }
+        Field {
+            id: portField
+            locked: dialog.fixed
+            placeholder: "1 to 65535, e.g. 1234"
+            tabTarget: protoField.input
+            backtabTarget: labelField.input
+        }
 
+        Caption { text: "Protocol" }
+        Field {
+            id: protoField
+            locked: dialog.fixed
+            placeholder: "TCP or UDP"
+            backtabTarget: portField.input
+        }
+
+        Caption {
+            visible: dialog.fixed
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: "Standard rule with a fixed restriction - port and protocol are fixed, only the label can be changed."
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Style.spacingXs
             Text {
-                text: dialog.rule ? "Regel bearbeiten" : "Regel hinzufügen"
-                color: Colors.foreground
-                font.family: Fonts.family
-                font.pixelSize: dialog.fontSize + 1
-                font.bold: true
-            }
-
-            Caption { text: "Bezeichnung" }
-            Field {
-                id: labelField
-                placeholder: "z. B. Test Database"
-                tabTarget: portField.input
-            }
-
-            Caption { text: "Port" }
-            Field {
-                id: portField
-                locked: dialog.fixed
-                placeholder: "1 bis 65535, z. B. 1234"
-                tabTarget: protoField.input
-                backtabTarget: labelField.input
-            }
-
-            Caption { text: "Protokoll" }
-            Field {
-                id: protoField
-                locked: dialog.fixed
-                placeholder: "TCP oder UDP"
-                backtabTarget: portField.input
-            }
-
-            Caption {
-                visible: dialog.fixed
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "Standardregel mit fester Einschränkung - Port und Protokoll sind fest, nur die Bezeichnung ist änderbar."
+                textFormat: Text.PlainText
+                text: dialog.message
+                color: Colors.error
+                font.family: Fonts.family
+                font.pixelSize: Style.caption
             }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: 2
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    text: dialog.message
-                    color: Colors.error
-                    font.family: Fonts.family
-                    font.pixelSize: dialog.fontSize - 2
-                }
-                PopupButton {
-                    label: "Abbrechen"
-                    fontSize: dialog.fontSize - 1
-                    onClicked: dialog.done()
-                }
-                PopupButton {
-                    primary: dialog.inputError === "" && !dialog.model.busy
-                    opacity: primary ? 1 : 0.6
-                    label: dialog.waiting ? "…" : dialog.rule ? "Speichern" : "Hinzufügen"
-                    fontSize: dialog.fontSize - 1
-                    onClicked: dialog.submit()
-                }
+            PopupButton {
+                label: "Cancel"
+                fontSize: Style.secondary
+                onClicked: dialog.done()
+            }
+            PopupButton {
+                primary: dialog.inputError === "" && !dialog.model.busy
+                muted: !primary
+                label: dialog.waiting ? "…" : dialog.rule ? "Save" : "Add"
+                fontSize: Style.secondary
+                onClicked: dialog.submit()
             }
         }
     }

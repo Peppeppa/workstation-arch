@@ -16,12 +16,12 @@ ColumnLayout {
     required property int fontSize
     property bool expanded: false
 
-    spacing: 2
+    spacing: Style.spacingXs
 
     Rectangle {
         Layout.fillWidth: true
         implicitHeight: Fonts.px(32)
-        radius: 4
+        radius: Style.controlRadius
         color: Colors.surface
         border.color: sel.expanded || headMouse.containsMouse ? Colors.borderActive : Colors.border
         border.width: 1
@@ -36,7 +36,7 @@ ColumnLayout {
             textFormat: Text.PlainText
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: sel.fontSize
+            font.pixelSize: Style.body
         }
 
         Text {
@@ -47,7 +47,7 @@ ColumnLayout {
             text: sel.expanded ? "\u{F0143}" : "\u{F0140}"
             color: Colors.foregroundMuted
             font.family: Fonts.icons
-            font.pixelSize: sel.fontSize
+            font.pixelSize: Style.body
         }
 
         MouseArea {
@@ -67,7 +67,7 @@ ColumnLayout {
             readonly property bool current: modelData.id === sel.model.selectedId(sel.slot)
             Layout.fillWidth: true
             implicitHeight: Fonts.px(30)
-            radius: 4
+            radius: Style.controlRadius
             color: optMouse.containsMouse ? Colors.accent : "transparent"
 
             Text {
@@ -78,7 +78,7 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 color: optMouse.containsMouse ? Colors.accentForeground : Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: sel.fontSize
+                font.pixelSize: Style.body
             }
 
             Text {
@@ -89,7 +89,7 @@ ColumnLayout {
                 text: "\u{F012C}"           // check
                 color: optMouse.containsMouse ? Colors.accentForeground : Colors.accent
                 font.family: Fonts.icons
-                font.pixelSize: sel.fontSize
+                font.pixelSize: Style.body
             }
 
             MouseArea {

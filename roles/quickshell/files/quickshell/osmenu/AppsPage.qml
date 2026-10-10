@@ -50,7 +50,7 @@ FocusScope {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 8
+        spacing: Style.spacingMd
 
         PageHeader {
             id: header
@@ -62,7 +62,7 @@ FocusScope {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: Fonts.px(36)
-            radius: 4
+            radius: Style.controlRadius
             color: Colors.surface
             border.color: Colors.borderActive
             border.width: 1
@@ -70,10 +70,10 @@ FocusScope {
             TextInput {
                 id: searchInput
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.margins: Style.spacingMd
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: page.menu.fontSize + 2
+                font.pixelSize: Style.title
                 clip: true
 
                 onTextChanged: page.query = text
@@ -108,7 +108,7 @@ FocusScope {
                 readonly property bool selected: index === page.selectedIndex
                 width: ListView.view.width
                 height: page.rowHeight
-                radius: 4
+                radius: Style.controlRadius
                 color: selected ? Colors.accent : "transparent"
 
                 // App icon (theme lookup; "" when the theme has none)
@@ -155,7 +155,7 @@ FocusScope {
                     text: resultDelegate.modelData.name
                     color: resultDelegate.selected ? Colors.accentForeground : Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: page.menu.fontSize
+                    font.pixelSize: Style.body
                     elide: Text.ElideRight
                 }
 

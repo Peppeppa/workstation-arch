@@ -239,9 +239,9 @@ PanelWindow {
     Rectangle {
         id: panel
         anchors.centerIn: parent
-        width: Fonts.px(260)
+        width: Style.fitWidth(Style.narrowPanelWidth, menu.width)
         implicitHeight: content.implicitHeight + 20
-        radius: 8
+        radius: Style.panelRadius
         color: Colors.background
         border.color: Colors.borderActive
         border.width: 1
@@ -258,15 +258,15 @@ PanelWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: 10
-            spacing: 4   // uniform gap between all entries
+            spacing: Style.spacingSm   // uniform gap between all entries
 
             // The search field: always focused while open; keys it does
             // not use for text go to handleKey first.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.bottomMargin: 4
+                Layout.bottomMargin: Style.spacingSm
                 implicitHeight: Fonts.px(32)
-                radius: 4
+                radius: Style.controlRadius
                 color: Colors.surface
                 border.color: Colors.borderActive
                 border.width: 1
@@ -279,7 +279,7 @@ PanelWindow {
                     text: "System - type to search"
                     color: Colors.foregroundMuted
                     font.family: Fonts.family
-                    font.pixelSize: menu.fontSize
+                    font.pixelSize: Style.body
                 }
 
                 TextInput {
@@ -294,7 +294,7 @@ PanelWindow {
                     selectionColor: Colors.accent
                     selectedTextColor: Colors.accentForeground
                     font.family: Fonts.family
-                    font.pixelSize: menu.fontSize
+                    font.pixelSize: Style.body
                     onTextChanged: menu.setQuery(text)
                     Keys.onPressed: event => event.accepted = menu.handleKey(event.key)
                 }
@@ -308,7 +308,7 @@ PanelWindow {
                 text: "No matching action"
                 color: Colors.foregroundMuted
                 font.family: Fonts.family
-                font.pixelSize: menu.fontSize
+                font.pixelSize: Style.body
             }
 
             Repeater {
@@ -324,7 +324,7 @@ PanelWindow {
 
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(36)
-                    radius: 4
+                    radius: Style.controlRadius
                     color: selected ? Colors.accent : "transparent"
 
                     RowLayout {
@@ -338,7 +338,7 @@ PanelWindow {
                             horizontalAlignment: Text.AlignHCenter
                             text: row.modelData.icon
                             font.family: Fonts.icons
-                            font.pixelSize: menu.fontSize + 2
+                            font.pixelSize: Style.title
                             color: row.modelData.danger && !row.selected ? Colors.error : row.fg
                         }
 
@@ -346,7 +346,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             text: row.modelData.label
                             font.family: Fonts.family
-                            font.pixelSize: menu.fontSize
+                            font.pixelSize: Style.body
                             color: row.fg
                         }
 
@@ -354,7 +354,7 @@ PanelWindow {
                             visible: !row.modelData.available
                             text: row.modelData.hint || ""
                             font.family: Fonts.family
-                            font.pixelSize: menu.fontSize - 2
+                            font.pixelSize: Style.caption
                             color: row.selected ? Colors.accentForeground : Colors.foregroundMuted
                         }
                     }

@@ -3,7 +3,7 @@
 never deployed, never run by Ansible).
 
 Run ON the test machine, as the desktop user, inside the graphical session:
-    qs-candidate-check.py <repo-source-dir> [seconds=8]
+    qs-candidate-check.py <repo-source-dir> [seconds=8] [target:fn[:arg] ...]
 <repo-source-dir> holds roles/, group_vars/, host_vars/ of the candidate
 (e.g. copied there with tar). The tool
   1. copies the DEPLOYED ~/.config/quickshell to /tmp/qs-candidate,
@@ -16,6 +16,12 @@ Run ON the test machine, as the desktop user, inside the graphical session:
      Quickshell's environment under a 4 GB address-space limit and a hard
      timeout, waits for "Configuration Loaded" (or an error), lets it run
      <seconds>, terminates it and prints a JSON report of ERROR/WARN lines.
+With actions: after loading, each `qs ipc -p <config> call target fn [arg]`
+runs on the TEST instance, then (only if no hyprlock is running - a locked
+session is never screenshotted as if it were the desktop) one grim
+screenshot to /tmp/qs-candidate-shots/NN-target-fn.png, then
+`shell closeActive`. Only read-only surfaces belong in the list (never
+firewall/scratchpad: pkexec prompt / a second writer of the note file).
 The running desktop is not touched; a second bar is visible for a moment.
 Exit 0 = loaded without QML errors.
 """
@@ -26,6 +32,8 @@ import yaml
 
 SRC = os.path.abspath(sys.argv[1])
 SECONDS = int(sys.argv[2]) if len(sys.argv) > 2 else 8
+ACTIONS = sys.argv[3:]
+SHOTS = "/tmp/qs-candidate-shots"
 DEST = "/tmp/qs-candidate"
 HOME = os.path.expanduser("~")
 QS = os.path.join(SRC, "roles/quickshell")
@@ -125,6 +133,7 @@ p = subprocess.Popen(["prlimit", "--as=4000000000", "timeout", str(SECONDS + 25)
                      env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
 os.set_blocking(p.stdout.fileno(), False)
 lines, loaded = [], None
+shots, locked, ipc_errors = [], False, []
 while time.monotonic() - t0 < SECONDS + 20:
     try:
         l = p.stdout.readline()
@@ -143,6 +152,41 @@ while time.monotonic() - t0 < SECONDS + 20:
         if loaded is not None and time.monotonic() > deadline:
             break
         time.sleep(0.02)
+    if loaded is not None and ACTIONS and p.poll() is None:
+        shots, locked = [], any(open("/proc/%s/comm" % q).read().strip() == "hyprlock"
+                                for q in os.listdir("/proc") if q.isdigit() and os.path.exists("/proc/%s/comm" % q))
+        shutil.rmtree(SHOTS, ignore_errors=True)
+        os.makedirs(SHOTS)
+        qpid = None                      # the test quickshell (a child of timeout)
+        for q in os.listdir("/proc"):
+            try:
+                if q.isdigit() and open("/proc/%s/cmdline" % q, "rb").read().split(b"\0")[:3] == [b"quickshell", b"-p", DEST.encode()]:
+                    qpid = q
+            except OSError:
+                pass
+        ipc = ["timeout", "5", "qs", "ipc", "--pid", str(qpid), "call"]
+        ipc_errors = []
+        for n, a in enumerate(ACTIONS):
+            parts = a.split(":")
+            r = subprocess.run(ipc + parts, env=env, capture_output=True, text=True)
+            if r.returncode != 0:
+                ipc_errors.append("%s: %s" % (a, (r.stderr or r.stdout).strip()[:200]))
+            time.sleep(1.5)
+            if not locked:
+                f = os.path.join(SHOTS, "%02d-%s.png" % (n, "-".join(parts)))
+                subprocess.run(["timeout", "10", "grim", f], env=env, capture_output=True)
+                shots.append(f)
+            subprocess.run(ipc + ["shell", "closeActive"], env=env, capture_output=True)
+            time.sleep(0.5)
+        try:
+            while True:
+                l = p.stdout.readline()
+                if not l:
+                    break
+                lines.append(l.rstrip())
+        except (IOError, TypeError):
+            pass
+        break
 try:
     os.killpg(p.pid, signal.SIGTERM)
     p.wait(10)
@@ -155,9 +199,13 @@ try:
     lines += [l.rstrip() for l in (p.stdout.read() or "").splitlines()]
 except (IOError, TypeError, ValueError):
     pass
-noise = re.compile(r"locale|UTF-8|reconfigure your locale|for more information")
+noise = re.compile(r"locale|UTF-8|reconfigure your locale|for more information|qt.qpa.wayland.textinput")
 errors = [l for l in lines if re.search(r"ERROR|TypeError|ReferenceError|Binding loop|is not a type|Cannot (read|assign)", l)]
 warns = [l for l in lines if "WARN" in l and not noise.search(l) and l not in errors]
 shutil.rmtree(DEST, ignore_errors=True)
-print(json.dumps({"loaded_s": loaded, "errors": errors[:40], "warnings": warns[:40]}, indent=1, ensure_ascii=False))
+report = {"loaded_s": loaded, "errors": errors[:40], "warnings": warns[:40]}
+if ACTIONS:
+    report["screenshots"] = "locked session - none taken" if locked else shots
+    report["ipc_errors"] = ipc_errors
+print(json.dumps(report, indent=1, ensure_ascii=False))
 sys.exit(0 if loaded is not None and not errors else 1)

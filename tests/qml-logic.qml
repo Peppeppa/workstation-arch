@@ -559,7 +559,7 @@ QtObject {
         st.stage = "checking"; st.Updates.count = 0; settle();
         eq("updater: none -> none", st.stage, "none");
         st.stage = "checking"; st.Updates.status = "offline"; st.Updates.message = "nm: none"; settle();
-        eq("updater: offline -> checkFailed", [st.stage, st.detail], ["checkFailed", "Keine Internetverbindung: nm: none"]);
+        eq("updater: offline -> checkFailed", [st.stage, st.detail], ["checkFailed", "No internet connection: nm: none"]);
         st.stage = "confirm"; settle();
         eq("updater: settle only while checking", st.stage, "confirm");
 
@@ -582,7 +582,7 @@ QtObject {
         const sc = {};
         sc.pad = make(sd, "pad", sc);
         const label = make(sd, "labelFor", sc);
-        eq("snapshot: empty -> date/time", label("   ", now), { label: "Manueller Snapshot 2026-10-10 12:00", error: "" });
+        eq("snapshot: empty -> date/time", label("   ", now), { label: "Manual snapshot 2026-10-10 12:00", error: "" });
         eq("snapshot: text kept, trimmed", label("  Vor Installation von Software ", now).label, "Vor Installation von Software");
         eq("snapshot: special characters kept literally", label('a "b" $(c) `d` ; ä', now).label, 'a "b" $(c) `d` ; ä');
         eq("snapshot: tab rejected", label("a\tb", now).label, "");
@@ -599,7 +599,7 @@ QtObject {
         eq("slots: delete passes the shown number", argv("delete", full, ""), ["pkexec", H, "delete", "1", "35"]);
         const stx = make(sd, "statusText", {});
         eq("slots: status lines", [stx(full), stx({ empty: false, status: "not-bootable", reason: "no stored UKI" }), stx({ empty: false, status: "unknown" }), stx(empty)],
-           ["bootfähig", "nicht bootfähig: no stored UKI", "Bootstatus noch unbekannt", ""]);
+           ["bootable", "not bootable: no stored UKI", "boot status not known yet", ""]);
         const fl = make(sd, "failure", {});
         eq("slots: helper reason without prefix", fl(1, "snapshot-boot: slot 1 holds snapshot 36 - overwrite it only after confirming that one\n"),
            "slot 1 holds snapshot 36 - overwrite it only after confirming that one");
@@ -663,7 +663,7 @@ QtObject {
         const ext2 = compose(["second remote edit", "", "", ""]);
         adopt(ext2);
         eq("scratchpad: conflict copy has the local typing", parse(writes[0], 4)[0], "my unsaved typing");
-        eq("scratchpad: conflict copy next to the file", st.conflictView.path.startsWith("/d/scratchpad (Konflikt "), true);
+        eq("scratchpad: conflict copy next to the file", st.conflictView.path.startsWith("/d/scratchpad (conflict "), true);
         eq("scratchpad: remote version taken over + shown + notice", [st.notes[0], shown, st.notice !== ""], ["second remote edit", 1, true]);
     }
 
@@ -774,7 +774,7 @@ QtObject {
         key(Qt.Key_Escape); key(Qt.Key_Right); key(Qt.Key_Return);
         eq("keys: Escape = Abbrechen, Right + Enter = Wiederherstellen", ks.pressed, ["cancel", "yes"]);
         const fail = make(sm, "failure", scope);
-        eq("pkexec dismissed", fail(126, ""), "Keine Berechtigung (polkit) - es wurde nichts verändert.");
+        eq("pkexec dismissed", fail(126, ""), "Not authorized (polkit) - nothing was changed.");
         eq("helper reason shown", fail(1, "snapshot-restore: booted from snapshot 29, not 30\n"), "booted from snapshot 29, not 30");
     }
 
