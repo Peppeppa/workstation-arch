@@ -61,7 +61,7 @@ FocusScope {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Fonts.px(36)
+            implicitHeight: Style.comfortableRowHeight
             radius: Style.controlRadius
             color: Colors.surface
             border.color: Colors.borderActive
@@ -119,10 +119,10 @@ FocusScope {
                 Item {
                     id: iconBox
                     anchors.left: parent.left
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 22
-                    height: 22
+                    width: Style.iconLarge
+                    height: Style.iconLarge
 
                     Image {
                         id: appIcon
@@ -142,7 +142,7 @@ FocusScope {
                         text: "\u{F08C6}"          // generic application glyph
                         color: resultDelegate.selected ? Colors.accentForeground : Colors.foregroundMuted
                         font.family: Fonts.icons
-                        font.pixelSize: 18
+                        font.pixelSize: Style.text(18)
                     }
                 }
 
@@ -150,8 +150,8 @@ FocusScope {
                     anchors.left: iconBox.right
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
+                    anchors.leftMargin: Style.spacingMd
+                    anchors.rightMargin: Style.spacingMd
                     text: resultDelegate.modelData.name
                     color: resultDelegate.selected ? Colors.accentForeground : Colors.foreground
                     font.family: Fonts.family

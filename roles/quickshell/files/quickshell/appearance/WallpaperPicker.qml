@@ -47,7 +47,7 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: Style.spacingXl
-            spacing: 10
+            spacing: Style.spacingMd
 
             Text {
                 text: "Wallpaper  ·  " + (picker.model.wallpaper ? picker.model.nameOf(picker.model.activeMode(), picker.model.wallpaper.theme) : "")
@@ -93,7 +93,7 @@ Item {
                             visible: cell.modelData.animated
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            anchors.margins: 6
+                            anchors.margins: Style.spacingSm
                             text: "GIF"
                             color: Colors.accentForeground
                             font.family: Fonts.family
@@ -133,7 +133,7 @@ Item {
             Rectangle {
                 Layout.alignment: Qt.AlignRight
                 implicitWidth: cancelText.implicitWidth + 24
-                implicitHeight: Fonts.px(28)
+                implicitHeight: Style.compactRowHeight
                 radius: Style.controlRadius
                 color: cancelMouse.containsMouse ? Colors.surface : "transparent"
                 border.color: Colors.border

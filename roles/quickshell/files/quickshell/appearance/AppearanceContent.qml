@@ -61,7 +61,7 @@ FocusScope {
         property bool current: false
         signal picked
         Layout.fillWidth: true
-        implicitHeight: Fonts.px(28)
+        implicitHeight: Style.compactRowHeight
         radius: Style.controlRadius
         color: current ? Colors.accent : chipMouse.containsMouse ? Colors.surface : "transparent"
         border.color: current ? Colors.accent : Colors.border
@@ -85,7 +85,7 @@ FocusScope {
     }
 
     component SectionTitle: Text {
-        Layout.topMargin: 10
+        Layout.topMargin: Style.spacingLg
         color: Colors.foreground
         font.family: Fonts.family
         font.pixelSize: Style.body
@@ -125,7 +125,7 @@ FocusScope {
             ColumnLayout {
                 id: column
                 width: parent.width
-                spacing: 6
+                spacing: Style.spacingSm
 
                 Text {
                     text: "Appearance"
@@ -138,7 +138,7 @@ FocusScope {
                 // ---- Theme ----------------------------------------------
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: 10
+                    Layout.topMargin: Style.spacingLg
                     Text {
                         Layout.fillWidth: true
                         text: "Theme"

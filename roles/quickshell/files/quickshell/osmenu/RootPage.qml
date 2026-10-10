@@ -78,16 +78,16 @@ FocusScope {
                 readonly property bool selected: index === page.index
 
                 Layout.fillWidth: true
-                implicitHeight: Fonts.px(34)
+                implicitHeight: Style.comfortableRowHeight
                 radius: Style.controlRadius
                 color: selected ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
                 Text {
                     id: rowIcon
                     anchors.left: parent.left
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Fonts.px(22)
+                    width: Style.iconLarge
                     horizontalAlignment: Text.AlignHCenter
                     text: row.modelData.icon
                     color: row.selected ? Colors.accentForeground : Colors.foreground
@@ -97,7 +97,7 @@ FocusScope {
 
                 Text {
                     anchors.left: rowIcon.right
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.label
                     color: row.selected ? Colors.accentForeground : Colors.foreground
@@ -108,7 +108,7 @@ FocusScope {
                 Text {
                     visible: row.modelData.sub
                     anchors.right: parent.right
-                    anchors.rightMargin: 10
+                    anchors.rightMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u{F0142}"           // chevron-right: opens a page
                     color: row.selected ? Colors.accentForeground : Colors.foregroundMuted

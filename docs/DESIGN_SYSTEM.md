@@ -102,6 +102,16 @@ then their own numbers stay - no partial edits outside a phase.
   edge, clipboard/scratchpad heights 420/380 (`Style.grow`), the Bluetooth
   popup dimming the other devices during a pairing (row `opacity`, the one
   remaining use; whole row incl. icons).
+- Launcher and small surfaces (phase 4 done): menu/launcher rows (OS menu
+  root 34 -> 36, search and Applications, power menu actions) =
+  `comfortableRowHeight`, list rows 32 / fields 30 -> `standardRowHeight`,
+  tabs/chips 28 = `compactRowHeight`; panel padding 10 -> `spacingLg`, row
+  text inset 10 -> `spacingMd`, 6 px gaps -> `spacingSm`; app icons
+  `iconLarge`; cheatsheet/scratchpad type on `body`/`secondary`/`caption`.
+  Stays: thumbnails and cards radius 6 (Appearance wallpaper, picker grid),
+  the wallpaper picker grid (620, 320x180 thumbnails), the scratchpad's 3 px
+  marks and its own adjustable editor font, the bar's workspace dots and
+  tray slots (bar geometry).
 - The wallpaper picker's thumbnail grid (620) is wider than `widePanelWidth`
   by its content.
 - hyprlock and Hyprland are not QML: their sizes are set in their

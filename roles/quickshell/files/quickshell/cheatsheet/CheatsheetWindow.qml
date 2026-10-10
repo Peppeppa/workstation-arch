@@ -261,7 +261,7 @@ Scope {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 10
+                anchors.margins: Style.spacingLg
                 spacing: Style.spacingMd
 
                 // ---- tabs + close ----
@@ -278,7 +278,7 @@ Scope {
                             required property int index
                             readonly property bool current: index === root.tab
                             implicitWidth: tabLabel.implicitWidth + Fonts.px(24)
-                            implicitHeight: Fonts.px(28)
+                            implicitHeight: Style.compactRowHeight
                             radius: Style.controlRadius
                             color: current ? Colors.surface : tabMouse.containsMouse ? Colors.surface : "transparent"
                             border.color: current ? Colors.borderActive : "transparent"
@@ -290,7 +290,7 @@ Scope {
                                 text: tabItem.modelData.title
                                 color: tabItem.current ? Colors.accent : Colors.foreground
                                 font.family: Fonts.family
-                                font.pixelSize: Fonts.px(13)
+                                font.pixelSize: Style.body
                                 font.bold: tabItem.current
                             }
 
@@ -308,7 +308,7 @@ Scope {
 
                     PopupButton {
                         label: "\u{F0156}"              // close
-                        fontSize: Fonts.px(13)
+                        fontSize: Style.body
                         onClicked: root.close()
                     }
                 }
@@ -348,7 +348,7 @@ Scope {
                             selectionColor: Colors.accent
                             selectedTextColor: Colors.accentForeground
                             font.family: Fonts.family
-                            font.pixelSize: Fonts.px(13)
+                            font.pixelSize: Style.body
                             onWidthChanged: if (win.matches.length > 0) win.updateBoxes()
 
                             // Every hit outlined; the current one is the selection.
@@ -408,13 +408,13 @@ Scope {
                     RowLayout {
                         anchors.fill: parent
                         visible: win.mode !== "normal"
-                        spacing: 6
+                        spacing: Style.spacingSm
 
                         Text {
                             text: "/"
                             color: Colors.accent
                             font.family: Fonts.family
-                            font.pixelSize: Fonts.px(13)
+                            font.pixelSize: Style.body
                             font.bold: true
                         }
 
@@ -429,15 +429,15 @@ Scope {
                             TextInput {
                                 id: field
                                 anchors.fill: parent
-                                anchors.leftMargin: 6
-                                anchors.rightMargin: 6
+                                anchors.leftMargin: Style.spacingSm
+                                anchors.rightMargin: Style.spacingSm
                                 verticalAlignment: TextInput.AlignVCenter
                                 readOnly: win.mode !== "input"
                                 color: Colors.foreground
                                 selectionColor: Colors.accent
                                 selectedTextColor: Colors.accentForeground
                                 font.family: Fonts.family
-                                font.pixelSize: Fonts.px(13)
+                                font.pixelSize: Style.body
                                 clip: true
                                 onTextEdited: win.noHits = false
                                 Keys.onPressed: event => {
@@ -456,7 +456,7 @@ Scope {
                                 : "Enter search · Esc cancel"
                             color: win.noHits ? Colors.error : Colors.foregroundMuted
                             font.family: Fonts.family
-                            font.pixelSize: Fonts.px(12)
+                            font.pixelSize: Style.secondary
                         }
                     }
 
@@ -466,7 +466,7 @@ Scope {
                         text: "Tab document · j/k scroll · / search · Esc close"
                         color: Colors.foregroundMuted
                         font.family: Fonts.family
-                        font.pixelSize: Fonts.px(12)
+                        font.pixelSize: Style.secondary
                     }
                 }
             }

@@ -11,14 +11,14 @@ Rectangle {
     required property string title
     required property var menu
 
-    implicitHeight: Fonts.px(28)
+    implicitHeight: Style.compactRowHeight
     radius: Style.controlRadius
     color: backMouse.containsMouse ? Colors.surface : "transparent"
 
     Text {
         id: chevron
         anchors.left: parent.left
-        anchors.leftMargin: 6
+        anchors.leftMargin: Style.spacingSm
         anchors.verticalCenter: parent.verticalCenter
         text: "\u{F0141}"               // chevron-left
         color: Colors.foregroundMuted

@@ -62,7 +62,7 @@ Item {
         property string value
         readonly property bool current: dialog.mode === value
         Layout.fillWidth: true
-        implicitHeight: Fonts.px(28)
+        implicitHeight: Style.compactRowHeight
         radius: Style.controlRadius
         color: current ? Colors.accent : chipMouse.containsMouse ? Colors.surface : "transparent"
         border.color: current ? Colors.accent : Colors.border
@@ -99,7 +99,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Fonts.px(30)
+            implicitHeight: Style.standardRowHeight
             radius: Style.controlRadius
             color: Colors.surface
             border.color: urlField.activeFocus ? Colors.borderActive : Colors.border
@@ -135,7 +135,7 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Style.spacingSm
             ModeChip { value: "dark" }
             ModeChip { value: "light" }
         }
@@ -185,13 +185,13 @@ Item {
                 required property var modelData
                 readonly property bool current: dialog.chosen === modelData.id
                 Layout.fillWidth: true
-                implicitHeight: Fonts.px(30)
+                implicitHeight: Style.standardRowHeight
                 radius: Style.controlRadius
                 color: current ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
                 Text {
                     anchors.left: parent.left
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.name
                     color: row.current ? Colors.accentForeground : Colors.foreground
@@ -201,7 +201,7 @@ Item {
 
                 Text {
                     anchors.right: parent.right
-                    anchors.rightMargin: 10
+                    anchors.rightMargin: Style.spacingMd
                     anchors.verticalCenter: parent.verticalCenter
                     text: (row.modelData.mode === "dark" ? "Dark" : "Light")
                         + (row.modelData.bundled ? "  ·  bundled" : "")

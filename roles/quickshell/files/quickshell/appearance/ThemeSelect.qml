@@ -20,7 +20,7 @@ ColumnLayout {
 
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: Fonts.px(32)
+        implicitHeight: Style.standardRowHeight
         radius: Style.controlRadius
         color: Colors.surface
         border.color: sel.expanded || headMouse.containsMouse ? Colors.borderActive : Colors.border
@@ -28,7 +28,7 @@ ColumnLayout {
 
         Text {
             anchors.left: parent.left
-            anchors.leftMargin: 10
+            anchors.leftMargin: Style.spacingMd
             anchors.right: chevron.left
             anchors.verticalCenter: parent.verticalCenter
             text: sel.model.status ? sel.model.nameOf(sel.slot, sel.model.selectedId(sel.slot)) : "…"
@@ -42,7 +42,7 @@ ColumnLayout {
         Text {
             id: chevron
             anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.rightMargin: Style.spacingMd
             anchors.verticalCenter: parent.verticalCenter
             text: sel.expanded ? "\u{F0143}" : "\u{F0140}"
             color: Colors.foregroundMuted
@@ -66,13 +66,13 @@ ColumnLayout {
             required property var modelData
             readonly property bool current: modelData.id === sel.model.selectedId(sel.slot)
             Layout.fillWidth: true
-            implicitHeight: Fonts.px(30)
+            implicitHeight: Style.standardRowHeight
             radius: Style.controlRadius
             color: optMouse.containsMouse ? Colors.accent : "transparent"
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: 10
+                anchors.leftMargin: Style.spacingMd
                 anchors.verticalCenter: parent.verticalCenter
                 text: option.modelData.name
                 textFormat: Text.PlainText
@@ -84,7 +84,7 @@ ColumnLayout {
             Text {
                 visible: option.current
                 anchors.right: parent.right
-                anchors.rightMargin: 10
+                anchors.rightMargin: Style.spacingMd
                 anchors.verticalCenter: parent.verticalCenter
                 text: "\u{F012C}"           // check
                 color: optMouse.containsMouse ? Colors.accentForeground : Colors.accent

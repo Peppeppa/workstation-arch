@@ -257,7 +257,7 @@ PanelWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 10
+            anchors.margins: Style.spacingLg
             spacing: Style.spacingSm   // uniform gap between all entries
 
             // The search field: always focused while open; keys it does
@@ -265,7 +265,7 @@ PanelWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.bottomMargin: Style.spacingSm
-                implicitHeight: Fonts.px(32)
+                implicitHeight: Style.standardRowHeight
                 radius: Style.controlRadius
                 color: Colors.surface
                 border.color: Colors.borderActive
@@ -273,7 +273,7 @@ PanelWindow {
 
                 Text {
                     anchors.fill: parent
-                    anchors.leftMargin: 10
+                    anchors.leftMargin: Style.spacingMd
                     verticalAlignment: Text.AlignVCenter
                     visible: search.text === ""
                     text: "System - type to search"
@@ -285,8 +285,8 @@ PanelWindow {
                 TextInput {
                     id: search
                     anchors.fill: parent
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
+                    anchors.leftMargin: Style.spacingMd
+                    anchors.rightMargin: Style.spacingMd
                     verticalAlignment: TextInput.AlignVCenter
                     focus: true
                     clip: true
@@ -302,9 +302,9 @@ PanelWindow {
 
             Text {
                 visible: menu.shown.length === 0
-                Layout.leftMargin: 10
-                Layout.topMargin: 6
-                Layout.bottomMargin: 6
+                Layout.leftMargin: Style.spacingMd
+                Layout.topMargin: Style.spacingSm
+                Layout.bottomMargin: Style.spacingSm
                 text: "No matching action"
                 color: Colors.foregroundMuted
                 font.family: Fonts.family
@@ -323,15 +323,15 @@ PanelWindow {
                                               : !modelData.available ? Colors.foregroundMuted : Colors.foreground
 
                     Layout.fillWidth: true
-                    implicitHeight: Fonts.px(36)
+                    implicitHeight: Style.comfortableRowHeight
                     radius: Style.controlRadius
                     color: selected ? Colors.accent : "transparent"
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 10
+                        anchors.leftMargin: Style.spacingMd
+                        anchors.rightMargin: Style.spacingMd
+                        spacing: Style.spacingMd
 
                         Text {
                             Layout.preferredWidth: Fonts.px(18)

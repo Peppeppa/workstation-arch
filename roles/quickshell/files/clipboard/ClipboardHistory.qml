@@ -184,7 +184,7 @@ Scope {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: Fonts.px(36)
+                            implicitHeight: Style.comfortableRowHeight
                             radius: Style.controlRadius
                             color: Colors.surface
                             border.color: Colors.borderActive
@@ -222,7 +222,7 @@ Scope {
                         // Clear all: second click confirms.
                         Rectangle {
                             implicitWidth: clearText.implicitWidth + 16
-                            implicitHeight: Fonts.px(36)
+                            implicitHeight: Style.comfortableRowHeight
                             radius: Style.controlRadius
                             color: clearMouse.containsMouse ? Colors.accent : Colors.surface
                             border.color: Colors.border
@@ -280,8 +280,8 @@ Scope {
                                 anchors.left: parent.left
                                 anchors.right: deleteButton.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 6
+                                anchors.leftMargin: Style.spacingMd
+                                anchors.rightMargin: Style.spacingSm
                                 text: entry.modelData.text
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
@@ -302,7 +302,7 @@ Scope {
                             Text {
                                 id: deleteButton
                                 anchors.right: parent.right
-                                anchors.rightMargin: 10
+                                anchors.rightMargin: Style.spacingMd
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: entry.selected
                                 text: ""

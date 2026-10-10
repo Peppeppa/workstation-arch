@@ -94,7 +94,7 @@ FocusScope {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Fonts.px(36)
+            implicitHeight: Style.comfortableRowHeight
             radius: Style.controlRadius
             color: Colors.surface
             border.color: Colors.borderActive
@@ -164,10 +164,10 @@ FocusScope {
                     Item {
                         id: iconBox
                         anchors.left: parent.left
-                        anchors.leftMargin: 10
+                        anchors.leftMargin: Style.spacingMd
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 22
-                        height: 22
+                        width: Style.iconLarge
+                        height: Style.iconLarge
 
                         Image {
                             id: appIcon
@@ -195,8 +195,8 @@ FocusScope {
                         anchors.left: iconBox.right
                         anchors.right: hint.left
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
+                        anchors.leftMargin: Style.spacingMd
+                        anchors.rightMargin: Style.spacingMd
                         text: row.isApp ? row.modelData.entry.name : row.modelData.label
                         color: row.selected ? Colors.accentForeground : Colors.foreground
                         font.family: Fonts.family
@@ -208,7 +208,7 @@ FocusScope {
                     Text {
                         id: hint
                         anchors.right: parent.right
-                        anchors.rightMargin: 10
+                        anchors.rightMargin: Style.spacingMd
                         anchors.verticalCenter: parent.verticalCenter
                         text: row.isApp ? "" : row.modelData.hint
                         color: row.selected ? Colors.accentForeground : Colors.foregroundMuted

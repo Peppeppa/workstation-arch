@@ -289,7 +289,7 @@ Scope {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 10
+                anchors.margins: Style.spacingLg
                 spacing: Style.spacingMd
 
                 // Conflict / save problem (until the next open).
@@ -301,7 +301,7 @@ Scope {
                     text: root.notice
                     color: Colors.error
                     font.family: Fonts.family
-                    font.pixelSize: Fonts.px(11)
+                    font.pixelSize: Style.caption
                 }
 
                 Rectangle {
@@ -316,7 +316,7 @@ Scope {
                     Flickable {
                         id: flick
                         anchors.fill: parent
-                        anchors.margins: 6
+                        anchors.margins: Style.spacingSm
                         contentWidth: Math.max(editor.contentWidth + 8, width)
                         contentHeight: Math.max(editor.contentHeight, height)
                         boundsBehavior: Flickable.StopAtBounds
@@ -427,13 +427,13 @@ Scope {
 
                         PopupButton {
                             label: "−"
-                            fontSize: Fonts.px(12)
+                            fontSize: Style.secondary
                             muted: root.effectiveFontSize <= root.minFontSize
                             onClicked: { root.setFontSize(root.effectiveFontSize - 1); editor.forceActiveFocus(); }
                         }
                         PopupButton {
                             label: "+"
-                            fontSize: Fonts.px(12)
+                            fontSize: Style.secondary
                             muted: root.effectiveFontSize >= root.maxFontSize
                             onClicked: { root.setFontSize(root.effectiveFontSize + 1); editor.forceActiveFocus(); }
                         }
