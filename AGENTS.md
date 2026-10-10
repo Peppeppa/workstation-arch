@@ -1120,6 +1120,27 @@ history for that milestone's own record):
   window shows the five rules with no SSH text, reset question + Abbrechen,
   rules.json + kernel chain unchanged; two bootstraps, second changed=0. NOT
   run live: a real logout, toggling/deleting SSH through the UI.
+  (Both since confirmed by the user.)
+
+- **Close policy + System -> Diagnostic** (laptop, 2026-10-10, explicitly
+  requested): Super+Q closed the app BEHIND an open shell overlay (measured);
+  now `closeFocused` in binds.lua asks `hl.get_layers()` and routes to
+  `BarPopups.closeActive()`; clipboard got click-outside, searches clear on
+  the first Escape, Firewall/Appearance stay open while their helper runs,
+  Firewall Escape focus after the confirm fixed. Diagnostic page (Healthcheck,
+  Full Diagnostic, Log Analysis, Logs -> 11 sources) on `repo-logs` +
+  `diaglib.py`; healthcheck QML check per running instance (the 15:21
+  `snapshotDialog` error was a deploy-time reload of an earlier instance).
+  Real-hardware-tested with a one-shot uinput device and a throwaway window:
+  66/66 close-policy checks (Escape / Super+Q / click outside / inside click /
+  search / nested confirm / sequence / reopen, every surface incl. scratchpad
+  and cheatsheet; scratchpad file and firewall rules unchanged), Diagnostic
+  pages rendered, Healthcheck / Full Diagnostic / Log Analysis / a log view
+  from the menu, private copies 0400 and deleted after the terminal closed;
+  analyze 0.2 s, healthcheck 0.3 s HEALTHY; bootstraps changed=0. Not tested:
+  a close attempt during a real running snapshot / firewall change / theme
+  import (guards by code + logic only); the Appearance picker/import Escape
+  focus path.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
