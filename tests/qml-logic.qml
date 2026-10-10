@@ -459,13 +459,15 @@ QtObject {
                        { id: "shutdown", label: "Shutdown", keywords: "power off", available: true }];
         const sc = {};
         sc.matches = make(pm, "matches", sc);
+        sc.rank = make(pm, "rank", sc);
         const filter = make(pm, "filterItems", sc);
         const ids = q => filter(items, q).map(i => i.id);
         eq("power menu: empty query = all", ids(""), ["lock", "suspend", "reboot", "shutdown"]);
         eq("power menu: blank query = all", ids("   "), ["lock", "suspend", "reboot", "shutdown"]);
         eq("power menu: case-insensitive label", ids("REB"), ["reboot"]);
         eq("power menu: keyword", ids("Restart"), ["reboot"]);
-        eq("power menu: substring in several", ids("s"), ["lock", "suspend", "reboot", "shutdown"]);
+        eq("power menu: label start, then label, then keyword", ids("s"), ["suspend", "shutdown", "lock", "reboot"]);
+        eq("power menu: label match before keyword match", ids("re"), ["reboot", "lock"]);
         eq("power menu: every word must match", ids("power off"), ["shutdown"]);
         eq("power menu: no match", ids("xyz"), []);
         eq("power menu: hjkl are search text", [ids("l"), ids("k"), ids("h"), ids("j")], [["lock", "suspend"], ["lock"], ["shutdown"], []]);

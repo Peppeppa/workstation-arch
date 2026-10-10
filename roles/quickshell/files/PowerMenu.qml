@@ -33,7 +33,8 @@
 //
 // Keyboard: the search field has the focus from the moment the menu opens -
 // typing filters the actions (case-insensitive, every word must occur in
-// the label or the entry's search words), an empty query shows all. Up/Down
+// the label or the entry's search words; label matches listed first), an
+// empty query shows all. Up/Down
 // move the selection and wrap around (last -> first, first -> last, also in
 // a filtered list); Enter runs the selected action, nothing with no match;
 // Escape clears the query, or closes the menu when it is already empty.
@@ -79,8 +80,18 @@ PanelWindow {
         return q.toLowerCase().split(/\s+/).filter(w => w !== "").every(w => hay.indexOf(w) !== -1);
     }
 
+    // Matches, the ones whose label holds the query first (label start
+    // before label anywhere before search words only); menu order otherwise.
+    function rank(item, q) {
+        const label = item.label.toLowerCase(), t = q.trim().toLowerCase();
+        return label.startsWith(t) ? 0 : label.indexOf(t) !== -1 ? 1 : 2;
+    }
+
     function filterItems(list, q) {
-        return list.filter(item => matches(item, q));
+        return list.filter(item => matches(item, q))
+            .map((item, i) => ({ item: item, i: i, r: rank(item, q) }))
+            .sort((a, b) => a.r - b.r || a.i - b.i)
+            .map(x => x.item);
     }
 
     // index + step, wrapped into 0..count-1 (0 for an empty list).
