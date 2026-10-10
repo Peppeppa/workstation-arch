@@ -648,8 +648,28 @@ QtObject {
         const om = read("quickshell/osmenu/OsMenu.qml");
         const expr = om.match(/readonly property var systemEntries: (\[[\s\S]*?\]\.filter\([\s\S]*?\)\))\n/)[1];
         const ids = o => new Function("o", "with (o) { return (" + expr + ").map(e => e.id); }")(o);
-        eq("osmenu system: all three", ids({ updater: {}, snapshotDialog: {}, powerMenu: {} }), ["update", "snapshot", "power"]);
-        eq("osmenu system: no recovery -> only Power", ids({ updater: null, snapshotDialog: null, powerMenu: {} }), ["power"]);
+        eq("osmenu system: all four", ids({ updater: {}, snapshotDialog: {}, powerMenu: {}, diagnostics: "/usr/local/bin/repo-logs" }),
+           ["update", "snapshot", "diagnostic", "power"]);
+        eq("osmenu system: no recovery -> Diagnostic + Power", ids({ updater: null, snapshotDialog: null, powerMenu: {}, diagnostics: "x" }),
+           ["diagnostic", "power"]);
+        eq("osmenu system: no repo-logs -> no Diagnostic", ids({ updater: null, snapshotDialog: null, powerMenu: {}, diagnostics: "" }), ["power"]);
+        // Diagnostic: the four entries; Logs: every source, Snapper/Update History only with recovery.
+        eq("osmenu diagnostic entries", (om.match(/readonly property var diagnosticEntries: \[[\s\S]*?\n    \]/)[0].match(/id: "([\w-]+)"/g) || [])
+           .map(x => x.slice(5, -1)), ["diag-healthcheck", "diag-full", "diag-analysis", "diag-logs"]);
+        const lexpr = om.match(/readonly property var logEntries: (\[[\s\S]*?\n        \.map\([^\n]*\))\n/)[1];
+        const logs = rec => new Function("recovery", "return (" + lexpr + ");")(rec);
+        eq("osmenu logs (recovery)", logs(true).map(e => e.source), ["journal", "boot", "boot-errors", "kernel", "user", "pacman",
+                                                                    "quickshell", "hyprland", "firewall", "snapper", "updates"]);
+        eq("osmenu logs (no recovery)", logs(false).map(e => e.source).filter(x => x === "snapper" || x === "updates"), []);
+        const dargv = make(om, "diagnosticArgv", { diagnostics: "/usr/local/bin/repo-logs", logEntries: logs(true) });
+        eq("osmenu diagnostic argv", ["diag-healthcheck", "diag-full", "diag-analysis", "log-boot-errors", "log-nope"].map(dargv),
+           [["/usr/local/bin/repo-logs", "show", "healthcheck"], ["/usr/local/bin/repo-logs", "show", "diagnose"],
+            ["/usr/local/bin/repo-logs", "analyze", "--interactive"], ["/usr/local/bin/repo-logs", "view", "boot-errors"], null]);
+        const nav = { page: "system-logs", focusPage: () => {} };
+        const back = make(om, "back", nav);
+        const trail = [];
+        for (let i = 0; i < 4; i++) { back(); trail.push(nav.page); }
+        eq("osmenu back: Logs -> Diagnostic -> System -> root", trail, ["system-diagnostic", "system", "root", "root"]);
 
         // Close controller: closeActive closes the active surface only; nothing active -> nothing.
         const bp = read("quickshell/bar/BarPopups.qml");

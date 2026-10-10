@@ -17,8 +17,13 @@
 //                 terminal, as a transient systemd user unit
 //   System     -> its page: Update / Create Snapshot (hosts with recovery:
 //                 close, open the existing updater / snapshot dialog,
-//                 updates/) and Power (close, open the existing Power Menu -
-//                 sole owner of lock/suspend/hibernate/reboot/shutdown)
+//                 updates/), Diagnostic and Power (close, open the existing
+//                 Power Menu - sole owner of lock/suspend/hibernate/logout/
+//                 reboot/shutdown)
+//   Diagnostic -> Healthcheck / Full Diagnostic / Log Analysis / Logs ->
+//                 <source>: close, start `repo-logs show|analyze|view ...`
+//                 (roles/diagnostics, read-only, no root) in the terminal, as
+//                 a transient systemd user unit - like Packages
 //
 // Keyboard: type to search - the first printable key on a list page opens
 // the search (SearchPage: the menu's own entries + applications, best
@@ -49,8 +54,10 @@ PanelWindow {
     property var updater: null              // UpdaterDialog (host capability recovery) or null
     property var snapshotDialog: null       // SnapshotDialog (host capability recovery) or null
     required property var terminal          // argv of the terminal (hyprland_terminal)
+    property string diagnostics: ""          // repo-logs (roles/diagnostics) - "" = no Diagnostic page
+    property bool recovery: false            // host capability recovery: Snapper / Update History logs
 
-    property string page: "root"            // root | apps | settings | system | packages | packages-install | packages-remove | search
+    property string page: "root"            // root | apps | settings | system | system-diagnostic | system-logs | packages | packages-install | packages-remove | search
 
     // The menu's entries - the ONE list the pages show and the search finds
     // (keywords only help finding); OsMenu.activate() is what each does.
@@ -67,10 +74,37 @@ PanelWindow {
           keywords: "update upgrade pacman packages system" },
         { id: "snapshot", label: "Create Snapshot", icon: "\u{F0100}", sub: false,
           keywords: "snapshot snapper backup recovery restore point" },
+        { id: "diagnostic", label: "Diagnostic", icon: "\u{F05F6}", sub: true,
+          keywords: "diagnostic diagnose health healthcheck logs journal analysis errors troubleshooting" },
         { id: "power", label: "Power", icon: "\u{F0425}", sub: false, title: "Power Menu",
           keywords: "power lock suspend hibernate reboot restart shutdown" }
     ].filter(e => (e.id !== "update" || updater !== null) && (e.id !== "snapshot" || snapshotDialog !== null)
-                  && (e.id !== "power" || powerMenu !== null))
+                  && (e.id !== "power" || powerMenu !== null) && (e.id !== "diagnostic" || diagnostics !== ""))
+    readonly property var diagnosticEntries: [
+        { id: "diag-healthcheck", label: "Healthcheck", icon: "\u{F05E0}", sub: false,
+          keywords: "healthcheck health check invariants pass fail status" },
+        { id: "diag-full", label: "Full Diagnostic", icon: "\u{F0219}", sub: false,
+          keywords: "full diagnostic diagnose repo-diagnose report details" },
+        { id: "diag-analysis", label: "Log Analysis", icon: "\u{F0349}", sub: false,
+          keywords: "log analysis errors warnings critical problems" },
+        { id: "diag-logs", label: "Logs", icon: "\u{F0279}", sub: true, title: "Diagnostic Logs",
+          keywords: "logs journal journalctl viewer" }
+    ]
+    // Leaves: `source` = repo-logs' fixed source id (repo-logs sources).
+    readonly property var logEntries: [
+        { id: "log-journal", source: "journal", label: "System Journal", keywords: "journal system 24h" },
+        { id: "log-boot", source: "boot", label: "Current Boot", keywords: "boot current journal" },
+        { id: "log-boot-errors", source: "boot-errors", label: "Boot Errors", keywords: "boot errors err failed" },
+        { id: "log-kernel", source: "kernel", label: "Kernel Messages", keywords: "kernel dmesg driver" },
+        { id: "log-user", source: "user", label: "User Services", keywords: "user services systemd units" },
+        { id: "log-pacman", source: "pacman", label: "Pacman", keywords: "pacman packages log" },
+        { id: "log-quickshell", source: "quickshell", label: "Quickshell", keywords: "quickshell qml shell bar" },
+        { id: "log-hyprland", source: "hyprland", label: "Hyprland", keywords: "hyprland compositor" },
+        { id: "log-firewall", source: "firewall", label: "Firewall", keywords: "firewall nftables" },
+        { id: "log-snapper", source: "snapper", label: "Snapper", keywords: "snapper snapshots" },
+        { id: "log-updates", source: "updates", label: "Update History", keywords: "update history upgrades system-update" }
+    ].filter(e => recovery || (e.source !== "snapper" && e.source !== "updates"))
+        .map(e => Object.assign({ icon: "\u{F0219}", sub: false, title: e.label + " Log" }, e))
     readonly property var settingsEntries: [
         { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false,
           keywords: "theme dark light wallpaper bar brightness text size font display scale monitor" },
@@ -106,6 +140,7 @@ PanelWindow {
     readonly property var searchEntries: rootEntries.map(e => ({ e: e, hint: "" }))
         .concat(settingsEntries.map(e => ({ e: e, hint: "Settings" })))
         .concat(systemEntries.map(e => ({ e: e, hint: "System" })))
+        .concat((diagnostics !== "" ? diagnosticEntries.concat(logEntries) : []).map(e => ({ e: e, hint: "Diagnostic" })))
         .concat(packagesEntries.concat(installEntries, removeEntries).map(e => ({ e: e, hint: "Packages" })))
 
     function open(p) {
@@ -114,6 +149,8 @@ PanelWindow {
         appsPage.reset();
         settingsPage.reset();
         systemPage.reset();
+        diagnosticPage.reset();
+        logsPage.reset();
         packagesPage.reset();
         installPage.reset();
         removePage.reset();
@@ -148,16 +185,33 @@ PanelWindow {
 
     function back() {
         if (page === "packages-install" || page === "packages-remove") page = "packages";
+        else if (page === "system-logs") page = "system-diagnostic";
+        else if (page === "system-diagnostic") page = "system";
         else if (page !== "root") page = "root";
         else return;
         focusPage();
     }
 
-    // A Packages leaf: the picker in the terminal, detached from Quickshell.
-    function runPackages(action) {
+    // A command in the terminal, detached from Quickshell: its own transient
+    // user unit; a launch failure goes to the journal (-t app-launch).
+    function runInTerminal(argv) {
         Quickshell.execDetached(["systemd-cat", "-t", "app-launch", "-p", "err", "--",
                                  "systemd-run", "--user", "--quiet", "--collect", "--"]
-                                .concat(menu.terminal, ["-e", Quickshell.env("HOME") + "/.local/bin/workstation-pkg", action]));
+                                .concat(menu.terminal, ["-e"], argv));
+    }
+
+    // A Packages leaf: the picker in the terminal.
+    function runPackages(action) {
+        runInTerminal([Quickshell.env("HOME") + "/.local/bin/workstation-pkg", action]);
+    }
+
+    // A Diagnostic leaf: repo-logs with fixed arguments (no free text).
+    function diagnosticArgv(id) {
+        if (id === "diag-healthcheck") return [diagnostics, "show", "healthcheck"];
+        if (id === "diag-full") return [diagnostics, "show", "diagnose"];
+        if (id === "diag-analysis") return [diagnostics, "analyze", "--interactive"];
+        const log = logEntries.find(e => e.id === id);
+        return log ? [diagnostics, "view", log.source] : null;
     }
 
     function focusPage() {
@@ -165,6 +219,8 @@ PanelWindow {
         else if (page === "search") searchPage.takeFocus();
         else if (page === "settings") settingsPage.forceActiveFocus();
         else if (page === "system") systemPage.forceActiveFocus();
+        else if (page === "system-diagnostic") diagnosticPage.forceActiveFocus();
+        else if (page === "system-logs") logsPage.forceActiveFocus();
         else if (page === "packages") packagesPage.forceActiveFocus();
         else if (page === "packages-install") installPage.forceActiveFocus();
         else if (page === "packages-remove") removePage.forceActiveFocus();
@@ -222,6 +278,13 @@ PanelWindow {
             searchPage.reset();
             focusPage();
             break;
+        case "diagnostic":
+        case "diag-logs":
+            page = id === "diagnostic" ? "system-diagnostic" : "system-logs";
+            (id === "diagnostic" ? diagnosticPage : logsPage).reset();
+            searchPage.reset();
+            focusPage();
+            break;
         case "update":
             close();
             if (updater) updater.open();
@@ -234,6 +297,13 @@ PanelWindow {
             close();
             if (powerMenu) powerMenu.open();
             break;
+        default: {
+            const argv = diagnostics !== "" ? diagnosticArgv(id) : null;
+            if (argv) {
+                close();
+                runInTerminal(argv);
+            }
+        }
         }
     }
 
@@ -274,6 +344,8 @@ PanelWindow {
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
               : menu.page === "system" ? systemPage.implicitHeight + 24
+              : menu.page === "system-diagnostic" ? diagnosticPage.implicitHeight + 24
+              : menu.page === "system-logs" ? logsPage.implicitHeight + 24
               : menu.page === "search" ? searchPage.implicitHeight + 24
               : menu.page === "packages" ? packagesPage.implicitHeight + 24
               : menu.page === "packages-install" ? installPage.implicitHeight + 24
@@ -322,6 +394,26 @@ PanelWindow {
             menu: menu
             title: "System"
             entries: menu.systemEntries
+        }
+
+        ListPage {
+            id: diagnosticPage
+            visible: menu.page === "system-diagnostic"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "System \u203A Diagnostic"
+            entries: menu.diagnosticEntries
+        }
+
+        ListPage {
+            id: logsPage
+            visible: menu.page === "system-logs"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "Diagnostic \u203A Logs"
+            entries: menu.logEntries
         }
 
         ListPage {
@@ -376,8 +468,8 @@ PanelWindow {
             menu.close();
         }
 
-        // Open directly on a page: root | apps | settings | system | packages
-        // (search starts by typing).
+        // Open directly on a page: root | apps | settings | system |
+        // system-diagnostic | system-logs | packages (search starts by typing).
         function openPage(name: string): void {
             menu.open(name);
         }

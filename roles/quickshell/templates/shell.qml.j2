@@ -86,6 +86,9 @@ ShellRoot {
         updater: {{ 'updaterDialog' if recovery_enabled else 'null' }}
         snapshotDialog: {{ 'snapshotDialog' if recovery_enabled else 'null' }}
         terminal: {{ hyprland_terminal.split() | to_json }}
+        // System -> Diagnostic: repo-logs (roles/diagnostics, core).
+        diagnostics: "{{ diagnostics_logs_bin }}"
+        recovery: {{ 'true' if recovery_enabled else 'false' }}
     }
 
     // Appearance (opened from the OS menu): theme, wallpaper, brightness,
