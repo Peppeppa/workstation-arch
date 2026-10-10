@@ -448,7 +448,61 @@ QtObject {
         eq("coffee: no session known -> off", restored("", ""), false);
     }
 
+    function powerMenu() {
+        // Power menu search: case-insensitive, every word in label/keywords,
+        // empty = all; Up/Down wrap (also filtered); Enter with no match
+        // runs nothing; Escape clears first, closes second.
+        const pm = read("PowerMenu.qml");
+        const items = [{ id: "lock", label: "Lock", keywords: "screen", available: true },
+                       { id: "suspend", label: "Suspend", keywords: "sleep standby", available: true },
+                       { id: "reboot", label: "Reboot", keywords: "restart", available: true },
+                       { id: "shutdown", label: "Shutdown", keywords: "power off", available: true }];
+        const sc = {};
+        sc.matches = make(pm, "matches", sc);
+        const filter = make(pm, "filterItems", sc);
+        const ids = q => filter(items, q).map(i => i.id);
+        eq("power menu: empty query = all", ids(""), ["lock", "suspend", "reboot", "shutdown"]);
+        eq("power menu: blank query = all", ids("   "), ["lock", "suspend", "reboot", "shutdown"]);
+        eq("power menu: case-insensitive label", ids("REB"), ["reboot"]);
+        eq("power menu: keyword", ids("Restart"), ["reboot"]);
+        eq("power menu: substring in several", ids("s"), ["lock", "suspend", "reboot", "shutdown"]);
+        eq("power menu: every word must match", ids("power off"), ["shutdown"]);
+        eq("power menu: no match", ids("xyz"), []);
+        eq("power menu: hjkl are search text", [ids("l"), ids("k"), ids("h"), ids("j")], [["lock", "suspend"], ["lock"], ["shutdown"], []]);
+
+        const wrap = make(pm, "wrapIndex", {});
+        eq("power menu: down from last wraps to first", wrap(3, 1, 4), 0);
+        eq("power menu: up from first wraps to last", wrap(0, -1, 4), 3);
+        eq("power menu: down in the middle", wrap(1, 1, 4), 2);
+        eq("power menu: one result stays", [wrap(0, 1, 1), wrap(0, -1, 1)], [0, 0]);
+        eq("power menu: zero results", [wrap(0, 1, 0), wrap(0, -1, 0)], [0, 0]);
+
+        const ran = [];
+        const st = { Qt: Qt, query: "", visible: true, selectedIndex: 0, shown: items,
+                     search: { text: "" }, activate: it => ran.push(it.id) };
+        st.wrapIndex = wrap;
+        st.moveSelection = make(pm, "moveSelection", st);
+        const key = make(pm, "handleKey", st);
+        key(Qt.Key_Up);
+        eq("power menu: Up from Lock -> Shutdown", st.selectedIndex, 3);
+        key(Qt.Key_Down);
+        eq("power menu: Down from Shutdown -> Lock", st.selectedIndex, 0);
+        key(Qt.Key_Return);
+        eq("power menu: Enter runs the selected", ran, ["lock"]);
+        st.shown = []; st.selectedIndex = 0; ran.length = 0;
+        key(Qt.Key_Down); key(Qt.Key_Return); key(Qt.Key_Enter);
+        eq("power menu: zero results - Enter runs nothing", ran, []);
+        st.query = "reb"; st.search.text = "reb";
+        key(Qt.Key_Escape);
+        eq("power menu: Escape with a query clears it, stays open", [st.search.text, st.visible], ["", true]);
+        st.query = "";
+        key(Qt.Key_Escape);
+        eq("power menu: Escape with no query closes", st.visible, false);
+        eq("power menu: letters are not handled as keys", key(Qt.Key_J), false);
+    }
+
     Component.onCompleted: {
+        powerMenu();
         coffee();
         cheatsheet();
         firewall();

@@ -311,7 +311,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Shift + X` | screenshot of the whole focused monitor |
 | `Super + Ctrl + X` | OCR: select region/window -> recognized text (de+en) to clipboard, no PNG kept |
 | `Super + Delete` | lock now (hyprlock) |
-| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - runs immediately on Enter/click, no confirmation |
+| `Super + Escape` | power menu: Lock (preselected) / Suspend / (Hibernate - only on a host with `hibernate_enabled` and logind `CanHibernate`, see `docs/feature-architecture.md` "Hibernate") / Logout / Reboot / Shutdown - type to search (e.g. `reb`, `restart`), Up/Down wrap around, Enter runs immediately (no confirmation), Escape clears the search, then closes |
 | `Super + Shift + E` | exit Hyprland (back to Ly / the TTY) |
 
 Caps Lock is a second Ctrl (`hyprland_keyboard_options: ctrl:nocaps`). The

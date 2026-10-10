@@ -611,14 +611,15 @@ copied. Feature Category A (provisioning-only) plus Category B
 | Packages | `power_menu_packages`: `ttf-jetbrains-mono-nerd` (icons; also in `roles/apps`) |
 | Config ownership | `roles/quickshell` (`files/PowerMenu.qml`, `templates/shell.qml.j2`), `roles/hyprland` (bind) |
 | UI | `PowerMenu.qml`, centered layer-shell overlay inside the running Quickshell |
-| Keybind | `mainMod + Escape` -> `qs ipc call powermenu toggle` (IPC exposes only `toggle`/`close`) |
+| Keybind | `mainMod + Escape` -> `qs ipc call powermenu toggle` (IPC exposes only `toggle`/`close` + a read-only `state`) |
+| Search + keys | the search field has the focus as soon as the menu opens: typing filters (case-insensitive, every word in the label or the entry's search words, empty = all, "No matching action" otherwise); Up/Down move and wrap around (last -> first, first -> last, also filtered; one result stays); Enter runs the selection, nothing without a match; Escape clears the query, then closes. Letters (h/j/k/l too) are always search text; the global Hyprland binds are untouched |
 | Lifecycle owner | the existing Quickshell instance under Hyprland - no new process |
 | Privileges | none added: `systemctl suspend/hibernate/reboot/poweroff` via logind's normal active-session polkit rules; logout = Hyprland `hl.dsp.exit()` |
 | Reboot / Shutdown | `workstation_end_session("reboot"\|"poweroff")` (roles/hyprland `session.lua`): the session ends like a logout (ordered `session-stop`), then the shutdown hook asks logind - a plain `systemctl reboot` SIGTERMed the whole session scope at once and every helper crashed. A refused request leaves the user at Ly (which offers reboot/shutdown itself) |
 | Secrets / Network | none / none |
 | Hibernate | shown only if logind `CanHibernate` was `yes`/`challenge` when the host was provisioned; the resume setup itself is the host capability `hibernate_enabled` (see "Hibernate") |
 | Lock | listed, unavailable ("not set up") until the Lock/Idle milestone - never faked |
-| Preselection | Lock, also when the menu opens under a resting pointer: hover selects only after real movement (before, the row under the pointer replaced it and Enter could log out or shut down - found on arch-dev) |
+| Preselection | Lock (a query selects its first match), also when the menu opens under a resting pointer: hover selects only after real movement (before, the row under the pointer replaced it and Enter could log out or shut down - found on arch-dev) |
 | Disable | no bind, component not instantiated/deployed; an already-deployed `PowerMenu.qml` stays unreferenced; nothing deleted |
 | Persistent user data | none |
 
