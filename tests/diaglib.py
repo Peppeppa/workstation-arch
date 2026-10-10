@@ -96,6 +96,11 @@ eq("harmless finding carries its reason", bool(cls[3]["note"]), True)
 three = diaglib.classify_journal([e(i, "pam_unix(sudo:auth): auth could not identify password", i, 3, "sudo") for i in range(3)], False, {})
 eq("3 sudo failures = warning (faillock)", three[0]["severity"], "warning")
 
+burst = [e(None, "efi: mem%d: [Reserved] range=[0x1-0x2] (invalid)" % i, 100, 4, "kernel") for i in range(7)]
+spread = [e(None, "usb 1-1: device descriptor read/64, error -71", t, 4, "kernel") for t in (100, 200, 300, 400, 500)]
+eq("recurring: a boot burst is not", diaglib.recurring(burst), False)
+eq("recurring: 5x over minutes is", diaglib.recurring(spread), True)
+
 # --- pacman.log
 LOG = """[2026-10-01T10:00:00+0200] [PACMAN] Running 'pacman -Syu'
 [2026-10-01T10:00:01+0200] [PACMAN] starting full system upgrade

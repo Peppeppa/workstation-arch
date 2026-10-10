@@ -421,7 +421,7 @@ harmless messages, never from one word: Critical = a failed core unit
 (NetworkManager, logind, firewall, ...), priority emerg/alert/crit, a
 filesystem/disk error pattern, a failed/interrupted pacman transaction that
 is the latest, an inactive firewall; Warning = other failed units, priority
-err, QML errors, repeated (5+) kernel warnings, Hyprland errors/crash
+err, QML errors, recurring kernel warnings (5+ times over at least 60 s - one boot burst is not), Hyprland errors/crash
 reports, coredumps, 3+ sudo authentication failures, updates without a
 snapshot; Info = known harmless messages (with the reason - kvm_amd on Intel,
 TDX unsupported, wpa_supplicant multicast RX, gkr-pam before the keyring,

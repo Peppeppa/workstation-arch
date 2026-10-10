@@ -297,6 +297,13 @@ def collect_journal(ctx):
     return out
 
 
+def recurring(entries, n=5, spread=60):
+    """Recurring = at least n times AND spread over at least `spread` seconds -
+    one burst (a firmware table printed line by line at boot) is not."""
+    ts = [e["ts"] for e in entries if e.get("ts")]
+    return len(entries) >= n and bool(ts) and max(ts) - min(ts) >= spread
+
+
 def collect_kernel(ctx):
     ok, err, es = journal(["-k", "-b", "-p", "0..4"], limit=3000)
     if not ok:
@@ -313,8 +320,8 @@ def collect_kernel(ctx):
             out.append(finding("info", "Kernel", "Bekannte harmlose Meldung: %s" % e0["msg"][:110], g, note=why, ref=ref))
         elif prio <= 2:
             out.append(finding("critical", "Kernel", e0["msg"][:140], g, ref=ref))
-        elif prio == 3 or len(g) >= 5:
-            out.append(finding("warning", "Kernel", ("Wiederkehrend: " if len(g) >= 5 and prio > 3 else "") + e0["msg"][:130], g, ref=ref))
+        elif prio == 3 or recurring(g):
+            out.append(finding("warning", "Kernel", ("Wiederkehrend: " if prio > 3 else "") + e0["msg"][:130], g, ref=ref))
         else:
             once += g
     if once:
