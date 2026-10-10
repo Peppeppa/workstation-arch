@@ -589,6 +589,45 @@ QtObject {
         eq("snapshot: leading - rejected", label("-x", now).label, "");
         eq("snapshot: 100 bytes ok", label("x".repeat(100), now).error, "");
         eq("snapshot: 51 umlauts = 102 bytes rejected", label("ä".repeat(51), now).label, "");
+
+        // Slots: the helper's argv (the confirmed number on overwrite/delete), status lines.
+        const H = "/usr/local/libexec/workstation/snapshot-create";
+        const argv = make(sd, "argvFor", { helper: H });
+        const empty = { slot: 2, empty: true }, full = { slot: 1, empty: false, number: 35, description: "Vor X", date: "2026-10-10 19:42", status: "bootable" };
+        eq("slots: create into an empty slot", argv("set", empty, "Neu"), ["pkexec", H, "set", "2", "Neu"]);
+        eq("slots: overwrite passes the shown number", argv("set", full, "Neu"), ["pkexec", H, "set", "1", "Neu", "35"]);
+        eq("slots: delete passes the shown number", argv("delete", full, ""), ["pkexec", H, "delete", "1", "35"]);
+        const stx = make(sd, "statusText", {});
+        eq("slots: status lines", [stx(full), stx({ empty: false, status: "not-bootable", reason: "no stored UKI" }), stx({ empty: false, status: "unknown" }), stx(empty)],
+           ["bootfähig - im Bootmenü", "nicht bootfähig: no stored UKI", "Bootstatus noch unbekannt", ""]);
+        const fl = make(sd, "failure", {});
+        eq("slots: helper reason without prefix", fl(1, "snapshot-boot: slot 1 holds snapshot 36 - overwrite it only after confirming that one\n"),
+           "slot 1 holds snapshot 36 - overwrite it only after confirming that one");
+        // flows: an occupied slot asks first (Abbrechen preselected); cancel runs nothing
+        const runs = [];
+        const fs = { stage: "name", target: full, pendingLabel: "", selected: 1, error: "", Qt: Qt,
+                     field: { text: "Neu" }, keys: { forceActiveFocus: () => {} }, Date: Date };
+        fs.labelFor = label; fs.run = a => runs.push(a);
+        fs.back = make(sd, "back", fs);
+        const submit = make(sd, "submitName", fs), ans = make(sd, "answer", fs);
+        submit();
+        eq("slots: occupied -> question first, Abbrechen preselected, nothing run", [fs.stage, fs.selected, runs], ["confirmReplace", 0, []]);
+        ans(false);
+        eq("slots: Abbrechen before overwrite -> back, nothing run", [fs.stage, runs], ["slots", []]);
+        fs.stage = "name"; submit(); ans(true);
+        eq("slots: confirmed overwrite runs set", runs, ["set"]);
+        fs.target = empty; fs.stage = "name"; runs.length = 0; submit();
+        eq("slots: empty slot -> set at once", runs, ["set"]);
+        fs.target = full; fs.stage = "confirmDelete"; runs.length = 0; ans(false);
+        eq("slots: Abbrechen before delete -> nothing", [fs.stage, runs], ["slots", []]);
+        fs.stage = "confirmDelete"; ans(true);
+        eq("slots: confirmed delete runs delete", runs, ["delete"]);
+        // keys in a question: Escape = Abbrechen, Right + Enter = the action
+        const ks = { stage: "confirmDelete", selected: 0, slots: [full], current: 0, Qt: Qt, calls: [] };
+        ks.answer = y => ks.calls.push(y);
+        const skey = make(sd, "handleKey", ks);
+        skey(Qt.Key_Escape); skey(Qt.Key_Right); skey(Qt.Key_Return);
+        eq("slots: question keys", ks.calls, [false, true]);
     }
 
     function scratchpad() {

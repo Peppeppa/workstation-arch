@@ -1,19 +1,27 @@
 #!/bin/bash
 # Managed by Ansible (roles/recovery/files/system-snapshot) - do not edit by hand.
 #
-# system-snapshot "<label>"               read-only snapshot of the system (@),
-#                                         important - kept by count (NUMBER_LIMIT_IMPORTANT)
-# system-snapshot --known-good "<label>"  the same, and it becomes the boot
-#                                         menu's "Recovery: known good" slot
-# system-snapshot --list                  snapshots + recovery slots
+# system-snapshot --slot <1|2|3> "<label>" [--replace <number>]
+#                                         a manual snapshot into a slot (the
+#                                         three manual recovery slots of the boot
+#                                         menu; an occupied slot only with
+#                                         --replace <its current number>)
+# system-snapshot --delete-slot <1|2|3> <number>
+# system-snapshot "<label>"               an unslotted snapshot (important, kept by
+#                                         snapper's count: NUMBER_LIMIT_IMPORTANT) -
+#                                         NOT in the boot menu
+# system-snapshot --known-good "<label>"  legacy: the boot menu's "Recovery: known good" slot
+# system-snapshot --list                  snapshots, manual slots, legacy recovery slots
 #
 # On demand, as root. Snapshots are not backups (docs/recovery-design.md).
 . /usr/local/lib/workstation/recovery-lib.sh
 
-usage() { echo "usage: system-snapshot \"<label>\" | --known-good \"<label>\" | --list" >&2; exit 2; }
+usage() { echo "usage: system-snapshot --slot N \"<label>\" [--replace NUMBER] | --delete-slot N NUMBER | \"<label>\" | --known-good \"<label>\" | --list" >&2; exit 2; }
 
 list() {
     snapper -c root list --columns number,type,date,cleanup,description,userdata
+    echo
+    "$SNAPSHOT_BOOT" slot-list
     echo
     for slot in $SLOTS; do
         n=$(slot_snapshot "$slot")
@@ -32,6 +40,10 @@ list() {
 need_root
 case $1 in
     --list) [ $# -eq 1 ] || usage; list; exit 0 ;;
+    --slot)
+        [ $# -eq 3 ] || { [ $# -eq 5 ] && [ "$4" = --replace ]; } || usage
+        exec "$SNAPSHOT_BOOT" slot-set "$2" "$3" ${5:+--replace "$5"} ;;
+    --delete-slot) [ $# -eq 3 ] || usage; exec "$SNAPSHOT_BOOT" slot-delete "$2" "$3" ;;
     --known-good) [ $# -eq 2 ] && [ -n "$2" ] || usage; known=1; label=$2 ;;
     -*) usage ;;
     *) [ $# -eq 1 ] && [ -n "$1" ] || usage; known=0; label=$1 ;;

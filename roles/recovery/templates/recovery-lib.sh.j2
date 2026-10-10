@@ -177,15 +177,16 @@ make_slot() {
     write_entry "$slot" "$label"
 }
 
-# ---- automatic pre-transaction snapshots (docs/recovery-design.md 6) ----
-# ONE class: snapper userdata auto=pre-transaction. Created by the pacman
-# hook (pre-transaction-snapshot) before every package transaction, and by
-# system-update's pre step (which then tells the hook to skip its own
-# transaction). Not counted by snapper's number cleanup (cleanup algorithm
-# ""); prune_auto keeps the newest AUTO_KEEP of the class instead - never a
-# snapshot outside it (baseline/known-good, manual system-snapshot ones,
-# older system-update pairs) and never one a recovery slot still uses.
-AUTO_KEEP=3
+# ---- automatic pre-transaction snapshots (docs/recovery-design.md 6, 23) ----
+# Class auto=pre-transaction (cleanup algorithm "": snapper's number cleanup
+# never sees it), created by the pacman hook (pre-transaction-snapshot)
+# before every package transaction and by system-update's pre step (which
+# then tells the hook to skip its own). A system upgrade is marked
+# upgrade=yes (hook) / update=<id> (system-update): the UPDATE recovery
+# snapshots, the newest 2 kept and offered in the boot menu; installs and
+# removals are the "other" class, the newest 2 kept. The retention is
+# snapshot-boot's (prune): never the manual slots, a legacy recovery slot,
+# the baseline, or the last bootable update snapshot.
 SKIP_MARKER=/run/workstation-recovery/skip-pre-snapshot
 
 # auto_snapshot <description> [extra userdata]: prints the new number.
@@ -194,27 +195,32 @@ auto_snapshot() {
         --description "$1" --userdata "auto=pre-transaction${2:+,$2}"
 }
 
-# The class members to delete, newest AUTO_KEEP kept (snapper's JSON list).
-auto_prunable() {
-    snapper --jsonout -c root list | python3 -c '
-import json, sys
-keep = int(sys.argv[1])
-snaps = [s for s in json.load(sys.stdin).get("root", [])
-         if (s.get("userdata") or {}).get("auto") == "pre-transaction"]
-snaps.sort(key=lambda s: s["number"], reverse=True)
-for s in snaps[keep:]:
-    if not (s.get("userdata") or {}).get("slot"):
-        print(s["number"])
-' "$AUTO_KEEP"
+prune_auto() { "$SNAPSHOT_BOOT" prune; }
+
+# Is the pacman command line (NUL-separated on stdin) a system upgrade:
+# -S with u (-Syu, -Su, -Syyu ...) or --sync with --sysupgrade? (-U is a
+# local package file, -R...u "unneeded": not upgrades.)
+is_sysupgrade_cmdline() {
+    local args
+    args=$(tr '\0' '\n')
+    printf '%s\n' "$args" | grep -qxE -- '-[A-Za-z]*S[A-Za-z]*|--sync' || return 1
+    printf '%s\n' "$args" | grep -qxE -- '-[A-Za-z]*S[A-Za-z]*u[A-Za-z]*|-[A-Za-z]*u[A-Za-z]*S[A-Za-z]*|--sysupgrade|-u'
 }
 
-prune_auto() {
-    local old
-    old=$(auto_prunable) || return 1
-    [ -z "$old" ] && return 0
-    # shellcheck disable=SC2086
-    snapper -c root delete $old
-    echo "${0##*/}: removed old pre-transaction snapshot(s): $(echo $old)"
+# The pacman process that runs this hook (an ancestor: pacman -> sh -> hook):
+# was it started as a system upgrade? No pacman found: no.
+pacman_sysupgrade() {
+    local p=$PPID i
+    for i in 1 2 3 4 5 6; do
+        [ -r "/proc/$p/comm" ] || return 1
+        if [ "$(cat "/proc/$p/comm")" = pacman ]; then
+            is_sysupgrade_cmdline < "/proc/$p/cmdline"
+            return
+        fi
+        p=$(awk '{print $4}' "/proc/$p/stat" 2>/dev/null) || return 1
+        [ "${p:-0}" -gt 1 ] || return 1
+    done
+    return 1
 }
 
 # system-update's pre step covers the next transaction: one-shot skip for

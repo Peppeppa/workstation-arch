@@ -372,12 +372,22 @@ def recovery_checks():
     hook = "/etc/pacman.d/hooks/00-workstation-pre-snapshot.hook"
     helper = "/usr/local/lib/workstation/pre-transaction-snapshot"
     ok = os.path.isfile(hook) and os.access(helper, os.X_OK)
-    check("pre-transaction snapshots", ok, "pacman hook + helper present (one snapshot per transaction, newest 3 kept)"
+    check("pre-transaction snapshots", ok, "pacman hook + helper present (one snapshot per transaction; 2 update + 2 other kept)"
           if ok else "pacman hook or its helper missing - package transactions run without a recovery point")
-    # The class itself (/.snapshots/<n>/info.xml is world-readable): how many.
-    autos = sum(1 for f in glob.glob("/.snapshots/*/info.xml")
-                if "<key>auto</key><value>pre-transaction</value>" in re.sub(r"\s+", "", open(f, errors="replace").read()))
-    check("pre-transaction retention", autos <= 5, "%d automatic pre-transaction snapshot(s)" % autos, warn=autos > 5)
+    # The classes (snapshot-boot): /.snapshots/<n>/info.xml is world-readable.
+    upd = oth = 0
+    for f in glob.glob("/.snapshots/*/info.xml"):
+        x = re.sub(r"\s+", "", open(f, errors="replace").read())
+        if "<key>auto</key><value>pre-transaction</value>" not in x or "<key>slot</key>" in x:
+            continue
+        if "<key>upgrade</key><value>yes</value>" in x or "<key>update</key>" in x:
+            upd += 1
+        else:
+            oth += 1
+    # 2 each; 3 update ones while the newest two cannot boot (the last bootable one stays)
+    check("snapshot retention", upd <= 3 and oth <= 2, "%d update recovery, %d other pacman snapshot(s)" % (upd, oth),
+          warn=upd > 3 or oth > 2)
+    manual_slot_checks()
     # system-update refuses below 150 MB (slot UKIs); slots themselves are
     # root-only (snapper, ESP 0700) - sudo system-snapshot --list
     st = os.statvfs("/boot")
@@ -394,6 +404,24 @@ def recovery_checks():
     else:
         check("booted system", src.endswith("[/@]"), "@" if src.endswith("[/@]") else src)
     snapshot_boot_checks(snap)
+
+
+def manual_slot_checks():
+    rc, out = run(["/usr/local/lib/workstation/snapshot-boot", "slot-list", "--json"])
+    try:
+        rows = json.loads(out)["slots"]
+    except (ValueError, KeyError, TypeError):
+        check("manual snapshot slots", False, "slot list not readable (snapshot-boot slot-list, rc %d)" % rc, warn=True)
+        return
+    used = [r for r in rows if not r["empty"]]
+    dup = [r for r in used if r.get("duplicates")]
+    bad = [r for r in used if r["status"] == "not-bootable"]
+    detail = "; ".join("%d: %s" % (r["slot"], "empty" if r["empty"] else "#%d %s (%s)" % (r["number"], r["description"][:30], r["status"]))
+                       for r in rows)
+    check("manual snapshot slots", not dup and not bad, detail if not dup and not bad else
+          "%s%s" % ("not bootable: " + ", ".join("slot %d (%s)" % (r["slot"], r["reason"][:60]) for r in bad) + "; " if bad else "",
+                    "second holder (interrupted overwrite): " + ", ".join("slot %d" % r["slot"] for r in dup) if dup else ""),
+          warn=True)
 
 
 def snapshot_mode():

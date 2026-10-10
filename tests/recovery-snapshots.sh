@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Regression test for the automatic pre-transaction snapshots
-# (roles/recovery: recovery-lib.sh auto_snapshot/prune_auto, the pacman
-# hook's pre-transaction-snapshot, recovery-baseline).
+# (roles/recovery: recovery-lib.sh auto_snapshot, the system-upgrade
+# detection, the pacman hook's pre-transaction-snapshot, recovery-baseline).
+# The retention itself is snapshot-boot's (tests/snapshot-boot.py); here
+# only that the hook calls it after its snapshot.
 #
 # Safe anywhere: the scripts run against a stub `snapper` (a JSON fixture
 # for `--jsonout list`, create/delete only logged), stub `findmnt`/`id`,
@@ -69,19 +71,21 @@ EOF
 printf '#!/bin/sh\necho "rw,subvol=/@"\n' > "$tmp/stub/findmnt"   # booted from @ (root_subvol)
 printf '#!/bin/sh\necho 0\n' > "$tmp/stub/id"                     # need_root
 chmod +x "$tmp/stub/"*
+# snapshot-boot (capture before, prune after the snapshot): logged only
+printf '#!/bin/sh\necho "snapshot-boot $*" >> %s/log\n' "$tmp" > "$tmp/lib/snapshot-boot"
+chmod +x "$tmp/lib/snapshot-boot"
 export PATH="$tmp/stub:$PATH"
 
-prunable() { bash -c ". $tmp/lib/recovery-lib.sh; auto_prunable" | tr '\n' ' '; }
-
-# ---- retention: newest 3 of the class; nothing outside it -------------------
-fixture 30 31 32 33 34
-got=$(prunable); [ "$got" = "30 " ]; check "prune: 5 auto (31 slot-pinned) -> only 30 goes, slot-pinned 31 stays: got '$got'" $?
-fixture 40 41 42
-[ "$(prunable)" = "" ]; check "prune: exactly 3 auto -> nothing" $?
-fixture
-[ "$(prunable)" = "" ]; check "prune: no auto snapshots -> nothing (baseline/manual/pairs untouched)" $?
-fixture 50 51 52 53 54 55 56
-got=$(prunable); [ "$got" = "53 52 51 50 " ]; check "prune: 7 auto -> the 4 oldest, newest first by number: got '$got'" $?
+# ---- system upgrade or not: from pacman's command line -------------------
+sysup() { printf '%s\0' "$@" | bash -c ". $tmp/lib/recovery-lib.sh; is_sysupgrade_cmdline"; }
+for c in "pacman -Syu" "pacman -Syyu --noconfirm" "pacman -Suy" "pacman --sync --sysupgrade --noconfirm" "pacman -S -u"; do
+    # shellcheck disable=SC2086
+    sysup $c; check "upgrade: '$c'" $?
+done
+for c in "pacman -S cowsay" "pacman -Rsu cowsay" "pacman -U /x.pkg.tar.zst" "pacman -Sy foo" "pacman -R cowsay"; do
+    # shellcheck disable=SC2086
+    ! sysup $c; check "not an upgrade: '$c'" $?
+done
 
 # ---- the hook: one create per transaction, classified, then prune ------------
 fixture 60 61 62 63
@@ -93,7 +97,9 @@ grep -q -- '--type single' "$tmp/log" && grep -q -- '--cleanup-algorithm  --desc
 check "hook: single snapshot, own cleanup (not snapper's number limit)" $?
 grep -q 'auto=pre-transaction' "$tmp/log"; check "hook: classified auto=pre-transaction" $?
 grep -q 'pacman: 4 packages (less, nano, vim, ...)' "$tmp/log"; check "hook: description names the transaction" $?
-grep -q '^delete 60$' "$tmp/log"; check "hook: prunes the class to 3 (fixture already had 4)" $?
+grep -q '^snapshot-boot capture$' "$tmp/log" && grep -q '^snapshot-boot prune$' "$tmp/log"
+check "hook: UKI captured before, retention (snapshot-boot prune) after the snapshot" $?
+! grep -q 'upgrade=yes' "$tmp/log"; check "hook: not started by a pacman -Su -> no upgrade=yes" $?
 
 # Every target count (the description must never end the hook under set -e).
 for t in "less" "less\nwhich" "a\nb\nc"; do

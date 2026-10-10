@@ -2,12 +2,21 @@
 # Managed by Ansible (roles/recovery/files/snapshot-boot) - do not edit by hand.
 # Deployed to /usr/local/lib/workstation/snapshot-boot (root only).
 #
-# Bootable snapper snapshots in systemd-boot (docs/recovery-design.md 22):
-# the boot menu offers the newest 2 bootable UPDATE snapshots (snapper
-# userdata auto=pre-transaction: the pacman hook / system-update) and the
-# newest 2 bootable MANUAL snapshots (userdata important=yes: Create Snapshot
-# / system-snapshot). The class comes from snapper's userdata, never from the
-# description text.
+# Bootable snapper snapshots in systemd-boot (docs/recovery-design.md 22, 23).
+# The class of a snapshot comes from snapper's userdata, never from text:
+#   update   auto=pre-transaction + (upgrade=yes | update=<id>): taken before
+#            a system upgrade (the pacman hook saw -S..u / --sysupgrade, or
+#            system-update) - kept: the newest UPDATE_KEEP (+ the newest
+#            bootable one if none of those boots), all offered in the menu
+#   other    auto=pre-transaction otherwise (installs/removals): kept: the
+#            newest OTHER_KEEP, never in the menu
+#   manual   mslot=1|2|3 - the three manual slots (Create Snapshot), at most
+#            one snapshot each, cleanup algorithm "" (snapper never removes
+#            them), removed only by slot-delete or a confirmed overwrite
+# Never deleted here: manual slots, legacy recovery slots (slot=), the
+# baseline, snapshots without a class, the booted snapshot (nothing runs in
+# a snapshot boot). Slot metadata lives in snapper's own info.xml
+# (@snapshots, outside @) - a rollback cannot lose it.
 #
 #   snapshot-boot capture   store the main UKI for its kernel version
 #                           (/boot/EFI/workstation/snapshots/<uname>.efi) -
@@ -21,6 +30,16 @@
 #                           the service form: repeat while a snapper event
 #                           arrived during the run (the plugin's dirty flag)
 #   snapshot-boot status [--json]
+#   snapshot-boot prune      retention of the update/other classes (pacman hook,
+#                            system-update - right after their new snapshot)
+#   snapshot-boot check N    exit 0 if snapshot N can boot (reason on stderr)
+#   snapshot-boot slot-list [--json]        the three slots (no root needed:
+#                            reads /.snapshots/*/info.xml and the state file)
+#   snapshot-boot slot-set S LABEL [--replace N]   new snapshot into slot S;
+#                            an occupied slot only with --replace <its number>
+#                            (the number the user confirmed): create, check it
+#                            can boot, move the slot, THEN delete the old one
+#   snapshot-boot slot-delete S N           remove slot S's snapshot N
 #
 # A snapshot is offered only when it can really boot: it exists, is
 # read-only, carries this mechanism (SUPPORT marker - its own restore helper
@@ -60,16 +79,17 @@ LOCK = R + "/run/lock/workstation-snapshot-boot.lock"
 SUPPORT = "usr/local/lib/workstation/snapshot-boot-support"
 SUPPORT_MIN = 2      # version 1: its system-rollback asked snapper, which fails in a snapshot boot
 HOOK = "workstation-snapshot-overlay"
-PER_CLASS = 2
+UPDATE_KEEP = 2                        # update recovery snapshots (all of them in the menu)
+OTHER_KEEP = 2                         # other pacman snapshots (installs/removals; not in the menu)
+SLOTS = (1, 2, 3)                      # manual slots
 ESP_RESERVE = 150 * 1024 * 1024        # never fill the ESP below this (system-update's own limit)
-CLASSES = {"update": "Snapshot (before update)", "manual": "Snapshot"}
 
 log_lines = []
 
 
 def log(msg, err=False):
     log_lines.append(msg)
-    print("snapshot-boot: " + msg, file=sys.stderr if err else sys.stdout)
+    print("snapshot-boot: " + msg, file=sys.stderr)      # stdout stays free for --json results
     # under systemd (the sync service) stdout/stderr already are the journal
     if not R and not os.environ.get("INVOCATION_ID"):
         subprocess.run(["logger", "-t", "snapshot-boot", "-p", "user.err" if err else "user.info", "--", msg], check=False)
@@ -211,11 +231,17 @@ def snapper_list():
 
 def classify(s):
     ud = s.get("userdata") or {}
-    if ud.get("auto") == "pre-transaction":
-        return "update"
-    if ud.get("important") == "yes":
+    if ud.get("slot") or ud.get("baseline"):
+        return None                     # legacy recovery slot / baseline: never ours to touch
+    if str(ud.get("mslot", "")) in ("1", "2", "3"):
         return "manual"
+    if ud.get("auto") == "pre-transaction":
+        return "update" if ud.get("upgrade") == "yes" or ud.get("update") else "other"
     return None
+
+
+def slot_of(s):
+    return int((s.get("userdata") or {})["mslot"])
 
 
 def snapshot_kernels(snap):
@@ -301,25 +327,259 @@ def entry_text(s, cls, info):
     date = (s.get("date") or "")[:16]
     # the number keeps two snapshots of the same minute apart (systemd-boot
     # would otherwise append the file name to identical titles)
-    title = "%s #%d %s - %s" % (CLASSES[cls], s["number"], date, clean_text(s.get("description"), 60))
+    if cls == "manual":
+        title = "Slot %d: %s - %s (#%d)" % (slot_of(s), clean_text(s.get("description"), 50), date, s["number"])
+        key = "zz-workstation-snapshot-b-slot%d" % slot_of(s)
+    else:
+        title = "Update snapshot %s - %s (#%d)" % (date, clean_text(s.get("description"), 50), s["number"])
+        key = "zz-workstation-snapshot-a-%07d" % (9999999 - s["number"])
     return ("# Managed by snapshot-boot (roles/recovery) - do not edit; rewritten on every snapper change.\n"
             "title    %s\n"
-            "sort-key zz-workstation-snapshot-%07d\n"
+            "sort-key %s\n"
             "uki      %s/%s\n"
-            "options  %s\n") % (title, 9999999 - s["number"], UKI_REL, os.path.basename(info["uki"]), info["cmdline"])
+            "options  %s\n") % (title, key, UKI_REL, os.path.basename(info["uki"]), info["cmdline"])
+
+
+def stored_ukis():
+    ukis = {}
+    if os.path.isdir(UKI_DIR):
+        for f in os.listdir(UKI_DIR):
+            if f.endswith(".efi"):
+                ukis[f[:-4]] = os.path.join(UKI_DIR, f)
+    return ukis
+
+
+def snapper_delete(numbers):
+    """Delete snapshots; -> (ok, error text). Never called for an empty list."""
+    r = run(["snapper", "-c", "root", "delete"] + [str(n) for n in numbers])
+    return r.returncode == 0, (r.stderr.strip() or r.stdout.strip())
+
+
+# --- retention -------------------------------------------------------------
+
+def prune_plan(snaps, ukis):
+    """-> sorted numbers to delete: update class beyond the newest UPDATE_KEEP
+    (keeping the newest bootable one if none of those can boot - a failed new
+    snapshot never costs the last working recovery point), other class beyond
+    the newest OTHER_KEEP. Nothing outside these two classes."""
+    upd = sorted((x for x in snaps if classify(x) == "update"), key=lambda x: x["number"], reverse=True)
+    oth = sorted((x for x in snaps if classify(x) == "other"), key=lambda x: x["number"], reverse=True)
+    keep = upd[:UPDATE_KEEP]
+    if not any(bootable(x, ukis)[0] for x in keep):
+        rest = [x for x in upd[UPDATE_KEEP:] if bootable(x, ukis)[0]]
+        keep += rest[:1]
+    gone = [x["number"] for x in upd if x not in keep] + [x["number"] for x in oth[OTHER_KEEP:]]
+    return sorted(gone)
+
+
+def prune():
+    if snapshot_mode() is not None:
+        log("snapshot mode: no retention from here")
+        return 0
+    with lock():
+        gone = prune_plan(snapper_list(), stored_ukis())
+        if not gone:
+            return 0
+        ok, err = snapper_delete(gone)
+        if not ok:
+            log("retention: could not delete %s: %s" % (", ".join(map(str, gone)), err), err=True)
+            return 1
+        log("retention: removed snapshot(s) %s" % ", ".join(map(str, gone)))
+        return 0
+
+
+def check(n):
+    snaps = {x["number"]: x for x in snapper_list()}
+    if n not in snaps:
+        print("snapshot %d does not exist" % n, file=sys.stderr)
+        return 1
+    info, why = bootable(snaps[n], stored_ukis())
+    if info is None:
+        print(why, file=sys.stderr)
+        return 1
+    print("snapshot %d can boot (kernel %s)" % (n, info["kver"]))
+    return 0
+
+
+# --- manual slots ----------------------------------------------------------
+
+def lock():
+    os.makedirs(os.path.dirname(LOCK), exist_ok=True)
+    f = open(LOCK, "w")
+    fcntl.flock(f, fcntl.LOCK_EX)
+    return f
+
+
+def read_info(path):
+    """snapper's info.xml -> the snapper-list shape (date converted from UTC to local)."""
+    import xml.etree.ElementTree as ET
+    root = ET.parse(path).getroot()
+    date = root.findtext("date") or ""
+    try:
+        import calendar
+        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(calendar.timegm(time.strptime(date, "%Y-%m-%d %H:%M:%S"))))
+    except ValueError:
+        pass
+    ud = {u.findtext("key"): u.findtext("value") for u in root.findall("userdata")}
+    return {"number": int(root.findtext("num") or -1), "date": date, "description": root.findtext("description") or "",
+            "cleanup": root.findtext("cleanup") or "", "userdata": ud or None}
+
+
+def info_list():
+    out = []
+    try:
+        names = os.listdir(SNAPSHOTS)
+    except OSError:
+        return out
+    for d in names:
+        p = os.path.join(SNAPSHOTS, d, "info.xml")
+        if d.isdigit() and os.path.isfile(p):
+            try:
+                out.append(read_info(p))
+            except Exception:     # a half-written info.xml: skip, never fail the listing
+                pass
+    return out
+
+
+def slot_view(snaps):
+    """{slot: {"snapshot": newest holder or None, "duplicates": [older holders], "pending": [mslot-new]}}"""
+    view = {k: {"snapshot": None, "duplicates": [], "pending": []} for k in SLOTS}
+    for x in sorted(snaps, key=lambda x: x["number"], reverse=True):
+        ud = x.get("userdata") or {}
+        if classify(x) == "manual":
+            v = view[slot_of(x)]
+            if v["snapshot"] is None:
+                v["snapshot"] = x
+            else:
+                v["duplicates"].append(x)
+        elif str(ud.get("mslot-new", "")) in ("1", "2", "3"):
+            view[int(ud["mslot-new"])]["pending"].append(x)
+    return view
+
+
+def slot_list(as_json):
+    """No root needed: info.xml is world-readable, bootability from the state file."""
+    view = slot_view(info_list())
+    try:
+        st = json.load(open(STATE))
+    except (OSError, ValueError):
+        st = {}
+    offered = {e["number"] for e in st.get("entries", [])}
+    reasons = {e["number"]: e["reason"] for e in st.get("skipped", [])}
+    rows = []
+    for k in SLOTS:
+        x = view[k]["snapshot"]
+        if x is None:
+            rows.append({"slot": k, "empty": True})
+            continue
+        n = x["number"]
+        status = "bootable" if n in offered else ("not-bootable" if n in reasons else "unknown")
+        rows.append({"slot": k, "empty": False, "number": n, "description": x["description"], "date": x["date"][:16],
+                     "status": status, "reason": reasons.get(n, "" if n in offered else "not synced yet"),
+                     "duplicates": [d["number"] for d in view[k]["duplicates"]]})
+    if as_json:
+        print(json.dumps({"slots": rows}, ensure_ascii=False))
+    else:
+        for r in rows:
+            print("slot %d  %s" % (r["slot"], "empty" if r["empty"] else "#%d %s  %s  [%s%s]" % (
+                r["number"], r["date"], r["description"], r["status"], ": " + r["reason"] if r["reason"] and r["status"] != "bootable" else "")))
+    return 0
+
+
+class SlotError(Exception):
+    pass
+
+
+def booted_normally():
+    if snapshot_mode() is not None:
+        return False
+    if R:
+        return True
+    r = run(["findmnt", "-no", "OPTIONS", "/"])
+    return re.search(r"(^|,)subvol=/@(,|$)", r.stdout.strip()) is not None
+
+
+def slot_set(k, label, replace):
+    """New snapshot into slot k. Order: create (pending) -> check it can boot ->
+    move the slot -> delete the old -> sync. Any failure before the move leaves
+    the slot as it was (the new snapshot is deleted again)."""
+    if not booted_normally():
+        raise SlotError("only from the normal system (not in a snapshot or recovery boot)")
+    with lock():
+        snaps = snapper_list()
+        v = slot_view(snaps)[k]
+        cur = v["snapshot"]
+        if cur is not None and replace != cur["number"]:
+            raise SlotError("slot %d holds snapshot %d (%s) - overwrite it only after confirming that one"
+                            % (k, cur["number"], cur.get("description", "")))
+        if cur is None and replace is not None:
+            raise SlotError("slot %d is empty now (was %d) - reload and try again" % (k, replace))
+        leftovers = [x["number"] for x in v["pending"]]
+        if leftovers:
+            snapper_delete(leftovers)
+        ok, msg = capture()
+        if not ok:
+            raise SlotError("cannot make the snapshot bootable: %s" % msg)
+        r = run(["snapper", "-c", "root", "create", "--type", "single", "--print-number", "--cleanup-algorithm", "",
+                 "--description", label, "--userdata", "important=yes,mslot-new=%d" % k])
+        lines = r.stdout.strip().splitlines()
+        if r.returncode != 0 or not lines or not lines[-1].strip().isdigit():
+            raise SlotError("snapper could not create the snapshot: %s" % (r.stderr.strip() or r.stdout.strip() or r.returncode))
+        n = int(lines[-1])
+        new = {x["number"]: x for x in snapper_list()}.get(n)
+        info, why = bootable(new, stored_ukis()) if new else (None, "not in the snapper list after creation")
+        if info is None:
+            snapper_delete([n])
+            raise SlotError("the new snapshot cannot boot (%s) - removed again, slot %d unchanged" % (why, k))
+        r = run(["snapper", "-c", "root", "modify", "--userdata", "mslot=%d,mslot-new=" % k, str(n)])
+        if r.returncode != 0:
+            snapper_delete([n])
+            raise SlotError("could not assign snapshot %d to slot %d: %s - removed again, slot unchanged" % (n, k, r.stderr.strip()))
+        warnings = []
+        old = ([cur["number"]] if cur else []) + [x["number"] for x in v["duplicates"]]
+        if old:
+            ok, err = snapper_delete(old)
+            if not ok:
+                warnings.append("old snapshot %s not deleted (%s) - the slot shows the new one" % (", ".join(map(str, old)), err))
+        try:
+            sync_once()
+        except Exception as e:
+            warnings.append("boot menu not synced: %s" % e)
+        log("slot %d: snapshot %d \"%s\"%s" % (k, n, label, " (replaced %d)" % cur["number"] if cur else ""))
+        made = {x["number"]: x for x in snapper_list()}.get(n, {})
+        return {"ok": True, "slot": k, "number": n, "description": label, "date": (made.get("date") or "")[:16],
+                "replaced": cur["number"] if cur else None, "warnings": warnings}
+
+
+def slot_delete(k, n):
+    if snapshot_mode() is not None:
+        raise SlotError("not in a snapshot boot (snapshot %d is running)" % snapshot_mode())
+    with lock():
+        v = slot_view(snapper_list())[k]
+        cur = v["snapshot"]
+        if cur is None or cur["number"] != n:
+            raise SlotError("slot %d does not hold snapshot %d (now: %s) - reload and try again"
+                            % (k, n, cur["number"] if cur else "empty"))
+        ok, err = snapper_delete([n] + [x["number"] for x in v["duplicates"] + v["pending"]])
+        if not ok:
+            raise SlotError("snapper could not delete snapshot %d: %s" % (n, err))
+        warnings = []
+        try:
+            sync_once()
+        except Exception as e:
+            warnings.append("boot menu not synced: %s" % e)
+        log("slot %d: snapshot %d deleted" % (k, n))
+        return {"ok": True, "slot": k, "deleted": n, "warnings": warnings}
 
 
 def sync_once():
     ok_cap, msg = capture()
     log(msg, err=not ok_cap)
     snaps = snapper_list()
-    ukis = {}
-    if os.path.isdir(UKI_DIR):
-        for f in os.listdir(UKI_DIR):
-            if f.endswith(".efi"):
-                ukis[f[:-4]] = os.path.join(UKI_DIR, f)
+    ukis = stored_ukis()
     chosen, skipped = [], []
-    count = {"update": 0, "manual": 0}
+    count = {"update": 0}
+    slot_taken = set()
     errors = [] if ok_cap else [msg]
     if secure_boot():
         # systemd-stub ignores the entry's command line then: an entry would boot @
@@ -327,17 +587,24 @@ def sync_once():
         snaps = []
     for s in sorted(snaps, key=lambda s: s["number"], reverse=True):
         cls = classify(s)
-        if cls is None or s["number"] == 0:
+        if cls not in ("update", "manual") or s["number"] == 0:
             continue
-        if count[cls] >= PER_CLASS:
+        if cls == "update" and count["update"] >= UPDATE_KEEP:
             continue
+        if cls == "manual" and slot_of(s) in slot_taken:
+            continue                    # an older duplicate of a slot (interrupted overwrite): the newest holds it
+        if cls == "manual":
+            slot_taken.add(slot_of(s))
         info, why = bootable(s, ukis)
         if info is None:
             skipped.append({"number": s["number"], "class": cls, "date": s.get("date"),
-                            "description": s.get("description"), "reason": why})
+                            "description": s.get("description"), "reason": why,
+                            "slot": slot_of(s) if cls == "manual" else None})
             continue
-        count[cls] += 1
+        if cls == "update":
+            count["update"] += 1
         chosen.append({"number": s["number"], "class": cls, "date": s.get("date"),
+                       "slot": slot_of(s) if cls == "manual" else None,
                        "description": s.get("description"), "kver": info["kver"],
                        "uki": os.path.basename(info["uki"]),
                        "entry": ENTRY_PREFIX + "%d.conf" % s["number"], "text": entry_text(s, cls, info)})
@@ -357,14 +624,20 @@ def sync_once():
         if f.startswith(ENTRY_PREFIX) and f not in want:
             os.unlink(os.path.join(ENTRY_DIR, f))
             log("entry %s removed" % f)
-    # UKI copies: keep what an entry uses and the main kernel's (future snapshots)
+    # UKI copies: a copy stays while ANY kept update snapshot or slot
+    # snapshot has its kernel - offered in the menu or not (a run without
+    # entries, e.g. Secure Boot on, must not make them unbootable for good) -
+    # and the main kernel's (future snapshots). No clean-up after an error.
     keep = {c["uki"] for c in chosen}
+    for x in snaps:
+        if classify(x) in ("update", "manual"):
+            keep.update(k + ".efi" for k in snapshot_kernels(os.path.join(SNAPSHOTS, str(x["number"]), "snapshot")))
     main_uname = uki_uname(MAIN_UKI) if os.path.isfile(MAIN_UKI) else ""
     if main_uname:
         keep.add(main_uname + ".efi")
     removed = []
-    for f in sorted(os.listdir(UKI_DIR)) if os.path.isdir(UKI_DIR) else []:
-        if f not in keep:
+    for f in sorted(os.listdir(UKI_DIR)) if os.path.isdir(UKI_DIR) and not errors else []:
+        if f.endswith(".efi") and f not in keep:
             os.unlink(os.path.join(UKI_DIR, f))
             removed.append(f)
     if removed:
@@ -432,6 +705,8 @@ def status(as_json):
 def main(argv):
     if argv[:1] == ["status"] and argv[1:] in ([], ["--json"]):
         return status(argv[1:] == ["--json"])
+    if argv[:1] == ["slot-list"] and argv[1:] in ([], ["--json"]):
+        return slot_list(argv[1:] == ["--json"])
     if os.geteuid() != 0 and not R:
         print("snapshot-boot: run as root", file=sys.stderr)
         return 1
@@ -441,7 +716,24 @@ def main(argv):
         return 0 if ok else 1
     if argv in (["sync"], ["sync", "--queued"]):
         return sync(argv == ["sync", "--queued"])
-    print("usage: snapshot-boot capture | sync [--queued] | status [--json]", file=sys.stderr)
+    if argv == ["prune"]:
+        return prune()
+    if len(argv) == 2 and argv[0] == "check" and argv[1].isdigit():
+        return check(int(argv[1]))
+    try:
+        if argv[:1] == ["slot-set"] and len(argv) in (3, 5) and argv[1] in ("1", "2", "3") and argv[2] \
+                and (len(argv) == 3 or (argv[3] == "--replace" and argv[4].isdigit())):
+            res = slot_set(int(argv[1]), argv[2], int(argv[4]) if len(argv) == 5 else None)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        if argv[:1] == ["slot-delete"] and len(argv) == 3 and argv[1] in ("1", "2", "3") and argv[2].isdigit():
+            print(json.dumps(slot_delete(int(argv[1]), int(argv[2])), ensure_ascii=False))
+            return 0
+    except SlotError as e:
+        log(str(e), err=True)
+        return 1
+    print("usage: snapshot-boot capture | sync [--queued] | status [--json] | prune | check N | slot-list [--json]"
+          " | slot-set SLOT LABEL [--replace N] | slot-delete SLOT N", file=sys.stderr)
     return 2
 
 

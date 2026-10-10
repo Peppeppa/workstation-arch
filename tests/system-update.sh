@@ -3,7 +3,7 @@
 #   system-update            snapshot failure -> exit 3 + no pacman, --no-snapshot,
 #                            preflight/lock failures never overridden, --ui reports,
 #                            one run at a time
-#   snapshot-create          label validation, argv passed through untouched (no
+#   snapshot-create          slot helper: label validation, argv passed through untouched (no
 #                            shell), JSON result
 #   workstation-checkupdates ok / none / offline / error
 #
@@ -23,7 +23,7 @@ mkdir -p "$tmp/stub" "$tmp/lib" "$tmp/run"
 log="$tmp/log"
 sed -e "s#/usr/local/lib/workstation/system-update-root#$tmp/lib/system-update-root#g" \
     "$repo/roles/recovery/files/system-update" > "$tmp/system-update"
-sed -e "s#/usr/local/bin/system-snapshot#$tmp/stub/system-snapshot#g" \
+sed -e "s#/usr/local/lib/workstation/snapshot-boot#$tmp/stub/snapshot-boot#g" \
     "$repo/roles/recovery/files/snapshot-create" > "$tmp/snapshot-create"
 cp "$repo/roles/recovery/files/workstation-checkupdates" "$tmp/workstation-checkupdates"
 chmod +x "$tmp/system-update" "$tmp/snapshot-create" "$tmp/workstation-checkupdates"
@@ -109,31 +109,38 @@ exec 8>&-
 run --bogus
 ok "usage: exit 2" '[ "$rc" -eq 2 ]'
 
-# ---- snapshot-create -------------------------------------------------------
+# ---- snapshot-create (the slot helper behind the dialog) -------------------
 stub id 'echo 0'
-cat > "$tmp/stub/system-snapshot" <<EOF
+cat > "$tmp/stub/snapshot-boot" <<EOF
 #!/bin/bash
 printf '%s\n' "\$@" > "$tmp/argv"
-echo "system-snapshot: snapshot 57: \$1"
+[ -n "\${SB_FAIL:-}" ] && { echo "snapshot-boot: \$SB_FAIL" >&2; exit 1; }
+echo '{"ok": true, "slot": 1, "number": 57, "description": "x", "replaced": null, "warnings": []}'
 EOF
-chmod +x "$tmp/stub/system-snapshot"
-stub snapper 'python3 -c "import json, sys; print(json.dumps({\"root\": [{\"number\": 57, \"date\": \"2026-10-10 13:00:00\", \"description\": open(sys.argv[1]).readline().rstrip(\"\\n\") + \" (repo abc)\"}]}))" '"$tmp"'/argv'
+chmod +x "$tmp/stub/snapshot-boot"
 
 label='Vor "Install" $(touch /tmp/x) `id`; ä & | * ~'
-out=$("$tmp/snapshot-create" "$label" 2>&1); rc=$?
-ok "snapshot: special characters accepted" '[ "$rc" -eq 0 ]'
-ok "snapshot: label passed as ONE literal argv element" '[ "$(cat "$tmp/argv")" = "$label" ]'
-ok "snapshot: JSON number" '[ "$(python3 -c "import json,sys; print(json.loads(sys.argv[1])[\"number\"])" "$out")" = 57 ]'
+out=$("$tmp/snapshot-create" set 1 "$label" 2>&1); rc=$?
+ok "slots: special characters accepted" '[ "$rc" -eq 0 ]'
+ok "slots: empty slot -> slot-set, label ONE literal argv element" '[ "$(cat "$tmp/argv")" = "$(printf "slot-set\n1\n%s" "$label")" ]'
+ok "slots: JSON passed through" '[ "$(python3 -c "import json,sys; print(json.loads(sys.argv[1])[\"number\"])" "$out")" = 57 ]'
+"$tmp/snapshot-create" set 2 "Neu" 35 >/dev/null 2>&1
+ok "slots: overwrite passes the confirmed number as --replace" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-set 2 Neu --replace 35 " ]'
+"$tmp/snapshot-create" delete 3 35 >/dev/null 2>&1
+ok "slots: delete passes slot + confirmed number" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-delete 3 35 " ]'
 for bad in "" "-x" "--known-good" "$(printf 'a\nb')" "$(printf 'a\tb')" "$(printf '%0101d' 0)"; do
     rm -f "$tmp/argv"
-    "$tmp/snapshot-create" "$bad" >/dev/null 2>&1; rc=$?
-    ok "snapshot: rejects $(printf '%q' "$bad" | cut -c1-20)" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
+    "$tmp/snapshot-create" set 1 "$bad" >/dev/null 2>&1; rc=$?
+    ok "slots: rejects label $(printf '%q' "$bad" | cut -c1-20)" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
 done
-"$tmp/snapshot-create" a b >/dev/null 2>&1
-ok "snapshot: exactly one argument" '[ $? -eq 2 ]'
-stub system-snapshot 'echo "system-snapshot: booted from @recovery/x, not @" >&2; exit 1'
-out=$("$tmp/snapshot-create" "x" 2>&1); rc=$?
-ok "snapshot: failure is an error, with the reason" '[ "$rc" -eq 1 ] && grep -q "booted from" <<<"$out"'
+for args in "set 4 x" "set 0 x" "set 1 x abc" "delete 1 x" "delete 1" "create 1 x" ""; do
+    rm -f "$tmp/argv"
+    # shellcheck disable=SC2086
+    "$tmp/snapshot-create" $args >/dev/null 2>&1; rc=$?
+    ok "slots: rejects '$args'" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
+done
+out=$(SB_FAIL="slot 1 holds snapshot 36 - overwrite it only after confirming that one" "$tmp/snapshot-create" set 1 x 35 2>&1); rc=$?
+ok "slots: failure is an error, with the reason" '[ "$rc" -eq 1 ] && grep -q "holds snapshot 36" <<<"$out"'
 rm -f "$tmp/stub/id"
 
 # ---- workstation-checkupdates ---------------------------------------------

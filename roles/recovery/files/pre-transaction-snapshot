@@ -4,9 +4,9 @@
 # pacman hook /etc/pacman.d/hooks/00-workstation-pre-snapshot.hook ONCE per
 # package transaction (PreTransaction, AbortOnFail), the targets on stdin.
 #
-# Takes one snapper snapshot of / (class auto=pre-transaction) before
-# pacman changes anything, then keeps only the newest 3 of that class
-# (recovery-lib.sh). A failed snapshot ABORTS the transaction: an update
+# Takes one snapper snapshot of / (class auto=pre-transaction; upgrade=yes
+# when pacman runs a system upgrade) before pacman changes anything, then
+# applies the retention (snapshot-boot prune: 2 update + 2 other). A failed snapshot ABORTS the transaction: an update
 # without its recovery point is not done silently. Escape for once:
 #   sudo sh -c 'mkdir -p /run/workstation-recovery && echo manual > /run/workstation-recovery/skip-pre-snapshot'
 # Skips (transaction goes on): booted from a recovery slot (not @), or the
@@ -56,7 +56,10 @@ if [ -f "$SKIP_MARKER" ]; then
 fi
 
 capture_uki
-n=$(auto_snapshot "$what" | tail -1) && [ -n "$n" ] \
+extra=""
+if pacman_sysupgrade; then extra="upgrade=yes"; fi
+n=$(auto_snapshot "$what" "$extra" | tail -1) && [ -n "$n" ] \
     || die "snapper could not take the pre-transaction snapshot - transaction ABORTED. Fix snapper, or once without a snapshot: see the header of $0"
 say "snapshot $n before this transaction ($what)"
-prune_auto || say "WARNING: could not prune old pre-transaction snapshots (snapper list/delete failed)"
+say "snapshot $n is ${extra:+an update recovery snapshot (system upgrade)}${extra:-a package-change snapshot (not in the boot menu)}"
+prune_auto || say "WARNING: retention failed (snapshot-boot prune) - old snapshots stay for now"
