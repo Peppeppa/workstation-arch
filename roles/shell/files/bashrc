@@ -28,3 +28,12 @@ command -v fzf >/dev/null && eval "$(fzf --bash)"
 if [[ -z ${BAT_THEME:-} && ! -e ${XDG_CONFIG_HOME:-$HOME/.config}/bat/config ]]; then
     export BAT_THEME=ansi
 fi
+
+# Java (roles/development): Arch links only part of the JDK into /usr/bin
+# (java, javac, jar, ...) - jshell, jdb, jcmd etc. live in the default JDK's
+# bin. Appended (system commands keep precedence); /usr/lib/jvm/default
+# follows `archlinux-java set`. JAVA_HOME for build tools that ask for it.
+if [[ -d /usr/lib/jvm/default/bin ]]; then
+    [[ :$PATH: == *:/usr/lib/jvm/default/bin:* ]] || PATH=$PATH:/usr/lib/jvm/default/bin
+    export JAVA_HOME=${JAVA_HOME:-/usr/lib/jvm/default}
+fi

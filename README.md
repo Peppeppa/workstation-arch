@@ -584,7 +584,9 @@ rebuilds the environment for the new interpreter.
 JDK **25** (`jdk25-openjdk`, the current LTS - `java`, `javac`, `jar`,
 `jshell`, `jdb`; `archlinux-java status` shows the default), **Maven**
 (`mvn`) and **Gradle** (`gradle`) from the official repositories, all on
-that one JDK. No JDK 21 in parallel: nothing here needs it; a project that
+that one JDK. `jshell`/`jdb`/`jcmd` & co. are not linked into `/usr/bin`
+by Arch - the shell integration appends `/usr/lib/jvm/default/bin` to
+`PATH` and sets `JAVA_HOME` (both follow `archlinux-java set`). No JDK 21 in parallel: nothing here needs it; a project that
 does can use Gradle/Maven toolchains or IntelliJ's per-project JDK download.
 In Neovim (LazyVim `lang.java` extra, see "Shell and Neovim"): jdtls (the
 Eclipse language server: completion, diagnostics, formatting, refactoring)
