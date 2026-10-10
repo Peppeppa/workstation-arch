@@ -1077,6 +1077,20 @@ history for that milestone's own record):
   (not released), a real snapshot failure, the icon with real pending updates
   (none pending; logic tests only), Zathura forward search after this change.
 
+- **Scratchpad sync, Super+B, firewall transparency** (laptop, 2026-10-10,
+  explicitly requested): scratchpad = one watched `~/Documents/.system/
+  scratchpad.md` (Nextcloud folder /2_Dokumente - found already configured;
+  migrated from the four .txt, old files kept), conflict copy on external
+  change during typing; Super+B = Chromium via focus-or-launch; firewall
+  window "Wirksamer Zustand" (`firewall-rules status`, read-only).
+  Real-hardware-tested: migration, external change closed/typing (conflict
+  copy), reopen; Super+B start + focus; status view (SSH = base rule for all
+  sources/interfaces/IPv4+IPv6, live connection shown), ruleset hash
+  unchanged throughout; :Lazy/:Mason UIs; VimTeX -> Zathura forward search
+  (page 1 / page 3); bootstrap changed=0, --check ok. Still untested: a real
+  update through the dialog, a real snapshot failure, the update icon with
+  real pending updates (none pending).
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
