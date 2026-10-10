@@ -676,8 +676,32 @@ deletes the rule. Rules survive reboots.
   regardless. Container networking and outbound traffic are not affected.
 - Bind dev servers to `127.0.0.1` anyway when the LAN never needs them.
 
+**What is really allowed** (read-only, below your rules in the same
+window, "Wirksamer Zustand"): every inbound rule of the LIVE table with its
+protocol/port, source, interface and IP version ("alle" only when the rule
+really has no such condition), whether it comes from the configuration
+(persistent) or exists only at runtime, which program listens on the port,
+and established connections right now (peer + interface). Also: services
+that listen but are not allowed ("von außen blockiert"), loopback-only
+services, configured rules missing from the live table, and other nftables
+tables (e.g. Docker's - named, not evaluated). Names appear only where the
+configuration put the rule there (SSH from `ssh_server_enabled`, LocalSend,
+DHCP; your rules by their label) - never guessed from a port number.
+Listening is not the same as allowed, and an allowed port is not proof that
+a given network can reach it (router, VPN, other firewalls) - the window
+says so. Opening it changes nothing; it reads once per opening and after
+each change, no polling.
+
+Why SSH works on the laptop: `ssh_server_enabled: true` (host_vars) puts
+`tcp dport 22 accept` into the base ruleset - for **every** source, every
+interface, IPv4 and IPv6 - and sshd listens on `0.0.0.0:22` and `[::]:22`
+(key-only). So any network the laptop is on can reach sshd; only the key
+protects it. Narrowing it (e.g. to the home LAN) would be a policy change
+(`roles/firewall`), not done here.
+
 CLI (what the window runs):
-`pkexec /usr/local/libexec/workstation/firewall-rules list` (also `add
+`pkexec /usr/local/libexec/workstation/firewall-rules status` (read-only,
+JSON), `... list` (also `add
 <label> <port> <tcp|udp>`, `enable|disable|remove <port> <tcp|udp>`);
 the full ruleset: `sudo nft list table inet workstation`.
 

@@ -628,8 +628,35 @@ QtObject {
         eq("scratchpad: remote version taken over + shown + notice", [st.notes[0], shown, st.notice !== ""], ["second remote edit", 1, true]);
     }
 
+    function firewallStatus() {
+        // Effective-state texts: built only from the helper's fields.
+        const fs = read("quickshell/firewall/FirewallStatus.qml");
+        const sc = {};
+        for (const n of ["familyText", "listText", "ruleTitle", "ruleScope", "originText", "listenText", "connText", "infraText", "actionText", "sockText"])
+            sc[n] = make(fs, n, sc);
+        const ssh = { proto: "TCP", ports: "22", service: "SSH (sshd, ssh_server_enabled)", source: [], iface: [], family: null, dest: [], other: [],
+                      action: "accept", origin: "Basis-Konfiguration", persistence: "persistent",
+                      listening: [{ process: "sshd", scope: "alle Adressen" }], connections: [{ peer: "172.22.3.68", iface: "enp0s25" }] };
+        eq("fw: SSH title", sc.ruleTitle(ssh), "SSH (sshd, ssh_server_enabled) - TCP 22");
+        eq("fw: no condition = all", sc.ruleScope(ssh), "Quelle: alle Adressen · Schnittstelle: alle · IPv4 + IPv6");
+        eq("fw: listener", sc.listenText(ssh), "Lauscht: sshd (alle Adressen)");
+        eq("fw: connection", sc.connText(ssh), "Aktive Verbindungen: 172.22.3.68 über enp0s25");
+        const sub = { proto: "TCP", ports: "8080", service: null, source: ["10.0.0.0/24"], iface: ["eth0"], family: "IPv4", dest: [], other: [],
+                      action: "accept", origin: "nicht aus der Konfiguration", persistence: "nur zur Laufzeit", listening: [], connections: [] };
+        eq("fw: subnet rule is never 'all'", sc.ruleScope(sub), "Quelle: 10.0.0.0/24 · Schnittstelle: eth0 · nur IPv4");
+        eq("fw: no invented name", sc.ruleTitle(sub), "TCP 8080");
+        eq("fw: runtime-only said", sc.originText(sub), "nicht aus der Konfiguration · nur zur Laufzeit");
+        eq("fw: nobody listening", sc.listenText(sub), "Niemand lauscht auf diesem Port");
+        eq("fw: listeners unknown", sc.listenText({}), "Lauschen: unbekannt");
+        eq("fw: unknown condition shown verbatim", sc.ruleScope(Object.assign({}, sub, { other: ["{\"match\": 1}"] })).endsWith("weitere Bedingung: {\"match\": 1}"), true);
+        eq("fw: infra loopback", sc.infraText({ iface: ["lo"], action: "accept" }), "Schnittstelle lo → erlauben");
+        eq("fw: infra invalid", sc.infraText({ ct: "invalid", action: "drop" }), "Verbindungsstatus invalid → verwerfen");
+        eq("fw: infra icmpv6", sc.infraText({ icmp: "nd-neighbor-solicit", family: "IPv6", action: "accept" }), "ICMPv6 nd-neighbor-solicit → erlauben");
+    }
+
     Component.onCompleted: {
         powerMenu();
+        firewallStatus();
         scratchpad();
         updates();
         coffee();

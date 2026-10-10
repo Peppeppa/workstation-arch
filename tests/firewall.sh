@@ -33,7 +33,7 @@ python3 - "$repo/roles/firewall" "$tmp" <<'EOF' || exit 1
 import sys, jinja2, yaml
 role, tmp = sys.argv[1:]
 v = yaml.safe_load(open(role + "/defaults/main.yml"))
-v.update(ssh_server_enabled=True, firewall_state_dir=tmp + "/state")
+v.update(ssh_server_enabled=True, firewall_state_dir=tmp + "/state", firewall_ruleset=tmp + "/firewall.nft")
 env = jinja2.Environment(keep_trailing_newline=True)
 def render(src, dst, fix=lambda s: s):
     text = env.from_string(open(role + "/templates/" + src).read()).render(**v)
@@ -183,6 +183,71 @@ sleep 0.3
 reach $ctrpid 10.0.0.2 8080; check "docker: container outbound works" $?
 "$H" remove 2345 tcp
 refused remove 2345 tcp; check "remove of a removed rule refused" $?
+
+
+# ---- status: the effective state, read-only ----------------------------------
+st() { "$H" status > "$tmp/status.json" 2>"$tmp/err"; }
+q() { python3 -c "import json,sys; d=json.load(open('$tmp/status.json')); print($1)"; }
+serve_at() { # addr port: a listener on exactly that address
+    python3 -c 'import socket,sys
+fam = socket.AF_INET6 if ":" in sys.argv[1] else socket.AF_INET
+s=socket.socket(fam); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((sys.argv[1], int(sys.argv[2]))); s.listen()
+held = []
+while True: held.append(s.accept()[0])     # keeps connections open (ESTABLISHED)' "$1" "$2" & pids+=($!)
+}
+serve_at 0.0.0.0 22              # "sshd": all addresses
+serve_at 127.0.0.1 5555          # loopback only
+serve "" 7777                    # listens, but no rule
+sleep 0.4
+before=$(nft list ruleset | sha256sum)
+st; check "status: runs" $?
+[ "$(nft list ruleset | sha256sum)" = "$before" ]; check "status: ruleset unchanged (read-only)" $?
+[ "$(q 'd["loaded"], d["policy"]')" = "True drop" ]; check "status: loaded, input policy drop" $?
+[ "$(q '[(x["service"], x["source"], x["iface"], x["family"], x["persistence"]) for x in d["inbound"] if x["ports"] == "22"]')" = "[('SSH (sshd, ssh_server_enabled)', [], [], None, 'persistent')]" ]
+check "status: SSH = configured service, any source/interface, IPv4+IPv6, persistent" $?
+[ "$(q '[s["scope"] for x in d["inbound"] if x["ports"] == "22" for s in x["listening"]]')" = "['alle Adressen']" ]; check "status: SSH rule shows its listener" $?
+[ "$(q '[s["port"] for s in d["localOnly"] if s["port"] == 5555]')" = "[5555]" ]; check "status: loopback-only listener reported as local" $?
+[ "$(q '[s["port"] for s in d["blocked"] if s["port"] == 7777]')" = "[7777]" ]; check "status: listening without a rule = blocked" $?
+[ "$(q '[s["port"] for s in d["blocked"] if s["port"] in (22, 5555)]')" = "[]" ]; check "status: allowed / loopback listeners are not 'blocked'" $?
+# an established connection from the LAN to :22 is shown with its interface
+nsenter -t $lanpid -n python3 -c 'import socket,time; s=socket.create_connection(("10.0.0.1", 22)); time.sleep(3)' & pids+=($!)
+sleep 0.5; st
+[ "$(q '[c for x in d["inbound"] if x["ports"] == "22" for c in x["connections"]]')" = "[{'peer': '10.0.0.2', 'iface': 'eth0'}]" ]; check "status: live connection to SSH with peer + interface" $?
+
+# a rule only for one subnet (IPv4) and one only for IPv6, added at runtime
+nft add rule inet workstation input ip saddr 10.0.0.0/24 tcp dport 8080 accept
+nft add rule inet workstation input ip6 saddr fd00::/8 tcp dport 9090 accept
+st
+[ "$(q '[(x["source"], x["family"], x["persistence"], x["service"]) for x in d["inbound"] if x["ports"] == "8080"]')" = "[(['10.0.0.0/24'], 'IPv4', 'nur zur Laufzeit', None)]" ]
+check "status: subnet-only rule: its source, IPv4 only, runtime-only, no invented name" $?
+[ "$(q '[(x["source"], x["family"]) for x in d["inbound"] if x["ports"] == "9090"]')" = "[(['fd00::/8'], 'IPv6')]" ]; check "status: IPv6-only rule" $?
+nft -f "$tmp/firewall.nft"; "$H" restore      # back to the configuration
+
+# sharing rules: saved+enabled = persistent with its label; a set element nobody saved = runtime-only
+"$H" add "Spiel" 6000 udp; "$H" enable 6000 udp
+nft add element inet workstation share_tcp '{ 6100 }'
+st
+[ "$(q '[(x["proto"], x["service"], x["persistence"], x["origin"]) for x in d["inbound"] if x["ports"] in ("6000", "6100")]')" = "[('TCP', None, 'nur zur Laufzeit', 'Freigabe (Einstellungen)'), ('UDP', 'Spiel', 'persistent', 'Freigabe (Einstellungen)')]" ]
+check "status: sharing rules - saved = persistent + label, unsaved element = runtime" $?
+"$H" disable 6000 udp; "$H" remove 6000 udp; nft delete element inet workstation share_tcp '{ 6100 }'
+st
+[ "$(q '[x["ports"] for x in d["inbound"] if x["origin"].startswith("Freigabe")]')" = "['4000']" ]; check "status: removed sharing rules are gone (only the earlier enabled UDP 4000 left)" $?
+
+# a configured rule missing from the live table
+h=$(nft -a list chain inet workstation input | sed -n 's/.*tcp dport 22 accept # handle \([0-9]*\)/\1/p')
+nft delete rule inet workstation input handle "$h"
+st
+[ "$(q '[x["ports"] for x in d["missing"]]')" = "['22']" ]; check "status: configured but not live (SSH rule removed at runtime)" $?
+[ "$(q '[s["port"] for s in d["blocked"] if s["port"] == 22]')" = "[22]" ]; check "status: sshd listening + rule gone = blocked" $?
+nft -f "$tmp/firewall.nft"; "$H" restore
+
+# firewall not loaded: said, and listeners are not called blocked by it
+nft delete table inet workstation
+st; check "status: works without the table" $?
+[ "$(q 'd["loaded"], d["inbound"]')" = "False []" ]; check "status: firewall not loaded" $?
+[ "$(q 'sorted(x["table"] for x in d["foreign"])')" = "['ip filter', 'ip nat']" ]; check "status: other tables named, not evaluated" $?
+nft -f "$tmp/firewall.nft"; "$H" restore
 
 # ---- corrupt state: refused, never overwritten -------------------------------
 echo '{not json' > "$tmp/state/rules.json"

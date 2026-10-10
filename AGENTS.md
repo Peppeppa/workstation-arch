@@ -85,7 +85,7 @@ direct upstream dependency.
 | Networking | NetworkManager |
 | Remote access (SSH) | sshd (system service, `roles/base`) - only with host capability `ssh_server_enabled` (default false; laptop + arch-dev true), always key-only (`sshd_config.d/10-workstation-key-only.conf`) |
 | Inbound packet filter | kernel nftables, table `inet workstation` only (`roles/firewall`), loaded once at boot by `workstation-firewall.service` (oneshot, no daemon); never `flush ruleset`, never Docker's tables |
-| LAN sharing rules (Settings -> Firewall) | the root helper `firewall-rules` (`/usr/local/libexec/workstation/`, via `pkexec` + polkit action `org.workstation.firewall.manage`); state `/var/lib/workstation/firewall/rules.json`, kernel sets `share_tcp`/`share_udp` - never Ansible |
+| LAN sharing rules (Settings -> Firewall) | the root helper `firewall-rules` (`/usr/local/libexec/workstation/`, via `pkexec` + polkit action `org.workstation.firewall.manage`); state `/var/lib/workstation/firewall/rules.json`, kernel sets `share_tcp`/`share_udp` - never Ansible. Its read-only `status` verb is the window's "Wirksamer Zustand" (live table vs. the configured file in a private netns, listeners, connections) |
 | Audio | PipeWire + WirePlumber |
 | Bluetooth | BlueZ - `bluetoothd`, systemd system service (`roles/bluetooth`); UI via Quickshell's native Bluetooth module |
 | Bluetooth pairing agent (`org.bluez.Agent1`) | `bluetooth-agent`, child of Quickshell, only while the user pairs (feature `bluetooth`) |

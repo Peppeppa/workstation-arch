@@ -90,14 +90,16 @@ PanelWindow {
             win.close();
         }
 
-        // {visible, add, busy, error, dialogError, rules: [...]}
+        // {visible, add, busy, error, dialogError, rules: [...], statusError, status}
         function state(): string {
             const c = content.item;
             return JSON.stringify({ visible: win.visible, add: win.addOpen,
                                     busy: c ? c.model.busy : false,
                                     error: c ? c.model.errorText : "",
                                     dialogError: c ? c.dialogMessage() : "",
-                                    rules: c ? c.model.rules : [] });
+                                    rules: c ? c.model.rules : [],
+                                    statusError: c ? c.model.statusError : "",
+                                    status: c ? c.model.status : null });
         }
 
         // Type into the "Hinzufügen" dialog and press its button.
