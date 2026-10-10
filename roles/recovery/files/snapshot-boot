@@ -259,6 +259,9 @@ def bootable(s, ukis):
     """-> (info dict, None) or (None, reason)."""
     n = s["number"]
     snap = os.path.join(SNAPSHOTS, str(n), "snapshot")
+    slot = (s.get("userdata") or {}).get("slot")
+    if slot and os.path.isfile(os.path.join(ENTRY_DIR, "workstation-recovery-%s.conf" % slot)):
+        return None, "already in the boot menu as recovery slot %s" % slot
     if not os.path.isdir(snap):
         return None, "snapshot directory missing"
     if not is_readonly(snap):

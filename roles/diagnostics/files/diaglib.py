@@ -37,6 +37,7 @@ CORE_UNITS = {"NetworkManager.service", "systemd-logind.service", "workstation-f
 # Unit / identifier -> component name in the report.
 COMPONENTS = [
     (re.compile(r"^workstation-firewall|^firewall-rules$"), "Firewall"),
+    (re.compile(r"^snapshot-boot$|^snapshot-restore$|^system-rollback$|^workstation-snapshot-boot"), "Snapshot-Boot/Restore"),
     (re.compile(r"^snapper|^snapperd|^pre-transaction-snapshot$|^system-snapshot$|^snapshot-create$"), "Snapper"),
     (re.compile(r"^system-update|^workstation-system-update"), "System-Update"),
     (re.compile(r"^NetworkManager|^wpa_supplicant|^nm-"), "Netzwerk"),

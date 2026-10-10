@@ -38,10 +38,8 @@ pre)
     n=$(auto_snapshot "system-update (repo $(repo_commit))" "update=$2" | tail -1)
     [ -n "$n" ] || die "snapper could not take the pre-update snapshot"
     skip_next_snapshot "system-update took snapshot $n"
-    top_mount
-    trap top_umount EXIT
-    move_slot before-update previous-update
-    make_slot before-update "$n" "$(date +%F\ %H:%M)"
+    # No recovery slot any more: the snapshot itself is offered in the boot
+    # menu as "Snapshot (before update) ..." (snapshot-boot, plugin-synced).
     prune_auto >&2 || echo "system-update-root: WARNING: pruning old pre-transaction snapshots failed" >&2
     echo "$n"
     ;;
@@ -49,7 +47,7 @@ post)
     # No post snapshot (recovery needs the state BEFORE the transaction);
     # a skip marker pacman never consumed (nothing to do) goes away here.
     rm -f "$SKIP_MARKER"
-    echo "ok: snapshot $2 (before the update, recovery slot \"before-update\"), pacman exit $3"
+    echo "ok: snapshot $2 (before the update - boot menu \"Snapshot (before update) ...\"), pacman exit $3"
     ;;
 skipsnapshot)
     [ -n "${2:-}" ] || die "skipsnapshot needs a reason"

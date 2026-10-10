@@ -385,10 +385,68 @@ def recovery_checks():
     check("ESP space", esp >= 150, "%d MB free on /boot" % esp + ("" if esp >= 150 else " - system-update needs 150 MB"), warn=esp < 150)
     rc, src = run(["findmnt", "-no", "SOURCE", "/"])
     slot = src.split("[/@recovery/")[1].rstrip("]") if "[/@recovery/" in src else ""
-    if slot:
+    snap = snapshot_mode()
+    if snap is not None:
+        check("booted system", False, "SNAPSHOT MODE: snapshot %d (read-only, changes in RAM only, pacman blocked); "
+              "restore from the Quickshell dialog, or reboot into the normal system" % snap, warn=True)
+    elif slot:
         check("booted system", False, "RECOVERY SLOT %s - for diagnosis; permanent: sudo system-rollback %s" % (slot, slot), warn=True)
     else:
         check("booted system", src.endswith("[/@]"), "@" if src.endswith("[/@]") else src)
+    snapshot_boot_checks(snap)
+
+
+def snapshot_mode():
+    try:
+        m = re.search(r"(?:^|\s)workstation\.snapshot=(\d+)(?:\s|$)", open("/proc/cmdline").read())
+        return int(m.group(1)) if m else None
+    except OSError:
+        return None
+
+
+SNAPSHOT_BOOT_STATE = "/var/lib/workstation/snapshot-boot.json"
+SNAPSHOT_RESTORE_RECORD = "/var/lib/workstation/snapshot-restore.json"
+
+
+# Snapshot boot (roles/recovery snapshot-boot): its state file is the only
+# view a user process has - the ESP and the entries are root-only (0700).
+def snapshot_boot_checks(snap):
+    try:
+        st = json.load(open(SNAPSHOT_BOOT_STATE))
+    except (OSError, ValueError) as e:
+        check("snapshot boot entries", False, "no sync state yet (%s) - sudo /usr/local/lib/workstation/snapshot-boot sync"
+              % e.__class__.__name__, warn=True)
+        return
+    entries = st.get("entries", [])
+    age = time.time() - st.get("time", 0)
+    if not st.get("ok"):
+        check("snapshot boot entries", False, "last sync FAILED: %s" % "; ".join(st.get("errors", []))[:150],
+              warn=snap is not None)
+    else:
+        check("snapshot boot entries", True, "%d in the boot menu (%s), %d snapshot(s) not offered - snapshot-boot status"
+              % (len(entries), ", ".join("#%d %s" % (e["number"], e["class"]) for e in entries) or "-", len(st.get("skipped", []))))
+    # every entry's snapshot still exists and carries the kernel of its UKI copy
+    bad = [e for e in entries
+           if not os.path.isdir("/.snapshots/%d/snapshot/usr/lib/modules/%s" % (e["number"], e["kver"]))
+           or e.get("uki") not in st.get("uki_files", [])]
+    if snap is None:      # in a snapshot boot the state is the snapshot's own (older) view
+        check("snapshot boot kernels", not bad, "every entry: snapshot present, kernel = its UKI copy" if not bad
+              else "orphaned/mismatched: " + ", ".join("#%d (%s)" % (e["number"], e["kver"]) for e in bad))
+        unused = [f for f in st.get("uki_files", []) if f not in {e.get("uki") for e in entries}]
+        if len(unused) > 1:
+            check("snapshot boot files", False, "UKI copies no entry uses: %s" % ", ".join(unused), warn=True)
+    free, reserve = st.get("esp_free_bytes", 0), st.get("esp_reserve_bytes", 150 << 20)
+    if free < reserve:
+        check("snapshot boot ESP budget", False, "%d MiB free on the ESP, below the %d MiB reserve - new snapshots are not stored"
+              % (free >> 20, reserve >> 20), warn=True)
+    if age > 0 and not entries and st.get("skipped"):
+        check("snapshot boot offer", False, "no snapshot is bootable: %s" % st["skipped"][0]["reason"][:100], warn=True)
+    try:
+        r = json.load(open(SNAPSHOT_RESTORE_RECORD))
+        check("last snapshot restore", True, "snapshot %s restored %s; previous system %s (top level, remove when no longer needed)"
+              % (r.get("snapshot"), time.strftime("%Y-%m-%d %H:%M", time.localtime(r.get("time", 0))), r.get("previous")))
+    except (OSError, ValueError):
+        pass
 
 
 # --- crashes / errors in the current session ------------------------------

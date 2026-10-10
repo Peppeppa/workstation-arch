@@ -150,14 +150,13 @@ try:
              (32, "manual", "2026-10-10 18:30:00", "no subvol")])
     rc, out = tool("sync")
     eq("sync rc", rc, 0)
-    eq("entries: newest 2 bootable update (27, 25) + manual (28 only bootable one)", entries(),
-       ["workstation-snapshot-25.conf", "workstation-snapshot-27.conf", "workstation-snapshot-28.conf"])
+    eq("entries: newest 2 bootable update (25, 21 - 27 is a recovery slot) + manual (28 only bootable one)", entries(),
+       ["workstation-snapshot-21.conf", "workstation-snapshot-25.conf", "workstation-snapshot-28.conf"])
     st = state()
     reasons = {s["number"]: s["reason"] for s in st["skipped"]}
-    want = {23: "taken before snapshot boot support", 29: "no stored UKI for its kernel 7.0.0",
+    want = {27: "already in the boot menu as recovery slot before-update", 23: "taken before snapshot boot support", 29: "no stored UKI for its kernel 7.0.0",
             30: "needs exactly one kernel", 31: "snapshot is writable", 32: "its /etc/kernel/cmdline has no rootflags"}
     eq("skip reasons", {n: reasons.get(n, "").startswith(t) for n, t in want.items()}, {n: True for n in want})
-    eq("21 not considered (2 newer update snapshots boot)", 21 in reasons or any(e["number"] == 21 for e in st["entries"]), False)
     e28 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-28.conf")).read()
     opts = [l for l in e28.splitlines() if l.startswith("options")][0].split()[1:]
     eq("entry: snapshot root", "rootflags=subvol=@snapshots/28/snapshot" in opts and "rootflags=subvol=@" not in opts, True)
@@ -168,21 +167,22 @@ try:
        "title    Snapshot 2026-10-10 17:42 - test (repo b655739) with a tab")
     eq("entry: uki path + sort key", [l.split(None, 1)[1] for l in e28.splitlines() if l.startswith(("uki", "sort-key"))],
        ["zz-workstation-snapshot-9999971", "/EFI/workstation/snapshots/7.2.9.efi"])
-    e27 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-27.conf")).read()
-    eq("update entry title", e27.splitlines()[1], "title    Snapshot (before update) 2026-10-10 17:04 - system-update (repo 3276cfd)")
+    e25 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-25.conf")).read()
+    eq("update entry title", e25.splitlines()[1], "title    Snapshot (before update) 2026-10-10 13:39 - pacman: 7 packages")
+    e21 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-21.conf")).read()
+    eq("older kernel: its own UKI copy", "uki      /EFI/workstation/snapshots/7.1.0.efi" in e21, True)
     eq("state readable by everyone", oct(stat.S_IMODE(os.stat(os.path.join(R, "var/lib/workstation/snapshot-boot.json")).st_mode)), "0o644")
     eq("entry file root-only", oct(stat.S_IMODE(os.stat(os.path.join(R, "boot/loader/entries/workstation-snapshot-28.conf")).st_mode)), "0o600")
-    eq("unused UKI copies removed, the main kernel's kept", sorted(os.listdir(os.path.join(R, "boot/EFI/workstation/snapshots"))), ["7.2.9.efi"])
+    eq("unused UKI copies removed (6.9.0), used + main kept", sorted(os.listdir(os.path.join(R, "boot/EFI/workstation/snapshots"))), ["7.1.0.efi", "7.2.9.efi"])
     eq("slot entry not touched", os.path.isfile(os.path.join(R, "boot/loader/entries/workstation-recovery-before-update.conf")), True)
 
-    # --- deletion: 27 goes -> its entry goes, 21 is next but its UKI copy is gone now
+    # --- deletion: 21 goes -> its entry and its kernel's UKI copy go
     snapper([(25, "update", "2026-10-10 13:39:59", "pacman: 7 packages"),
-             (21, "update", "2026-10-01 09:00:00", "pacman: linux"),
              (28, "manual", "2026-10-10 17:42:50", "test")])
-    shutil.rmtree(os.path.join(R, ".snapshots/27"))
+    shutil.rmtree(os.path.join(R, ".snapshots/21"))
     rc, out = tool("sync")
     eq("after deletion", entries(), ["workstation-snapshot-25.conf", "workstation-snapshot-28.conf"])
-    eq("21: no UKI for 7.1.0 any more", {s["number"]: s["reason"][:24] for s in state()["skipped"]}.get(21), "no stored UKI for its ke")
+    eq("UKI copy of the deleted snapshot's kernel removed", sorted(os.listdir(os.path.join(R, "boot/EFI/workstation/snapshots"))), ["7.2.9.efi"])
 
     # --- a stored UKI that lost the hook (e.g. copied by hand) is not offered
     uki("/boot/EFI/workstation/snapshots/7.2.9.efi", "7.2.9", hook=False)

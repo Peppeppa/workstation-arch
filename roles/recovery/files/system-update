@@ -7,16 +7,16 @@
 #   1 preflight         booted from @ with the UKI it booted; free space; ESP;
 #                       battery/AC; no pacman lock
 #   2 repo-healthcheck  before (a FAIL stops, --force goes on anyway)
-#   3 recovery slot     "before-update" from the RUNNING system (the old one
-#                       becomes "previous-update") - THE pre-transaction
-#                       snapshot (the pacman hook skips its own for this
-#                       update) + writable clone + matching UKI + boot entry
+#   3 snapshot          THE pre-transaction snapshot (the pacman hook skips
+#                       its own for this update), the booted UKI stored for
+#                       it - the boot menu offers it as "Snapshot (before
+#                       update) <date> - system-update ..." (snapshot-boot)
 #   4 pacman -Syu       interactive, as always
 #   5 UKI sanity, repo-healthcheck --since <start> (no post snapshot)
 #
 # Never rolls back by itself: a failure leaves diagnostics and the choices
-# (boot "Recovery: before the last update", `sudo system-rollback
-# before-update`). Run as the desktop user (sudo is asked for once); the
+# (boot the snapshot from the boot menu and restore it there, or
+# `sudo system-rollback <snapshot>`). Run as the desktop user (sudo is asked for once); the
 # health checks run as that user, everything else as root.
 #
 # Exit: 0 updated + healthy, 1 failed (anything), 2 usage, 3 ONLY the
@@ -87,7 +87,7 @@ if [ "$nosnap" -eq 1 ]; then
     say "NO pre-update snapshot (--no-snapshot: your decision after a failed snapshot)"
     root skipsnapshot "system-update --no-snapshot: the user chose to update without a pre-update snapshot"
 else
-    say "recovery slot: before-update"
+    say "pre-update snapshot"
     errf=$(mktemp)
     if ! pre=$(root pre "$T0" 2>"$errf"); then
         cat "$errf" >&2
@@ -134,15 +134,15 @@ else
 fi
 if [ "$nosnap" -eq 1 ]; then
     echo "NOTE: NO new pre-update snapshot was taken for this update (--no-snapshot)."
-    echo "      \"Recovery: before the last update\" is still the state before an EARLIER update."
+    echo "      The newest \"Snapshot (before update)\" boot entry is the state before an EARLIER update."
 else
-    echo "Pre-update snapshot: $pre (recovery slot \"before-update\")."
+    echo "Pre-update snapshot: $pre (boot menu: \"Snapshot (before update) ...\")."
 fi
 if [ "$pacman_rc" -ne 0 ] || [ "$uki_ok" -eq 0 ] || [ "$health_ok" -eq 0 ]; then
     echo "Nothing was rolled back. Your choices:"
     echo "  - fix it and run repo-healthcheck again"
-    echo "  - reboot and pick \"Recovery: before the last update\" in the boot menu to look at the old system"
-    echo "  - sudo system-rollback before-update   (permanent, from the next boot on; /home stays)"
+    echo "  - reboot and pick \"Snapshot (before update) ...\" in the boot menu: test the old system, restore it from there"
+    echo "  - sudo system-rollback $pre   (permanent, from the next boot on; /home stays)"
 fi
 if root rebootneeded "$T0"; then
     echo "A reboot is needed for the new kernel/system components (then: repo-healthcheck)."
