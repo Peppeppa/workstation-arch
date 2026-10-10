@@ -69,7 +69,11 @@ return function(v)
         -- per login (dmabuf formats, output events) with no way to lower
         -- the level; authentication results are in the system journal from
         -- polkitd/PAM anyway, and repo-diagnose checks the agent runs.
-        hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
+        -- env -u: the authentication path keeps Qt's default look (no
+        -- portal lookup at its start); the session's Qt platform theme
+        -- is for applications. env execs: the process stays
+        -- "hyprpolkitagent" for session-stop and the healthcheck.
+        hl.exec_cmd("env -u QT_QPA_PLATFORMTHEME /usr/lib/hyprpolkitagent/hyprpolkitagent")
         hl.exec_cmd("{{ hyprland_quickshell_exec }}")
 {% if lock_idle_enabled %}
         -- FEATURE: lock_idle - hypridle's only lifecycle owner (session-
