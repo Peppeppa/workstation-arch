@@ -189,6 +189,104 @@
     - { src: pre-transaction-snapshot, dest: /usr/local/lib/workstation/pre-transaction-snapshot, mode: "0755" }
     - { src: recovery-baseline, dest: /usr/local/lib/workstation/recovery-baseline, mode: "0755" }
     - { src: workstation-checkupdates, dest: /usr/local/bin/workstation-checkupdates, mode: "0755" }
+    - { src: snapshot-boot, dest: /usr/local/lib/workstation/snapshot-boot, mode: "0755" }
+    # the marker every later snapshot of / carries (snapshot-boot offers only those)
+    - { src: snapshot-boot-support, dest: /usr/local/lib/workstation/snapshot-boot-support, mode: "0644" }
+  tags: recovery
+
+# ---- Snapshot boot (docs/recovery-design.md 22) -----------------------------
+# Bootable snapshots in systemd-boot: UKI copies per kernel version on the
+# ESP, one entry per offered snapshot (snapshot-boot), a busybox initramfs
+# hook that puts a RAM overlay over the read-only snapshot, and a snapper
+# plugin that re-syncs the entries after every snapshot change. Ansible only
+# deploys; the entries are runtime state of snapshot-boot.
+- name: Recovery - ESP directory for snapshot-boot UKI copies (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: /boot/EFI/workstation/snapshots
+    state: directory
+    mode: "0700"
+  tags: recovery
+
+- name: Recovery - initcpio hook directories (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: "/etc/initcpio/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: [hooks, install]
+  tags: recovery
+
+- name: Recovery - snapshot overlay initcpio hook (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: "initcpio/workstation-snapshot-overlay.{{ item }}"
+    dest: "/etc/initcpio/{{ 'hooks' if item == 'hook' else 'install' }}/workstation-snapshot-overlay"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [hook, install]
+  notify: Back up the main UKI and rebuild the initramfs (snapshot boot)
+  tags: recovery
+
+# After the hook files: mkinitcpio fails on a HOOKS entry without its files.
+- name: Recovery - snapshot overlay in the initramfs (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/mkinitcpio.conf.d/60-workstation-snapshot-overlay.conf
+    content: |
+      # Managed by Ansible (roles/recovery) - do not edit.
+      # Snapshot boot: RAM overlay over a read-only snapshot root, only with
+      # workstation.snapshot=<n> on the kernel command line (docs/recovery-design.md 22).
+      HOOKS+=(workstation-snapshot-overlay)
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Back up the main UKI and rebuild the initramfs (snapshot boot)
+  tags: recovery
+
+- name: Recovery - snapshot boot sync service (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: workstation-snapshot-boot-sync.service
+    dest: /etc/systemd/system/workstation-snapshot-boot-sync.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd (snapshot boot)
+    - Sync the snapshot boot entries
+  tags: recovery
+
+# snapper runs every executable in its plugin directory on its own events.
+- name: Recovery - snapper plugin directory (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.file:
+    path: /usr/lib/snapper/plugins
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: recovery
+
+- name: Recovery - snapper plugin for the snapshot boot entries (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: 50-workstation-snapshot-boot.plugin
+    dest: /usr/lib/snapper/plugins/50-workstation-snapshot-boot
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Sync the snapshot boot entries
   tags: recovery
 
 # OS menu -> System -> Create Snapshot (Quickshell updates/SnapshotDialog.qml):

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Managed by Ansible (roles/recovery/files/50-workstation-snapshot-boot.plugin) - do not edit by hand.
+# Deployed to /usr/lib/snapper/plugins/50-workstation-snapshot-boot: snapper
+# runs it on its own events as "<action> <subvolume> <fstype> <number>".
+# After a snapshot of / was created, changed or deleted, the boot entries are
+# re-synced (snapshot-boot) - asynchronously, as a service: the sync itself
+# asks snapper for its list, which must not happen inside snapper's call.
+# The dirty flag makes a running sync go round once more.
+case $1 in
+    create-snapshot-post|delete-snapshot-post|modify-snapshot-post) ;;
+    *) exit 0 ;;
+esac
+[ "$2" = / ] || exit 0
+mkdir -p /run/workstation-recovery && : > /run/workstation-recovery/snapshot-boot.dirty
+systemctl --no-block start workstation-snapshot-boot-sync.service >/dev/null 2>&1 || \
+    logger -t snapshot-boot -p user.err "could not start workstation-snapshot-boot-sync.service ($1 $4)"
+exit 0

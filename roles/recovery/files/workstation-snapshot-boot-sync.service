@@ -1,0 +1,11 @@
+# Managed by Ansible (roles/recovery/files/workstation-snapshot-boot-sync.service) - do not edit by hand.
+# Started by the snapper plugin (50-workstation-snapshot-boot) after every
+# snapshot change of /: re-syncs the systemd-boot snapshot entries, then ends.
+# No timer, nothing resident (docs/recovery-design.md 22).
+[Unit]
+Description=Sync systemd-boot snapshot entries with snapper (workstation-arch)
+RequiresMountsFor=/boot /.snapshots
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/workstation/snapshot-boot sync --queued

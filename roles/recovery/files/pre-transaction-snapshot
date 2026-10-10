@@ -10,7 +10,10 @@
 # without its recovery point is not done silently. Escape for once:
 #   sudo sh -c 'mkdir -p /run/workstation-recovery && echo manual > /run/workstation-recovery/skip-pre-snapshot'
 # Skips (transaction goes on): booted from a recovery slot (not @), or the
-# one-shot skip marker (system-update already took this snapshot).
+# one-shot skip marker (system-update already took this snapshot). In a
+# snapshot boot (workstation.snapshot=<n>) it ABORTS the transaction. Before
+# the snapshot the booted UKI is stored for snapshot boot (snapshot-boot
+# capture) - a kernel update replaces the main UKI later in this transaction.
 . /usr/local/lib/workstation/recovery-lib.sh
 need_root
 
@@ -26,6 +29,13 @@ case ${#targets[@]} in
         what="pacman: ${#targets[@]} packages ($names)"
         ;;
 esac
+
+# Snapshot mode: the root is a read-only snapshot under a RAM overlay - a
+# package change would vanish at reboot and write the shared package cache.
+# Abort (AbortOnFail): no package changes from a snapshot boot.
+if [ -n "$(snapshot_mode)" ]; then
+    die "snapshot mode (snapshot $(snapshot_mode)): package changes are blocked - restore the snapshot or boot the normal system first"
+fi
 
 if ! booted_from_main; then
     say "booted from $(root_subvol), not @ - no snapshot in a recovery boot"
@@ -45,6 +55,7 @@ if [ -f "$SKIP_MARKER" ]; then
     say "ignoring a stale skip marker (${age}s old: $reason)"
 fi
 
+capture_uki
 n=$(auto_snapshot "$what" | tail -1) && [ -n "$n" ] \
     || die "snapper could not take the pre-transaction snapshot - transaction ABORTED. Fix snapper, or once without a snapshot: see the header of $0"
 say "snapshot $n before this transaction ($what)"

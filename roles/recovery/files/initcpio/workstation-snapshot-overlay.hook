@@ -1,0 +1,38 @@
+#!/usr/bin/ash
+# Managed by Ansible (roles/recovery/files/initcpio) - do not edit by hand.
+# Deployed to /etc/initcpio/hooks/workstation-snapshot-overlay (busybox
+# initramfs, HOOKS+= drop-in /etc/mkinitcpio.conf.d/60-workstation-snapshot-overlay.conf).
+#
+# Snapshot boot (docs/recovery-design.md 22): only when the kernel command
+# line carries workstation.snapshot=<n> (written by snapshot-boot into the
+# snapshot's boot entry) - a normal boot of @ never reaches the overlay.
+# The read-only snapshot becomes the lower layer, a tmpfs the upper one:
+# the session can write as usual, nothing reaches the snapshot or @, and
+# everything written is gone at the next boot. A snapshot that is NOT
+# read-only is mounted read-only instead of being written to.
+# Adapted from grub-btrfs' grub-btrfs-overlayfs hook (GPL-3.0-or-later,
+# https://github.com/Antynea/grub-btrfs) - same idea, own trigger.
+
+run_latehook() {
+    local arg n="" lower=/workstation-snapshot/lower rw=/workstation-snapshot/rw
+    for arg in $(cat /proc/cmdline); do
+        case $arg in workstation.snapshot=*) n=${arg#workstation.snapshot=} ;; esac
+    done
+    [ -n "$n" ] || return 0
+
+    if [ "$(btrfs property get /new_root ro 2>/dev/null)" != "ro=true" ]; then
+        err "workstation-snapshot-overlay: snapshot $n is not read-only - mounted read-only instead"
+        mount -o remount,ro /new_root
+        return 0
+    fi
+    mkdir -p "$lower" "$rw"
+    mount --move /new_root "$lower"
+    if mount -t tmpfs -o mode=0755 workstation-snapshot-rw "$rw" \
+        && mkdir -p "$rw/upper" "$rw/work" \
+        && mount -t overlay -o "lowerdir=$lower,upperdir=$rw/upper,workdir=$rw/work" workstation-snapshot /new_root; then
+        msg ":: workstation-snapshot-overlay: snapshot $n read-only, changes in RAM only"
+    else
+        err "workstation-snapshot-overlay: overlay failed - snapshot $n mounted read-only"
+        mount --move "$lower" /new_root
+    fi
+}

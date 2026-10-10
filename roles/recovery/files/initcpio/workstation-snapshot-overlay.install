@@ -1,0 +1,17 @@
+#!/bin/bash
+# Managed by Ansible (roles/recovery/files/initcpio) - do not edit by hand.
+# Deployed to /etc/initcpio/install/workstation-snapshot-overlay.
+
+build() {
+    add_module overlay
+    add_binary btrfs
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+Snapshot boot of workstation-arch: with workstation.snapshot=<n> on the
+kernel command line, the read-only Btrfs snapshot root gets a tmpfs overlay
+(changes in RAM only). Without that parameter it does nothing.
+HELPEOF
+}

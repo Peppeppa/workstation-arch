@@ -37,7 +37,26 @@ root_subvol() { findmnt -no OPTIONS / | tr ',' '\n' | sed -n 's#^subvol=/##p'; }
 
 booted_from_main() { [ "$(root_subvol)" = "@" ]; }
 
-root_device() { findmnt -no SOURCE / | sed 's/\[.*//'; }
+# The Btrfs device: from / normally; in a snapshot boot / is an overlay, so
+# from /.snapshots (same filesystem, mounted in every boot).
+root_device() {
+    local d
+    d=$(findmnt -no SOURCE / | sed 's/\[.*//')
+    case $(findmnt -no FSTYPE /) in
+        btrfs) echo "$d" ;;
+        *) findmnt -no SOURCE /.snapshots | sed 's/\[.*//' ;;
+    esac
+}
+
+# Snapshot boot (snapshot-boot, docs/recovery-design.md 22): the snapshot
+# number from workstation.snapshot=<n> on the kernel command line, "" otherwise.
+snapshot_mode() { tr ' ' '\n' < /proc/cmdline | sed -n 's/^workstation\.snapshot=\([0-9]\+\)$/\1/p' | head -1; }
+
+# Store the booted UKI for its kernel before a snapshot is taken, so the
+# snapshot stays bootable after a kernel update (snapshot-boot capture).
+# Never fatal: without it the snapshot is just not offered in the boot menu.
+SNAPSHOT_BOOT=/usr/local/lib/workstation/snapshot-boot
+capture_uki() { "$SNAPSHOT_BOOT" capture >&2 || echo "${0##*/}: WARNING: UKI not stored for snapshot boot (snapshot-boot status)" >&2; }
 
 top_mount() {
     mkdir -p "$RECOVERY_TOP"

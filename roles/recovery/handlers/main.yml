@@ -1,0 +1,28 @@
+---
+# Order = definition order: initramfs first (the sync stores the new UKI),
+# then systemd, then the entries.
+
+# The current main UKI is kept before mkinitcpio replaces it
+# (/boot/EFI/workstation/backup/arch-linux.efi - the recovery slots stay
+# bootable as before; this copy is for a manual restore).
+- name: Back up the main UKI and rebuild the initramfs (snapshot boot)
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      set -e
+      mkdir -p /boot/EFI/workstation/backup
+      if [ -f /boot/EFI/Linux/arch-linux.efi ]; then
+          cp -f /boot/EFI/Linux/arch-linux.efi /boot/EFI/workstation/backup/arch-linux.efi
+      fi
+      mkinitcpio -P
+
+- name: Reload systemd (snapshot boot)
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Sync the snapshot boot entries
+  become: true
+  ansible.builtin.systemd_service:
+    name: workstation-snapshot-boot-sync.service
+    state: started

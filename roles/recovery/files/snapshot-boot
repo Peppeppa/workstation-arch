@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+# Managed by Ansible (roles/recovery/files/snapshot-boot) - do not edit by hand.
+# Deployed to /usr/local/lib/workstation/snapshot-boot (root only).
+#
+# Bootable snapper snapshots in systemd-boot (docs/recovery-design.md 22):
+# the boot menu offers the newest 2 bootable UPDATE snapshots (snapper
+# userdata auto=pre-transaction: the pacman hook / system-update) and the
+# newest 2 bootable MANUAL snapshots (userdata important=yes: Create Snapshot
+# / system-snapshot). The class comes from snapper's userdata, never from the
+# description text.
+#
+#   snapshot-boot capture   store the main UKI for its kernel version
+#                           (/boot/EFI/workstation/snapshots/<uname>.efi) -
+#                           run synchronously before a snapshot is taken (the
+#                           pacman hook: a kernel update rebuilds the main UKI
+#                           minutes later, the old snapshot needs the old one)
+#   snapshot-boot sync      the entries: write the chosen ones, remove every
+#                           other workstation-snapshot-*.conf, delete UKI copies
+#                           nothing uses any more, write the state file
+#   snapshot-boot sync --queued
+#                           the service form: repeat while a snapper event
+#                           arrived during the run (the plugin's dirty flag)
+#   snapshot-boot status [--json]
+#
+# A snapshot is offered only when it can really boot: it exists, is
+# read-only, carries this mechanism (SUPPORT marker - its own restore helper
+# and pacman block are then inside it), has exactly the one kernel whose UKI
+# copy exists, and that UKI's initramfs has the overlay hook. Otherwise the
+# reason is in the state file (/var/lib/workstation/snapshot-boot.json,
+# world-readable for repo-healthcheck) and the journal (-t snapshot-boot).
+#
+# An entry boots the stored UKI with its command line replaced (systemd-stub
+# takes the loader's command line while Secure Boot is off - `sync` offers
+# no entry at all with Secure Boot on): rootflags=subvol=@snapshots/<n>/snapshot, no resume, noresume,
+# workstation.snapshot=<n> (the overlay hook's trigger and the shell's
+# snapshot-mode marker), systemd.mask=systemd-remount-fs.service (the
+# snapshot's fstab line for / names @ - remounting the overlay with it fails).
+# The normal entry (arch-linux.efi, loader.conf default) is never touched.
+import fcntl
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+R = os.environ.get("SNAPSHOT_BOOT_TEST_ROOT", "")     # tests only: a fake filesystem root
+ESP = R + "/boot"
+MAIN_UKI = ESP + "/EFI/Linux/arch-linux.efi"
+UKI_DIR = ESP + "/EFI/workstation/snapshots"
+UKI_REL = "/EFI/workstation/snapshots"
+ENTRY_DIR = ESP + "/loader/entries"
+ENTRY_PREFIX = "workstation-snapshot-"
+SNAPSHOTS = R + "/.snapshots"
+STATE = R + "/var/lib/workstation/snapshot-boot.json"
+DIRTY = R + "/run/workstation-recovery/snapshot-boot.dirty"
+LOCK = R + "/run/lock/workstation-snapshot-boot.lock"
+SUPPORT = "usr/local/lib/workstation/snapshot-boot-support"
+HOOK = "workstation-snapshot-overlay"
+PER_CLASS = 2
+ESP_RESERVE = 150 * 1024 * 1024        # never fill the ESP below this (system-update's own limit)
+CLASSES = {"update": "Snapshot (before update)", "manual": "Snapshot"}
+
+log_lines = []
+
+
+def log(msg, err=False):
+    log_lines.append(msg)
+    print("snapshot-boot: " + msg, file=sys.stderr if err else sys.stdout)
+    if not R:
+        subprocess.run(["logger", "-t", "snapshot-boot", "-p", "user.err" if err else "user.info", "--", msg], check=False)
+
+
+def run(argv, **kw):
+    return subprocess.run(argv, capture_output=True, text=True, **kw)
+
+
+def section(path, name):
+    """A PE section of a UKI as bytes (objcopy, binutils) - b"" when missing."""
+    with tempfile.NamedTemporaryFile() as t:
+        r = run(["objcopy", "-O", "binary", "--only-section=." + name, path, t.name])
+        return open(t.name, "rb").read() if r.returncode == 0 else b""
+
+
+def uki_uname(path):
+    return section(path, "uname").decode(errors="replace").strip("\0").strip()
+
+
+def has_hook(path):
+    """Does this UKI's initramfs contain the overlay hook? (lsinitcpio lists it)"""
+    initrd = section(path, "initrd")
+    if not initrd:
+        return False
+    with tempfile.NamedTemporaryFile() as t:
+        t.write(initrd)
+        t.flush()
+        r = run(["lsinitcpio", "-l", t.name])
+    return r.returncode == 0 and any(l.rstrip("/").endswith("hooks/" + HOOK) for l in r.stdout.splitlines())
+
+
+def same_file(a, b):
+    try:
+        if os.path.getsize(a) != os.path.getsize(b):
+            return False
+        with open(a, "rb") as fa, open(b, "rb") as fb:
+            while True:
+                x, y = fa.read(1 << 20), fb.read(1 << 20)
+                if x != y:
+                    return False
+                if not x:
+                    return True
+    except OSError:
+        return False
+
+
+def esp_free():
+    st = os.statvfs(ESP)
+    return st.f_bavail * st.f_frsize
+
+
+def write_atomic(path, data, mode=0o600):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "wb" if isinstance(data, bytes) else "w") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def booted_main():
+    """The main UKI is the one this system booted: same kernel as running, not rebuilt since the boot."""
+    try:
+        with open(R + "/proc/stat") as f:
+            btime = int(next(l for l in f if l.startswith("btime")).split()[1])
+    except (OSError, StopIteration, ValueError):
+        return False
+    return (os.path.isfile(MAIN_UKI) and uki_uname(MAIN_UKI) == os.uname().release
+            and os.stat(MAIN_UKI).st_mtime < btime)
+
+
+SECURE_BOOT_VAR = R + "/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
+
+
+def secure_boot():
+    """Secure Boot on? (EFI variable: 4 attribute bytes, then 1 = on)"""
+    try:
+        with open(SECURE_BOOT_VAR, "rb") as f:
+            return f.read()[4:5] == b"\x01"
+    except OSError:
+        return False
+
+
+def snapshot_mode():
+    try:
+        with open(R + "/proc/cmdline") as f:
+            m = re.search(r"(?:^|\s)workstation\.snapshot=(\d+)(?:\s|$)", f.read())
+        return int(m.group(1)) if m else None
+    except OSError:
+        return None
+
+
+# --- capture ---------------------------------------------------------------
+
+def capture():
+    """Store the main UKI for its kernel version. Keeps an existing copy unless
+    it lacks the overlay hook, or the main UKI is the proven (booted) one and
+    differs - an untested, freshly rebuilt UKI never replaces a working copy.
+    -> (ok, message)"""
+    if snapshot_mode() is not None:
+        return True, "snapshot mode: nothing captured"
+    if not os.path.isfile(MAIN_UKI):
+        return False, "no main UKI %s" % MAIN_UKI
+    uname = uki_uname(MAIN_UKI)
+    if not uname:
+        return False, "main UKI has no .uname section"
+    dest = os.path.join(UKI_DIR, uname + ".efi")
+    if os.path.isfile(dest):
+        if same_file(dest, MAIN_UKI):
+            return True, "UKI for %s already stored" % uname
+        if has_hook(dest) and not booted_main():
+            return True, "UKI for %s kept (the main UKI was rebuilt since the boot - not proven yet)" % uname
+    if not has_hook(MAIN_UKI):
+        return False, "main UKI (%s) has no %s hook in its initramfs - mkinitcpio -P first" % (uname, HOOK)
+    need = os.path.getsize(MAIN_UKI) - (os.path.getsize(dest) if os.path.isfile(dest) else 0)
+    if esp_free() - need < ESP_RESERVE:
+        return False, "ESP budget: storing the UKI for %s would leave less than %d MiB free" % (uname, ESP_RESERVE >> 20)
+    os.makedirs(UKI_DIR, exist_ok=True)
+    tmp = dest + ".tmp"
+    shutil.copyfile(MAIN_UKI, tmp)
+    with open(tmp, "rb") as f:
+        os.fsync(f.fileno())
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, dest)
+    return True, "stored the UKI for %s" % uname
+
+
+# --- sync ------------------------------------------------------------------
+
+def snapper_list():
+    r = run(["snapper", "--jsonout", "-c", "root", "list"])
+    if r.returncode != 0:
+        raise RuntimeError("snapper list failed: %s" % (r.stderr.strip() or r.returncode))
+    return json.loads(r.stdout).get("root", [])
+
+
+def classify(s):
+    ud = s.get("userdata") or {}
+    if ud.get("auto") == "pre-transaction":
+        return "update"
+    if ud.get("important") == "yes":
+        return "manual"
+    return None
+
+
+def snapshot_kernels(snap):
+    mod = os.path.join(snap, "usr/lib/modules")
+    try:
+        return sorted(k for k in os.listdir(mod) if os.path.isfile(os.path.join(mod, k, "vmlinuz")))
+    except OSError:
+        return []
+
+
+def is_readonly(snap):
+    if R:
+        return not os.path.exists(snap + ".rw")    # tests: a ".rw" marker means writable
+    r = run(["btrfs", "property", "get", snap, "ro"])
+    return r.returncode == 0 and r.stdout.strip() == "ro=true"
+
+
+def entry_cmdline(snap, n):
+    try:
+        with open(os.path.join(snap, "etc/kernel/cmdline")) as f:
+            base = f.read().strip()
+    except OSError:
+        return None, "no /etc/kernel/cmdline in the snapshot"
+    toks = base.split()
+    if "rootflags=subvol=@" not in toks:
+        return None, "its /etc/kernel/cmdline has no rootflags=subvol=@"
+    out = []
+    for t in toks:
+        if t == "rootflags=subvol=@":
+            t = "rootflags=subvol=@snapshots/%d/snapshot" % n
+        elif t.startswith("resume=") or t.startswith("resume_offset="):
+            continue
+        out.append(t)
+    out += ["noresume", "systemd.mask=systemd-remount-fs.service", "workstation.snapshot=%d" % n]
+    return " ".join(out), None
+
+
+hook_cache = {}
+
+
+def bootable(s, ukis):
+    """-> (info dict, None) or (None, reason)."""
+    n = s["number"]
+    snap = os.path.join(SNAPSHOTS, str(n), "snapshot")
+    if not os.path.isdir(snap):
+        return None, "snapshot directory missing"
+    if not is_readonly(snap):
+        return None, "snapshot is writable (not read-only)"
+    if not os.path.isfile(os.path.join(snap, SUPPORT)):
+        return None, "taken before snapshot boot support (no %s inside)" % SUPPORT
+    kernels = snapshot_kernels(snap)
+    if len(kernels) != 1:
+        return None, "needs exactly one kernel in /usr/lib/modules, found %d" % len(kernels)
+    kver = kernels[0]
+    uki = ukis.get(kver)
+    if not uki:
+        return None, "no stored UKI for its kernel %s" % kver
+    if uki not in hook_cache:
+        hook_cache[uki] = has_hook(uki) and uki_uname(uki) == kver
+    if not hook_cache[uki]:
+        return None, "stored UKI for %s lacks the overlay hook or names another kernel" % kver
+    cmdline, why = entry_cmdline(snap, n)
+    if not cmdline:
+        return None, why
+    return {"kver": kver, "uki": uki, "cmdline": cmdline}, None
+
+
+def clean_text(t, limit):
+    t = re.sub(r"[\x00-\x1f\x7f]", " ", t or "").strip()
+    return t if len(t) <= limit else t[:limit - 3].rstrip() + "..."
+
+
+def entry_text(s, cls, info):
+    date = (s.get("date") or "")[:16]
+    title = "%s %s - %s" % (CLASSES[cls], date, clean_text(s.get("description"), 60))
+    return ("# Managed by snapshot-boot (roles/recovery) - do not edit; rewritten on every snapper change.\n"
+            "title    %s\n"
+            "sort-key zz-workstation-snapshot-%07d\n"
+            "uki      %s/%s\n"
+            "options  %s\n") % (title, 9999999 - s["number"], UKI_REL, os.path.basename(info["uki"]), info["cmdline"])
+
+
+def sync_once():
+    ok_cap, msg = capture()
+    log(msg, err=not ok_cap)
+    snaps = snapper_list()
+    ukis = {}
+    if os.path.isdir(UKI_DIR):
+        for f in os.listdir(UKI_DIR):
+            if f.endswith(".efi"):
+                ukis[f[:-4]] = os.path.join(UKI_DIR, f)
+    chosen, skipped = [], []
+    count = {"update": 0, "manual": 0}
+    errors = [] if ok_cap else [msg]
+    if secure_boot():
+        # systemd-stub ignores the entry's command line then: an entry would boot @
+        errors.append("Secure Boot is on: systemd-stub ignores an entry's command line - no snapshot entries")
+        snaps = []
+    for s in sorted(snaps, key=lambda s: s["number"], reverse=True):
+        cls = classify(s)
+        if cls is None or s["number"] == 0:
+            continue
+        if count[cls] >= PER_CLASS:
+            continue
+        info, why = bootable(s, ukis)
+        if info is None:
+            skipped.append({"number": s["number"], "class": cls, "date": s.get("date"),
+                            "description": s.get("description"), "reason": why})
+            continue
+        count[cls] += 1
+        chosen.append({"number": s["number"], "class": cls, "date": s.get("date"),
+                       "description": s.get("description"), "kver": info["kver"],
+                       "uki": os.path.basename(info["uki"]),
+                       "entry": ENTRY_PREFIX + "%d.conf" % s["number"], "text": entry_text(s, cls, info)})
+    # entries: write the chosen (only when changed), remove every other one of ours
+    os.makedirs(ENTRY_DIR, exist_ok=True)
+    want = {c["entry"]: c["text"] for c in chosen}
+    for name, text in want.items():
+        p = os.path.join(ENTRY_DIR, name)
+        try:
+            same = open(p).read() == text
+        except OSError:
+            same = False
+        if not same:
+            write_atomic(p, text)
+            log("entry %s written" % name)
+    for f in os.listdir(ENTRY_DIR):
+        if f.startswith(ENTRY_PREFIX) and f not in want:
+            os.unlink(os.path.join(ENTRY_DIR, f))
+            log("entry %s removed" % f)
+    # UKI copies: keep what an entry uses and the main kernel's (future snapshots)
+    keep = {c["uki"] for c in chosen}
+    main_uname = uki_uname(MAIN_UKI) if os.path.isfile(MAIN_UKI) else ""
+    if main_uname:
+        keep.add(main_uname + ".efi")
+    removed = []
+    for f in sorted(os.listdir(UKI_DIR)) if os.path.isdir(UKI_DIR) else []:
+        if f not in keep:
+            os.unlink(os.path.join(UKI_DIR, f))
+            removed.append(f)
+    if removed:
+        log("unused UKI copies removed: %s" % ", ".join(removed))
+    for c in chosen:
+        del c["text"]
+    state = {"version": 1, "time": int(time.time()), "ok": not errors, "capture": msg, "entries": chosen,
+             "skipped": skipped, "uki_files": sorted(os.listdir(UKI_DIR)) if os.path.isdir(UKI_DIR) else [],
+             "esp_free_bytes": esp_free(), "esp_reserve_bytes": ESP_RESERVE, "errors": errors}
+    write_atomic(STATE, json.dumps(state, indent=1, ensure_ascii=False) + "\n", 0o644)
+    return state
+
+
+def sync(queued):
+    os.makedirs(os.path.dirname(LOCK), exist_ok=True)
+    with open(LOCK, "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        if snapshot_mode() is not None:
+            log("snapshot mode (workstation.snapshot=%d): boot entries are not changed from here" % snapshot_mode())
+            return 0
+        for _ in range(10):
+            if queued:
+                try:
+                    os.unlink(DIRTY)
+                except FileNotFoundError:
+                    pass
+            try:
+                st = sync_once()
+            except Exception as e:      # one failed run: say so, keep the old entries
+                log("sync failed: %s" % e, err=True)
+                try:
+                    old = json.load(open(STATE))
+                except (OSError, ValueError):
+                    old = {"version": 1, "entries": [], "skipped": []}
+                old.update(time=int(time.time()), ok=False, errors=["sync failed: %s" % e])
+                write_atomic(STATE, json.dumps(old, indent=1, ensure_ascii=False) + "\n", 0o644)
+                return 1
+            if not queued or not os.path.exists(DIRTY):
+                break
+        log("%d entr%s: %s" % (len(st["entries"]), "y" if len(st["entries"]) == 1 else "ies",
+                                ", ".join("#%d" % e["number"] for e in st["entries"]) or "-"))
+        return 0 if st["ok"] else 1
+
+
+def status(as_json):
+    try:
+        st = json.load(open(STATE))
+    except (OSError, ValueError):
+        print("no state yet (%s)" % STATE)
+        return 1
+    if as_json:
+        print(json.dumps(st))
+        return 0
+    print("synced %s, %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st["time"])), "ok" if st.get("ok") else "ERRORS"))
+    for e in st.get("entries", []):
+        print("  boot  #%-4d %-6s %s  %s  (kernel %s)" % (e["number"], e["class"], e["date"], e["description"], e["kver"]))
+    for e in st.get("skipped", []):
+        print("  skip  #%-4d %-6s %s" % (e["number"], e["class"], e["reason"]))
+    for e in st.get("errors", []):
+        print("  error %s" % e)
+    print("  UKI copies: %s; ESP free %d MiB" % (", ".join(st.get("uki_files", [])) or "-", st.get("esp_free_bytes", 0) >> 20))
+    return 0 if st.get("ok") else 1
+
+
+def main(argv):
+    if argv[:1] == ["status"] and argv[1:] in ([], ["--json"]):
+        return status(argv[1:] == ["--json"])
+    if os.geteuid() != 0 and not R:
+        print("snapshot-boot: run as root", file=sys.stderr)
+        return 1
+    if argv == ["capture"]:
+        ok, msg = capture()
+        log(msg, err=not ok)
+        return 0 if ok else 1
+    if argv in (["sync"], ["sync", "--queued"]):
+        return sync(argv == ["sync", "--queued"])
+    print("usage: snapshot-boot capture | sync [--queued] | status [--json]", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -43,6 +43,7 @@ if [ "$known" -eq 1 ]; then
     [ "$(esp_free_bytes)" -gt $((150 * 1024 * 1024)) ] || die "less than 150 MB free on the ESP (/boot)"
 fi
 
+capture_uki
 n=$(snapper -c root create --print-number --cleanup-algorithm number --userdata important=yes \
     --description "$label (repo $(repo_commit))")
 say "snapshot $n: $label"

@@ -34,6 +34,7 @@ preflight)
     echo "ok: booted from @ with its UKI, $((free / 1024 / 1024 / 1024)) GiB free, ESP ok"
     ;;
 pre)
+    capture_uki
     n=$(auto_snapshot "system-update (repo $(repo_commit))" "update=$2" | tail -1)
     [ -n "$n" ] || die "snapper could not take the pre-update snapshot"
     skip_next_snapshot "system-update took snapshot $n"

@@ -1,0 +1,5 @@
+# Managed by Ansible (roles/recovery) - do not edit by hand.
+# Marker: a snapshot of / that contains this file carries the snapshot-boot
+# mechanism (its own restore helper, polkit action and pacman block) - only
+# such snapshots are offered in the boot menu (snapshot-boot).
+1
