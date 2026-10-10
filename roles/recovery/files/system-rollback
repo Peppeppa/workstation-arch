@@ -110,6 +110,11 @@ printf '{"snapshot": %s, "time": %s, "kernel": "%s", "previous": "@broken-%s", "
     "$n" "$(date +%s)" "$kver" "$stamp" "$([ -n "$(snapshot_mode)" ] && echo true || echo false)" \
     "$(printf '%s' "$desc" | tr -d '"\\' | tr -d '\000-\037')" > "$RECOVERY_TOP/@/var/lib/workstation/snapshot-restore.json"
 chmod 0644 "$RECOVERY_TOP/@/var/lib/workstation/snapshot-restore.json"
+# The snapshot-boot state inside the restored system is the snapshot's old
+# view of the boot menu: drop it, and let the first boot re-sync once
+# (workstation-snapshot-boot-resync.service, conditional on this flag).
+rm -f "$RECOVERY_TOP/@/var/lib/workstation/snapshot-boot.json"
+: > "$RECOVERY_TOP/@/var/lib/workstation/snapshot-boot.resync"
 logger -t system-rollback -p user.notice "system restored to snapshot $n ($desc); previous system: @broken-$stamp"
 sync
 say "done: @ = snapshot $n (kernel $kver); previous system: @broken-$stamp, its UKI: $RECOVERY_BROKEN_DIR/arch-linux-$stamp.efi"

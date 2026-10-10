@@ -1,0 +1,18 @@
+# Managed by Ansible (roles/recovery/files/workstation-snapshot-boot-resync.service) - do not edit by hand.
+# The first boot after a system-rollback: the restored system's snapshot-boot
+# state is the snapshot's old view of the boot menu (system-rollback removed
+# it and left the flag) - re-sync once, then drop the flag. Every other boot:
+# skipped by the condition, nothing runs (docs/recovery-design.md 22).
+[Unit]
+Description=Re-sync systemd-boot snapshot entries after a restore (workstation-arch)
+ConditionPathExists=/var/lib/workstation/snapshot-boot.resync
+RequiresMountsFor=/boot /.snapshots
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/workstation/snapshot-boot sync
+ExecStartPost=/usr/bin/rm -f /var/lib/workstation/snapshot-boot.resync
+
+[Install]
+WantedBy=multi-user.target

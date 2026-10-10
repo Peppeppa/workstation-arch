@@ -265,6 +265,27 @@
     - Sync the snapshot boot entries
   tags: recovery
 
+- name: Recovery - snapshot boot re-sync after a restore (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.copy:
+    src: workstation-snapshot-boot-resync.service
+    dest: /etc/systemd/system/workstation-snapshot-boot-resync.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd (snapshot boot)
+  tags: recovery
+
+- name: Recovery - enable the re-sync (runs only with its flag) (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: workstation-snapshot-boot-resync.service
+    enabled: true
+    daemon_reload: true
+  tags: recovery
+
 # snapper runs every executable in its plugin directory on its own events.
 - name: Recovery - snapper plugin directory (recovery_enabled)
   when: recovery_enabled

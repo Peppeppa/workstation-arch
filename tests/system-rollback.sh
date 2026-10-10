@@ -54,6 +54,8 @@ setup() { # fresh top level: @ (current), snapshot 30 (kernel $1), stored UKI fo
     mkdir -p "$tmp/top/@/etc/kernel" "$tmp/top/@snapshots/30/snapshot/etc/kernel" "$tmp/top/@snapshots/30/snapshot/usr/lib/modules/$1"
     echo current > "$tmp/top/@/etc/state"
     echo snapshot > "$tmp/top/@snapshots/30/snapshot/etc/state"
+    mkdir -p "$tmp/top/@snapshots/30/snapshot/var/lib/workstation"
+    echo '{"entries": "old view"}' > "$tmp/top/@snapshots/30/snapshot/var/lib/workstation/snapshot-boot.json"
     echo "rootflags=subvol=@ rw" > "$tmp/top/@snapshots/30/snapshot/etc/kernel/cmdline"
     echo "vmlinuz $1" > "$tmp/top/@snapshots/30/snapshot/usr/lib/modules/$1/vmlinuz"
     printf '<snapshot>\n  <num>30</num>\n  <date>2026-10-10 16:46:21</date>\n  <description>Test A</description>\n</snapshot>\n' > "$tmp/top/@snapshots/30/info.xml"
@@ -73,6 +75,8 @@ check "success: main UKI rebuilt with the restored system's cmdline" $?
 [ "$(cat "$tmp/boot/vmlinuz-linux")" = "vmlinuz 7.2.9" ]; check "success: vmlinuz from the snapshot" $?
 python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['snapshot']==30 and d['previous'].startswith('@broken-') and d['description']=='2026-10-10 18:46:21 - Test A'" \
     "$tmp/top/@/var/lib/workstation/snapshot-restore.json"; check "success: restore record in the new @" $?
+[ -e "$tmp/top/@/var/lib/workstation/snapshot-boot.resync" ] && [ ! -e "$tmp/top/@/var/lib/workstation/snapshot-boot.json" ]
+check "success: stale snapshot-boot state dropped, re-sync flag set" $?
 [ ! -e "$tmp/top/@rollback-new" ] && [ ! -e "$tmp/boot/EFI/Linux/arch-linux.efi.rollback" ]; check "success: nothing left over" $?
 
 # ---- failure between the two renames: @ is put back
