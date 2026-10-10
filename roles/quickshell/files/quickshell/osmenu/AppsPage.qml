@@ -4,7 +4,8 @@
 //
 // The search field has the focus as soon as the page shows; every letter
 // is search input (no j/k/h/l handling here). Up/Down move, Enter
-// launches, Escape closes the whole OS menu. Each row is only
+// launches, Escape clears the search, then closes the whole OS menu (the
+// close policy's search exception). Each row is only
 // [icon] Name (34 px): the entry's icon via Quickshell.iconPath in the
 // session icon theme (QS_ICON_THEME = Papirus), or a generic glyph.
 
@@ -81,7 +82,10 @@ FocusScope {
                 Keys.onUpPressed: page.selectedIndex = Math.max(page.selectedIndex - 1, 0)
                 Keys.onReturnPressed: page.launchSelected()
                 Keys.onEnterPressed: page.launchSelected()
-                Keys.onEscapePressed: page.menu.close()
+                Keys.onEscapePressed: {
+                    if (text !== "") text = "";
+                    else page.menu.close();
+                }
             }
         }
 

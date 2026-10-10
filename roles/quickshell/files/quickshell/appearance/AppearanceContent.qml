@@ -41,6 +41,9 @@ FocusScope {
         id: themeModel
     }
 
+    // AppearanceWindow keeps itself open while this is true.
+    readonly property bool busy: themeModel.busy || themeModel.sourceBusy
+
     BrightnessModel {
         id: brightness
     }

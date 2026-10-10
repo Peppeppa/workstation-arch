@@ -31,7 +31,12 @@ PanelWindow {
         visible = true;
     }
 
+    // A theme action / theme source import in flight keeps the window (its
+    // helper Process lives in the content) - for every close path.
+    readonly property bool busy: content.item !== null && content.item.busy
+
     function close() {
+        if (busy) return;
         pickerOpen = false;
         importOpen = false;
         visible = false;

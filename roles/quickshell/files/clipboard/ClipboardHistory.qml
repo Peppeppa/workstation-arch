@@ -13,12 +13,16 @@
 //   clear     `cliphist wipe` (second click confirms)
 // All fixed argv; entry ids are cliphist's own numbers. Nothing is kept
 // while closed (the window and the list exist only while open).
-// Keys: type to search, Up/Down, Enter = copy, Delete = remove entry.
+// Keys: type to search, Up/Down, Enter = copy, Delete = remove entry,
+// Escape = clear the search, then close. Like the power menu, the
+// transparent surface covers the focused output while open, so a click
+// outside the panel (or Super+Q, bar/BarPopups.qml) closes it too.
 
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.bar
 
 Scope {
@@ -92,12 +96,20 @@ Scope {
             }
 
             // No screen set: the compositor places it on the focused monitor
-            // (same as the launcher).
+            // (same as the launcher). Overlay layer, the whole output (click
+            // outside = close); exists only while open (Loader).
             visible: true
             focusable: true
             color: "transparent"
-            implicitWidth: Fonts.px(560)
-            implicitHeight: Fonts.px(420)
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.namespace: "quickshell-clipboard"
 
             Component.onCompleted: {
                 reload();
@@ -140,12 +152,26 @@ Scope {
                 onExited: popup.reload()
             }
 
-            Rectangle {
+            // Click outside the panel closes. Declared before the panel, so
+            // the panel sits on top.
+            MouseArea {
                 anchors.fill: parent
+                onClicked: root.open = false
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: Fonts.px(560)
+                height: Fonts.px(420)
                 radius: 8
                 color: Colors.background
                 border.color: Colors.borderActive
                 border.width: 1
+
+                // Clicks on the panel never reach the close area underneath.
+                MouseArea {
+                    anchors.fill: parent
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -186,7 +212,10 @@ Scope {
                                 Keys.onReturnPressed: popup.copySelected()
                                 Keys.onEnterPressed: popup.copySelected()
                                 Keys.onDeletePressed: popup.deleteSelected()
-                                Keys.onEscapePressed: root.open = false
+                                Keys.onEscapePressed: {
+                                    if (text !== "") text = "";
+                                    else root.open = false;
+                                }
                             }
                         }
 

@@ -650,6 +650,15 @@ QtObject {
         const ids = o => new Function("o", "with (o) { return (" + expr + ").map(e => e.id); }")(o);
         eq("osmenu system: all three", ids({ updater: {}, snapshotDialog: {}, powerMenu: {} }), ["update", "snapshot", "power"]);
         eq("osmenu system: no recovery -> only Power", ids({ updater: null, snapshotDialog: null, powerMenu: {} }), ["power"]);
+
+        // Close controller: closeActive closes the active surface only; nothing active -> nothing.
+        const bp = read("quickshell/bar/BarPopups.qml");
+        const closed = [];
+        const bscope = { active: { closePopup: () => closed.push("a") } };
+        const closeActive = make(bp, "closeActive", bscope);
+        eq("BarPopups.closeActive: active surface", [closeActive(), closed], [true, ["a"]]);
+        bscope.active = null;
+        eq("BarPopups.closeActive: nothing active -> false", closeActive(), false);
         // Power menu: exactly Lock/Suspend/(Hibernate)/Logout/Reboot/Shutdown; logout = Hyprland's exit.
         const pm = read("PowerMenu.qml");
         eq("power menu entries", (pm.match(/\{ id: "(\w+)",/g) || []).map(x => x.slice(7, -2)), ["lock", "suspend", "hibernate", "logout", "reboot", "shutdown"]);

@@ -57,6 +57,13 @@ ShellRoot {
         function reload(): void {
             Quickshell.reload(false);
         }
+
+        // Super+Q while a shell overlay has the keyboard (roles/hyprland
+        // binds.lua): close the active one (bar/BarPopups.qml).
+        // -> "closed" / "none"
+        function closeActive(): string {
+            return BarPopups.closeActive() ? "closed" : "none";
+        }
     }
 
     // Low-battery warning (core): one instance, not per bar.

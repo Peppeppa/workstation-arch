@@ -83,7 +83,26 @@ return function(v)
     hl.bind(mainMod .. " + " .. resizeMod .. " + K", hl.dsp.window.resize({ x = 0, y = -100, relative = true }))
     hl.bind(mainMod .. " + " .. resizeMod .. " + L", hl.dsp.window.resize({ x = 100, y = 0, relative = true }))
 
-    hl.bind(mainMod .. " + Q", hl.dsp.window.close())
+    -- mainMod+Q closes what has the keyboard. A Quickshell overlay (OS menu,
+    -- power menu, bar popups, dialogs - layer surfaces "quickshell-*" that
+    -- take keyboard input, i.e. interactivity not none) never is the active
+    -- window: a plain window.close() closed the application BEHIND the open
+    -- menu and left the menu open (laptop 2026-10-10). So while such a
+    -- surface is mapped, the shell closes its own active surface
+    -- (BarPopups, IPC shell closeActive); only otherwise the focused window.
+    -- The scratchpad and the cheatsheet are normal windows: window.close().
+    -- Asked at the key press only (compositor-side, no state of its own).
+    local function closeFocused()
+        for _, l in ipairs(hl.get_layers()) do
+            local ns = l.namespace or ""
+            if l.mapped and l.interactivity ~= 0 and ns:sub(1, 11) == "quickshell-" then
+                hl.exec_cmd("qs ipc call shell closeActive")
+                return
+            end
+        end
+        hl.dispatch(hl.dsp.window.close())
+    end
+    hl.bind(mainMod .. " + Q", closeFocused)
     hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
     hl.bind(mainMod .. " + SHIFT + G", hl.dsp.window.float({ action = "toggle" }))
     hl.bind(mainMod .. " + SHIFT + D", hl.dsp.layout("togglesplit"))

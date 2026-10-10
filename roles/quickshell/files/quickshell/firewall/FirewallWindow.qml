@@ -26,7 +26,13 @@ PanelWindow {
         visible = true;
     }
 
+    // While the root helper runs (a rule change in flight) the window stays:
+    // closing destroys the content and with it the helper's Process. Every
+    // close path (Escape, click outside, Super+Q, another popup) comes here.
+    readonly property bool busy: content.item !== null && content.item.model.busy
+
     function close() {
+        if (busy) return;
         addOpen = false;
         visible = false;
     }
