@@ -9,12 +9,9 @@
 // give feedback before a click.
 //
 // `list` reports each rule's desired state AND whether it is live in the
-// kernel; the rows show the live state. `status` (read-only) reports the
-// EFFECTIVE inbound state of the whole table - base rules, sharing rules,
-// their sources/interfaces/IP versions, persistent vs. runtime-only,
-// listeners and live connections (FirewallStatus.qml). Every change ends in
-// a fresh `list` + `status` - that is the refresh event. Created only while
-// the Firewall window is open: no watcher, no timer.
+// kernel; the rows show the live state. Every change ends in a fresh
+// `list` - that is the refresh event. Created only while the Firewall
+// window is open: no watcher, no timer.
 
 import QtQuick
 import Quickshell
@@ -31,8 +28,6 @@ Scope {
     property bool loaded: true          // false: the table is not loaded
     property bool listed: false         // a first `list` came back
     property string errorText: ""
-    property var status: null           // `firewall-rules status` (null until read)
-    property string statusError: ""
     readonly property bool busy: actionProc.running
 
     // ---- pure input checks (mirrors of the helper's; it decides) ----------
@@ -61,7 +56,6 @@ Scope {
     function refresh() {
         if (listProc.running) refreshPending = true;
         else listProc.running = true;
-        if (!statusProc.running) statusProc.running = true;
     }
 
     function run(args) {
@@ -86,10 +80,9 @@ Scope {
 
     // pkexec's own exit codes: 126 = not authorized/dismissed, 127 = failed
     // authentication; anything else is the helper's "firewall-rules: ...".
-    function message(code, stderr, reading) {
+    function message(code, stderr) {
         if (code === 126 || code === 127)
-            return reading ? "Keine Berechtigung, den Firewall-Zustand zu lesen (polkit)."
-                           : "Keine Berechtigung, die Firewall zu ändern (polkit).";
+            return "Keine Berechtigung, die Firewall zu ändern (polkit).";
         return stderr.trim().split("\n")[0].replace(/^firewall-rules: /, "")
             || "fehlgeschlagen (Exit " + code + ")";
     }
@@ -122,28 +115,6 @@ Scope {
                 model.refreshPending = false;
                 running = true;
             }
-        }
-    }
-
-    Process {
-        id: statusProc
-        command: ["pkexec", model.helper, "status"]
-        stdout: StdioCollector { id: statusOut }
-        stderr: StdioCollector { id: statusErr }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    model.status = JSON.parse(statusOut.text);
-                    model.statusError = "";
-                    return;
-                } catch (e) {
-                    model.statusError = "Der Firewall-Helper lieferte keinen Zustand.";
-                }
-            } else {
-                model.statusError = model.message(exitCode, statusErr.text, true);
-            }
-            model.status = null;
-            Log.warn("firewall", "`firewall-rules status` failed (exit " + exitCode + "): " + Log.firstLine(statusErr.text));
         }
     }
 

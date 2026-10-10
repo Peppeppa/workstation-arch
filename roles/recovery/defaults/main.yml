@@ -23,7 +23,7 @@ recovery_number_limit_important: 4
 # Btrfs mount options for the extra subvolumes = the root's (read from fstab).
 recovery_top_mount: /run/workstation-recovery/top
 
-# Power menu -> Create Snapshot: the root helper (pkexec) and its polkit
+# OS menu -> System -> Create Snapshot: the root helper (pkexec) and its polkit
 # action. The active local session may run exactly this helper without a
 # password - it only CREATES one snapper snapshot of / with a validated
 # description (never deletes, modifies or rolls back; snapper's number

@@ -2,7 +2,7 @@
 // is pending (any update counts, no "major" classification), dimmed while the
 // check fails but the last good result had updates, accent while an update
 // runs. Tooltip: count + names. Click: the updater dialog (the same one as
-// power menu -> Update). Managed by Ansible: do not edit by hand, see
+// OS menu -> System -> Update). Managed by Ansible: do not edit by hand, see
 // roles/quickshell in workstation-arch. Deployed only with recovery_enabled.
 
 import QtQuick

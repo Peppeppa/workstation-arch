@@ -14,8 +14,6 @@
 #                                     until the user enables it)
 #   enable|disable|remove <port> <protocol>
 #   restore                           refill the nft sets from the state
-#   status                            READ-ONLY JSON: what the kernel really
-#                                     does with inbound traffic (below)
 #
 # A rule = (label, port 1-65535, TCP|UDP, enabled). Every argument is
 # validated here; nothing from argv ever reaches nft except a validated
@@ -41,7 +39,6 @@ TABLE = "{{ firewall_table }}"
 STATE_DIR = "{{ firewall_state_dir }}"
 STATE = os.path.join(STATE_DIR, "rules.json")
 LOCK = "/run/lock/workstation-firewall.lock"
-RULESET = "{{ firewall_ruleset }}"
 LABEL_MAX = 48
 RULES_MAX = 64
 
@@ -56,20 +53,6 @@ SYSTEM_PORTS = {
 {% if ssh_server_enabled %}
     ("TCP", 22): "SSH",
 {% endif %}
-}
-
-
-# Names for base rules - only where THIS host's configuration (roles/firewall
-# + host capabilities) put the rule there, matched by the rule's exact shape;
-# never a guess from a port number. (protocol, port) -> name
-BASE_SERVICES = {
-{% if ssh_server_enabled %}
-    ("TCP", 22): "SSH (sshd, ssh_server_enabled)",
-{% endif %}
-    ("TCP", {{ firewall_localsend_port }}): "LocalSend (Dateiübertragung)",
-    ("UDP", {{ firewall_localsend_port }}): "LocalSend (Geräteerkennung, Multicast)",
-    ("UDP", 68): "DHCP (Adresse vom Router)",
-    ("UDP", 546): "DHCPv6",
 }
 
 
@@ -283,258 +266,8 @@ def cmd_restore():
             open_port(r["port"], r["protocol"])
 
 
-# ---- status: the effective inbound state (read-only) -----------------------
-# Nothing here changes the kernel: `nft -j list` for the live table, and the
-# configured file loaded into a PRIVATE network namespace (`unshare -n`, its
-# own empty netfilter) to compare what is persistent with what is live.
-
-def nft_json(*args, ns=False):
-    argv = ([UNSHARE, "-n", "--", "sh", "-c", 'nft -f "$1" && nft -j list ruleset', "sh", args[0]]
-            if ns else [NFT, "-j", *args])
-    try:
-        p = subprocess.run(argv, capture_output=True, text=True, timeout=15)
-    except (OSError, subprocess.TimeoutExpired) as e:
-        raise Failed(f"nft: {e}")
-    if p.returncode != 0:
-        return None
-    try:
-        return json.loads(p.stdout).get("nftables", [])
-    except ValueError:
-        raise Failed("unerwartete nft-Ausgabe")
-
-
-UNSHARE = "/usr/bin/unshare"
-
-
-def fmt_value(v):
-    """An nft JSON value -> text (addresses, prefixes, ranges, sets)."""
-    if isinstance(v, (str, int)):
-        return str(v)
-    if isinstance(v, dict):
-        if "prefix" in v:
-            return "%s/%s" % (v["prefix"]["addr"], v["prefix"]["len"])
-        if "range" in v:
-            return "%s-%s" % tuple(fmt_value(x) for x in v["range"])
-        if "set" in v:
-            return ", ".join(fmt_value(x) for x in v["set"])
-    if isinstance(v, list):
-        return ", ".join(fmt_value(x) for x in v)
-    return json.dumps(v)
-
-
-def describe(expr):
-    """One rule's expressions -> its conditions + verdict, as plain fields.
-    Unknown conditions are kept verbatim in `other` (never dropped: a rule
-    is shown narrower than it is only if we say so)."""
-    r = {"proto": None, "ports": None, "set": None, "source": [], "dest": [],
-         "iface": [], "family": None, "ct": None, "icmp": None, "other": [], "action": None}
-    for e in expr:
-        if "match" in e:
-            m = e["match"]
-            left, right, op = m.get("left", {}), m.get("right"), m.get("op", "==")
-            neg = "nicht " if op == "!=" else ""
-            if "meta" in left and left["meta"].get("key") in ("iif", "iifname"):
-                r["iface"].append(neg + fmt_value(right))
-            elif "meta" in left and left["meta"].get("key") == "l4proto":
-                r["proto"] = fmt_value(right).upper()
-            elif "payload" in left:
-                pl = left["payload"]
-                proto, field = pl.get("protocol"), pl.get("field")
-                if proto in ("ip", "ip6") and field == "saddr":
-                    r["source"].append(neg + fmt_value(right))
-                    r["family"] = "IPv4" if proto == "ip" else "IPv6"
-                elif proto in ("ip", "ip6") and field == "daddr":
-                    r["dest"].append(neg + fmt_value(right))
-                    r["family"] = "IPv4" if proto == "ip" else "IPv6"
-                elif proto in ("tcp", "udp") and field == "dport":
-                    r["proto"] = proto.upper()
-                    if isinstance(right, str) and right.startswith("@"):
-                        r["set"] = right[1:]
-                    else:
-                        r["ports"] = neg + fmt_value(right)
-                elif proto in ("tcp", "udp") and field == "sport":
-                    r["proto"] = proto.upper()
-                    r["other"].append(f"{proto} Quellport {fmt_value(right)}")
-                elif proto in ("icmp", "icmpv6") and field == "type":
-                    r["icmp"] = fmt_value(right)
-                    r["family"] = "IPv4" if proto == "icmp" else "IPv6"
-                else:
-                    r["other"].append(json.dumps(m, sort_keys=True))
-            elif "ct" in left and left["ct"].get("key") == "state":
-                r["ct"] = fmt_value(right)
-            else:
-                r["other"].append(json.dumps(m, sort_keys=True))
-        elif "accept" in e:
-            r["action"] = "accept"
-        elif "drop" in e:
-            r["action"] = "drop"
-        elif "reject" in e:
-            r["action"] = "reject"
-        elif "jump" in e or "goto" in e:
-            r["action"] = "jump " + json.dumps(e)
-        elif "counter" in e or "log" in e:
-            pass
-        else:
-            r["other"].append(json.dumps(e, sort_keys=True))
-    return r
-
-
-def canon(rule):
-    return json.dumps([e for e in rule.get("expr", []) if "counter" not in e], sort_keys=True)
-
-
-def chains_of(items, family, table):
-    chains, rules, sets = {}, {}, {}
-    for it in items or []:
-        if "chain" in it and it["chain"]["family"] == family and it["chain"]["table"] == table:
-            chains[it["chain"]["name"]] = it["chain"]
-        elif "rule" in it and it["rule"]["family"] == family and it["rule"]["table"] == table:
-            rules.setdefault(it["rule"]["chain"], []).append(it["rule"])
-        elif "set" in it and it["set"]["family"] == family and it["set"]["table"] == table:
-            sets[it["set"]["name"]] = it["set"]
-    return chains, rules, sets
-
-
-def set_elems(st):
-    out = []
-    for e in (st or {}).get("elem", []) or []:
-        out.append(e if isinstance(e, int) else fmt_value(e))
-    return out
-
-
-def listeners():
-    """TCP listeners and UDP sockets (ss), as {proto, addr, port, process, scope}."""
-    out = []
-    try:
-        p = subprocess.run(["ss", "-H", "-ltnup"], capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if p.returncode != 0:
-        return None
-    for line in p.stdout.splitlines():
-        f = line.split()
-        if len(f) < 5:
-            continue
-        local = f[4]
-        addr, _, port = local.rpartition(":")
-        addr = addr.strip("[]").split("%")[0]
-        proc = re.search(r'"([^"]+)"', line)
-        scope = ("lokal (Loopback)" if addr.startswith("127.") or addr == "::1"
-                 else "alle IPv4-Adressen" if addr == "0.0.0.0"
-                 else "alle IPv6-Adressen" if addr == "::"
-                 else "alle Adressen" if addr == "*" else addr)
-        try:
-            out.append({"proto": f[0].upper(), "addr": addr, "port": int(port),
-                        "process": proc.group(1) if proc else "", "scope": scope})
-        except ValueError:
-            continue
-    return out
-
-
-def connections(port):
-    """Established inbound TCP connections to a local port: peer + interface."""
-    try:
-        p = subprocess.run(["ss", "-H", "-tn", "state", "established", f"( sport = :{port} )"],
-                           capture_output=True, text=True, timeout=10)
-        a = subprocess.run(["ip", "-j", "addr"], capture_output=True, text=True, timeout=10)
-        ifaces = {}
-        for i in json.loads(a.stdout or "[]"):
-            for ai in i.get("addr_info", []):
-                ifaces[ai.get("local")] = i.get("ifname")
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        return []
-    out = []
-    for line in p.stdout.splitlines():
-        f = line.split()
-        if len(f) < 4:
-            continue
-        local = f[2].rpartition(":")[0].strip("[]").split("%")[0]
-        peer = f[3].rpartition(":")[0].strip("[]")
-        out.append({"peer": peer, "iface": ifaces.get(local, "?")})
-    return out
-
-
-def cmd_status():
-    live_items = nft_json("list", "ruleset")
-    if live_items is None:
-        raise Failed("Firewall-Zustand nicht lesbar (nft list ruleset)")
-    conf_items = nft_json(RULESET, ns=True) if os.path.exists(RULESET) else None
-    lchains, lrules, lsets = chains_of(live_items, "inet", TABLE)
-    cchains, crules, _ = chains_of(conf_items, "inet", TABLE)
-    loaded = "input" in lchains
-    socks = listeners()
-    try:
-        saved = load()
-    except Failed:
-        saved = []
-    labels = {(r["protocol"], r["port"]): r for r in saved}
-
-    rules_out = []
-    conf_canon = [canon(r) for r in crules.get("input", [])]
-    live_canon = [canon(r) for r in lrules.get("input", [])]
-    for rule in lrules.get("input", []):
-        d = describe(rule["expr"])
-        base_persist = "persistent" if conf_items is not None and canon(rule) in conf_canon else \
-            ("unbekannt" if conf_items is None else "nur zur Laufzeit")
-        entries = []
-        if d["set"] in ("share_tcp", "share_udp"):
-            for port in set_elems(lsets.get(d["set"])):
-                saved_rule = labels.get((d["proto"], port))
-                entries.append(dict(d, ports=str(port), origin="Freigabe (Einstellungen)",
-                                    service=saved_rule["label"] if saved_rule else None,
-                                    persistence="persistent" if saved_rule and saved_rule["enabled"] else "nur zur Laufzeit"))
-        else:
-            # a name only for a rule of the configuration itself
-            service = None
-            if base_persist == "persistent" and d["proto"] and d["ports"] and d["ports"].isdigit():
-                service = BASE_SERVICES.get((d["proto"], int(d["ports"])))
-            entries.append(dict(d, origin="Basis-Konfiguration" if base_persist == "persistent" else "nicht aus der Konfiguration",
-                                service=service, persistence=base_persist))
-        for x in entries:
-            x["kind"] = "port" if x["ports"] else "infrastructure"
-            if x["kind"] == "port" and socks is not None:
-                try:
-                    pnum = int(x["ports"])
-                except ValueError:
-                    pnum = None
-                x["listening"] = [s for s in socks if s["proto"] == x["proto"] and s["port"] == pnum]
-                x["connections"] = connections(pnum) if x["proto"] == "TCP" and pnum else []
-            del x["set"]
-            rules_out.append(x)
-    # configured but not live (e.g. edited table)
-    missing = [describe(r["expr"]) for r in crules.get("input", []) if canon(r) not in live_canon] if loaded else []
-    for share in saved:
-        if share["enabled"] and share["port"] not in set_elems(lsets.get("share_tcp" if share["protocol"] == "TCP" else "share_udp")):
-            missing.append({"proto": share["protocol"], "ports": str(share["port"]), "service": share["label"]})
-
-    # listening, but no accept rule for it (and not loopback-only)
-    allowed = {(x["proto"], x["ports"]) for x in rules_out if x["kind"] == "port" and x["action"] == "accept"}
-    blocked = [s for s in (socks or []) if s["scope"] != "lokal (Loopback)" and (s["proto"], str(s["port"])) not in allowed]
-    local_only = [s for s in (socks or []) if s["scope"] == "lokal (Loopback)"]
-
-    foreign = []
-    for it in live_items:
-        if "table" in it and not (it["table"]["family"] == "inet" and it["table"]["name"] == TABLE):
-            t = it["table"]
-            fch, frules, _ = chains_of(live_items, t["family"], t["name"])
-            foreign.append({"table": f'{t["family"]} {t["name"]}',
-                            "chains": [{"name": n, "hook": c.get("hook"), "policy": c.get("policy"),
-                                        "rules": len(frules.get(n, []))} for n, c in fch.items() if c.get("hook")]})
-    print(json.dumps({
-        "loaded": loaded,
-        "configured": conf_items is not None,
-        "policy": lchains.get("input", {}).get("policy") if loaded else None,
-        "inbound": rules_out,
-        "missing": missing,
-        "blocked": blocked,
-        "localOnly": local_only,
-        "listenersKnown": socks is not None,
-        "foreign": foreign,
-    }, ensure_ascii=False))
-
-
 USAGE = ("usage: firewall-rules list | add <label> <port> <tcp|udp> | "
-         "enable|disable|remove <port> <tcp|udp> | restore | status")
+         "enable|disable|remove <port> <tcp|udp> | restore")
 
 
 def main(argv):
@@ -544,7 +277,6 @@ def main(argv):
     table = {
         ("list", 0): cmd_list,
         ("restore", 0): cmd_restore,
-        ("status", 0): cmd_status,
         ("add", 3): cmd_add,
         ("enable", 2): lambda p, q: cmd_set(p, q, True),
         ("disable", 2): lambda p, q: cmd_set(p, q, False),

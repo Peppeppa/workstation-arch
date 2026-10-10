@@ -15,8 +15,10 @@
 //   Packages   -> Install / Remove -> Arch / AUR / Flatpak: close, start
 //                 `workstation-pkg <action>` (roles/packages, fzf) in the
 //                 terminal, as a transient systemd user unit
-//   System     -> close, open the existing Power Menu (sole owner of lock/
-//                 suspend/hibernate/logout/reboot/shutdown)
+//   System     -> its page: Update / Create Snapshot (hosts with recovery:
+//                 close, open the existing updater / snapshot dialog,
+//                 updates/) and Power (close, open the existing Power Menu -
+//                 sole owner of lock/suspend/hibernate/reboot/shutdown)
 //
 // Keyboard: type to search - the first printable key on a list page opens
 // the search (SearchPage: the menu's own entries + applications, best
@@ -44,9 +46,11 @@ PanelWindow {
     property var appearance: null           // AppearanceWindow (core)
     property var firewall: null             // FirewallWindow (core)
     property var powerMenu: null            // PowerMenu (feature power_menu) or null
+    property var updater: null              // UpdaterDialog (host capability recovery) or null
+    property var snapshotDialog: null       // SnapshotDialog (host capability recovery) or null
     required property var terminal          // argv of the terminal (hyprland_terminal)
 
-    property string page: "root"            // root | apps | settings | packages | packages-install | packages-remove | search
+    property string page: "root"            // root | apps | settings | system | packages | packages-install | packages-remove | search
 
     // The menu's entries - the ONE list the pages show and the search finds
     // (keywords only help finding); OsMenu.activate() is what each does.
@@ -55,9 +59,18 @@ PanelWindow {
         { id: "settings", label: "Settings", icon: "\u{F0493}", sub: true, keywords: "preferences configuration" },
         { id: "packages", label: "Packages", icon: "\u{F03D6}", sub: true,
           keywords: "install remove uninstall software arch pacman aur yay flatpak flathub" },
-        { id: "system", label: "System", icon: "\u{F0425}", sub: false,
-          keywords: "power lock suspend hibernate logout reboot restart shutdown update upgrade snapshot" }
-    ].filter(e => e.id !== "system" || powerMenu !== null)
+        { id: "system", label: "System", icon: "\u{F0379}", sub: true,
+          keywords: "power lock suspend hibernate reboot restart shutdown update upgrade snapshot" }
+    ].filter(e => e.id !== "system" || systemEntries.length > 0)
+    readonly property var systemEntries: [
+        { id: "update", label: "Update", icon: "\u{F06B0}", sub: false, title: "System Update",
+          keywords: "update upgrade pacman packages system" },
+        { id: "snapshot", label: "Create Snapshot", icon: "\u{F0100}", sub: false,
+          keywords: "snapshot snapper backup recovery restore point" },
+        { id: "power", label: "Power", icon: "\u{F0425}", sub: false, title: "Power Menu",
+          keywords: "power lock suspend hibernate reboot restart shutdown" }
+    ].filter(e => (e.id !== "update" || updater !== null) && (e.id !== "snapshot" || snapshotDialog !== null)
+                  && (e.id !== "power" || powerMenu !== null))
     readonly property var settingsEntries: [
         { id: "appearance", label: "Appearance", icon: "\u{F03D8}", sub: false,
           keywords: "theme dark light wallpaper bar brightness text size font display scale monitor" },
@@ -92,6 +105,7 @@ PanelWindow {
     // Everything the type-to-search finds: [{e, hint}] - the same entries.
     readonly property var searchEntries: rootEntries.map(e => ({ e: e, hint: "" }))
         .concat(settingsEntries.map(e => ({ e: e, hint: "Settings" })))
+        .concat(systemEntries.map(e => ({ e: e, hint: "System" })))
         .concat(packagesEntries.concat(installEntries, removeEntries).map(e => ({ e: e, hint: "Packages" })))
 
     function open(p) {
@@ -99,6 +113,7 @@ PanelWindow {
         rootPage.reset();
         appsPage.reset();
         settingsPage.reset();
+        systemPage.reset();
         packagesPage.reset();
         installPage.reset();
         removePage.reset();
@@ -149,6 +164,7 @@ PanelWindow {
         if (page === "apps") appsPage.takeFocus();
         else if (page === "search") searchPage.takeFocus();
         else if (page === "settings") settingsPage.forceActiveFocus();
+        else if (page === "system") systemPage.forceActiveFocus();
         else if (page === "packages") packagesPage.forceActiveFocus();
         else if (page === "packages-install") installPage.forceActiveFocus();
         else if (page === "packages-remove") removePage.forceActiveFocus();
@@ -201,9 +217,22 @@ PanelWindow {
                                      "systemd-run", "--user", "--quiet", "--collect", "--", "nm-connection-editor"]);
             break;
         case "system":
+            page = id;
+            systemPage.reset();
+            searchPage.reset();
+            focusPage();
+            break;
+        case "update":
+            close();
+            if (updater) updater.open();
+            break;
+        case "snapshot":
+            close();
+            if (snapshotDialog) snapshotDialog.open();
+            break;
+        case "power":
             close();
             if (powerMenu) powerMenu.open();
-            else Log.warn("osmenu", "System: no power menu (power_menu_enabled is false)");
             break;
         }
     }
@@ -244,6 +273,7 @@ PanelWindow {
         width: Fonts.px(460)
         height: menu.page === "apps" ? appsPage.implicitHeight + 24
               : menu.page === "settings" ? settingsPage.implicitHeight + 24
+              : menu.page === "system" ? systemPage.implicitHeight + 24
               : menu.page === "search" ? searchPage.implicitHeight + 24
               : menu.page === "packages" ? packagesPage.implicitHeight + 24
               : menu.page === "packages-install" ? installPage.implicitHeight + 24
@@ -282,6 +312,16 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: 12
             menu: menu
+        }
+
+        ListPage {
+            id: systemPage
+            visible: menu.page === "system"
+            anchors.fill: parent
+            anchors.margins: 12
+            menu: menu
+            title: "System"
+            entries: menu.systemEntries
         }
 
         ListPage {
@@ -336,7 +376,7 @@ PanelWindow {
             menu.close();
         }
 
-        // Open directly on a page: root | apps | settings | packages
+        // Open directly on a page: root | apps | settings | system | packages
         // (search starts by typing).
         function openPage(name: string): void {
             menu.open(name);

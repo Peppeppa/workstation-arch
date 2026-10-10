@@ -1,4 +1,4 @@
-// The updater dialog (power menu -> Update, the bar's update icon - both call
+// The updater dialog (OS menu -> System -> Update, the bar's update icon - both call
 // Updates.openDialog(), one dialog). Managed by Ansible: do not edit by hand,
 // see roles/quickshell in workstation-arch. Deployed only with the host
 // capability recovery_enabled. See docs/feature-architecture.md "System

@@ -1,4 +1,4 @@
-// Power menu -> Create Snapshot: one manual snapper snapshot of / with a
+// OS menu -> System -> Create Snapshot: one manual snapper snapshot of / with a
 // description. Managed by Ansible: do not edit by hand, see roles/quickshell
 // in workstation-arch. Deployed only with the host capability
 // recovery_enabled. See docs/feature-architecture.md "System updates".

@@ -4,13 +4,10 @@
 // The user's LAN sharing rules only ("Bezeichnung / Port / Protokoll"):
 // each row's button shows what is LIVE in the kernel - enabled: red
 // "Deaktivieren", disabled: green "Aktivieren" - and × deletes the rule
-// (the helper closes the port first). That list is the DESIRED state the
-// user keeps (rules.json). Below it, read-only, the EFFECTIVE state of the
-// whole inbound filter (FirewallStatus.qml): base rules incl. SSH/LocalSend/
-// DHCP, sharing rules, sources, IP versions, persistent vs. runtime-only,
-// listeners and live connections. A rule opens a port in the firewall; it
-// does not start or stop the service behind it. All work is the root
-// helper's (services/FirewallModel).
+// (the helper closes the port first). The base policy (loopback, ICMP,
+// DHCP, LocalSend, SSH) is infrastructure and not listed here. A rule
+// opens a port in the firewall; it does not start or stop the service
+// behind it. All work is the root helper's (services/FirewallModel).
 
 import QtQuick
 import QtQuick.Layouts
@@ -60,7 +57,7 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(40, Math.round((root.height - 420) / 2))
-        width: Fonts.px(560)
+        width: Fonts.px(480)
         height: Math.min(column.implicitHeight + 32, root.height - y - 40)
         radius: 8
         color: Colors.background
@@ -100,17 +97,6 @@ FocusScope {
                     }
                 }
 
-                Text {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    wrapMode: Text.Wrap
-                    text: "Deine Freigaben (gespeichert, für alle Quellen im Netz)"
-                    color: Colors.foreground
-                    font.family: Fonts.family
-                    font.pixelSize: root.fontSize
-                    font.bold: true
-                }
-
                 // The rules box.
                 Rectangle {
                     Layout.fillWidth: true
@@ -133,7 +119,7 @@ FocusScope {
                             visible: fw.listed && fw.rules.length === 0
                             Layout.fillWidth: true
                             Layout.margins: 4
-                            text: "Keine eigenen Freigaben - die Basis-Freigaben (z. B. SSH, LocalSend) stehen unten."
+                            text: "Keine Regeln - nichts ist im LAN freigegeben."
                             color: Colors.foregroundMuted
                             font.family: Fonts.family
                             font.pixelSize: root.fontSize - 1
@@ -235,12 +221,6 @@ FocusScope {
                     color: Colors.error
                     font.family: Fonts.family
                     font.pixelSize: root.fontSize - 2
-                }
-
-                FirewallStatus {
-                    Layout.fillWidth: true
-                    model: fw
-                    fontSize: root.fontSize
                 }
             }
         }

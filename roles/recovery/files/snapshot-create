@@ -1,7 +1,7 @@
 #!/bin/bash
 # Managed by Ansible (roles/recovery/files/snapshot-create) - do not edit by hand.
 # Deployed to /usr/local/libexec/workstation/snapshot-create: the root helper
-# behind power menu -> Create Snapshot (Quickshell, `pkexec <this> <label>`,
+# behind OS menu -> System -> Create Snapshot (Quickshell, `pkexec <this> <label>`,
 # polkit action org.workstation.snapshot.create). Not a user interface.
 #
 # Exactly one thing: ONE manual snapshot of / through system-snapshot (snapper

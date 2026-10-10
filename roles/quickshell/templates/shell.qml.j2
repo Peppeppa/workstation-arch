@@ -75,6 +75,9 @@ ShellRoot {
         appearance: appearanceWindow
         firewall: firewallWindow
         powerMenu: {{ 'powerMenu' if power_menu_enabled else 'null' }}
+        // System -> Update / Create Snapshot: only with the recovery capability.
+        updater: {{ 'updaterDialog' if recovery_enabled else 'null' }}
+        snapshotDialog: {{ 'snapshotDialog' if recovery_enabled else 'null' }}
         terminal: {{ hyprland_terminal.split() | to_json }}
     }
 
@@ -155,16 +158,13 @@ ShellRoot {
         // Lock works only with the lock_idle feature (hypridle answers
         // logind's Lock signal).
         lockAvailable: {{ 'true' if lock_idle_enabled else 'false' }}
-        // Update / Create Snapshot: only with the recovery capability.
-        updater: {{ 'updaterDialog' if recovery_enabled else 'null' }}
-        snapshotDialog: {{ 'snapshotDialog' if recovery_enabled else 'null' }}
     }
 {% endif %}
 {% if recovery_enabled %}
 
     // HOST CAPABILITY: recovery (system-update / system-snapshot,
-    // roles/recovery). The updater dialog (power menu -> Update, the bar's
-    // update icon) and power menu -> Create Snapshot; the shared model is
+    // roles/recovery). The updater dialog (OS menu -> System -> Update, the
+    // bar's update icon) and OS menu -> System -> Create Snapshot; the shared model is
     // the Updates singleton (updates/).
     UpdaterDialog {
         id: updaterDialog

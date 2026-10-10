@@ -2,7 +2,7 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <!-- Managed by Ansible (roles/recovery) - do not edit by hand.
-     Power menu -> Create Snapshot runs `pkexec {{ recovery_snapshot_helper }} <label>`:
+     OS menu -> System -> Create Snapshot runs `pkexec {{ recovery_snapshot_helper }} <label>`:
      the user in the ACTIVE local session (seat) may run exactly this helper as
      root without a password - it only creates ONE snapper snapshot of / with a
      validated description (no delete, no rollback, no recovery slot). Remote

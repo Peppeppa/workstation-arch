@@ -191,7 +191,7 @@
     - { src: workstation-checkupdates, dest: /usr/local/bin/workstation-checkupdates, mode: "0755" }
   tags: recovery
 
-# Power menu -> Create Snapshot (Quickshell updates/SnapshotDialog.qml):
+# OS menu -> System -> Create Snapshot (Quickshell updates/SnapshotDialog.qml):
 # `pkexec snapshot-create <label>` - one manual snapshot, nothing else.
 - name: Recovery - /usr/local/libexec/workstation (recovery_enabled)
   when: recovery_enabled
