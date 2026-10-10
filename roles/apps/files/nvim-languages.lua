@@ -47,13 +47,22 @@ return {
         asm_lsp = {},
         pyright = {
           -- A project's own .venv (uv, python -m venv) wins over whatever
-          -- Python is on PATH - imports resolve against the project.
-          before_init = function(_, config)
-            local root = config.root_dir
-            if root and vim.uv.fs_stat(root .. "/.venv/bin/python") then
+          -- Python is on PATH - imports resolve against the project. Found
+          -- upward from the workspace root, or from the file when there is no
+          -- root (no pyproject.toml/.git: rootUri is null - measured on the
+          -- laptop; the config's root_dir is not resolved yet at this point).
+          before_init = function(params, config)
+            local function path(uri)
+              return type(uri) == "string" and vim.uri_to_fname(uri) or nil
+            end
+            local folder = type(params.workspaceFolders) == "table" and params.workspaceFolders[1] or nil
+            local start = path(params.rootUri) or (folder and path(folder.uri))
+              or vim.fs.dirname(vim.api.nvim_buf_get_name(0))
+            local venv = start and vim.fs.find(".venv", { upward = true, path = start, type = "directory" })[1]
+            if venv and vim.uv.fs_stat(venv .. "/bin/python") then
               config.settings = config.settings or {}
               config.settings.python = vim.tbl_deep_extend("force", config.settings.python or {}, {
-                pythonPath = root .. "/.venv/bin/python",
+                pythonPath = venv .. "/bin/python",
               })
             end
           end,
