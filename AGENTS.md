@@ -1091,6 +1091,21 @@ history for that milestone's own record):
   update through the dialog, a real snapshot failure, the update icon with
   real pending updates (none pending).
 
+- **Menu structure + firewall rule editor** (laptop, 2026-10-10, explicitly
+  requested): power menu = Lock/Suspend/Hibernate (logind)/Reboot/Shutdown;
+  OS menu -> System = Update / Create Snapshot / Power; the firewall window
+  is the rule editor again (the "Wirksamer Zustand" view is gone) and the
+  five standard rules (DHCP, DHCPv6, LocalSend x2, SSH) are ordinary rules in
+  rules.json v2 (chain repo_rules, one atomic nft transaction per change and
+  at boot), with edit, remove and "Standardregeln wiederherstellen".
+  Real-hardware-tested: deploy reload kept the exact five accept rules
+  (structure only moved into repo_rules), SSH session kept; window shows the
+  five, reset and SSH questions (cancel paths, ruleset unchanged); System ->
+  Update/Create Snapshot open the existing dialogs; two bootstraps keep
+  rules.json, second changed=0. MANUAL, OPEN (the user's own acceptance):
+  SSH reachability with the SSH rule enabled / disabled / deleted, and after
+  "Standardregeln wiederherstellen".
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
