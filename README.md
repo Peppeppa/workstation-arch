@@ -293,6 +293,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
 | `Super + Return` | terminal (Ghostty) |
 | `Super + A` | night light on/off (the bar's Day/Night icon - same toggle) |
+| `Super + B` | Chromium (focus the open browser window, else start it) |
 | `Super + D` / `Super + F` | Bitwarden (focus if already open) / Nautilus |
 | `Super + E` | timer popup on/off (a running timer keeps running) |
 | `Super + G` / `Super + R` | WhatsApp / LocalSend (focus if already open) |

@@ -17,8 +17,8 @@ return function(v)
     local resizeMod = mainMod == "ALT" and "CTRL" or "ALT"
 
     -- ---- Apps -----------------------------------------------------------
-    -- Only these apps have a key; every other app (Chromium, Thunderbird,
-    -- Obsidian, Planify, ...) is started from the launcher (mainMod+Space).
+    -- Only these apps have a key; every other app (Thunderbird, Obsidian,
+    -- Planify, ...) is started from the launcher (mainMod+Space).
     hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(v.terminal))
     hl.bind(mainMod .. " + F", hl.dsp.exec_cmd("nautilus --new-window"))
     -- Bitwarden (class Bitwarden, its .desktop StartupWMClass) / WhatsApp
@@ -26,6 +26,11 @@ return function(v)
     -- running window, else start it (one-shot helper, roles/hyprland
     -- files/focus-or-launch.sh).
     hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(focusOrLaunch .. " '^Bitwarden$' bitwarden-desktop"))
+    -- Chromium, the browser (re-added 2026-10-10): focus its open browser
+    -- window (class exactly "chromium" - web apps have their own
+    -- chrome-<site> classes and are not matched), else start it - the same
+    -- package, profile and managed policy as from the launcher.
+    hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(focusOrLaunch .. " '^chromium$' chromium"))
     hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(focusOrLaunch .. " '^chrome-web\\.whatsapp\\.com__' chromium --app=https://web.whatsapp.com/"))
     hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(focusOrLaunch .. " '^org\\.localsend\\.localsend_app$' flatpak run org.localsend.localsend_app"))
 
