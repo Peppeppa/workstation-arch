@@ -1105,6 +1105,19 @@ history for that milestone's own record):
   rules.json, second changed=0. MANUAL, OPEN (the user's own acceptance):
   SSH reachability with the SSH rule enabled / disabled / deleted, and after
   "Standardregeln wiederherstellen".
+  (Done by the user since: enable / disable / delete confirmed.)
+
+- **Logout back in the power menu, no logout key, no SSH warning** (laptop,
+  2026-10-10, explicitly requested): power menu = Lock/Suspend/Hibernate
+  (logind)/Logout/Reboot/Shutdown (logout = the old entry, `hl.dsp.exit()`);
+  mainMod+SHIFT+E and its cheatsheet row removed; the firewall editor treats
+  the SSH rule like any other (no own question/warning, `touchesSsh` gone).
+  Real-hardware-tested without running any action: `hyprctl binds -j` has no
+  SHIFT+E / exit bind, power menu state via IPC (lock, suspend, logout,
+  reboot, shutdown; Lock selected), search/wrap on the deployed file, firewall
+  window shows the five rules with no SSH text, reset question + Abbrechen,
+  rules.json + kernel chain unchanged; two bootstraps, second changed=0. NOT
+  run live: a real logout, toggling/deleting SSH through the UI.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
