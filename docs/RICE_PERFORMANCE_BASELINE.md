@@ -56,6 +56,12 @@ UI audit). The CPU values are valid: the desktop costs nothing measurable
 while idle. Quickshell's start at login: 0.47 s from "Launching config" to
 "Configuration Loaded" (journal).
 
+**Fresh production Quickshell** (re-measured 2026-10-11 00:15, 3.5 min after
+the Quickshell restart of the phase-1 deploy - same config plus the token
+singleton `Style.qml`, which creates no surface): **RSS 227 MB, PSS 213 MB**
+(private 204 MB), swap 0, CPU 1 tick in 60 s (~0.02 %). This is the
+production reference for later phases.
+
 **Isolated Quickshell instances** (fresh processes, reliable relative values):
 
 | Instance | Load time (runs) | PSS (runs) | Private | CPU idle |
