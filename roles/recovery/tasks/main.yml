@@ -192,6 +192,8 @@
     - { src: snapshot-boot, dest: /usr/local/lib/workstation/snapshot-boot, mode: "0755" }
     # the marker every later snapshot of / carries (snapshot-boot offers only those)
     - { src: snapshot-boot-support, dest: /usr/local/lib/workstation/snapshot-boot-support, mode: "0644" }
+  # a changed snapshot-boot may choose other entries: re-sync once
+  notify: Sync the snapshot boot entries
   tags: recovery
 
 # ---- Snapshot boot (docs/recovery-design.md 22) -----------------------------

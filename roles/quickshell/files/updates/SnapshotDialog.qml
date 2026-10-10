@@ -319,15 +319,6 @@ PanelWindow {
             anchors.margins: 16
             spacing: 8
 
-            component Small: Text {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                color: Colors.foregroundMuted
-                font.family: Fonts.family
-                font.pixelSize: dlg.fontSize - 2
-            }
-
             Text {
                 text: dlg.stage === "confirmReplace" ? "Slot " + (dlg.target ? dlg.target.slot : "") + " überschreiben?"
                     : dlg.stage === "confirmDelete" ? "Snapshot löschen?"
@@ -339,7 +330,13 @@ PanelWindow {
                 font.bold: true
             }
 
-            Small {
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                color: Colors.foregroundMuted
+                font.family: Fonts.family
+                font.pixelSize: dlg.fontSize - 2
                 visible: dlg.stage === "slots" || dlg.stage === "working"
                 text: "Drei feste Plätze für eigene Sicherungspunkte - jeder ist im Bootmenü wählbar. "
                     + "Update-Snapshots entstehen automatisch (die letzten zwei)."
@@ -427,13 +424,25 @@ PanelWindow {
                 }
             }
 
-            Small {
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                color: Colors.foregroundMuted
+                font.family: Fonts.family
+                font.pixelSize: dlg.fontSize - 2
                 visible: dlg.stage === "working"
                 text: "…"
             }
 
             // ---- name
-            Small {
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                color: Colors.foregroundMuted
+                font.family: Fonts.family
+                font.pixelSize: dlg.fontSize - 2
                 visible: dlg.stage === "name"
                 text: dlg.target && !dlg.target.empty
                     ? "Name des neuen Snapshots (optional - leer: Datum und Uhrzeit). Danach wird gefragt, ob „"
