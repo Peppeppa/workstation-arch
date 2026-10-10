@@ -118,3 +118,24 @@ login or a Quickshell restart, and compare:
 - GIF wallpapers: candidates for later work - pause the animation while
   the wallpaper is covered or on battery; until then, document the cost in
   the README
+
+## Phase 7 comparison (overnight batch, 2026-10-11, before deployment)
+
+Same machine, idle, AC, Coffee on, no swap in use (0 MB before and after).
+`scripts/qs-candidate-check.py` with `QS_CAND_MEASURE=1`: an isolated
+`quickshell -p` instance of the whole shell minus the D-Bus owners
+(notifications, power policy, portal watcher, battery watcher, wallpaper,
+tray off), 15 s settle, CPU over 30 s, then PSS - alternating the deployed
+config (`QS_CAND_BASELINE=1`, = main `2a74425`) and the RICE candidate
+(phases 2-6b + audit fixes), three rounds each:
+
+| | PSS MB (3 runs) | median | idle CPU |
+|---|---|---|---|
+| deployed (baseline) | 130.5 / 126.6 / 130.6 | 130.5 | 0.00-0.07 % |
+| RICE candidate | 126.2 / 141.3 / 127.1 | 127.1 | 0.00-0.03 % |
+
+No measurable regression: the spread between runs (one 141 MB outlier)
+is larger than the difference. Not measured here: the cost of each open
+overlay (unchanged structure - the DialogFrame replaces equivalent
+Rectangle/ColumnLayout trees one to one) and the production process after
+deployment (that is the post-deployment check).

@@ -86,21 +86,23 @@ def cp(src, dst):
         shutil.copy(s, d)
 
 
-cp("quickshell", ".")
-for s, d in [("PowerMenu.qml", "PowerMenu.qml"), ("updates/Updates.qml", "updates/Updates.qml"),
-             ("updates/UpdaterDialog.qml", "updates/UpdaterDialog.qml"), ("updates/SnapshotDialog.qml", "updates/SnapshotDialog.qml"),
-             ("updates/SnapshotMode.qml", "updates/SnapshotMode.qml"), ("updates/Widget.qml", "bar/widgets/Updates/Widget.qml"),
-             ("Notifications.qml", "Notifications.qml"), ("tray", "bar/widgets/Tray"), ("audio", "bar/widgets/Audio"),
-             ("connectivity/Popup.qml", "bar/widgets/Connectivity/Popup.qml"), ("connectivity/PortalWatcher.qml", "PortalWatcher.qml"),
-             ("clipboard/ClipboardHistory.qml", "ClipboardHistory.qml"), ("wallpaper/Wallpaper.qml", "Wallpaper.qml"),
-             ("wallpaper/WallpaperPicker.qml", "bar/widgets/Theme/WallpaperPicker.qml")]:
-    cp(s, d)
-for f in os.listdir(os.path.join(F, "bluetooth")):
-    if f.endswith(".qml"):
-        cp("bluetooth/" + f, "bar/widgets/Bluetooth/" + f)
-render("Fonts.qml.j2", os.path.join(DEST, "Fonts.qml"))
-render("BarFeatures.qml.j2", os.path.join(DEST, "bar/BarFeatures.qml"))
-render("shell.qml.j2", os.path.join(DEST, "shell.qml"))
+BASELINE = os.environ.get("QS_CAND_BASELINE") == "1"   # the deployed config as is (comparison run)
+if not BASELINE:
+    cp("quickshell", ".")
+    for s, d in [("PowerMenu.qml", "PowerMenu.qml"), ("updates/Updates.qml", "updates/Updates.qml"),
+                 ("updates/UpdaterDialog.qml", "updates/UpdaterDialog.qml"), ("updates/SnapshotDialog.qml", "updates/SnapshotDialog.qml"),
+                 ("updates/SnapshotMode.qml", "updates/SnapshotMode.qml"), ("updates/Widget.qml", "bar/widgets/Updates/Widget.qml"),
+                 ("Notifications.qml", "Notifications.qml"), ("tray", "bar/widgets/Tray"), ("audio", "bar/widgets/Audio"),
+                 ("connectivity/Popup.qml", "bar/widgets/Connectivity/Popup.qml"), ("connectivity/PortalWatcher.qml", "PortalWatcher.qml"),
+                 ("clipboard/ClipboardHistory.qml", "ClipboardHistory.qml"), ("wallpaper/Wallpaper.qml", "Wallpaper.qml"),
+                 ("wallpaper/WallpaperPicker.qml", "bar/widgets/Theme/WallpaperPicker.qml")]:
+        cp(s, d)
+    for f in os.listdir(os.path.join(F, "bluetooth")):
+        if f.endswith(".qml"):
+            cp("bluetooth/" + f, "bar/widgets/Bluetooth/" + f)
+    render("Fonts.qml.j2", os.path.join(DEST, "Fonts.qml"))
+    render("BarFeatures.qml.j2", os.path.join(DEST, "bar/BarFeatures.qml"))
+    render("shell.qml.j2", os.path.join(DEST, "shell.qml"))
 
 # no tray host, no D-Bus owners, nothing that changes state
 bf = open(os.path.join(DEST, "bar/BarFeatures.qml")).read()
@@ -141,11 +143,11 @@ for p in os.listdir("/proc"):
 env = dict(kv.split("=", 1) for kv in open("/proc/%d/environ" % prod, "rb").read().decode(errors="replace").split("\0") if "=" in kv)
 env.pop("INVOCATION_ID", None)
 t0 = time.monotonic()
-p = subprocess.Popen(["prlimit", "--as=4000000000", "timeout", str(SECONDS + 25), "quickshell", "-p", DEST],
+p = subprocess.Popen(["prlimit", "--as=4000000000", "timeout", str(SECONDS + 90), "quickshell", "-p", DEST],
                      env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
 os.set_blocking(p.stdout.fileno(), False)
 lines, loaded = [], None
-shots, locked, ipc_errors = [], False, []
+shots, locked, ipc_errors, measured = [], False, [], None
 while time.monotonic() - t0 < SECONDS + 20:
     try:
         l = p.stdout.readline()
@@ -164,6 +166,21 @@ while time.monotonic() - t0 < SECONDS + 20:
         if loaded is not None and time.monotonic() > deadline:
             break
         time.sleep(0.02)
+    if loaded is not None and os.environ.get("QS_CAND_MEASURE") == "1" and p.poll() is None:
+        # bounded: 15 s settle + 30 s CPU window, then PSS of the test quickshell
+        time.sleep(15)
+        qp = [q for q in os.listdir("/proc") if q.isdigit() and os.path.exists("/proc/%s/cmdline" % q)
+              and open("/proc/%s/cmdline" % q, "rb").read().split(b"\0")[:3] == [b"quickshell", b"-p", DEST.encode()]]
+        def ticks(q):
+            f = open("/proc/%s/stat" % q).read().rsplit(")", 1)[1].split()
+            return int(f[11]) + int(f[12])
+        t0c, w0 = ticks(qp[0]), time.monotonic()
+        time.sleep(30)
+        cpu = 100.0 * (ticks(qp[0]) - t0c) / os.sysconf("SC_CLK_TCK") / (time.monotonic() - w0)
+        roll = {m.group(1): int(m.group(2)) for m in re.finditer(r"(\w+):\s+(\d+) kB", open("/proc/%s/smaps_rollup" % qp[0]).read())}
+        measured = {"pss_mb": round(roll["Pss"] / 1024, 1), "rss_mb": round(roll["Rss"] / 1024, 1),
+                    "swap_mb": round(roll.get("Swap", 0) / 1024, 1), "cpu_pct": round(cpu, 3)}
+        break
     if loaded is not None and ACTIONS and p.poll() is None:
         shots, locked = [], any(open("/proc/%s/comm" % q).read().strip() == "hyprlock"
                                 for q in os.listdir("/proc") if q.isdigit() and os.path.exists("/proc/%s/comm" % q))
@@ -216,6 +233,8 @@ errors = [l for l in lines if re.search(r"ERROR|TypeError|ReferenceError|Binding
 warns = [l for l in lines if "WARN" in l and not noise.search(l) and l not in errors]
 shutil.rmtree(DEST, ignore_errors=True)
 report = {"loaded_s": loaded, "errors": errors[:40], "warnings": warns[:40]}
+if measured:
+    report["measured"] = measured
 if ACTIONS:
     report["screenshots"] = "locked session - none taken" if locked else shots
     report["ipc_errors"] = ipc_errors
