@@ -5,6 +5,9 @@ pragma Singleton
 // workstation-arch. Colors are NOT here - they come from Colors (themes).
 // Sizes follow the user's text size (Fonts.px: the values below are the
 // default text size's; the bar never gets smaller than that).
+// Type sizes come from the design tokens (Style: same values); the bar's
+// own geometry below stays as it is until RICE v1 phase 2 moves the bar
+// onto the tokens - deliberate exceptions, docs/DESIGN_SYSTEM.md.
 
 import QtQuick
 import Quickshell
@@ -12,12 +15,12 @@ import qs
 
 Singleton {
     // Bar
-    readonly property int height: Math.max(26, Fonts.px(26))
+    readonly property int height: Style.grow(26)
     readonly property int edgeMargin: 8          // bar content inset left/right
-    readonly property int iconSlot: Math.max(27, Fonts.px(27))           // width of an icon-only widget
+    readonly property int iconSlot: Style.grow(27)           // width of an icon-only widget
     readonly property int iconSize: Fonts.px(13)           // Nerd Font glyph px (slot stays iconSlot wide)
     readonly property int trayIconSize: Fonts.px(15)       // tray item images (slot stays 24 px)
-    readonly property int textSize: Fonts.px(12)           // bar labels
+    readonly property int textSize: Style.secondary        // bar labels (12 at the default size)
     readonly property int textPadding: Fonts.px(8)         // left/right padding of a labelled widget
     readonly property int groupGap: 4            // icon <-> label inside one widget
 
@@ -32,9 +35,9 @@ Singleton {
 
     // Popups
     readonly property int popupGap: 4            // between bar and popup
-    readonly property int popupWidth: Math.max(320, Fonts.px(320))
+    readonly property int popupWidth: Style.grow(320)
     readonly property int popupPadding: 10
     readonly property int popupRadius: 8
-    readonly property int popupFontSize: Fonts.px(13)
-    readonly property int tooltipFontSize: Fonts.px(12)
+    readonly property int popupFontSize: Style.body        // 13 at the default size
+    readonly property int tooltipFontSize: Style.secondary
 }

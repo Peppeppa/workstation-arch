@@ -1,7 +1,96 @@
 # Design System
 
 Deliberately small: one theme architecture (colors), a handful of font
-roles and one text size.
+roles, one text size - and one token scale for geometry and type sizes
+(RICE v1).
+
+## Direction (RICE v1)
+
+**Hybrid**: Omarchy's functional clarity (compact bar, plain lists,
+keyboard-first, calm surfaces) with a restrained REPO identity carried by
+the themes and a consistent structure - not by effects. Binding:
+
+- **No blur, no shadows, no permanent animations.** A later dialog
+  transition is at most 120 ms and only on open/close; nothing moves while
+  idle. No additional panel transparency (the bar's optional transparent
+  background stays the only one).
+- **English** is the one interface language. Existing German texts are
+  moved over in the RICE phase that touches their surface - not in one sweep.
+- Panels: radius 8 (base), controls 4; small window gaps, subtle 1 px
+  borders.
+- Colors only from the theme roles (below); contrast is to be validated
+  WCAG-AA-oriented in a later step.
+- Resource use is measured, not assumed: `docs/RICE_PERFORMANCE_BASELINE.md`.
+
+## Design tokens (`quickshell/Style.qml`)
+
+The third central source next to `Colors` (theme roles) and `Fonts`
+(families, the one text size): **geometry and type sizes**. Pure values -
+no state, no process; a text-size or theme switch updates every binding.
+Values are the default text size's (11) and scale through `Fonts.px`
+(`n * size / 11`) by two rules:
+
+| Rule | Function | Meaning |
+|---|---|---|
+| type | `Style.text(n)` = `Fonts.px(n)` | follows the text size both ways (9 = smaller text) |
+| geometry | `Style.grow(n)` = `max(n, Fonts.px(n))` | grows with the text size, never below its default (smaller text keeps click targets and padding) - the rule BarStyle already used |
+| screen | `Style.fitWidth(w, available)` | a panel width class, at most `available - 2 x spacingXl`, never negative |
+
+| Token | Base | At 9 | At 18 | Use |
+|---|---|---|---|---|
+| `panelRadius` | 8 | 8 | 13 | dialogs, menus, popups, toasts |
+| `controlRadius` | 4 | 4 | 7 | buttons, rows, fields, hover plates |
+| `smallRadius` | 2 | 2 | 3 | thumbnails, dots, small marks |
+| `spacingXs` / `Sm` / `Md` / `Lg` / `Xl` | 2 / 4 / 8 / 12 / 16 | same | 3 / 7 / 13 / 20 / 26 | inside an element / related elements / rows, control padding / panel padding / dialog padding, screen edge |
+| `compactRowHeight` | 28 | 28 | 46 | dense lists, popup rows, buttons |
+| `standardRowHeight` | 32 | 32 | 52 | fields, dialog rows |
+| `comfortableRowHeight` | 36 | 36 | 59 | menu / launcher rows |
+| `narrowPanelWidth` | 280 | 280 | 458 | short action lists (power menu, today 260) |
+| `standardPanelWidth` | 480 | 480 | 785 | menus, ordinary dialogs (today 460-500) |
+| `widePanelWidth` | 560 | 560 | 916 | lists with columns (firewall, clipboard; today 540-560) |
+| `body` | 13 | 11 | 21 | normal text of overlays/dialogs (= the overlays' `fontSize`) |
+| `secondary` | 12 | 10 | 20 | labels, details, bar text |
+| `caption` | 11 | 9 | 18 | hints, metadata |
+| `sectionTitle` | 14 | 12 | 23 | a heading inside a panel (always >= body + 1) |
+| `title` | 15 | 13 | 25 | the panel's title (always >= sectionTitle + 1) |
+| `iconSmall` / `iconStandard` / `iconLarge` | 12 / 15 / 22 | 10 / 12 / 18 | 20 / 25 / 36 | glyph in a secondary line / next to body text / app icons |
+
+Fonts stay `Fonts.family` / `Fonts.icons`; tokens only give sizes. The
+values were chosen from what the components use today (radius 4 x46 and
+8 x12; margins 10/8/6/4/12/16; rows 28/30/36; widths 260-620) so the later
+migration moves most surfaces by a pixel or two, not by a redesign.
+`qs ipc call shell style` prints the tokens at the current text size.
+
+**When to use them**: every new QML component uses the tokens (no raw
+pixel number for spacing, radius, row height, panel width or text size);
+existing surfaces move to them in their RICE phase (bar: phase 2, OS menu and
+dialogs: 3, launcher and small widgets: 4, toasts and lockscreen: 6). Until
+then their own numbers stay - no partial edits outside a phase.
+
+**Deliberate exceptions** (documented, revisited in their phase):
+
+- `bar/BarStyle.qml` keeps its own geometry in phase 1 (height 26, edge 8,
+  icon slot 27, hover inset 3 / radius 4, popup gap 4 / padding 10 / radius
+  8, popup width 320) so the bar does not change visibly; its type sizes
+  already come from the tokens (`textSize` = `secondary`, `popupFontSize` =
+  `body`, `tooltipFontSize` = `secondary`) and its grow rule is
+  `Style.grow`. The bar's popup radius stays 8 at every text size until
+  phase 2 decides whether it grows like `panelRadius`.
+- The wallpaper picker's thumbnail grid (620) is wider than `widePanelWidth`
+  by its content.
+- hyprlock and Hyprland are not QML: their sizes are set in their
+  templates (RICE phases 5 and 6) from the same base values.
+
+**Rules for new QML components**
+
+- Sizes from `Style`, colors from `Colors`, families from `Fonts` - nothing
+  else; a missing token is added to `Style.qml` (and this table), never a
+  local constant.
+- Panels: `Style.fitWidth(<class>, screen width)`, radius `panelRadius`,
+  padding `spacingLg`/`spacingXl`; rows at least `compactRowHeight`.
+- No `opacity` to fake a muted or disabled color: use `foregroundMuted`.
+- No blur, shadow, permanent animation or extra transparency.
+- Interface text in English.
 
 ## Typography
 

@@ -778,7 +778,71 @@ QtObject {
         eq("helper reason shown", fail(1, "snapshot-restore: booted from snapshot 29, not 30\n"), "booted from snapshot 29, not 30");
     }
 
+    // Design tokens (quickshell/Style.qml): values at text size 9 / 11 / 18,
+    // relations, text fits its rows, the screen limit, and BarStyle keeping
+    // its exact former values (RICE v1 phase 1 changes nothing visible).
+    function designTokens() {
+        const st = read("quickshell/Style.qml");
+        const props = [];
+        const re = /^\s*readonly property int (\w+): ([^\n]+?)\s*(?:\/\/[^\n]*)?$/gm;
+        for (let m = re.exec(st); m !== null; m = re.exec(st)) props.push([m[1], m[2]]);
+        eq("tokens: all 22 found", props.length, 22);
+        function at(size) {
+            const sc = { Fonts: { size: size, px: n => Math.round(n * size / 11) } };
+            sc.text = make(st, "text", sc);
+            sc.grow = make(st, "grow", sc);
+            for (const [k, e] of props) sc[k] = new Function("s", "with (s) { return (" + e + "); }")(sc);
+            sc.fitWidth = make(st, "fitWidth", sc);
+            return sc;
+        }
+        const pick = (t, ks) => ks.map(k => t[k]);
+        const G = ["panelRadius", "controlRadius", "smallRadius", "spacingXs", "spacingSm", "spacingMd", "spacingLg", "spacingXl",
+                   "compactRowHeight", "standardRowHeight", "comfortableRowHeight", "narrowPanelWidth", "standardPanelWidth", "widePanelWidth"];
+        const T = ["body", "secondary", "caption", "sectionTitle", "title", "iconSmall", "iconStandard", "iconLarge"];
+        const t9 = at(9), t11 = at(11), t18 = at(18);
+        eq("tokens 11: geometry = the base values", pick(t11, G), [8, 4, 2, 2, 4, 8, 12, 16, 28, 32, 36, 280, 480, 560]);
+        eq("tokens 11: type = the base values", pick(t11, T), [13, 12, 11, 14, 15, 12, 15, 22]);
+        eq("tokens 9: geometry never below the base", pick(t9, G), pick(t11, G));
+        eq("tokens 9: type follows the smaller text, headings stay above body", pick(t9, T), [11, 10, 9, 12, 13, 10, 12, 18]);
+        eq("tokens 18: geometry grows", pick(t18, G), [13, 7, 3, 3, 7, 13, 20, 26, 46, 52, 59, 458, 785, 916]);
+        eq("tokens 18: type grows", pick(t18, T), [21, 20, 18, 23, 25, 20, 25, 36]);
+        for (const [n, t] of [[9, t9], [11, t11], [18, t18]]) {
+            const all = G.concat(T).map(k => t[k]);
+            eq("tokens " + n + ": positive integers", all.every(v => Number.isInteger(v) && v > 0), true);
+            eq("tokens " + n + ": spacing ascending", t.spacingXs < t.spacingSm && t.spacingSm < t.spacingMd && t.spacingMd < t.spacingLg && t.spacingLg < t.spacingXl, true);
+            eq("tokens " + n + ": rows ascending", t.compactRowHeight < t.standardRowHeight && t.standardRowHeight < t.comfortableRowHeight, true);
+            eq("tokens " + n + ": panels ascending", t.narrowPanelWidth < t.standardPanelWidth && t.standardPanelWidth < t.widePanelWidth, true);
+            eq("tokens " + n + ": radii ascending", t.smallRadius < t.controlRadius && t.controlRadius < t.panelRadius, true);
+            eq("tokens " + n + ": type order", t.caption <= t.secondary && t.secondary < t.body && t.body < t.sectionTitle && t.sectionTitle < t.title, true);
+            // a line is ~1.35 x the pixel size; a row must hold the title line plus 2 x spacingXs
+            eq("tokens " + n + ": text fits the compact row", Math.ceil(t.title * 1.35) + 2 * t.spacingXs <= t.compactRowHeight, true);
+            eq("tokens " + n + ": a control radius never more than half a compact row", t.controlRadius * 2 <= t.compactRowHeight, true);
+        }
+        eq("fitWidth: room on a 1920 screen", t18.fitWidth(t18.widePanelWidth, 1920), 916);
+        eq("fitWidth: capped on a 1280 screen at text 18 (edge = spacingXl)", t18.fitWidth(t18.widePanelWidth, 800), 800 - 2 * 26);
+        eq("fitWidth: never negative", t11.fitWidth(480, 10), 0);
+        // BarStyle: the exact former values at every text size
+        const bs = read("quickshell/bar/BarStyle.qml");
+        const old = { height: px => Math.max(26, px(26)), iconSlot: px => Math.max(27, px(27)), textSize: px => px(12),
+                      popupWidth: px => Math.max(320, px(320)), popupFontSize: px => px(13), tooltipFontSize: px => px(12),
+                      iconSize: px => px(13), textPadding: px => px(8) };
+        for (const size of [9, 11, 12, 18]) {
+            const t = at(size);
+            const sc = { Style: t, Fonts: t.Fonts };
+            const got = {}, want = {};
+            for (const k of Object.keys(old)) {
+                const m = bs.match(new RegExp("readonly property int " + k + ": ([^\\n]+?)\\s*(?:\\/\\/[^\\n]*)?\\n"));
+                got[k] = new Function("s", "with (s) { return (" + m[1] + "); }")(sc);
+                want[k] = old[k](t.Fonts.px);
+            }
+            eq("BarStyle unchanged at text size " + size, got, want);
+        }
+        // shell.qml's overlay size is the body token (13 at the default size)
+        eq("shell.qml: overlay fontSize = Style.body", /readonly property int fontSize: Style\.body/.test(read("../templates/shell.qml.j2")), true);
+    }
+
     Component.onCompleted: {
+        designTokens();
         snapshotMode();
         powerMenu();
         firewallEditor();

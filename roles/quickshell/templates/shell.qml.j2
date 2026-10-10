@@ -36,9 +36,9 @@ ShellRoot {
     id: root
 
     // Font size of the non-bar overlays (launcher, power menu, toasts,
-    // clipboard); the bar has its own (bar/BarStyle.qml). Both follow the
-    // user's text size (Fonts.px - 13 at the default size).
-    readonly property int fontSize: Fonts.px(13)
+    // clipboard): the body size of the design tokens (Style.qml - 13 at the
+    // default text size); the bar has its own (bar/BarStyle.qml).
+    readonly property int fontSize: Style.body
 
     // One bar per connected monitor.
     Variants {
@@ -56,6 +56,11 @@ ShellRoot {
 
         function reload(): void {
             Quickshell.reload(false);
+        }
+
+        // The design tokens at the current text size (read-only, tests).
+        function style(): string {
+            return JSON.stringify(Style.tokens());
         }
 
         // Super+Q while a shell overlay has the keyboard (roles/hyprland
