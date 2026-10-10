@@ -1,0 +1,6 @@
+#!/bin/sh
+# Managed by Ansible (roles/development/templates/ds-wrapper.j2) - do not edit.
+# `{{ item }}` of the Data Science environment ({{ development_ds_venv }}),
+# README "Python / Data Science". Inside an ACTIVATED project venv that has
+# its own {{ item }}, that one comes first in PATH and wins.
+exec "{{ development_ds_venv }}/bin/{{ item }}" "$@"

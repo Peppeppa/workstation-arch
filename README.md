@@ -534,6 +534,51 @@ call (or an IDE probing it) starts the daemon again. Containers, images,
 volumes and databases (e.g. a MySQL container for a course) are yours -
 the repository creates none.
 
+## Python / Data Science
+
+One global **learning/course environment** at
+`~/.local/share/venvs/data-science`, declared in
+`roles/development/files/data-science/pyproject.toml` and locked in
+`uv.lock` (exact versions + hashes, resolved for the system Python 3.12+).
+Contents: the Data Science module's required packages (pandas, numpy,
+matplotlib, seaborn, plotly, scikit-learn, sqlalchemy,
+mysql-connector-python, pyarrow, pyyaml, h5py, jsonpath-ng, streamlit,
+pydeck), JupyterLab + Notebook (ipykernel, ipywidgets, jupyterlab-lsp),
+scipy/statsmodels/sympy, openpyxl/xlsxwriter/requests/httpx/
+beautifulsoup4/lxml, pytest/pytest-cov/ruff/black/mypy/debugpy/pre-commit,
+pydantic/python-dotenv/rich/tqdm. Not included on purpose: PyTorch,
+TensorFlow, CUDA, local AI stacks - per project when needed.
+
+```sh
+jupyter lab                    # JupyterLab on 127.0.0.1 only (token per start), kernel "Python 3 (Data Science)"
+jupyter notebook               # classic Notebook
+streamlit run app.py           # Streamlit app (pydeck maps work inside it)
+~/.local/share/venvs/data-science/bin/python   # the environment's Python, e.g. for scripts
+```
+
+`jupyter` and `streamlit` are two small wrappers in `~/.local/bin` - the
+environment is never activated globally: `python`/`pip` stay the system's,
+and an activated project venv with its own Jupyter wins. The system Python
+belongs to pacman: no `pip install` into it, no `--break-system-packages`.
+
+Own projects get their **own** environment (uv, `roles/development`):
+
+```sh
+uv init myproject && cd myproject && uv add pandas   # project + .venv + uv.lock
+uv run python main.py                                # runs inside .venv
+uv venv && source .venv/bin/activate                 # plain venv, if preferred
+```
+
+Changing the course environment: edit `pyproject.toml` in the repository,
+re-lock (`uv lock` in that directory, with the target's Python), commit,
+`./bootstrap.sh` - it installs exactly the lock (`uv sync --frozen
+--inexact`: no resolving or downloading when nothing changed; everything is
+prepared before the environment is touched, so a failed download/build
+leaves it as it was; packages you added yourself with
+`uv pip install --python ~/.local/share/venvs/data-science/bin/python ...`
+stay). After a pacman Python minor upgrade (3.14 -> 3.15) the next bootstrap
+rebuilds the environment for the new interpreter.
+
 ## LaTeX
 
 TeX Live (pdflatex, lualatex, German babel, AMS math, BibLaTeX + biber)

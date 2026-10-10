@@ -1,0 +1,66 @@
+# Managed by Ansible (roles/development/files/data-science) - do not edit by
+# hand on the machine; change it here and re-lock (README "Python / Data
+# Science"). The global learning/course environment
+# ~/.local/share/venvs/data-science - NOT a package, never injected into
+# other projects (they get their own `uv init` / `uv venv`).
+#
+# Resolved into uv.lock (exact versions + hashes); bootstrap installs with
+# `uv sync --frozen --inexact` against the system Python (pacman's).
+# Deliberately NOT here: PyTorch, TensorFlow, CUDA or other large ML/AI
+# stacks - add those per project.
+[project]
+name = "workstation-data-science"
+version = "1"
+requires-python = ">=3.12"
+dependencies = [
+    # --- course requirements (Data Science module) - all mandatory ---
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-learn",
+    "sqlalchemy",
+    "mysql-connector-python",
+    "pyarrow",
+    "pyyaml",
+    "h5py",
+    "jsonpath-ng",
+    "streamlit",
+    "pydeck",
+    # --- Jupyter ---
+    "jupyterlab",
+    "notebook",
+    "ipython",
+    "ipykernel",
+    "ipywidgets",
+    "jupyterlab-lsp",          # LSP inside JupyterLab ...
+    "python-lsp-server",       # ... and the server it talks to
+    # --- scientific computing ---
+    "scipy",
+    "statsmodels",
+    "sympy",
+    # --- data input/output ---
+    "openpyxl",
+    "xlsxwriter",
+    "requests",
+    "httpx",
+    "beautifulsoup4",
+    "lxml",
+    # --- development + testing ---
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "debugpy",
+    "mypy",
+    "pre-commit",
+    # --- utilities ---
+    "pydantic",
+    "python-dotenv",
+    "rich",
+    "tqdm",
+]
+
+[tool.uv]
+package = false

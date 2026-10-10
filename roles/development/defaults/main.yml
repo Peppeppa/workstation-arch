@@ -62,3 +62,18 @@ development_docker_units:
   - docker.service
   - docker.socket
   - containerd.service
+
+# Python / Data Science (README "Python / Data Science"): ONE global
+# learning/course environment, declared in files/data-science/pyproject.toml
+# and locked in uv.lock (exact versions + hashes). Bootstrap runs
+# `uv sync --frozen --inexact` against the system Python (pacman's
+# /usr/bin/python3, no uv-downloaded interpreter): nothing is resolved or
+# downloaded again when the lock is unchanged; uv prepares every package
+# before it touches the environment, so a failed download/build leaves it as
+# it was; --inexact keeps packages the user added to it. Never --break-
+# system-packages, no global pip, no conda/poetry/pipenv. Other projects get
+# their own environment (`uv init`, `uv venv`) - this one is not injected.
+development_ds_project: "{{ ansible_facts.user_dir }}/.local/share/workstation/data-science"
+development_ds_venv: "{{ ansible_facts.user_dir }}/.local/share/venvs/data-science"
+development_ds_kernel: data-science          # Jupyter kernel name
+development_ds_kernel_display: "Python 3 (Data Science)"

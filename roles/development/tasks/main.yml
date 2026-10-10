@@ -29,3 +29,112 @@
     groups: docker
     append: true
   tags: development
+
+# ---- Python / Data Science environment (user level, no become) ----------
+- name: Data science - project directory (pyproject + lock)
+  ansible.builtin.file:
+    path: "{{ development_ds_project }}"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: development
+
+- name: Data science - pyproject.toml and uv.lock
+  ansible.builtin.copy:
+    src: "data-science/{{ item }}"
+    dest: "{{ development_ds_project }}/{{ item }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  loop:
+    - pyproject.toml
+    - uv.lock
+  tags: development
+
+# uv's own output names every package it adds/removes/changes (" + x==1",
+# " - x==1", " ~ x==1"); none of those = nothing changed.
+- name: Data science - environment (uv sync --frozen)
+  ansible.builtin.command:
+    cmd: uv sync --frozen --inexact --no-progress --python /usr/bin/python3
+    chdir: "{{ development_ds_project }}"
+  environment:
+    UV_PROJECT_ENVIRONMENT: "{{ development_ds_venv }}"
+    UV_PYTHON_DOWNLOADS: never
+  register: development_ds_sync
+  changed_when: development_ds_sync.stderr is search('(?m)^ [-+~] ')
+  tags: development
+
+# Jupyter only on this machine: the server listens on 127.0.0.1 (never all
+# interfaces), with Jupyter's own per-start token - nothing fixed here.
+# Lives in the environment's own config dir (sys-prefix), so it applies to
+# this Jupyter only.
+- name: Data science - Jupyter server config directory
+  ansible.builtin.file:
+    path: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.d"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: development
+
+- name: Data science - Jupyter listens on 127.0.0.1 only
+  ansible.builtin.copy:
+    dest: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.d/workstation.json"
+    content: |
+      {
+        "ServerApp": {
+          "ip": "127.0.0.1",
+          "allow_remote_access": false
+        }
+      }
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: development
+
+# The named kernel (user kernelspec) - what `python -m ipykernel install
+# --user --name data-science` writes, as a plain file (idempotent).
+- name: Data science - Jupyter kernel directory
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/share/jupyter/kernels/{{ development_ds_kernel }}"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: development
+
+- name: Data science - Jupyter kernel "{{ development_ds_kernel_display }}"
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts.user_dir }}/.local/share/jupyter/kernels/{{ development_ds_kernel }}/kernel.json"
+    content: "{{ {'argv': [development_ds_venv ~ '/bin/python', '-Xfrozen_modules=off', '-m', 'ipykernel_launcher', '-f', '{connection_file}'],
+                  'display_name': development_ds_kernel_display, 'language': 'python',
+                  'metadata': {'debugger': true}} | to_nice_json }}\n"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
+  tags: development
+
+# `jupyter lab`, `jupyter notebook`, `streamlit run app.py` from any shell:
+# two tiny wrappers that exec the environment's own commands - no PATH
+# change, no activation, `python` stays the system's (or a project's).
+- name: Data science - ~/.local/bin
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/bin"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: development
+
+- name: Data science - jupyter / streamlit commands
+  ansible.builtin.template:
+    src: ds-wrapper.j2
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/{{ item }}"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  loop:
+    - jupyter
+    - streamlit
+  tags: development
