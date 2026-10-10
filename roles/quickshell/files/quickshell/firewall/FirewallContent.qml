@@ -35,6 +35,15 @@ FocusScope {
         else root.window.close();
     }
 
+    // Where the keyboard goes back to after the confirm / add dialog closes:
+    // root.forceActiveFocus() handed it to the scope's remembered focus child
+    // - the dialog that had just been hidden - so Escape reached nothing and
+    // the window no longer closed (laptop GUI test 2026-10-10). Keys pressed
+    // here propagate to root's Keys.onEscapePressed.
+    Item {
+        id: keySink
+    }
+
     // The question before a reset; `pending` runs on Ja.
     property var pending: null
 
@@ -308,11 +317,11 @@ FocusScope {
             const action = root.pending;
             root.pending = null;
             if (action) action();
-            root.forceActiveFocus();
+            keySink.forceActiveFocus();
         }
         onCancelled: {
             root.pending = null;
-            root.forceActiveFocus();
+            keySink.forceActiveFocus();
         }
     }
 
@@ -325,6 +334,6 @@ FocusScope {
         onDone: root.window.addOpen = false
         // keyboard back to the window (AddRule drops its fields' focus), so
         // the next Escape closes the window
-        onVisibleChanged: if (!visible) root.forceActiveFocus()
+        onVisibleChanged: if (!visible) keySink.forceActiveFocus()
     }
 }
