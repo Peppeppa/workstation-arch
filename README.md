@@ -509,11 +509,25 @@ lines scroll sideways). The dots at the bottom or `Alt + 1..4` switch notes;
 `-`/`+` (or `Ctrl + -`/`Ctrl + +`) change only the notes' font size (the
 desktop text size is the default; kept). Escape, `Super + S`, `Super + Q`
 or a click elsewhere close it. Text saves itself (shortly after typing and
-on every switch/close) to plain files:
-`~/.local/share/workstation/scratchpad/1.txt` ... `4.txt` (last note + font
-size: `~/.config/workstation/scratchpad.json`). Edits made to those files
-from outside while the desktop runs are not picked up until the next
-Quickshell start.
+on every switch/close) into **one Markdown file**
+`~/Documents/.system/scratchpad.md` - each note starts with an invisible
+marker line `<!-- scratchpad note N -->` (last note + font size stay local:
+`~/.config/workstation/scratchpad.json`). Works without any sync; with the
+Nextcloud folder `~/Documents` -> `/2_Dokumente` (the client's own folder
+sync, nothing set up by the bootstrap) the notes appear as
+`/2_Dokumente/.system/scratchpad.md` (`.system` syncs because the folder
+has "sync hidden files" on).
+
+Changes from outside (Nextcloud, another editor) are picked up at once
+(file watch, no polling) and on every open. If the file changes while you
+have unsaved typing in the open note, your version is saved first as
+`~/Documents/.system/scratchpad (Konflikt <date time>).md` and the window
+says so - merge by hand; conflict copies (also Nextcloud's own "conflicted
+copy" files) are never deleted. The former `~/.local/share/workstation/
+scratchpad/1.txt` ... `4.txt` were moved into the file once by the bootstrap
+(they stay as they were; `MIGRATED` there marks it). If `scratchpad.md`
+already existed with other notes, the bootstrap stops with ACTION REQUIRED
+instead of overwriting anything.
 
 ## Docker (on demand)
 

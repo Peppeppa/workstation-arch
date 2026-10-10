@@ -923,19 +923,21 @@ leaf closes the menu and starts `<terminal> -e ~/.local/bin/workstation-pkg
 | Idle | nothing: the terminal and fzf exist only while the user works in them |
 | Tests | `tests/packages-helper.sh` (stubbed pacman/fzf/yay/flatpak/curl: filters, commands, Esc) |
 
-## Scratchpad (phase 1)
+## Scratchpad
 
-Core. Four fixed plain-text notes in a Quickshell top-level window.
+Core. Four fixed plain-text notes in a Quickshell top-level window, stored in one Markdown file.
 
 | Contract | |
 |---|---|
-| Scope | `quickshell/Scratchpad.qml` (singleton: the window handle, `dataDir`, `stateFile`), `scratchpad/ScratchpadWindow.qml`, bar widget `bar/widgets/Scratchpad/` (id `scratchpad`, default right zone); `roles/hyprland`: `mainMod+S` (IPC `scratchpad toggle`), window rule in `conf/appearance.lua` (title `workstation-scratchpad`: float, pin, top right 48 px below the screen edge) |
-| Data | `~/.local/share/workstation/scratchpad/{1..4}.txt` (UTF-8, atomic FileView writes; the directory 0700 by Ansible, files never touched by it); `~/.config/workstation/scratchpad.json` = `{note, fontSize}` (fontSize 0 = desktop text size, 8-32) |
+| Scope | `quickshell/Scratchpad.qml` (singleton: the window handle, `dir`, `file`, `stateFile`), `scratchpad/ScratchpadWindow.qml`, bar widget `bar/widgets/Scratchpad/` (id `scratchpad`, default right zone); `roles/hyprland`: `mainMod+S` (IPC `scratchpad toggle`), window rule in `conf/appearance.lua` (title `workstation-scratchpad`: float, pin, top right 48 px below the screen edge) |
+| Data | `~/Documents/.system/scratchpad.md` (UTF-8, atomic FileView writes; `<!-- scratchpad note N -->` before each note - `parseNotes`/`composeNotes`, text above the first marker or a file without markers = note 1; the folder 0700 by Ansible, the file never written by it except the one-time migration); `~/Documents` = the Nextcloud folder `/2_Dokumente`, synced only by the Nextcloud client (no unit, no poller of ours); `~/.config/workstation/scratchpad.json` = `{note, fontSize}` (fontSize 0 = desktop text size, 8-32) |
 | Why a top-level window | Super+Q (`window.close()`) then closes the scratchpad like any window and the shell keeps running; a layer popup would have let Super+Q close the app underneath. A click on free desktop (no focus change) is caught by a transparent Bottom-layer surface that exists only while open. One transient surface at a time: it requests/releases `BarPopups` like the overlays |
 | Saving | single-shot 400 ms timer after a change, plus flush on note switch and on every close path (Escape, toggle, focus lost, Super+Q / compositor close, another popup, shell exit) |
 | Keys (window only) | Alt+1..4 note, Ctrl+-/Ctrl++ font size, Escape close; no global binds besides mainMod+S |
-| Idle cost | closed, there is no window at all (LazyLoader - it exists only while open; a window Hyprland closed cannot be shown again anyway) and no click catcher; the four notes stay in memory; no timer runs while nothing changes, no watcher, no process |
-| Phase 2 (not built) | the notes are read once at shell start; syncing (e.g. `dataDir` on a synced Nextcloud folder), external-change detection and conflicts come later |
+| External changes | FileView `watchChanges` (inotify - event, not polling) + a re-read on every open. Content equal to what this shell last read/wrote (`baseline`) = our own write, ignored; other content is taken over, unless the open note has unsaved typing: that version is written to `scratchpad (Konflikt <date time>).md` next to the file first, the window shows a notice. Conflict copies are never touched again. Remaining window: an external change landing in the instant between our save and its inotify event is overwritten locally (Nextcloud's version history still has it) |
+| Migration | `files/scratchpad-migrate.py` (bootstrap, before the QML is deployed): old `{1..4}.txt` -> `scratchpad.md` only when that does not exist; same notes already there = adopted; different = exit 3, ACTION REQUIRED, nothing written, the run stops. Old files never changed; `MIGRATED` marker; `--check` honoured |
+| Idle cost | closed, there is no window at all (LazyLoader - it exists only while open; a window Hyprland closed cannot be shown again anyway) and no click catcher; the four notes stay in memory; one inotify watch on the file; no timer runs while nothing changes, no process |
+| Tests | `tests/scratchpad-migrate.sh` (all migration states, `--check`, shared format), `tests/qml-logic.qml` (parse/compose round trips, adopt vs. conflict copy) |
 
 ## Cheatsheet
 

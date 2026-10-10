@@ -5,9 +5,8 @@ pragma Singleton
 //
 // The one ScratchpadWindow (shell.qml) registers itself here; the bar
 // widget and anything else toggle it through this and read `open`. Where
-// the four notes live is decided here only (dataDir) - a later sync can
-// point it at another local folder (e.g. a synced Nextcloud directory)
-// without touching the window.
+// the notes live is decided here only: ONE Markdown file in ~/Documents
+// (the Nextcloud-synced folder, /2_Dokumente) - see ScratchpadWindow.qml.
 
 import QtQuick
 import Quickshell
@@ -18,8 +17,8 @@ Singleton {
     property var window: null
     readonly property bool open: window !== null && window.visible
 
-    readonly property string dataDir: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share")
-                                      + "/workstation/scratchpad"
+    readonly property string dir: Quickshell.env("HOME") + "/Documents/.system"
+    readonly property string file: dir + "/scratchpad.md"
     readonly property string stateFile: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
                                         + "/workstation/scratchpad.json"
 

@@ -591,8 +591,46 @@ QtObject {
         eq("snapshot: 51 umlauts = 102 bytes rejected", label("ä".repeat(51), now).label, "");
     }
 
+    function scratchpad() {
+        // One Markdown file for the four notes (format shared with
+        // scratchpad-migrate.py - same fixture as tests/scratchpad-migrate.sh).
+        const sp = read("quickshell/scratchpad/ScratchpadWindow.qml");
+        const sc = { markerRe: /^<!-- scratchpad note ([1-9]) -->$/ };
+        const parse = make(sp, "parseNotes", sc), compose = make(sp, "composeNotes", sc);
+        const want = "<!-- scratchpad note 1 -->\nhello\n<!-- scratchpad note 2 -->\n\n<!-- scratchpad note 3 -->\na\nb\n\n<!-- scratchpad note 4 -->\n\n";
+        eq("scratchpad: compose", compose(["hello", "", "a\nb\n", ""]), want);
+        eq("scratchpad: parse", parse(want, 4), ["hello", "", "a\nb\n", ""]);
+        for (const n of [["", "", "", ""], ["x\n\n", "  y", "", "last\n"], ["<b>md</b> # h", "", "", "z"]])
+            eq("scratchpad: round trip " + JSON.stringify(n), parse(compose(n), 4), n);
+        eq("scratchpad: text above the first marker -> note 1", parse("top\n<!-- scratchpad note 2 -->\nb\n", 4), ["top", "b", "", ""]);
+        eq("scratchpad: file without markers = note 1", parse("plain\ntext\n", 4), ["plain\ntext", "", "", ""]);
+        eq("scratchpad: empty file", parse("", 4), ["", "", "", ""]);
+
+        // External change: taken over without unsaved typing; with it, the
+        // local version goes to a conflict copy first - nothing lost.
+        const writes = [];
+        const st = { baseline: compose(["a", "", "", ""]), notes: ["a", "", "", ""], note: 0, noteCount: 4, notice: "",
+                     loader: { item: null }, Qt: Qt, Log: { warn: () => {} }, Scratchpad: { dir: "/d" },
+                     conflictView: { path: "", setText: t => writes.push(t) } };
+        st.parseNotes = parse; st.composeNotes = compose;
+        const adopt = make(sp, "adoptFile", st);
+        adopt(st.baseline);
+        eq("scratchpad: own write is not external", [st.notes, writes.length], [["a", "", "", ""], 0]);
+        const ext = compose(["from nextcloud", "", "", ""]);
+        adopt(ext);
+        eq("scratchpad: external change taken over (closed)", [st.notes[0], st.baseline === ext, writes.length], ["from nextcloud", true, 0]);
+        let shown = 0;
+        st.loader.item = { dirty: true, currentText: () => "my unsaved typing", showNote: () => shown++ };
+        const ext2 = compose(["second remote edit", "", "", ""]);
+        adopt(ext2);
+        eq("scratchpad: conflict copy has the local typing", parse(writes[0], 4)[0], "my unsaved typing");
+        eq("scratchpad: conflict copy next to the file", st.conflictView.path.startsWith("/d/scratchpad (Konflikt "), true);
+        eq("scratchpad: remote version taken over + shown + notice", [st.notes[0], shown, st.notice !== ""], ["second remote edit", 1, true]);
+    }
+
     Component.onCompleted: {
         powerMenu();
+        scratchpad();
         updates();
         coffee();
         cheatsheet();
