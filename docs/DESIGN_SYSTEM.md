@@ -69,13 +69,21 @@ then their own numbers stay - no partial edits outside a phase.
 
 **Deliberate exceptions** (documented, revisited in their phase):
 
-- `bar/BarStyle.qml` keeps its own geometry in phase 1 (height 26, edge 8,
-  icon slot 27, hover inset 3 / radius 4, popup gap 4 / padding 10 / radius
-  8, popup width 320) so the bar does not change visibly; its type sizes
-  already come from the tokens (`textSize` = `secondary`, `popupFontSize` =
-  `body`, `tooltipFontSize` = `secondary`) and its grow rule is
-  `Style.grow`. The bar's popup radius stays 8 at every text size until
-  phase 2 decides whether it grows like `panelRadius`.
+- Bar (phase 2 done): `bar/BarStyle.qml` is built on the tokens - edge
+  inset and label padding `spacingMd`, icon <-> label and popup gap
+  `spacingSm`, hover radius `controlRadius`, popup radius `panelRadius`
+  (grows like every panel), type `secondary`/`body`. The bar popups (audio,
+  Bluetooth, network, power, theme, timer, wallpaper picker, tray menu) use
+  `Style` spacing/radius/type tokens wherever their value equals one at the
+  default size. Bar-specific literals that stay: height 26 and icon slot 27
+  (`Style.grow`), the 13 px bar glyph and 15 px tray image, hover inset 3,
+  underline 2, drag threshold/corridor and the 120/140 ms durations, the
+  popup padding 10, hairline borders 1. Popup literals that stay because
+  they are no token step or bound to their own geometry: cards radius 6
+  (between a popup's 8 and a row's 4), the 6/10/3 px gaps of the network/
+  Bluetooth rows, 24 px row buttons, the battery track (8 px high, radius =
+  half its height), the 6 px volume track, the signal bars, the 196/180 px
+  QR plate.
 - The wallpaper picker's thumbnail grid (620) is wider than `widePanelWidth`
   by its content.
 - hyprlock and Hyprland are not QML: their sizes are set in their
@@ -218,21 +226,21 @@ closes. Discovery runs once per open.
 
 ### Bar look (RICE v1)
 
-Geometry and type sizes live in `bar/BarStyle.qml` only; colors stay the
+Geometry and type sizes live in `bar/BarStyle.qml` (on the `Style` tokens; values at the default text size below); colors stay the
 semantic roles. Omarchy-style compact bar:
 
 | Element | Value |
 |---|---|
-| Bar height / edge inset | 26 px / 8 px |
+| Bar height / edge inset | 26 px / 8 px (`spacingMd`) |
 | Icon widget slot / glyph | 27 px / 13 px (`Fonts.icons`); tray: 24 px slot / 15 px image |
 | Labels | 12 px `Fonts.family`, 8 px padding each side |
-| Hover | `surface` plate, inset 3 px, radius 4 |
+| Hover | `surface` plate, inset 3 px, radius 4 (`controlRadius`) |
 | Normal text / icons | `foreground_strong` (bright in dark themes, full-contrast dark in light themes) |
 | Active (on / connected / focused) | `accent` |
 | Muted (off / nothing happening) | `foreground_muted` |
 | Warning (battery low) | `error` |
 | Popup open | 2 px `accent` underline under the widget |
-| Popups | `background`, 1 px `border_active`, radius 8, padding 10, 4 px below the bar |
+| Popups | `background`, 1 px `border_active`, radius 8 (`panelRadius`), padding 10, 4 px (`spacingSm`) below the bar |
 | Drag | lifted widget on a `surface` plate with `border_active`; landing place outlined in `accent`; neighbours slide 120 ms (only during a drag) |
 | Tooltips | none: **bar widgets do not show hover tooltips by default.** `BarWidget.tooltip` stays as an opt-in for a widget explicitly meant to have one (or whose function is not understandable without); no substitute labels |
 

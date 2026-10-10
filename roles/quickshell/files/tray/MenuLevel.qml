@@ -54,7 +54,7 @@ ColumnLayout {
                 visible: !row.modelData.isSeparator
                 Layout.fillWidth: true
                 implicitHeight: Fonts.px(28)
-                radius: 4
+                radius: Style.controlRadius
                 color: hover.containsMouse && row.modelData.enabled ? Colors.accent : "transparent"
 
                 readonly property color fg: !row.modelData.enabled ? Colors.foregroundMuted
@@ -62,9 +62,9 @@ ColumnLayout {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 8 + level.depth * 12
-                    anchors.rightMargin: 8
-                    spacing: 8
+                    anchors.leftMargin: Style.spacingMd + level.depth * Style.spacingLg
+                    anchors.rightMargin: Style.spacingMd
+                    spacing: Style.spacingMd
 
                     // Check/radio state (QsMenuButtonType), else the entry's icon.
                     Text {
@@ -75,7 +75,7 @@ ColumnLayout {
                               : (row.modelData.checkState === Qt.Checked ? "" : "")
                         color: entryRect.fg
                         font.family: Fonts.icons
-                        font.pixelSize: level.fontSize - 1
+                        font.pixelSize: Style.secondary
                     }
 
                     Image {
@@ -96,7 +96,7 @@ ColumnLayout {
                         elide: Text.ElideRight
                         color: entryRect.fg
                         font.family: Fonts.family
-                        font.pixelSize: level.fontSize
+                        font.pixelSize: Style.body
                     }
 
                     Text {

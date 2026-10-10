@@ -821,11 +821,16 @@ QtObject {
         eq("fitWidth: room on a 1920 screen", t18.fitWidth(t18.widePanelWidth, 1920), 916);
         eq("fitWidth: capped on a 1280 screen at text 18 (edge = spacingXl)", t18.fitWidth(t18.widePanelWidth, 800), 800 - 2 * 26);
         eq("fitWidth: never negative", t11.fitWidth(480, 10), 0);
-        // BarStyle: the exact former values at every text size
+        // BarStyle on the tokens (phase 2): type follows the text size, geometry
+        // never below its default; at the default size (11) exactly the
+        // pre-RICE literals (edge 8, gap 4, hover radius 4, popup gap 4, radius 8)
         const bs = read("quickshell/bar/BarStyle.qml");
-        const old = { height: px => Math.max(26, px(26)), iconSlot: px => Math.max(27, px(27)), textSize: px => px(12),
-                      popupWidth: px => Math.max(320, px(320)), popupFontSize: px => px(13), tooltipFontSize: px => px(12),
-                      iconSize: px => px(13), textPadding: px => px(8) };
+        const grow = (px, n) => Math.max(n, px(n));
+        const old = { height: px => grow(px, 26), iconSlot: px => grow(px, 27), textSize: px => px(12),
+                      popupWidth: px => grow(px, 320), popupFontSize: px => px(13), tooltipFontSize: px => px(12),
+                      iconSize: px => px(13), textPadding: px => grow(px, 8), edgeMargin: px => grow(px, 8),
+                      groupGap: px => grow(px, 4), hoverRadius: px => grow(px, 4), popupGap: px => grow(px, 4),
+                      popupRadius: px => grow(px, 8) };
         for (const size of [9, 11, 12, 18]) {
             const t = at(size);
             const sc = { Style: t, Fonts: t.Fonts };
@@ -835,7 +840,7 @@ QtObject {
                 got[k] = new Function("s", "with (s) { return (" + m[1] + "); }")(sc);
                 want[k] = old[k](t.Fonts.px);
             }
-            eq("BarStyle unchanged at text size " + size, got, want);
+            eq("BarStyle at text size " + size, got, want);
         }
         // shell.qml's overlay size is the body token (13 at the default size)
         eq("shell.qml: overlay fontSize = Style.body", /readonly property int fontSize: Style\.body/.test(read("../templates/shell.qml.j2")), true);

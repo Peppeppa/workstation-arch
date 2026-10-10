@@ -39,7 +39,7 @@ BarPopup {
         Layout.topMargin: 6
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: popup.fontSize - 2
+        font.pixelSize: Style.caption
     }
 
     // Mute button + volume bar for one default node.
@@ -57,12 +57,12 @@ BarPopup {
         }
 
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Style.spacingMd
 
         Rectangle {
             implicitWidth: Fonts.px(28)
             implicitHeight: Fonts.px(24)
-            radius: 4
+            radius: Style.controlRadius
             color: muteMouse.containsMouse ? Colors.surface : "transparent"
 
             Text {
@@ -70,7 +70,7 @@ BarPopup {
                 text: vrow.muted ? vrow.mutedIcon : vrow.icon
                 color: vrow.muted ? Colors.foregroundMuted : Colors.foreground
                 font.family: Fonts.icons
-                font.pixelSize: popup.fontSize + 2
+                font.pixelSize: Style.title
             }
 
             MouseArea {
@@ -118,7 +118,7 @@ BarPopup {
             text: vrow.live ? Math.round(vrow.volume * 100) + "%" : "--"
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
     }
 
@@ -131,21 +131,21 @@ BarPopup {
 
         Layout.fillWidth: true
         implicitHeight: Fonts.px(28)
-        radius: 4
+        radius: Style.controlRadius
         color: isDefault ? Colors.accent : rowMouse.containsMouse ? Colors.surface : "transparent"
 
         Text {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 8
-            anchors.rightMargin: 8
+            anchors.leftMargin: Style.spacingMd
+            anchors.rightMargin: Style.spacingMd
             text: popup.nodeLabel(drow.modelData)
             textFormat: Text.PlainText
             elide: Text.ElideRight
             color: drow.isDefault ? Colors.accentForeground : Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
 
         MouseArea {
@@ -160,13 +160,13 @@ BarPopup {
         id: content
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 4
+        spacing: Style.spacingSm
 
         Text {
             text: "Audio"
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize + 1
+            font.pixelSize: Style.sectionTitle
             font.bold: true
         }
 
@@ -191,7 +191,7 @@ BarPopup {
             text: "No output devices"
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
 
         SectionTitle { text: "Input" }
@@ -215,7 +215,7 @@ BarPopup {
             text: "No input devices"
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
     }
 }

@@ -19,14 +19,14 @@ ColumnLayout {
     readonly property var info: dialog.status ? dialog.status.wallpaper : null
     readonly property var items: info ? info.backgrounds : []
 
-    spacing: 4
+    spacing: Style.spacingSm
 
     Text {
         Layout.topMargin: 6
         text: "Wallpaper"
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: picker.dialog.fontSize - 1
+        font.pixelSize: Style.secondary
     }
 
     Text {
@@ -37,7 +37,7 @@ ColumnLayout {
         text: picker.info ? "No wallpapers in themes/" + picker.info.theme + "/backgrounds/" : ""
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: picker.dialog.fontSize - 2
+        font.pixelSize: Style.caption
     }
 
     GridLayout {
@@ -56,7 +56,7 @@ ColumnLayout {
 
                 Layout.fillWidth: true
                 Layout.preferredHeight: width * 9 / 16
-                radius: 4
+                radius: Style.controlRadius
                 color: Colors.surface
                 border.color: current ? Colors.accent : thumbMouse.containsMouse ? Colors.borderActive : Colors.border
                 border.width: current ? 2 : 1
@@ -76,7 +76,7 @@ ColumnLayout {
                     visible: thumb.modelData.animated
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.margins: 4
+                    anchors.margins: Style.spacingSm
                     text: "GIF"
                     color: Colors.accentForeground
                     font.family: Fonts.family
@@ -87,7 +87,7 @@ ColumnLayout {
                         z: -1
                         anchors.fill: parent
                         anchors.margins: -2
-                        radius: 2
+                        radius: Style.smallRadius
                         color: Colors.accent
                     }
                 }

@@ -55,7 +55,7 @@ BarPopup {
                 text: "Battery"
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize + 1
+                font.pixelSize: Style.sectionTitle
                 font.bold: true
             }
 
@@ -63,7 +63,7 @@ BarPopup {
                 text: popup.power.percent + "%"
                 color: popup.power.low ? Colors.error : Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize + 1
+                font.pixelSize: Style.sectionTitle
                 font.bold: true
             }
         }
@@ -91,33 +91,33 @@ BarPopup {
             text: estimate
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 2
+            font.pixelSize: Style.caption
         }
 
         // Power profiles (feature power_profiles) - only on battery: on
         // external power PowerPolicy.qml keeps Performance.
         Text {
             visible: BarFeatures.powerProfiles && popup.power.profileByPolicy
-            Layout.topMargin: 8
+            Layout.topMargin: Style.spacingMd
             text: "\u{F06A5}  On external power: " + (PowerProfiles.hasPerformanceProfile ? "Performance" : "Balanced")
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
         Text {
             visible: BarFeatures.powerProfiles && !popup.power.profileByPolicy
-            Layout.topMargin: 8
+            Layout.topMargin: Style.spacingMd
             text: "Power profile"
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
             font.bold: true
         }
 
         RowLayout {
             visible: BarFeatures.powerProfiles && !popup.power.profileByPolicy
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Style.spacingSm
 
             Repeater {
                 model: popup.profiles
@@ -129,7 +129,7 @@ BarPopup {
                     readonly property bool usable: modelData.available
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(30)
-                    radius: 4
+                    radius: Style.controlRadius
                     opacity: usable ? 1 : 0.4
                     color: current ? Colors.accent : btnMouse.containsMouse && usable ? Colors.surface : "transparent"
                     border.color: current ? Colors.accent : Colors.border
@@ -140,7 +140,7 @@ BarPopup {
                         text: btn.modelData.label
                         color: btn.current ? Colors.accentForeground : btn.usable ? Colors.foreground : Colors.foregroundMuted
                         font.family: Fonts.family
-                        font.pixelSize: popup.fontSize - 2
+                        font.pixelSize: Style.caption
                     }
 
                     MouseArea {

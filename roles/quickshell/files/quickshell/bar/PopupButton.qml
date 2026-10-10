@@ -12,12 +12,12 @@ Rectangle {
     property bool danger: false             // destructive: text in Colors.error
     property bool positive: false           // enabling: text in Colors.success
     property bool primary: false
-    property int fontSize: BarStyle.popupFontSize - 1
+    property int fontSize: Style.secondary
     signal clicked
 
     implicitWidth: btnText.implicitWidth + 16
     implicitHeight: Fonts.px(24)
-    radius: 4
+    radius: Style.controlRadius
     color: btnMouse.containsMouse || primary ? Colors.accent : Colors.surface
     border.color: Colors.border
     border.width: primary || btnMouse.containsMouse ? 0 : 1

@@ -780,7 +780,7 @@ BarPopup {
             text: header.title
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize
+            font.pixelSize: Style.body
             font.bold: true
         }
 
@@ -791,10 +791,10 @@ BarPopup {
     }
 
     component SubTitle: Text {
-        Layout.topMargin: 4
+        Layout.topMargin: Style.spacingSm
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: popup.fontSize - 2
+        font.pixelSize: Style.caption
     }
 
     // One live value: a small muted label over the value.
@@ -810,7 +810,7 @@ BarPopup {
             text: parent.label
             color: Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 2
+            font.pixelSize: Style.caption
         }
 
         Text {
@@ -818,7 +818,7 @@ BarPopup {
             textFormat: Text.PlainText
             color: parent.warn ? Colors.error : Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize
+            font.pixelSize: Style.body
         }
     }
 
@@ -829,7 +829,7 @@ BarPopup {
         property bool muted: false
         Layout.fillWidth: true
         Layout.leftMargin: 6
-        spacing: 8
+        spacing: Style.spacingMd
 
         Text {
             Layout.preferredWidth: Fonts.px(18)
@@ -837,7 +837,7 @@ BarPopup {
             text: info.icon
             color: info.muted ? Colors.foregroundMuted : Colors.foreground
             font.family: Fonts.icons
-            font.pixelSize: popup.fontSize
+            font.pixelSize: Style.body
         }
 
         Text {
@@ -847,7 +847,7 @@ BarPopup {
             elide: Text.ElideMiddle
             color: info.muted ? Colors.foregroundMuted : Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 1
+            font.pixelSize: Style.secondary
         }
     }
 
@@ -862,7 +862,7 @@ BarPopup {
         id: box
         property bool reveal: false
         Layout.fillWidth: true
-        Layout.topMargin: 4
+        Layout.topMargin: Style.spacingSm
         implicitHeight: pwBox.implicitHeight + 16
         radius: 6
         color: Colors.surface
@@ -875,7 +875,7 @@ BarPopup {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 8
+            anchors.margins: Style.spacingMd
             spacing: 6
 
             Text {
@@ -886,14 +886,14 @@ BarPopup {
                 elide: Text.ElideRight
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             Rectangle {
                 visible: popup.pendingPsk === null
                 Layout.fillWidth: true
                 implicitHeight: Fonts.px(28)
-                radius: 4
+                radius: Style.controlRadius
                 color: Colors.background
                 border.color: Colors.border
                 border.width: 1
@@ -904,13 +904,13 @@ BarPopup {
                     anchors.right: eye.left
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 6
-                    anchors.rightMargin: 4
+                    anchors.rightMargin: Style.spacingSm
                     clip: true
                     echoMode: box.reveal ? TextInput.Normal : TextInput.Password
                     selectByMouse: false
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                     maximumLength: 63
                     onVisibleChanged: {
                         text = "";
@@ -934,7 +934,7 @@ BarPopup {
                     text: box.reveal ? "\u{F0209}" : "\u{F0208}"      // eye-off / eye
                     color: eyeMouse.containsMouse || box.reveal ? Colors.accent : Colors.foregroundMuted
                     font.family: Fonts.icons
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
 
                     MouseArea {
                         id: eyeMouse
@@ -955,7 +955,7 @@ BarPopup {
                 text: popup.pwError
                 color: Colors.error
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 2
+                font.pixelSize: Style.caption
             }
 
             RowLayout {
@@ -986,7 +986,7 @@ BarPopup {
         required property int index
         readonly property var network: popup.byName[ssid] || null
         width: parent ? parent.width : 0
-        spacing: 2
+        spacing: Style.spacingXs
 
         NetworkRow {
             network: entry.network
@@ -1022,7 +1022,7 @@ BarPopup {
 
         Layout.fillWidth: true
         implicitHeight: connected || changing || !present ? popup.rowHeight + 10 : popup.rowHeight
-        radius: 4
+        radius: Style.controlRadius
         color: connected || hovered || selected ? Colors.surface : "transparent"
         border.color: connected ? Colors.accent : "transparent"
         border.width: connected ? 1 : 0
@@ -1052,19 +1052,19 @@ BarPopup {
         Text {
             id: sig
             anchors.left: parent.left
-            anchors.leftMargin: 8
+            anchors.leftMargin: Style.spacingMd
             anchors.verticalCenter: parent.verticalCenter
             text: popup.signalIcon(row.present ? row.network.signalStrength : 0)
             color: row.connected ? Colors.accent : row.present || row.changing ? Colors.foreground : Colors.foregroundMuted
             font.family: Fonts.icons
-            font.pixelSize: popup.fontSize + 1
+            font.pixelSize: Style.sectionTitle
         }
 
         Column {
             anchors.left: sig.right
-            anchors.leftMargin: 8
+            anchors.leftMargin: Style.spacingMd
             anchors.right: right.left
-            anchors.rightMargin: 8
+            anchors.rightMargin: Style.spacingMd
             anchors.verticalCenter: parent.verticalCenter
 
             Text {
@@ -1074,7 +1074,7 @@ BarPopup {
                 elide: Text.ElideRight
                 color: row.present || row.connected || row.changing ? Colors.foreground : Colors.foregroundMuted
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             Text {
@@ -1089,7 +1089,7 @@ BarPopup {
         Item {
             id: right
             anchors.right: parent.right
-            anchors.rightMargin: 4
+            anchors.rightMargin: Style.spacingSm
             anchors.verticalCenter: parent.verticalCenter
             width: 24
             height: 24
@@ -1100,13 +1100,13 @@ BarPopup {
                 text: "\u{F033E}"           // lock
                 color: Colors.foregroundMuted
                 font.family: Fonts.icons
-                font.pixelSize: popup.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             Rectangle {
                 anchors.fill: parent
                 visible: row.known && row.hovered
-                radius: 4
+                radius: Style.controlRadius
                 color: forgetMouse.containsMouse ? Colors.error : "transparent"
 
                 Text {
@@ -1114,7 +1114,7 @@ BarPopup {
                     text: "\u{F0156}"       // close (X)
                     color: forgetMouse.containsMouse ? Colors.background : Colors.error
                     font.family: Fonts.icons
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                 }
             }
 
@@ -1145,7 +1145,7 @@ BarPopup {
             // ---- Status ----------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Style.spacingMd
 
                 Text {
                     text: popup.net.icon
@@ -1165,7 +1165,7 @@ BarPopup {
                     color: c === NetworkConnectivity.Portal || c === NetworkConnectivity.Limited
                            || (c === NetworkConnectivity.None && popup.net.kind !== "none") ? Colors.error : Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                     font.bold: true
                 }
 
@@ -1175,7 +1175,7 @@ BarPopup {
                     text: "via VPN"
                     color: Colors.accent
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize - 1
+                    font.pixelSize: Style.secondary
                     font.bold: true
                 }
 
@@ -1253,7 +1253,7 @@ BarPopup {
                 visible: popup.trafficIface !== ""
                 Layout.fillWidth: true
                 Layout.leftMargin: 6
-                spacing: 8
+                spacing: Style.spacingMd
 
                 Text {
                     Layout.fillWidth: true
@@ -1267,14 +1267,14 @@ BarPopup {
                         : ""
                     color: popup.speedState === "failed" ? Colors.error : Colors.foregroundMuted
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
 
                 // The speedtest: only on this click, one run at a time.
                 Rectangle {
                     implicitWidth: Fonts.px(22)
                     implicitHeight: Fonts.px(22)
-                    radius: 4
+                    radius: Style.controlRadius
                     color: speedMouse.containsMouse && popup.speedState !== "running" ? Colors.surface : "transparent"
 
                     Text {
@@ -1282,7 +1282,7 @@ BarPopup {
                         text: popup.speedState === "running" ? "\u{F051F}" : "\u{F04C5}"   // timer-sand / speedometer
                         color: popup.speedState === "running" ? Colors.accent : Colors.foreground
                         font.family: Fonts.icons
-                        font.pixelSize: popup.fontSize + 1
+                        font.pixelSize: Style.sectionTitle
                     }
 
                     MouseArea {
@@ -1315,7 +1315,7 @@ BarPopup {
                     required property var modelData
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(modelData.active ? 40 : 30)
-                    radius: 4
+                    radius: Style.controlRadius
                     color: modelData.active || vMouse.containsMouse ? Colors.surface : "transparent"
                     border.color: modelData.active ? Colors.accent : "transparent"
                     border.width: modelData.active ? 1 : 0
@@ -1323,19 +1323,19 @@ BarPopup {
                     Text {
                         id: vIcon
                         anchors.left: parent.left
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: Style.spacingMd
                         anchors.verticalCenter: parent.verticalCenter
                         text: "\u{F0582}"
                         color: vrow.modelData.active ? Colors.accent : Colors.foreground
                         font.family: Fonts.icons
-                        font.pixelSize: popup.fontSize + 1
+                        font.pixelSize: Style.sectionTitle
                     }
 
                     Column {
                         anchors.left: vIcon.right
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: Style.spacingMd
                         anchors.right: parent.right
-                        anchors.rightMargin: 8
+                        anchors.rightMargin: Style.spacingMd
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
@@ -1345,7 +1345,7 @@ BarPopup {
                             elide: Text.ElideRight
                             color: Colors.foreground
                             font.family: Fonts.family
-                            font.pixelSize: popup.fontSize - 1
+                            font.pixelSize: Style.secondary
                         }
 
                         Text {
@@ -1441,7 +1441,7 @@ BarPopup {
             RowLayout {
                 visible: popup.qrRequested && popup.qrSvg !== "" && popup.qrPassword !== ""
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Style.spacingMd
 
                 Text {
                     Layout.fillWidth: true
@@ -1449,7 +1449,7 @@ BarPopup {
                     textFormat: Text.PlainText
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                 }
 
                 PopupButton {
@@ -1537,7 +1537,7 @@ BarPopup {
             RowLayout {
                 visible: popup.message === "enterprise"
                 Layout.fillWidth: true
-                Layout.topMargin: 4
+                Layout.topMargin: Style.spacingSm
 
                 Text {
                     Layout.fillWidth: true
@@ -1545,7 +1545,7 @@ BarPopup {
                     text: "Enterprise (802.1X, eduroam) networks are set up in Network settings."
                     color: Colors.foregroundMuted
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize - 2
+                    font.pixelSize: Style.caption
                 }
 
                 PopupButton {
@@ -1557,20 +1557,20 @@ BarPopup {
             Text {
                 visible: popup.message !== "" && popup.message !== "enterprise"
                 Layout.fillWidth: true
-                Layout.topMargin: 4
+                Layout.topMargin: Style.spacingSm
                 text: popup.message
                 textFormat: Text.PlainText
                 wrapMode: Text.Wrap
                 color: Colors.error
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 2
+                font.pixelSize: Style.caption
             }
 
             // The escape hatch for everything this popup deliberately does
             // not do (VPN import/edit, static IP/DNS, 802.1X, Ethernet).
             PopupButton {
                 Layout.alignment: Qt.AlignRight
-                Layout.topMargin: 4
+                Layout.topMargin: Style.spacingSm
                 label: "Connections\u2026"
                 onClicked: popup.openSettings()
             }

@@ -109,14 +109,14 @@ BarPopup {
         RowLayout {
             visible: brightness.available
             Layout.fillWidth: true
-            Layout.bottomMargin: 4
-            spacing: 8
+            Layout.bottomMargin: Style.spacingSm
+            spacing: Style.spacingMd
 
             Text {
                 text: "\u{F00DF}"          // brightness
                 color: Colors.foreground
                 font.family: Fonts.icons
-                font.pixelSize: dialog.fontSize + 2
+                font.pixelSize: Style.title
             }
 
             LevelSlider {
@@ -131,7 +131,7 @@ BarPopup {
                 text: Math.round(brightness.value * 100) + "%"
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: dialog.fontSize - 1
+                font.pixelSize: Style.secondary
             }
         }
 
@@ -147,21 +147,21 @@ BarPopup {
 
                 Layout.fillWidth: true
                 Layout.topMargin: slot === "light" ? 6 : 0
-                spacing: 4
+                spacing: Style.spacingSm
 
                 Text {
                     text: (section.slot === "dark" ? "Dark theme" : "Light theme")
                           + (section.active ? "  ·  active" : "")
                     color: Colors.foregroundMuted
                     font.family: Fonts.family
-                    font.pixelSize: dialog.fontSize - 1
+                    font.pixelSize: Style.secondary
                 }
 
                 // The dropdown button: current choice + chevron.
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(32)
-                    radius: 4
+                    radius: Style.controlRadius
                     color: Colors.surface
                     border.color: dialog.openSlot === section.slot ? Colors.borderActive : Colors.border
                     border.width: 1
@@ -177,14 +177,14 @@ BarPopup {
                             elide: Text.ElideRight
                             color: Colors.foreground
                             font.family: Fonts.family
-                            font.pixelSize: dialog.fontSize
+                            font.pixelSize: Style.body
                         }
 
                         Text {
                             text: dialog.openSlot === section.slot ? "" : ""   // chevron up/down
                             color: Colors.foregroundMuted
                             font.family: Fonts.icons
-                            font.pixelSize: dialog.fontSize - 2
+                            font.pixelSize: Style.caption
                         }
                     }
 
@@ -198,7 +198,7 @@ BarPopup {
                 ColumnLayout {
                     Layout.fillWidth: true
                     visible: dialog.openSlot === section.slot
-                    spacing: 2
+                    spacing: Style.spacingXs
 
                     Repeater {
                         model: dialog.openSlot === section.slot ? dialog.options(section.slot) : []
@@ -212,7 +212,7 @@ BarPopup {
 
                             Layout.fillWidth: true
                             implicitHeight: Fonts.px(30)
-                            radius: 4
+                            radius: Style.controlRadius
                             color: lit ? Colors.accent : "transparent"
 
                             RowLayout {
@@ -226,7 +226,7 @@ BarPopup {
                                     elide: Text.ElideRight
                                     color: option.lit ? Colors.accentForeground : Colors.foreground
                                     font.family: Fonts.family
-                                    font.pixelSize: dialog.fontSize
+                                    font.pixelSize: Style.body
                                 }
 
                                 Text {
@@ -234,7 +234,7 @@ BarPopup {
                                     text: ""   // check: the current choice
                                     color: option.lit ? Colors.accentForeground : Colors.accent
                                     font.family: Fonts.icons
-                                    font.pixelSize: dialog.fontSize - 1
+                                    font.pixelSize: Style.secondary
                                 }
                             }
 
@@ -260,14 +260,14 @@ BarPopup {
 
         Text {
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: Style.spacingSm
             visible: dialog.errorText !== ""
             text: dialog.errorText
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             color: Colors.error
             font.family: Fonts.family
-            font.pixelSize: dialog.fontSize - 2
+            font.pixelSize: Style.caption
         }
     }
 }

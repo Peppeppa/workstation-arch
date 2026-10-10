@@ -35,13 +35,13 @@ BarPopup {
     ColumnLayout {
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 8
+        spacing: Style.spacingMd
 
         Text {
             text: "Timer"
             color: Colors.foreground
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize + 1
+            font.pixelSize: Style.sectionTitle
             font.bold: true
         }
 
@@ -68,12 +68,12 @@ BarPopup {
         RowLayout {
             visible: !Countdown.active
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Style.spacingMd
 
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: Fonts.px(28)
-                radius: 4
+                radius: Style.controlRadius
                 color: Colors.surface
                 border.color: popup.error !== "" ? Colors.error : Colors.border
                 border.width: 1
@@ -85,7 +85,7 @@ BarPopup {
                     text: "25:00"
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                     maximumLength: 8
                     inputMethodHints: Qt.ImhDigitsOnly
                     // Deferred: BarPopup's own onCompleted runs after this
@@ -117,7 +117,7 @@ BarPopup {
             }
             color: popup.error !== "" ? Colors.error : Colors.foregroundMuted
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 2
+            font.pixelSize: Style.caption
         }
     }
 }

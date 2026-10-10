@@ -252,7 +252,7 @@ BarPopup {
         Layout.topMargin: 6
         color: Colors.foregroundMuted
         font.family: Fonts.family
-        font.pixelSize: popup.fontSize - 2
+        font.pixelSize: Style.caption
     }
 
     // Row click = the action: disconnect (connected), connect (known),
@@ -275,7 +275,7 @@ BarPopup {
 
         Layout.fillWidth: true
         implicitHeight: Fonts.px(36)
-        radius: 4
+        radius: Style.controlRadius
         color: row.device.connected || row.hovered ? Colors.surface : "transparent"
         border.color: row.device.connected ? Colors.accent : "transparent"
         border.width: row.device.connected ? 1 : 0
@@ -292,21 +292,21 @@ BarPopup {
         Text {
             id: devIcon
             anchors.left: parent.left
-            anchors.leftMargin: 8
+            anchors.leftMargin: Style.spacingMd
             anchors.verticalCenter: parent.verticalCenter
             width: Fonts.px(18)
             horizontalAlignment: Text.AlignHCenter
             text: popup.deviceGlyph(row.device)
             color: row.device.connected ? Colors.accent : Colors.foreground
             font.family: Fonts.icons
-            font.pixelSize: popup.fontSize + 2
+            font.pixelSize: Style.title
         }
 
         Column {
             anchors.left: devIcon.right
-            anchors.leftMargin: 8
+            anchors.leftMargin: Style.spacingMd
             anchors.right: right.left
-            anchors.rightMargin: 8
+            anchors.rightMargin: Style.spacingMd
             anchors.verticalCenter: parent.verticalCenter
 
             Text {
@@ -316,7 +316,7 @@ BarPopup {
                 elide: Text.ElideRight
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             Text {
@@ -339,7 +339,7 @@ BarPopup {
         Item {
             id: right
             anchors.right: parent.right
-            anchors.rightMargin: 4
+            anchors.rightMargin: Style.spacingSm
             anchors.verticalCenter: parent.verticalCenter
             width: 24
             height: 24
@@ -353,13 +353,13 @@ BarPopup {
                     : "\u{F0415}"                                  // plus: pair
                 color: row.device.connected ? Colors.accent : Colors.foregroundMuted
                 font.family: Fonts.icons
-                font.pixelSize: popup.fontSize
+                font.pixelSize: Style.body
             }
 
             Rectangle {
                 anchors.fill: parent
                 visible: row.device.paired && row.hovered
-                radius: 4
+                radius: Style.controlRadius
                 color: forgetMouse.containsMouse ? Colors.error : "transparent"
 
                 Text {
@@ -367,7 +367,7 @@ BarPopup {
                     text: "\u{F0156}"                               // close (X)
                     color: forgetMouse.containsMouse ? Colors.background : Colors.error
                     font.family: Fonts.icons
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                 }
             }
 
@@ -388,7 +388,7 @@ BarPopup {
         id: content
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: 4
+        spacing: Style.spacingSm
 
         // Header: title + on/off.
         RowLayout {
@@ -399,7 +399,7 @@ BarPopup {
                 text: "Bluetooth"
                 color: Colors.foreground
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize + 1
+                font.pixelSize: Style.sectionTitle
                 font.bold: true
             }
 
@@ -426,7 +426,7 @@ BarPopup {
                 wrapMode: Text.Wrap
                 color: Colors.foregroundMuted
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 1
+                font.pixelSize: Style.secondary
             }
 
             PopupButton {
@@ -440,7 +440,7 @@ BarPopup {
         Rectangle {
             visible: popup.agentRequest !== null
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: Style.spacingSm
             implicitHeight: pairBox.implicitHeight + 16
             radius: 6
             color: Colors.surface
@@ -452,7 +452,7 @@ BarPopup {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: 8
+                anchors.margins: Style.spacingMd
                 spacing: 6
 
                 readonly property var req: popup.agentRequest || ({})
@@ -464,7 +464,7 @@ BarPopup {
                     textFormat: Text.PlainText
                     color: Colors.foreground
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize
+                    font.pixelSize: Style.body
                     text: pairBox.req.event === "confirm" ? "Does " + pairBox.who + " show this code?"
                         : pairBox.req.event === "authorize" ? "Pair with " + pairBox.who + "?"
                         : pairBox.req.event === "pin" ? "Enter the PIN for " + pairBox.who
@@ -485,7 +485,7 @@ BarPopup {
                     visible: pairBox.req.event === "pin" || pairBox.req.event === "passkey"
                     Layout.fillWidth: true
                     implicitHeight: Fonts.px(28)
-                    radius: 4
+                    radius: Style.controlRadius
                     color: Colors.background
                     border.color: Colors.border
                     border.width: 1
@@ -496,7 +496,7 @@ BarPopup {
                         anchors.margins: 6
                         color: Colors.foreground
                         font.family: Fonts.family
-                        font.pixelSize: popup.fontSize
+                        font.pixelSize: Style.body
                         maximumLength: 16
                         onVisibleChanged: {
                             text = "";
@@ -539,7 +539,7 @@ BarPopup {
             wrapMode: Text.Wrap
             color: Colors.error
             font.family: Fonts.family
-            font.pixelSize: popup.fontSize - 2
+            font.pixelSize: Style.caption
         }
 
         // Device lists (only with the adapter on).
@@ -554,7 +554,7 @@ BarPopup {
             ColumnLayout {
                 id: lists
                 width: parent.width
-                spacing: 2
+                spacing: Style.spacingXs
 
                 SectionTitle { visible: popup.connectedDevices.length > 0; text: "Connected" }
                 Repeater { model: popup.connectedDevices; DeviceRow { required property var modelData; device: modelData } }
@@ -571,7 +571,7 @@ BarPopup {
                     text: popup.adapter.discovering ? "Searching…" : "No devices - use Scan to find new ones"
                     color: Colors.foregroundMuted
                     font.family: Fonts.family
-                    font.pixelSize: popup.fontSize - 1
+                    font.pixelSize: Style.secondary
                 }
             }
         }
@@ -587,7 +587,7 @@ BarPopup {
                 text: "Scanning…"
                 color: Colors.foregroundMuted
                 font.family: Fonts.family
-                font.pixelSize: popup.fontSize - 2
+                font.pixelSize: Style.caption
             }
 
             Item { Layout.fillWidth: !popup.adapter.discovering }
