@@ -67,20 +67,12 @@
 
 # Jupyter only on this machine: the server listens on 127.0.0.1 (never all
 # interfaces), with Jupyter's own per-start token - nothing fixed here.
-# Lives in the environment's own config dir (sys-prefix), so it applies to
-# this Jupyter only.
-- name: Data science - Jupyter server config directory
-  ansible.builtin.file:
-    path: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.d"
-    state: directory
-    owner: "{{ ansible_facts.user_id }}"
-    group: "{{ ansible_facts.user_gid }}"
-    mode: "0755"
-  tags: development
-
+# The environment's own jupyter_server_config.json (sys-prefix: this Jupyter
+# only). Not a jupyter_server_config.d/ file: the server reads those for
+# extension switches only - measured on the laptop, an `ip` there was ignored.
 - name: Data science - Jupyter listens on 127.0.0.1 only
   ansible.builtin.copy:
-    dest: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.d/workstation.json"
+    dest: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.json"
     content: |
       {
         "ServerApp": {
@@ -91,6 +83,12 @@
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
+  tags: development
+
+- name: Data science - drop the ignored conf.d attempt (2026-10-10)
+  ansible.builtin.file:
+    path: "{{ development_ds_venv }}/etc/jupyter/jupyter_server_config.d/workstation.json"
+    state: absent
   tags: development
 
 # The named kernel (user kernelspec) - what `python -m ipykernel install
