@@ -167,11 +167,11 @@ try:
        [any(o.startswith("resume") for o in opts), "noresume" in opts, "workstation.snapshot=28" in opts,
         "systemd.mask=systemd-remount-fs.service" in opts], [False, True, True, True])
     eq("entry: title with date + cleaned description", [l for l in e28.splitlines() if l.startswith("title")][0],
-       "title    Snapshot 2026-10-10 17:42 - test (repo b655739) with a tab")
+       "title    Snapshot #28 2026-10-10 17:42 - test (repo b655739) with a tab")
     eq("entry: uki path + sort key", [l.split(None, 1)[1] for l in e28.splitlines() if l.startswith(("uki", "sort-key"))],
        ["zz-workstation-snapshot-9999971", "/EFI/workstation/snapshots/7.2.9.efi"])
     e25 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-25.conf")).read()
-    eq("update entry title", e25.splitlines()[1], "title    Snapshot (before update) 2026-10-10 13:39 - pacman: 7 packages")
+    eq("update entry title", e25.splitlines()[1], "title    Snapshot (before update) #25 2026-10-10 13:39 - pacman: 7 packages")
     e21 = open(os.path.join(R, "boot/loader/entries/workstation-snapshot-21.conf")).read()
     eq("older kernel: its own UKI copy", "uki      /EFI/workstation/snapshots/7.1.0.efi" in e21, True)
     eq("state readable by everyone", oct(stat.S_IMODE(os.stat(os.path.join(R, "var/lib/workstation/snapshot-boot.json")).st_mode)), "0o644")

@@ -427,22 +427,59 @@ Checks of the repository itself (no live system needed): `tests/run.sh`.
 On a host with `recovery_enabled: true` (Btrfs + systemd-boot + UKI, see
 `docs/recovery-design.md`) update with `system-update` instead of a bare
 `sudo pacman -Syu`: it checks free space/ESP/battery and health first,
-keeps the running system as the boot entry "Recovery: before the last
-update", runs `pacman -Syu`, then checks the boot image and health again.
-It never rolls back by itself.
+takes the pre-update snapshot (bootable from the menu, see below), runs
+`pacman -Syu`, then checks the boot image and health again. It never rolls
+back by itself.
 
 ```sh
 system-update                               # the update transaction
-sudo system-snapshot --known-good "label"   # after a verified good state (needs a fresh boot)
-sudo system-snapshot --list                 # snapshots + recovery slots
-sudo system-rollback before-update          # permanent, from the next boot; /home stays
+sudo system-snapshot "label"                # a manual snapshot (also: OS menu -> System -> Create Snapshot)
+sudo system-snapshot --list                 # snapshots (+ legacy recovery slots)
+/usr/local/lib/workstation/snapshot-boot status   # which snapshots are in the boot menu, and why not the others
+sudo system-rollback <number>               # permanent, from the next boot; /home stays
 ```
+
+### Booting a snapshot and restoring it (Omarchy-style)
+
+The systemd-boot menu (shown for 3 s at every start - press an arrow key
+to keep it) lists, below the normal **Arch Linux** entry (always the
+default), the newest **2 update snapshots** (`Snapshot (before update) #n
+<date> - pacman: ...` / `system-update ...`) and the newest **2 manual
+snapshots** (`Snapshot #n <date> - <your name>`). The entries follow
+snapper by themselves: a new snapshot appears, a deleted one disappears
+(a snapper plugin, no timer). Only snapshots that can really boot are
+offered; `snapshot-boot status` lists the others with the reason (e.g.
+taken before this feature existed).
+
+1. Pick a snapshot, unlock LUKS as usual, log in.
+2. The system runs in the snapshot's state - **read-only, every change goes
+   to RAM** and is gone at the next boot; your normal system is untouched,
+   `/home` is the normal one. Package installs/updates are blocked there.
+   A strip along the bottom says **SNAPSHOT-MODUS** for the whole session,
+   and a dialog opens once.
+3. **Nur testen**: close the dialog and look around (the strip reopens it).
+   A normal reboot brings back the normal system.
+4. **Dauerhaft wiederherstellen…** -> a second question lists what changes
+   (/ is replaced by the snapshot; the old system stays as
+   `@broken-<date>`; `/home`, `~/.config`, logs and the package cache stay;
+   this session's changes are not taken over) -> **Wiederherstellen** -> the
+   dialog steps aside for the administrator password -> "Snapshot
+   wiederhergestellt" -> **Jetzt neu starten** (or later).
+5. After the reboot the restored state is the normal system;
+   `repo-healthcheck` shows "last snapshot restore". The old system stays
+   at the Btrfs top level until you remove it (the command is printed by
+   `system-rollback`; `sudo journalctl -t system-rollback`).
+
+A failed restore says why in the dialog and changes nothing (a failure
+halfway puts the old system back). Limits: Secure Boot must be off (it is
+on this hardware); a snapshot needs the UKI of its kernel, which is stored
+on the ESP when the snapshot is taken (about 42 MB per kernel version,
+shared by all snapshots of that kernel, removed when no entry uses it).
 
 Automatic snapshots: **every** package transaction (`pacman -S`, `-R`,
 `-U`, a bare `pacman -Syu`, package tasks of a bootstrap) first takes ONE
 snapshot of the system (a pacman hook), described `pacman: <packages>`.
-`system-update` takes that snapshot itself (plus the boot entry) - still
-one per update. Only the newest **3** automatic snapshots are kept; the
+`system-update` takes that snapshot itself - still one per update. Only the newest **3** automatic snapshots are kept; the
 `known-good` snapshot (the protected baseline - a host without one gets a
 single `baseline` snapshot after its first complete bootstrap) and your
 `system-snapshot "label"` snapshots (snapper keeps the last 4) are never
@@ -450,13 +487,13 @@ touched by that cleanup. If a snapshot cannot be taken, pacman stops
 instead of updating without one (once without:
 `sudo sh -c 'echo manual > /run/workstation-recovery/skip-pre-snapshot'`).
 A pre-transaction snapshot is a read-only recovery point: browse it under
-`/.snapshots/<n>/snapshot`, or roll back to a boot slot as below.
+`/.snapshots/<n>/snapshot`, or boot and restore it as above.
 
-If the system does not come up after an update: pick "Recovery: ..." in
-the systemd-boot menu (it boots the saved system, `/home` is the normal
-one), look around, then `sudo system-rollback <slot>` and reboot. The old
-system is kept as `@broken-<date>` at the Btrfs top level until deleted
-by hand.
+If the system does not come up after an update: pick the newest
+"Snapshot (before update)" in the boot menu and restore it there. An older
+"Recovery: ..." entry is a legacy recovery slot from before the snapshot
+boot (system-update makes no new ones); it still boots its saved system
+(`sudo system-rollback <slot>`).
 
 ### From the desktop: update icon, Update, Create Snapshot
 
@@ -475,7 +512,7 @@ by hand.
   dialog lists the pending packages and asks "System aktualisieren?" -
   **Nein** is preselected (Enter on it, Escape and a click outside all
   cancel). **Ja** opens the terminal with `system-update`: sudo password,
-  the pre-update snapshot + recovery slot, then the interactive
+  the pre-update snapshot (bootable from the menu), then the interactive
   `pacman -Syu` (its own questions stay yours), the checks and the result.
   Closing the dialog never stops it; a second update cannot be started
   while one runs; no automatic reboot.
@@ -498,8 +535,8 @@ by hand.
 What a snapshot contains: the system subvolume `@` (`/`, incl. `/etc`,
 `/usr`, `/var/lib` - pacman's database) only. **Not** in it: `@home`
 (`/home`, your files), `@log` (`/var/log`), `@pkg` (pacman's package
-cache), `@snapshots` itself, the ESP `/boot` (kernel images; the recovery
-slots carry their own), and nested subvolumes inside `/` (systemd's
+cache), `@snapshots` itself, the ESP `/boot` (kernel images; the snapshot
+boot stores the UKI of each snapshot's kernel there), and nested subvolumes inside `/` (systemd's
 `/var/lib/machines`, `/var/lib/portables`; Docker's image layers if it uses
 the btrfs storage driver). A snapshot is on the same disk - **not a backup**.
 

@@ -299,7 +299,9 @@ def clean_text(t, limit):
 
 def entry_text(s, cls, info):
     date = (s.get("date") or "")[:16]
-    title = "%s %s - %s" % (CLASSES[cls], date, clean_text(s.get("description"), 60))
+    # the number keeps two snapshots of the same minute apart (systemd-boot
+    # would otherwise append the file name to identical titles)
+    title = "%s #%d %s - %s" % (CLASSES[cls], s["number"], date, clean_text(s.get("description"), 60))
     return ("# Managed by snapshot-boot (roles/recovery) - do not edit; rewritten on every snapper change.\n"
             "title    %s\n"
             "sort-key zz-workstation-snapshot-%07d\n"

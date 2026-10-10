@@ -1179,6 +1179,22 @@ Not fixed here on purpose - each was reproduced and root-caused on arch-dev:
 | Hyprland itself SIGSEGV at every logout **with two outputs** (laptop: eDP-1 + LG 4K over the dock's HDMI); never with one | stack in `exit()` -> `__cxa_finalize` -> `~CDRMBackend` -> `SDRMConnector::disconnect` -> `cancelAsyncOutput` -> `flushAsyncCommitEvents` (aquamarine 0.15.1, Hyprland 0.56.2), 4/4 with two outputs (also when the session started with both), 0/1 with one; the same without our shutdown hook (diagnostic run), so not `session-stop`; the session's helpers stay clean. Same class as hyprwm/aquamarine#272 (connector teardown in static destruction) | upstream; after Hyprland is done, no user-visible effect besides the core dump; `repo-healthcheck` shows it as WARN (earlier session) |
 | Quickshell start: `org.bluez` ObjectManager warning, "Could not register app ID: Connection already associated" | once per start | no BlueZ on a host without controller / Qt's portal registration order - harmless |
 
+## Snapshot boot + snapshot mode (host capability recovery)
+
+The boot menu offers the newest 2 update + 2 manual snapper snapshots
+(`snapshot-boot`, synced by a snapper plugin); booting one gives a
+read-only snapshot root with a RAM overlay (`workstation.snapshot=<n>`),
+pacman blocked. Quickshell `updates/SnapshotMode.qml` (deployed with
+recovery, instantiated by shell.qml): inert in a normal boot (one read of
+/proc/cmdline); in a snapshot boot a non-focusable strip on every screen
+(layer `quickshell-snapshotmode-strip`, reserves its height) and a dialog
+(`quickshell-snapshotmode`, BarPopups close policy: Escape/outside/Super+Q =
+the safe answer) with Nur testen / Dauerhaft wiederherstellen -> question
+-> `pkexec snapshot-restore <n>` (the dialog hides while the polkit agent
+asks) -> result, "Jetzt neu starten" = `workstation_end_session("reboot")`.
+IPC `snapshotmode`: open, close, state. Mechanism, rules and hardware
+results: docs/recovery-design.md 22.
+
 ## System updates (update icon, updater, Create Snapshot)
 
 Not a `<name>_enabled` feature: the UI of the host capability

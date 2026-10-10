@@ -138,7 +138,9 @@ direct upstream dependency.
 | Network popup live metrics + speedtest | the popup itself, only while open: /sys counters (1 s), one `ping` run per 5 s to 1.1.1.1, `speedtest-cli` only on its icon's click |
 | Scratchpad notes | Quickshell `scratchpad/` (top-level window, mainMod+S, bar icon); ONE file `~/Documents/.system/scratchpad.md` (watched, conflict copy on external change during typing); syncing = the Nextcloud client's `~/Documents` folder only, nothing of ours |
 | System snapshots (snapper config `root`, cleanup) | snapper + `snapper-cleanup.timer` (the one allowed timer; `roles/recovery`, host capability `recovery_enabled`) - no timeline, no snap-pac |
-| Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them |
+| Update transaction / recovery slots / rollback | `system-update`, `system-snapshot`, `system-rollback` (`roles/recovery`, on demand, never run by Ansible); legacy boot entries "Recovery: ..." in `/boot/loader/entries/workstation-recovery-*.conf` are written only by them (system-update makes no new slot) |
+| Snapshot boot entries (systemd-boot) + their UKI copies | `snapshot-boot` (`roles/recovery`): `capture` before each snapshot, `sync` from the snapper plugin -> `workstation-snapshot-boot-sync.service` (oneshot) and once after a restore (`-resync`, conditional); `/boot/loader/entries/workstation-snapshot-*.conf`, `/boot/EFI/workstation/snapshots/`; overlay in the initramfs hook `workstation-snapshot-overlay` - docs/recovery-design.md 22 |
+| Snapshot mode + permanent restore UI | Quickshell `updates/SnapshotMode.qml` (strip + dialog, only with `workstation.snapshot=` on the cmdline) -> `pkexec snapshot-restore` (polkit `org.workstation.snapshot.restore`, admin password) -> `system-rollback` |
 | Pending-update check + bar update icon | `workstation-checkupdates` (`roles/recovery`, checkupdates on a private DB copy, as the user) run by Quickshell's `updates/Updates.qml` (bar start + 60-min Timer + dialog/after an update; host capability `recovery_enabled`) - official repositories only, never the system's sync DB |
 | Updater dialog / Create Snapshot (OS menu -> System, bar icon) | Quickshell `updates/UpdaterDialog.qml` + `SnapshotDialog.qml`: ask only; the transaction stays `system-update` (terminal, transient unit `workstation-system-update`, `--ui`, `--no-snapshot` only after a failed snapshot + explicit Ja); a manual snapshot = `pkexec snapshot-create <label>` (polkit `org.workstation.snapshot.create`) -> `system-snapshot` |
 | Public -> private handover (GitHub SSH checkpoint, private repo clone/update) | `./bootstrap-personal.sh` (phase 2, started by hand in the graphical session; never by `bootstrap.sh`, no autostart): preflight (git, stow, phase 1's Bitwarden SSH config + pinned github.com keys), then its helper `scripts/private-handover.sh`: Bitwarden agent socket + key + `ssh -T git@github.com` (host keys pinned by `roles/base`) or ONE ACTION REQUIRED (Bitwarden set up by hand) and exit 3 - no waiting; clone / fast-forward-only update of `~/repos/peppeppa/dotfiles-provision` through `scripts/git-sync.sh` (stops on local changes/divergence/detached/foreign - never reset); then its `bootstrap.sh`, which syncs its own list of further checkouts through the same helper (`WORKSTATION_GIT_SYNC`). Private contents never come into this repository |
@@ -1141,6 +1143,21 @@ history for that milestone's own record):
   a close attempt during a real running snapshot / firewall change / theme
   import (guards by code + logic only); the Appearance picker/import Escape
   focus path.
+
+- **Snapshot boot + restore (Omarchy-style, systemd-boot)** (laptop,
+  2026-10-10, explicitly requested after the bootloader audit - Limine not
+  used): newest 2 update + 2 manual snapshots in the boot menu (snapper
+  plugin + `snapshot-boot`), read-only boot with a RAM overlay (initramfs
+  hook), pacman blocked there, Quickshell snapshot-mode strip + dialog,
+  permanent restore through polkit + `system-rollback` (guarded switch).
+  Real-hardware-tested: menu entries follow create/delete, snapshot boot
+  from the menu (old state visible, @ and snapshot untouched, RAM writes
+  gone, pacman aborted), normal boot afterwards, the full restore through
+  the dialog incl. reboot (@ = snapshot, /home kept, @broken-* kept), 2+2
+  entries. Two real bugs found and fixed on the way (polkit window behind
+  the dialog; snapper on the overlay root). Not on hardware: a restore
+  failing halfway, an older-kernel snapshot, Secure Boot, ESP exhaustion,
+  the post-restore resync unit. Details: docs/recovery-design.md 22.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

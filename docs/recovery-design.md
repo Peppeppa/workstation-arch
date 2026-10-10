@@ -580,3 +580,87 @@ logged with `logger -t system-update`), plus a flock (one run at a time).
 desktop's Create Snapshot - a validated label into `system-snapshot`.
 `workstation-checkupdates` feeds the bar's update icon. Details:
 `docs/feature-architecture.md` "System updates".
+
+## 22. Snapshot boot (2026-10-10, supersedes the slot model of section 5)
+
+Decision (audit 2026-10-10): stay on systemd-boot; Limine is not used.
+Every snapper snapshot of the right classes can be booted from the menu
+and restored from inside, Omarchy-style, with official components only.
+
+**Menu** (`snapshot-boot sync`, /usr/local/lib/workstation): below the
+default "Arch Linux", the newest 2 bootable *update* snapshots (snapper
+userdata `auto=pre-transaction`: the pacman hook, system-update) and the
+newest 2 bootable *manual* ones (`important=yes`: Create Snapshot,
+system-snapshot) - classified by userdata, never by description. One BLS
+Type #1 entry each (`workstation-snapshot-<n>.conf`, title with number,
+date, description; sort below the normal entry; loader.conf `default`
+unchanged). A snapshot is offered only when it exists, is read-only,
+carries the support marker version >= 2 (its own restore helper and pacman
+block are inside it), has exactly one kernel, a stored UKI for that kernel
+exists and its initramfs has the overlay hook, and its
+/etc/kernel/cmdline has `rootflags=subvol=@`; else it is listed with the
+reason in /var/lib/workstation/snapshot-boot.json (`snapshot-boot status`).
+A snapshot already bootable as a legacy recovery slot is not offered twice.
+Secure Boot on: no entries (systemd-stub ignores a loader command line
+then).
+
+**Kernel/UKI**: `snapshot-boot capture` stores the main UKI per kernel
+version (/boot/EFI/workstation/snapshots/<uname>.efi) synchronously before
+a snapshot is taken (pacman hook, system-update, system-snapshot) - the
+kernel update in the same transaction replaces the main UKI later. An
+unproven rebuilt UKI never replaces a working copy; a copy without the
+hook is replaced. Copies no entry uses (other than the running kernel's)
+are deleted at each sync; a new copy is refused below 150 MiB ESP free.
+
+**Boot**: the entry is `uki <copy>` + `options` = the snapshot's own
+cmdline with `rootflags=subvol=@snapshots/<n>/snapshot`, resume dropped,
+`noresume`, `systemd.mask=systemd-remount-fs.service` (the snapshot's fstab
+names `@` for /) and `workstation.snapshot=<n>`. Verified on the laptop:
+the loader's command line replaces the UKI's embedded one (Secure Boot
+off). The busybox initramfs hook `workstation-snapshot-overlay`
+(/etc/initcpio, adapted from grub-btrfs-overlayfs, GPL-3.0-or-later) acts
+only with `workstation.snapshot=`: tmpfs overlay over the read-only
+snapshot (a writable one is mounted read-only instead). Nothing reaches
+the snapshot or @; `@home`/`@log`/`@pkg` are the normal ones. The pacman
+hook aborts every package transaction in a snapshot boot.
+
+**Sync**: snapper plugin `/usr/lib/snapper/plugins/50-workstation-snapshot-boot`
+(create/modify/delete of /) -> `workstation-snapshot-boot-sync.service`
+(oneshot, dirty flag for events during a run); after a restore the
+restored system's stale state is dropped and
+`workstation-snapshot-boot-resync.service` (conditional on a flag) syncs
+once at the first boot. No timer, nothing resident.
+
+**Restore** (Quickshell `updates/SnapshotMode.qml`): in a snapshot boot a
+strip on every screen + a dialog (Nur testen / Dauerhaft wiederherstellen ->
+second question with the effects, Abbrechen preselected) -> `pkexec
+snapshot-restore <n>` (polkit `org.workstation.snapshot.restore`,
+administrator password every time; the dialog hides while pkexec asks -
+the agent's window is a normal window) -> `system-rollback <n>`, which
+takes the snapshot's UKI copy, swaps @ guarded (old @ back on a failure
+between the renames), keeps the old @ as `@broken-<date>` (read-only), writes
+/var/lib/workstation/snapshot-restore.json into the new system, reads the
+snapshot's date/description from info.xml (snapper refuses to work on an
+overlay root). Only the snapshot the machine is booted from can be
+restored that way; "Jetzt neu starten" uses Hyprland's session end.
+
+**Legacy slots**: system-update makes no new recovery slot; an existing one
+keeps working ("Recovery: ..." entry, `system-rollback <slot>`) until
+removed. `system-snapshot --known-good` still makes one (terminal only).
+
+Hardware results (ThinkPad T440p, 2026-10-10):
+
+| Test | Result |
+|---|---|
+| deploy: initramfs with hook, btrfs, overlay.ko; main UKI backed up; normal boot | pass |
+| snapper plugin: manual snapshot -> entry written automatically; delete -> entry removed | pass |
+| snapshot boot #30 from the menu: cmdline override, overlay root, old `/etc` marker, no failed units, @ and snapshot unchanged, write lands in RAM only, pacman transaction aborted | pass |
+| normal boot afterwards: @ state, RAM write gone | pass |
+| restore #31 (first try) | **failed safely twice**: polkit window unusable behind the dialog (fixed: dialog hides); snapper "query default id failed" on the overlay root (fixed: info.xml) - nothing changed, support marker -> v2 |
+| restore #32 through the dialog + polkit + "Jetzt neu starten" | pass: @ = snapshot state, `/etc` file of the old state gone, `/home` marker kept, `@broken-*` read-only with the old state, old UKI in /EFI/workstation/broken, record + journal, HEALTHY |
+| 2 update (`pacman -S/-R cowsay`) + 2 manual snapshots in the menu | pass |
+
+Not tested on hardware: a restore failing halfway (tests/system-rollback.sh
+only), a snapshot with an older kernel (logic + tests only), Secure Boot
+on, ESP budget exhaustion, the resync unit after a restore (deployed after
+the restore test; logic tested).

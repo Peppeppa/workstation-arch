@@ -102,8 +102,9 @@ Responsibility split within the provisioning layer:
   -> System -> Diagnostic) are on-demand, read-only tools sharing one
   library (`diaglib.py`) - no daemon, no timer.
 - Recovery (host capability `recovery_enabled`, `docs/recovery-design.md`):
-  snapper snapshots of `@` (never `@home`/`@swap`), bootable recovery
-  slots, and the on-demand `system-update`/`system-snapshot`/
+  snapper snapshots of `@` (never `@home`/`@swap`), the newest 2 update +
+  2 manual ones bootable from the systemd-boot menu (read-only + RAM
+  overlay, restore from the Quickshell snapshot-mode dialog), and the on-demand `system-update`/`system-snapshot`/
   `system-rollback`; the only timer in the whole design is snapper's own
   `snapper-cleanup.timer`.
 - Quickshell owns the app launcher (fuzzel retired as of Core Desktop
