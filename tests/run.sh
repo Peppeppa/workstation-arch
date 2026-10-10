@@ -8,6 +8,7 @@
 #      cheatsheet, and its Markdown documents rendered by Qt
 #   4. tests/firewall.sh      - ruleset + firewall-rules helper, real packets
 #                               in a private user/network namespace
+#   5. tests/diaglib.py       - shared log functions + repo-logs (stubbed journal)
 # Exit 0 = everything passed. Live-system invariants are repo-healthcheck's
 # job (on the provisioned machine), not this script's.
 
@@ -82,6 +83,7 @@ step "tests/system-update.sh" bash tests/system-update.sh
 step "tests/scratchpad-migrate.sh" bash tests/scratchpad-migrate.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
+step "tests/diaglib.py" python3 tests/diaglib.py
 step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
 step "bash -n scripts/git-sync.sh" bash -n scripts/git-sync.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then

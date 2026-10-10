@@ -16,6 +16,12 @@
 #                  Default: the start of the current Hyprland; without a
 #                  session every coredump is WARN.
 #
+# QML runtime: only errors of the RUNNING Quickshell count - its process
+# (journal _PID) and its newest config load ("Reloading configuration",
+# diaglib.qml_status). Errors of an earlier instance or an earlier load of
+# this one (e.g. a reload that caught a deploy half-way) are reported as
+# history in the detail, never as FAIL; repo-logs analyze lists them.
+#
 # Read-only and on demand: starts nothing, writes nothing (theme/bar state
 # is only parsed), no daemon, no timer. Expectations come from the feature
 # flags this host was provisioned with (templated below) and from the
@@ -33,6 +39,9 @@ import time
 
 import yaml
 
+sys.path.insert(0, "{{ diagnostics_lib_dir }}")
+import diaglib  # noqa: E402
+
 REPO = "{{ playbook_dir }}"
 THEMES_DIR = "{{ theme_dir | default(playbook_dir ~ '/themes') }}"
 LY_UNIT = "ly@{{ display_manager_tty | default('tty2') }}.service"
@@ -49,8 +58,6 @@ RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % UID
 FORBIDDEN = {"notifications": ["mako", "dunst", "swaync", "fnott"], "network": ["nm-applet", "connmand", "iwd", "dhcpcd"],
              "audio": ["pulseaudio"], "idle": ["swayidle", "xidlehook"], "wallpaper": ["hyprpaper", "swaybg", "swww-daemon"],
              "launcher": ["fuzzel", "wofi", "rofi"], "bar": ["waybar"]}
-# QML problems that mean a broken component, not a missing capability.
-QML_BROKEN = re.compile(r"\b(ERROR|CRIT)\b|TypeError|ReferenceError|RangeError|SyntaxError|Binding loop|is not a function|Cannot (read|assign)")
 
 results = []
 SYSTEM = False
@@ -402,9 +409,7 @@ def crash_checks(hp, qs_pid):
     if old:
         check("coredumps (earlier this boot)", False, ", ".join(sorted({os.path.basename(d.get("exe", "?")) for d in old})), warn=True)
     if hp and not SYSTEM:
-        args = ["journalctl", "--user", "-q", "--no-pager", "-o", "cat", "-t", "quickshell", "--since", "@%d" % int(since)]
-        broken = [l for l in run(args, timeout=10)[1].splitlines() if QML_BROKEN.search(l)]
-        check("QML runtime", not broken, broken[-1].strip()[:150] if broken else "no exceptions/binding loops this session")
+        qml_check(since, qs_pid)
         env = dict(os.environ, XDG_RUNTIME_DIR=RUNTIME)
         sig = environ_of(qs_pid).get("HYPRLAND_INSTANCE_SIGNATURE") if qs_pid else None
         if sig:
@@ -412,6 +417,24 @@ def crash_checks(hp, qs_pid):
         rc, o = run(["hyprctl", "configerrors"], env=env)
         errs = [l for l in o.splitlines() if l.strip()]
         check("Hyprland config", rc == 0 and not errs, errs[0][:150] if errs else "no config errors")
+
+
+def qml_check(since, qs_pid):
+    ok, err, entries = diaglib.journal(["--user", "-t", "quickshell", "--since", "@%d" % int(since)], limit=20000)
+    if not ok:
+        check("QML runtime", False, "Quickshell journal not readable: %s" % err[:120], warn=True)
+        return
+    st = diaglib.qml_status(entries, qs_pid, SINCE)
+    hist = ""
+    if st["earlier"]:
+        hist = "; earlier this session: %d error(s) in %s - history, see repo-logs analyze" % (
+            len(st["earlier"]), ", ".join("pid %s load %d" % (p, g) for p, g, _ in st["earlier_runs"][-3:]))
+    if st["current"]:
+        check("QML runtime", False, st["current"][-1]["msg"].strip()[:150])
+    elif qs_pid is None:
+        check("QML runtime", False, "no desktop Quickshell to check" + hist, warn=True)
+    else:
+        check("QML runtime", True, "running instance (pid %d, its last config load) without errors%s" % (qs_pid, hist))
 
 
 def main():

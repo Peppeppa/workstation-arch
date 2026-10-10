@@ -1,4 +1,25 @@
 ---
+# The shared functions first: all three tools import them at start.
+- name: Create the shared library directory (/usr/local/lib/workstation)
+  become: true
+  ansible.builtin.file:
+    path: "{{ diagnostics_lib_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: diagnostics
+
+- name: Deploy diaglib.py (shared by repo-healthcheck, repo-diagnose, repo-logs)
+  become: true
+  ansible.builtin.copy:
+    src: diaglib.py
+    dest: "{{ diagnostics_lib_dir }}/diaglib.py"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: diagnostics
+
 - name: Deploy repo-diagnose (/usr/local/bin/repo-diagnose)
   become: true
   ansible.builtin.template:
@@ -16,6 +37,18 @@
   ansible.builtin.template:
     src: repo-healthcheck.j2
     dest: "{{ diagnostics_healthcheck_bin }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: diagnostics
+
+# repo-logs: OS menu -> System -> Diagnostic (logs, log analysis, the
+# healthcheck/diagnose views in the terminal).
+- name: Deploy repo-logs (/usr/local/bin/repo-logs)
+  become: true
+  ansible.builtin.template:
+    src: repo-logs.j2
+    dest: "{{ diagnostics_logs_bin }}"
     owner: root
     group: root
     mode: "0755"

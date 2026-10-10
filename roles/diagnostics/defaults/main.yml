@@ -10,3 +10,11 @@ diagnostics_bin: /usr/local/bin/repo-diagnose
 # repo-healthcheck: read-only PASS/WARN/FAIL of the system's invariants
 # (exit 0 = healthy); same zero-idle-cost rules as repo-diagnose.
 diagnostics_healthcheck_bin: /usr/local/bin/repo-healthcheck
+
+# repo-logs: the log viewer + rule-based log analysis behind OS menu ->
+# System -> Diagnostic (read-only, on demand, no root).
+diagnostics_logs_bin: /usr/local/bin/repo-logs
+
+# diaglib.py: the journal/Quickshell-run/analysis functions shared by
+# repo-healthcheck, repo-diagnose and repo-logs (imported, never run).
+diagnostics_lib_dir: /usr/local/lib/workstation

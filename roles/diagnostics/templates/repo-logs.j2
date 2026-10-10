@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+# Managed by Ansible (roles/diagnostics/templates/repo-logs.j2) - do not edit by hand.
+#
+# repo-logs - the logs and the log analysis of OS menu -> System -> Diagnostic
+# (run there in the terminal; works the same from any shell). Read-only:
+# never writes a log, never asks for root, starts nothing in the background.
+#
+#   repo-logs sources [--json]   the log sources of this host
+#   repo-logs view SOURCE        one source as a private read-only copy in
+#                                Neovim (chronological, opened at the newest
+#                                line); the copy is deleted when Neovim ends
+#   repo-logs analyze [--json] [--interactive]
+#                                the rule-based log analysis (diaglib.analyze):
+#                                current findings by severity, history apart;
+#                                --interactive: a finding's number opens its
+#                                original lines in the viewer
+#   repo-logs show healthcheck|diagnose
+#                                run repo-healthcheck / repo-diagnose --full,
+#                                highlight FAIL/WARN, state the exit code, wait
+#                                for Enter (the terminal window stays readable)
+#
+# SOURCE is one of the fixed ids below - never a path, never journalctl
+# syntax: every command is a fixed argv list (no shell). Journal sources are
+# exported from journalctl's JSON (binary journal files are never opened as
+# text), bounded (current boot / last 24 h / 30 days, at most LIMIT lines).
+# Copies live in $XDG_RUNTIME_DIR/workstation-logs (0700, tmpfs, gone at
+# logout); leftovers of a killed viewer are removed on the next run.
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+sys.path.insert(0, "{{ diagnostics_lib_dir }}")
+import diaglib  # noqa: E402
+
+RECOVERY = {{ recovery_enabled | bool }}
+HEALTHCHECK = "{{ diagnostics_healthcheck_bin }}"
+DIAGNOSE = "{{ diagnostics_bin }}"
+LIMIT = 20000
+
+# id -> (label, [journalctl query args, ...] | ("file", path, tail) | special)
+SOURCES = [
+    ("journal", "System Journal (letzte 24 h)", {"journal": [["--since", "-24h"]]}),
+    ("boot", "Current Boot", {"journal": [["-b"]]}),
+    ("boot-errors", "Boot Errors (aktueller Boot, Priorität err und höher)", {"journal": [["-b", "-p", "0..3"], ["--user", "-b", "-p", "0..3"]]}),
+    ("kernel", "Kernel Messages (aktueller Boot)", {"journal": [["-k", "-b"]]}),
+    ("user", "User Services (aktueller Boot)", {"journal": [["--user", "-b"]]}),
+    ("pacman", "Pacman (/var/log/pacman.log)", {"file": "/var/log/pacman.log", "tail": 5000}),
+    ("quickshell", "Quickshell (aktueller Boot)", {"journal": [["--user", "-b", "-t", "quickshell"]]}),
+    ("hyprland", "Hyprland (laufende Instanz)", {"hyprland": True}),
+    ("firewall", "Firewall (workstation-firewall.service, aktueller Boot)", {"journal": [["-b", "-u", "workstation-firewall.service"]]}),
+]
+if RECOVERY:
+    SOURCES += [
+        ("snapper", "Snapper (30 Tage)", {"journal": [["--since", "-30d", "-u", "snapperd.service"],
+                                                      ["--since", "-30d", "-u", "snapper-cleanup.service"],
+                                                      ["--since", "-30d", "-t", "pre-transaction-snapshot"],
+                                                      ["--since", "-30d", "-t", "system-snapshot"],
+                                                      ["--since", "-30d", "-t", "snapshot-create"]],
+                                          "note": "/var/log/snapper.log ist nur für root lesbar (sudo less /var/log/snapper.log)."}),
+        ("updates", "Update History (90 Tage)", {"updates": True}),
+    ]
+BYID = {s[0]: s for s in SOURCES}
+
+COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+SGR = {"critical": "1;31", "warning": "33", "info": "36", "pass": "32", "dim": "2", "bold": "1"}
+
+
+def c(kind, text):
+    return "\033[%sm%s\033[0m" % (SGR[kind], text) if COLOR else text
+
+
+def stamp(ts):
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) if ts else "-"
+
+
+# --- export ------------------------------------------------------------------
+
+def export(sid):
+    """-> (header lines, body lines) of a source; never raises for a missing source."""
+    label, spec = BYID[sid][1], BYID[sid][2]
+    head = ["# %s" % label, "# exportiert %s - schreibgeschützte Kopie, wird beim Schließen gelöscht" % stamp(time.time())]
+    body = []
+    if "journal" in spec:
+        entries = []
+        for args in spec["journal"]:
+            ok, err, es = diaglib.journal(args, limit=LIMIT)
+            head.append("# journalctl %s%s" % (" ".join(args), "" if ok else "  -> nicht verfügbar: " + err))
+            entries += es
+        entries.sort(key=lambda e: e["ts"])
+        body = [diaglib.format_entry(e) for e in entries[-LIMIT:]]
+        if len(entries) > LIMIT:
+            head.append("# gekürzt auf die neuesten %d Zeilen" % LIMIT)
+    elif "file" in spec:
+        head.append("# %s (letzte %d Zeilen)" % (spec["file"], spec["tail"]))
+        body = tail(spec["file"], spec["tail"], head)
+    elif "hyprland" in spec:
+        log = diaglib.session()["hyprland_log"]
+        head.append("# %s" % (log or "keine laufende Hyprland-Sitzung"))
+        if log:
+            body = tail(log, LIMIT, head)
+        head.append("# Ausgabe der Sitzung (stdout/stderr): ~/.local/state/ly-session.log")
+    elif "updates" in spec:
+        head.append("# /var/log/pacman.log: Systemupdates und Transaktionen der letzten 90 Tage; journalctl -t system-update")
+        lines = tail("/var/log/pacman.log", 200000, head)
+        txs = diaglib.parse_pacman_log(lines, time.time() - 90 * 86400)
+        for t in txs:
+            pk = [l for l in t["lines"] if "] [ALPM] " in l and any(w in l for w in ("upgraded", "installed", "removed", "downgraded"))]
+            body.append("%s  %-11s %s, %d Paket(e)%s" % (stamp(t["start"]), t["state"].upper(), "Systemupdate" if t["upgrade"] else "Transaktion",
+                                                       len(pk), ", Fehler: %d" % len(t["errors"]) if t["errors"] else ""))
+            body += ["    " + l for l in pk + t["errors"]]
+        ok, err, es = diaglib.journal(["-t", "system-update", "--since", "-90d"], limit=2000)
+        body += ["", "# journalctl -t system-update" + ("" if ok else "  -> nicht verfügbar: " + err)]
+        body += [diaglib.format_entry(e) for e in es]
+    if spec.get("note"):
+        head.append("# " + spec["note"])
+    if not body:
+        body = ["(keine Einträge)"]
+    return head, body
+
+
+def tail(path, n, head):
+    try:
+        with open(path, errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError as e:
+        head.append("#  -> nicht verfügbar: %s" % (e.strerror or e))
+        return []
+    return lines[-n:]
+
+
+# --- viewer ------------------------------------------------------------------
+
+def private_dir():
+    d = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir(), "workstation-logs")
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    os.chmod(d, 0o700)
+    for f in os.listdir(d):                     # leftovers of a viewer that was killed
+        p = os.path.join(d, f)
+        try:
+            if time.time() - os.path.getmtime(p) > 6 * 3600:
+                os.unlink(p)
+        except OSError:
+            pass
+    return d
+
+
+def view_lines(name, lines):
+    fd, path = tempfile.mkstemp(prefix=name + "-", suffix=".log", dir=private_dir())
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        os.chmod(path, 0o400)
+        # -R -M: read-only and not modifiable; -n: no swap file. ERR/CRIT
+        # lines highlighted; / searches as usual; opened at the newest line.
+        argv = ["nvim", "-R", "-M", "-n",
+                "-c", r"call matchadd('ErrorMsg', '\v\c<(EMERG|ALERT|CRIT|ERR|ERROR|FAILED|FAILURE|FATAL|SEGFAULT|PANIC)>')",
+                "-c", r"call matchadd('WarningMsg', '\v\c<(WARN|WARNING)>')",
+                "+$", path]
+        try:
+            return subprocess.call(argv)
+        except OSError:
+            return subprocess.call(["less", "-R", "+G", path])
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
+def cmd_view(sid):
+    if sid not in BYID:
+        print("unknown source %r - repo-logs sources" % sid, file=sys.stderr)
+        return 2
+    head, body = export(sid)
+    return view_lines(sid, head + [""] + body)
+
+
+def cmd_sources(as_json):
+    if as_json:
+        print(json.dumps([{"id": i, "label": l} for i, l, _ in SOURCES]))
+    else:
+        for i, l, _ in SOURCES:
+            print("%-12s %s" % (i, l))
+    return 0
+
+
+# --- analysis ----------------------------------------------------------------
+
+def describe(f, n):
+    span = stamp(f["first"]) if f["first"] == f["last"] else "%s – %s" % (stamp(f["first"]), stamp(f["last"]))
+    who = []
+    if f["pids"]:
+        who.append("pid " + ", ".join(f["pids"][:4]) + (" …" if len(f["pids"]) > 4 else ""))
+    if f["boots"]:
+        who.append("boot " + ", ".join(b[:8] for b in f["boots"][:2]))
+    out = ["  %s %s  %s  ×%d  %s%s" % (c("bold", "[%d]" % n), c(f["severity"], f["severity"].upper()), f["component"], f["count"], span,
+                                       "  (" + "; ".join(who) + ")" if who else ""),
+           "      " + f["summary"]]
+    if f["note"]:
+        out.append("      " + c("dim", "Hinweis: " + f["note"]))
+    if f["ref"]:
+        out.append("      " + c("dim", "Quelle: " + f["ref"]))
+    return out
+
+
+def report(res):
+    ctx = res["ctx"]
+    cnt = res["counts"]
+    lines = ["Log Analysis  %s  host %s  boot seit %s%s" % (stamp(time.time()), os.uname().nodename, stamp(ctx["boot_time"]),
+                                                           "  Sitzung seit " + stamp(ctx["session_start"]) if ctx.get("session_start") else ""),
+             "",
+             "Aktuell:  %s   %s   %s      Historisch: %d" % (c("critical", "Critical: %d" % cnt["critical"]),
+                                                             c("warning", "Warning: %d" % cnt["warning"]),
+                                                             c("info", "Info: %d" % cnt["info"]), res["history"])]
+    numbered = []
+    for title, sel in (("CRITICAL", lambda f: f["current"] and f["severity"] == "critical"),
+                       ("WARNING", lambda f: f["current"] and f["severity"] == "warning"),
+                       ("INFO", lambda f: f["current"] and f["severity"] == "info"),
+                       ("HISTORISCH - nicht der aktuelle Zustand (frühere Instanz, Sitzung oder danach erfolgreich)",
+                        lambda f: not f["current"])):
+        fs = [f for f in res["findings"] if sel(f)]
+        lines += ["", c("bold", title)]
+        if not fs:
+            lines.append("  -")
+        for f in fs:
+            numbered.append(f)
+            lines += describe(f, len(numbered))
+    lines += ["", c("dim", "Regeln: diaglib.py (Priorität, Quelle, Wiederholung, bekannte harmlose Meldungen). "
+                           "Unbekanntes wird mit seinem Originaltext gezeigt, nicht erklärt.")]
+    return lines, numbered
+
+
+def cmd_analyze(as_json, interactive):
+    ctx = diaglib.context(recovery=RECOVERY)
+    res = diaglib.analyze(ctx)
+    res["ctx"] = {k: ctx[k] for k in ("boot_time", "session_start", "qs_pid", "hyprland_pid")}
+    if as_json:
+        print(json.dumps({"counts": res["counts"], "history": res["history"], "context": res["ctx"],
+                          "findings": res["findings"]}, ensure_ascii=False))
+        return 0
+    lines, numbered = report(res)
+    print("\n".join(lines))
+    while interactive:
+        try:
+            a = input("\nNummer + Enter: Originalmeldungen in Neovim öffnen · Enter: beenden > ").strip()
+        except EOFError:
+            break
+        if not a:
+            break
+        if a.isdigit() and 1 <= int(a) <= len(numbered):
+            f = numbered[int(a) - 1]
+            view_lines("finding-%s" % a, ["# [%s] %s %s: %s" % (a, f["severity"].upper(), f["component"], f["summary"]),
+                                          "# Quelle: %s" % (f["ref"] or "-"), ""] + (f["lines"] or ["(keine Einzelzeilen - siehe Quelle)"]))
+            print("\n".join(lines))
+        else:
+            print("1 bis %d oder Enter" % len(numbered))
+    return 0
+
+
+# --- healthcheck / diagnose in the terminal -------------------------------------
+
+def cmd_show(what):
+    argv = {"healthcheck": [HEALTHCHECK], "diagnose": [DIAGNOSE, "--full"]}.get(what)
+    if not argv:
+        print("usage: repo-logs show healthcheck|diagnose", file=sys.stderr)
+        return 2
+    print(c("bold", " ".join(argv)) + "\n")
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+        out, rc = p.stdout + p.stderr, p.returncode
+    except (OSError, subprocess.SubprocessError) as e:
+        out, rc = str(e), 127
+    for l in out.splitlines():
+        if l.startswith("FAIL") or l.startswith("!!") or l.startswith("UNHEALTHY"):
+            print(c("critical", l))
+        elif l.startswith("WARN"):
+            print(c("warning", l))
+        elif l.startswith("PASS") or l == "HEALTHY" or l == "no issues found":
+            print(c("pass", l))
+        else:
+            print(l)
+    meaning = {"healthcheck": {0: "HEALTHY - alle Invarianten erfüllt", 1: "UNHEALTHY - mindestens eine Prüfung FAIL"},
+               "diagnose": {0: "keine Auffälligkeiten", 1: "Auffälligkeiten gefunden (Zeilen mit !!)"}}[what]
+    msg = meaning.get(rc, "Aufruf fehlgeschlagen")
+    print("\nErgebnis: %s (Exit-Code %d)" % (c("pass" if rc == 0 else "critical", msg), rc))
+    try:
+        input(c("dim", "Enter: schließen"))
+    except EOFError:
+        pass
+    return rc
+
+
+class Usage(Exception):
+    pass
+
+
+def main(args):
+    if not args:
+        raise Usage
+    cmd = args.pop(0)
+    if cmd == "sources" and args in ([], ["--json"]):
+        return cmd_sources(args == ["--json"])
+    if cmd == "view" and len(args) == 1:
+        return cmd_view(args[0])
+    if cmd == "analyze" and set(args) <= {"--json", "--interactive"}:
+        return cmd_analyze("--json" in args, "--interactive" in args)
+    if cmd == "show" and len(args) == 1:
+        return cmd_show(args[0])
+    raise Usage
+
+
+def _quit(signum, frame):
+    raise SystemExit(128 + signum)          # the terminal closed: run the finally blocks (temp copies)
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGHUP, _quit)
+    signal.signal(signal.SIGTERM, _quit)
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except Usage:
+        print("usage: repo-logs sources [--json] | view SOURCE | analyze [--json] [--interactive] | show healthcheck|diagnose",
+              file=sys.stderr)
+        sys.exit(2)
+    except KeyboardInterrupt:
+        sys.exit(130)

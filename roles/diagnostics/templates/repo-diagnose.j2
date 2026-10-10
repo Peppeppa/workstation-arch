@@ -20,6 +20,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, "{{ diagnostics_lib_dir }}")
+import diaglib  # noqa: E402
+
 REPO = "{{ playbook_dir }}"
 # What this host is provisioned to run (group_vars/host_vars feature flags).
 EXPECT = {"hypridle": {{ 'True' if lock_idle_enabled else 'False' }},
@@ -209,9 +212,13 @@ def section_shell():
     else:
         out("Shell", "desktop quickshell: %d processes (expected 1)" % len(desk), bad=True)
     lines, count, src = quickshell_warnings(desk[0] if desk else None, 12 if FULL else 3)
-    errors = [l for l in lines if "ERROR" in l]
-    out("", "QML/runtime warnings this boot: %d (%s)%s" % (count, src, ", errors present" if errors else ""),
-        bad=bool(errors), name="Shell (QML errors)")
+    # Errors of the running instance only (diaglib.qml_status - the same
+    # split as repo-healthcheck); earlier instances/loads are history.
+    ok, err, entries = diaglib.journal(["--user", "-b", "-t", "quickshell"], limit=20000)
+    st = diaglib.qml_status(entries, desk[0] if desk else None) if ok else {"current": [], "earlier": []}
+    out("", "QML/runtime warnings this boot: %d (%s); errors: %d in the running instance, %d earlier (history)" % (
+        count, src, len(st["current"]), len(st["earlier"])),
+        bad=bool(st["current"]), name="Shell (QML errors)")
     for l in lines:
         sub(l[:220])
     return desk
