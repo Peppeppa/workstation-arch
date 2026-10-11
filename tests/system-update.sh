@@ -44,6 +44,7 @@ echo "root \$*" >> "$log"
 case \$1 in
     preflight) [ -z "\${PREFLIGHT_FAIL:-}" ] || { echo "system-update-root: \$PREFLIGHT_FAIL" >&2; exit 1; }; echo ok ;;
     pre) [ -z "\${SNAP_FAIL:-}" ] || { echo "snapper: \$SNAP_FAIL" >&2; exit 1; }; echo 42 ;;
+    post) [ -z "\${POST_FAIL:-}" ] || { echo "system-update-root: \$POST_FAIL" >&2; exit 1; }; echo ok ;;
     rebootneeded) exit 1 ;;
     *) echo ok ;;
 esac
@@ -64,6 +65,16 @@ ok "update: snapshot before pacman" '[ "$(grep -nE "^root pre |^pacman" "$log" |
 ok "update: full -Syu, nothing else" 'grep -qx "pacman -Syu" "$log"'
 ok "update: ui finished 0 42" 'grep -qx "qs ipc --any-display call updates finished 0 42" "$log"'
 ok "update: result names the snapshot" 'grep -q "Pre-update snapshot: 42" <<<"$out"'
+
+# 1b. pacman done, but the recovery-point step after it fails: the boot image
+#     check and the health check must still run, with a result (Bug Hunt v1)
+POST_FAIL="snapper modify failed" run --ui
+ok "post fails: boot image check still runs" 'grep -q "^root ukicheck" "$log"'
+ok "post fails: health check after the update still runs" '[ "$(grep -c "^root " "$log")" -ge 4 ]'
+ok "post fails: a RESULT line is printed" 'grep -q "^RESULT:" <<<"$out"'
+ok "post fails: the failure is named" 'grep -q "recovery point" <<<"$out" && grep -q "snapper modify failed" <<<"$out"'
+ok "post fails: non-zero exit" '[ "$rc" -ne 0 ]'
+ok "post fails: ui finished non-zero" 'grep -qE "updates finished [1-9][0-9]* 42" "$log"'
 
 # 2. snapshot fails: exit 3, pacman never runs, ui snapshotFailed with the reason
 SNAP_FAIL="no space left" run --ui

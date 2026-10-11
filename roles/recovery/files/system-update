@@ -112,7 +112,15 @@ pacman_rc=$?
 set -e
 
 say "recovery point"
-if [ "$nosnap" -eq 0 ]; then root post "$pre" "$pacman_rc"; else echo "none taken for this update (--no-snapshot)"; fi
+# A failure here (the root half after pacman - e.g. sudo's timestamp ran out
+# during a long pacman run and the new prompt was refused) must not skip the
+# boot image and health checks below: the packages are already installed.
+post_ok=1
+if [ "$nosnap" -eq 0 ]; then
+    root post "$pre" "$pacman_rc" || post_ok=0
+else
+    echo "none taken for this update (--no-snapshot)"
+fi
 
 say "boot image check"
 uki_ok=1
@@ -129,6 +137,8 @@ elif [ "$uki_ok" -eq 0 ]; then
     echo "RESULT: updated, but the boot image looks WRONG - do not reboot before checking mkinitcpio's output above."
 elif [ "$health_ok" -eq 0 ]; then
     echo "RESULT: updated, but repo-healthcheck FAILED (see above, details: repo-diagnose)."
+elif [ "$post_ok" -eq 0 ]; then
+    echo "RESULT: updated, but the step after pacman failed (see above; e.g. sudo asked again and was refused). The pre-update snapshot $pre is unaffected."
 else
     echo "RESULT: updated, healthy."
 fi
@@ -138,7 +148,7 @@ if [ "$nosnap" -eq 1 ]; then
 else
     echo "Pre-update snapshot: $pre (boot menu: \"Snapshot (before update) ...\")."
 fi
-if [ "$pacman_rc" -ne 0 ] || [ "$uki_ok" -eq 0 ] || [ "$health_ok" -eq 0 ]; then
+if [ "$pacman_rc" -ne 0 ] || [ "$uki_ok" -eq 0 ] || [ "$health_ok" -eq 0 ] || [ "$post_ok" -eq 0 ]; then
     echo "Nothing was rolled back. Your choices:"
     echo "  - fix it and run repo-healthcheck again"
     echo "  - reboot and pick \"Snapshot (before update) ...\" in the boot menu: test the old system, restore it from there"
@@ -147,4 +157,4 @@ fi
 if root rebootneeded "$T0"; then
     echo "A reboot is needed for the new kernel/system components (then: repo-healthcheck)."
 fi
-[ "$pacman_rc" -eq 0 ] && [ "$uki_ok" -eq 1 ] && [ "$health_ok" -eq 1 ]
+[ "$pacman_rc" -eq 0 ] && [ "$uki_ok" -eq 1 ] && [ "$health_ok" -eq 1 ] && [ "$post_ok" -eq 1 ]
