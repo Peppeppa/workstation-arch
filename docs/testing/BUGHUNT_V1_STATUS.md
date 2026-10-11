@@ -8,15 +8,30 @@ JSON) stays on the controlling machine (session scratchpad), not in Git.
 
 | | |
 |---|---|
-| Branch / HEAD | bughunt-v1 / see `git log` |
-| Known-good | `5c60635` (main, deployed 2026-10-11 08:30, changed=0, HEALTHY) |
-| Completed groups | preflight, tier 1 static (linters + root helpers), tier 2/3 partial (see log) |
-| Bugs found / fixed / deferred | 4 / 4 / 2 (cosmetic language, BT popup teardown suspicion) |
-| Deployment | not yet |
-| Session / SSH | unlocked, Coffee on / reachable (08:56) |
-| Next safe action | consolidated deployment (dry run first) |
+| Branch / HEAD | bughunt-v1, fast-forwarded into main after validation |
+| Known-good before | `5c60635` |
+| Completed groups | tier 1, tier 2, tier 3 (safe parts), deployment, post-deploy GUI + idempotency + performance |
+| Bugs found / fixed / deferred | 4 / 4 / 3 (L1 language, BT1 suspected, M1 observation) |
+| Deployment | deployed on the laptop, changed=0 on re-run, HEALTHY |
+| Session / SSH | unlocked, Coffee on / reachable |
+| Next safe action | supervised resume: docs/testing/BUGHUNT_V1_SUPERVISED_RESUME.md |
 
 ## Log
+
+### 10:40 - deployment + validation
+
+- dry run: repo-healthcheck, system-update, ~/.local/bin/theme, Fonts.qml
+  (+ pacman DB sync); nothing for SSH/firewall/PAM/boot/storage.
+- deploy rc 0 changed=6; handler snapshot-boot sync ran (not shown by the
+  dry run) - entries identical before/after (#47 #46 #44 #43).
+- +30 s: SSH, all session processes, Coffee on, no lock, faillock 0,
+  HEALTHY; Quickshell reloaded in place (pid 34842).
+- real: close policy 66/66, tier-3 combinations 20/20; second bootstrap
+  changed=0; idle CPU 0 %, swap 0.
+- memory: 10 rounds x 40 overlay openings: 262 -> 277-285 MB plateau, no
+  linear growth (M1, observation).
+- report: docs/testing/BUGHUNT_V1_REPORT.md; supervised:
+  docs/testing/BUGHUNT_V1_SUPERVISED_RESUME.md.
 
 ### 10:05 - more tier 2/3
 
