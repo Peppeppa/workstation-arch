@@ -33,8 +33,10 @@ env = jinja2.Environment(keep_trailing_newline=True, undefined=jinja2.StrictUnde
 env.filters["quote"] = shlex.quote
 print(env.from_string(open(sys.argv[1]).read()).render(playbook_dir=sys.argv[2]), end="")
 EOF
-        sed -e "s#/usr/local/lib/workstation/#$tmp/lib/#g" -e "s#/run/workstation-recovery#$tmp/run#g" > "$tmp/lib/recovery-lib.sh"
+        sed -e "s#/usr/local/lib/workstation/#$tmp/lib/#g" -e "s#/run/workstation-recovery#$tmp/run#g" \
+            -e "s#/proc/cmdline#$tmp/cmdline#g" > "$tmp/lib/recovery-lib.sh"
 }
+echo "root=/dev/mapper/root rw" > "$tmp/cmdline"
 render_lib "$tmp/no-checkout"
 
 # Fixture: what `snapper --jsonout -c root list` returns.
@@ -125,6 +127,13 @@ printf 'less\n' | "$tmp/lib/pre-transaction-snapshot" > "$tmp/out" 2>&1
 [ $? -ne 0 ]; check "snapshot failure -> non-zero exit (pacman AbortOnFail)" $?
 grep -q 'ABORTED' "$tmp/out"; check "snapshot failure -> says the transaction was aborted" $?
 rm -f "$tmp/create-fails"
+
+# ---- snapshot boot: the transaction is ABORTED, no snapshot (Bug Hunt v1) -----
+: > "$tmp/log"; echo "root=/dev/mapper/root rw workstation.snapshot=43" > "$tmp/cmdline"
+printf 'less\n' | "$tmp/lib/pre-transaction-snapshot" > "$tmp/out" 2>&1
+[ $? -ne 0 ] && ! grep -q '^create' "$tmp/log"; check "snapshot boot: transaction aborted, no snapshot" $?
+grep -q 'snapshot mode (snapshot 43)' "$tmp/out"; check "snapshot boot: says why" $?
+echo "root=/dev/mapper/root rw" > "$tmp/cmdline"
 
 # ---- recovery boot: no snapshot, transaction goes on -------------------------
 : > "$tmp/log"; printf '#!/bin/sh\necho "rw,subvol=/@recovery/known-good"\n' > "$tmp/stub/findmnt"
