@@ -1161,16 +1161,18 @@ history for that milestone's own record):
   failing halfway, an older-kernel snapshot, Secure Boot, ESP exhaustion,
   the post-restore resync unit. Details: docs/recovery-design.md 22.
 
-- **RICE v1 overnight batch** (2026-10-11, branch `rice-v1-overnight`, NOT
-  yet on main): phases 2-7 + 6b - bar/popups, dialogs (`ui/DialogFrame`,
-  `DialogText`, `DialogButtons`), launcher/menus/windows on the `Style`
-  tokens, English UI text, Hyprland gaps 4/8 + rounding 4, toasts/hyprlock
-  aligned, Qt apps follow light/dark (`QT_QPA_PLATFORMTHEME=xdgdesktopportal`),
-  explicit Adwaita cursor; visual audit 9/11/12/18 dark/light, design lint.
-  Structurally tested + deployed on the laptop (changed=0 on re-run,
-  HEALTHY, no idle regression). Open: GUI input regression, bug B1 (Coffee
-  after a Quickshell restart, fix on `rice-v1-coffee-restart-fix`) -
-  `docs/testing/RICE_OVERNIGHT_STATUS.md` SUPERVISED_RESUME_PLAN.
+- **RICE v1** (2026-10-11, overnight batch + supervised resume, on main):
+  phases 2-7 + 6b - bar/popups, dialogs (`ui/DialogFrame`, `DialogText`,
+  `DialogButtons`), launcher/menus/windows on the `Style` tokens, English UI
+  text, Hyprland gaps 4/8 + rounding 4, toasts/hyprlock aligned, Qt apps
+  follow light/dark (`QT_QPA_PLATFORMTHEME=xdgdesktopportal`), explicit
+  Adwaita cursor; visual audit 9/11/12/18 dark/light, design lint; Coffee
+  survives a Quickshell restart (inhibitor armed after the bar is shown).
+  Real-hardware-tested on the laptop: deploy + changed=0, HEALTHY, idle
+  unchanged, Coffee control/fix/off, 66/66 close-policy GUI checks, visual
+  checks by the user, session env after a real login, polkit dialog.
+  Known: Anki reads light/dark only at its start.
+  `docs/testing/RICE_OVERNIGHT_STATUS.md`.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

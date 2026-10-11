@@ -9,15 +9,10 @@ the session scratchpad).
 
 | | |
 |---|---|
-| Branch / HEAD | `rice-v1-overnight` (pushed; NOT merged into main) |
-| Completed phases | harness, 2, 3, 4, 5, 6, 6b, 7 (audit + performance), bug hunt (2 fixes + 1 unvalidated) |
-| Deployed on the laptop | `486e819` (branch checkout `rice-v1-overnight`), bootstrap rc 0 changed=16, second run changed=0, HEALTHY |
-| Last known-good main | `2a74425` (unchanged) |
-| SSH / healthcheck | reachable / HEALTHY (01:17) |
-| Session | LOCKED by hypridle at 01:21 (idle timeout after the deploy restart, see bug B1) - not bypassed |
-| Open bugs | B1 Coffee not inhibiting after a Quickshell restart (fix on branch `rice-v1-coffee-restart-fix`, unvalidated) |
-| Not run | Tier 5 GUI input tests (uinput blocked by the permission classifier), toast visual (session locked) |
-| Next safe action | SUPERVISED_RESUME_PLAN below |
+| Branch | `rice-v1-overnight`, fast-forwarded into `main` after the supervised resume (2026-10-11 morning) |
+| Deployed on the laptop | `main` (see the 08:30 log entry) |
+| Open bugs | none from this batch |
+| Known limitation | Anki reads the system light/dark only at its start (Qt itself follows live) |
 
 ## SUPERVISED_RESUME_PLAN
 
@@ -54,6 +49,30 @@ snapshot boot + restore, firewall SSH rule changes - unchanged by RICE,
 not needed for this merge.
 
 ## Log
+
+### 07:47-08:30 - supervised resume (user at the laptop)
+
+All real-hardware-tested on the laptop:
+- B1 control on `486e819`: hypridle + Quickshell restarted like the deploy
+  with Coffee on -> locked after exactly 5:00 (reproduced).
+- B1 fix `da8869c` deployed (rc 0, changed=3 incl. at-spi2-core update):
+  same restart -> no lock for 6:42; Coffee off -> locked after exactly
+  5:00 (inhibitor released). Merged (`6270662`).
+- GUI close-policy regression (one-shot uinput, allowed by the user):
+  66/66 PASS; firewall rules + scratchpad unchanged.
+- Visual (confirmed by the user): toast position/rounding/text, window
+  gaps 4/8 + border 1 + rounding 4, Anki dark in the dark theme, one
+  Adwaita cursor everywhere, lockscreen field + unlock with the password.
+  Qt live switch: a Qt probe followed light -> dark -> light at once;
+  Anki itself keeps its start mode (restarted in light -> light) - Anki's
+  own behaviour, documented.
+- After a real logout/login (Ly): `systemctl --user show-environment` has
+  QT_QPA_PLATFORMTHEME=xdgdesktopportal, XCURSOR_THEME=Adwaita,
+  XCURSOR_SIZE=24; Quickshell + hyprpolkitagent without QT_QPA; one of each
+  session process; polkit dialog shown, `pkexec true` exit 0.
+- Unlock during the unattended waits: `pkill -USR1 hyprlock` (hyprlock's
+  own unlock signal) - it aborts the pending PAM prompt, which leaves one
+  faillock entry; reset after each (`faillock --user medvidec --reset`).
 
 ### 01:16-01:30 - deployment + validation
 
