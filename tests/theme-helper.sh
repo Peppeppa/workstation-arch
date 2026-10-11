@@ -190,6 +190,20 @@ print("\n".join("FAIL theme sources: " + b for b in bad))
 sys.exit(1 if bad else 0)
 EOF
 
+# A background whose NAME carries a line break (an imported theme repository
+# is foreign data) must never reach the line-based state file: it would
+# inject a key ("mode=...") and leave every later command refusing a
+# malformed state (Bug Hunt v1).
+printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"
+evil="$(printf 'x\nmode=sepia.png')"
+touch "$tmp/themes/$dark/backgrounds/$evil"
+before=$(sha256sum "$state")
+"$T" wallpaper set "$evil" >/dev/null 2>&1; rc=$?
+[ $rc -eq 1 ] && [ "$before" = "$(sha256sum "$state")" ]; check "wallpaper with a line break in its name: refused, state untouched (rc $rc)" $?
+"$T" wallpaper list 2>/dev/null | grep -q "sepia"; [ $? -ne 0 ]; check "wallpaper with a line break in its name: not listed" $?
+"$T" toggle >/dev/null 2>&1; check "theme commands still work afterwards" $?
+rm -f "$tmp/themes/$dark/backgrounds/$evil"
+
 # Concurrency: an even number of parallel toggles ends in the start mode
 # (it lost updates before the helper serialised its writes).
 printf 'dark=%s\nlight=%s\nmode=dark\n' "$dark" "$light" > "$state"

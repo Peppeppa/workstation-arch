@@ -88,6 +88,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import tomllib
 
 import yaml
@@ -309,7 +310,11 @@ def background_paths(theme_id):
         except (FileNotFoundError, NotADirectoryError):
             continue
         for n in names:
+            # no control characters: the name goes into the line-based state
+            # file (a line break there injected a key - an imported theme's
+            # files are foreign data)
             if (n not in found and not n.startswith(".") and n.lower().endswith(WALLPAPER_EXT)
+                    and not any(unicodedata.category(c)[0] == "C" for c in n)
                     and os.path.isfile(os.path.join(path, n))):
                 found[n] = os.path.join(path, n)
     return found
