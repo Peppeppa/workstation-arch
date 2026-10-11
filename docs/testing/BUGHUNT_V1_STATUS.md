@@ -10,13 +10,38 @@ JSON) stays on the controlling machine (session scratchpad), not in Git.
 |---|---|
 | Branch / HEAD | bughunt-v1 / see `git log` |
 | Known-good | `5c60635` (main, deployed 2026-10-11 08:30, changed=0, HEALTHY) |
-| Completed groups | - |
-| Bugs found / fixed / deferred | - |
+| Completed groups | preflight, tier 1 static (linters + root helpers), tier 2/3 partial (see log) |
+| Bugs found / fixed / deferred | 3 / 3 / 2 cosmetic |
 | Deployment | not yet |
 | Session / SSH | unlocked, Coffee on / reachable (08:56) |
-| Next safe action | Tier 1 static review |
+| Next safe action | remaining tier 2/3 groups, then consolidated deployment |
 
 ## Log
+
+### 09:40 - tier 1 + first tier 2/3 groups
+
+- linters (scratchpad venv: shellcheck 0.x, pyflakes; rendered templates):
+  no real defect - SC1010 `done` as a string value, SC2088 `~` in a
+  message, unused variables (fixed with HC1).
+- static review of the root helpers (firewall-rules, snapshot-create,
+  snapshot-restore, pre-transaction hook, recovery-lib, system-update):
+  input validation strict, atomic writes, locks - no defect except below.
+- FIXED HC1 `6a55374` (mocked): healthcheck reported an imported theme's
+  own wallpaper as "file gone".
+- FIXED SU1 `bc5982f` (mocked): system-update skipped the boot image and
+  health checks when the step after pacman failed (set -e).
+- FIXED F1 (isolated integration test on the laptop): invalid text_size
+  in colors.json -> Fonts.size 0 (all shell text 0 px); now default 11.
+- not reproduced: interrupted checkupdates leaving a stale lock
+  (kill -9 mid-sync, private DB: next run rc 2) - no defect.
+- not a defect: FileView watch survives rename-replace x2, delete +
+  recreate, missing at start (isolated instance) - scratchpad safe.
+- real ThinkPad: helper parentage after RICE `env -u` (all direct children
+  of Hyprland), logout 08:22 without coredumps; GUI tier 3 20/20 (rapid
+  toggles, focus, theme switch / text size 18 with dialogs open, no QML
+  errors, same Quickshell pid); missing/malformed colors.json handled.
+- deferred (cosmetic): firewall-rules messages + factory labels German
+  while the UI is English (root helper; rules.json keeps user labels).
 
 ### 08:56 - preflight
 
