@@ -781,6 +781,20 @@ QtObject {
     // Design tokens (quickshell/Style.qml): values at text size 9 / 11 / 18,
     // relations, text fits its rows, the screen limit, and BarStyle keeping
     // its exact former values (RICE v1 phase 1 changes nothing visible).
+    // Fonts.sizeFrom: the theme data's text size, never 0 (Bug Hunt v1:
+    // text_size "huge" made the whole shell's text 0 px).
+    function fontsSize() {
+        const t = read("../templates/Fonts.qml.j2");
+        const f = make(t, "sizeFrom", {});
+        eq("text size: number", f(12, 11), 12);
+        eq("text size: numeric string", f("16", 11), 16);
+        eq("text size: garbage -> default", f("huge", 11), 11);
+        eq("text size: missing -> default", f(undefined, 11), 11);
+        eq("text size: null/0/empty -> default", [f(null, 11), f(0, 11), f("", 11)], [11, 11, 11]);
+        eq("text size: absurd -> default", [f(500, 11), f(-3, 11), f(true, 11)], [11, 11, 11]);
+        eq("text size: fraction rounded", f(12.4, 11), 12);
+    }
+
     function designTokens() {
         const st = read("quickshell/Style.qml");
         const props = [];
@@ -847,6 +861,7 @@ QtObject {
     }
 
     Component.onCompleted: {
+        fontsSize();
         designTokens();
         snapshotMode();
         powerMenu();

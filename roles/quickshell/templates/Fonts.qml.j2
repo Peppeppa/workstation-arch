@@ -27,8 +27,17 @@ Singleton {
     readonly property string icons: "{{ desktop_icon_font_family }}"
 
     readonly property int defaultSize: {{ desktop_ui_font_size }}
-    readonly property int size: Colors.data.text_size || defaultSize
+    readonly property int size: sizeFrom(Colors.data.text_size, defaultSize)
     readonly property real scale: size / defaultSize
+
+    // The text size from the theme data. The theme helper only writes its
+    // presets; anything that is not a sane number (a damaged or hand-edited
+    // colors.json) falls back to the default instead of 0, which made every
+    // shell text 0 px (Bug Hunt v1). Pure (tests).
+    function sizeFrom(v, fallback) {
+        const n = typeof v === "number" || typeof v === "string" ? Number(v) : NaN;
+        return Number.isFinite(n) && n >= 6 && n <= 48 ? Math.round(n) : fallback;
+    }
 
     // A size written for the default text size -> the current one.
     function px(n) {
