@@ -11,12 +11,29 @@ JSON) stays on the controlling machine (session scratchpad), not in Git.
 | Branch / HEAD | bughunt-v1 / see `git log` |
 | Known-good | `5c60635` (main, deployed 2026-10-11 08:30, changed=0, HEALTHY) |
 | Completed groups | preflight, tier 1 static (linters + root helpers), tier 2/3 partial (see log) |
-| Bugs found / fixed / deferred | 3 / 3 / 2 cosmetic |
+| Bugs found / fixed / deferred | 4 / 4 / 2 (cosmetic language, BT popup teardown suspicion) |
 | Deployment | not yet |
 | Session / SSH | unlocked, Coffee on / reachable (08:56) |
-| Next safe action | remaining tier 2/3 groups, then consolidated deployment |
+| Next safe action | consolidated deployment (dry run first) |
 
 ## Log
+
+### 10:05 - more tier 2/3
+
+- FIXED TH1 `7c0d967` (mocked): a wallpaper file name with a line break
+  (imported theme = foreign data) injected a key into theme-state.
+- coverage only (behaviour already correct): focus-or-launch failure paths
+  (tests/session-helpers.sh), pacman hook aborts in a snapshot boot.
+- static, no defect: wifi-qr escaping/payload, portal-login vs. the
+  Chromium policy keys, display-scale.lua writer (whitelisted names),
+  snapshot-boot skips a half-written info.xml, git-sync never discards,
+  screenshot.sh temp/trap handling, terminal argv (split) for launchers.
+- deferred (cosmetic): German text still in terminal diagnostics
+  (repo-logs, log analysis), screenshot notifications, firewall-rules
+  messages + factory labels.
+- suspected, not tested: Bluetooth popup open while the adapter vanishes
+  -> transient binding warnings during teardown (no functional effect
+  expected; needs a supervised adapter removal).
 
 ### 09:40 - tier 1 + first tier 2/3 groups
 
