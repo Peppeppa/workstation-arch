@@ -321,7 +321,6 @@ def theme_checks():
         check("theme registry", False, "theme status failed (rc %d)" % rc)
         return
     valid = {t["id"]: m for m in ("dark", "light") for t in st[m]}
-    dirs = sorted(d for d in os.listdir(THEMES_DIR) if not d.startswith(".") and os.path.isdir(os.path.join(THEMES_DIR, d)))
     names = [t["name"] for m in ("dark", "light") for t in st[m]]
     dupn = sorted({n for n in names if names.count(n) > 1})
     check("theme registry", not st["invalid"] and st["dark"] and st["light"] and not dupn,
@@ -333,8 +332,12 @@ def theme_checks():
         return
     bad = ["mode %r" % s["mode"]] if s["mode"] not in ("dark", "light") else []
     bad += ["%s=%r" % (m, s[m]) for m in ("dark", "light") if valid.get(s[m]) != m]
+    # bundled first, then a runtime import's compiled directory - the same two
+    # places the theme helper looks in (theme_dirs())
+    compiled = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.join(HOME, ".local", "share"),
+                            "workstation", "themes", "compiled")
     stale = ["%s:%s" % (t, f) for t, f in s.get("wallpapers", {}).items()
-             if t in valid and not os.path.isfile(os.path.join(THEMES_DIR, t, "backgrounds", f))]
+             if t in valid and not any(os.path.isfile(os.path.join(root, t, "backgrounds", f)) for root in (THEMES_DIR, compiled))]
     check("theme state", not bad, "invalid: " + ", ".join(bad) if bad else "dark=%s light=%s mode=%s" % (s["dark"], s["light"], s["mode"]))
     if stale:
         check("wallpaper choices", False, "file gone, first background used instead: " + ", ".join(stale), warn=True)

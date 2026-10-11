@@ -106,6 +106,7 @@ step "tests/system-update.sh" bash tests/system-update.sh
 step "tests/scratchpad-migrate.sh" bash tests/scratchpad-migrate.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
+step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
 step "tests/diaglib.py" python3 tests/diaglib.py
 step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py
 step "tests/system-rollback.sh" bash tests/system-rollback.sh
