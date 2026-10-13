@@ -1174,6 +1174,16 @@ history for that milestone's own record):
   Known: Anki reads light/dark only at its start.
   `docs/testing/RICE_OVERNIGHT_STATUS.md`.
 
+- **Bug Hunt v1 supervised integration tests** (laptop, 2026-10-13,
+  real-hardware-tested): first real update through the dialog (29 packages,
+  snapshot #48, healthy), pacman-lock refusal, snapshot boot #48 round trip
+  (overlay, old packages, pacman blocked, snapshot-mode UI, back to @),
+  polkit auth/cancel, hyprlock unlock. Fixed: BT1 (Bluetooth popup stuck open
+  after the adapter vanished); `system-update` now `pacman -Syu --noconfirm`
+  (user request). Finding P1: a polkit cancel adds a faillock entry
+  (upstream; for the security batch). Restore deferred. Controller:
+  `tests/supervised/`. `docs/testing/BUGHUNT_V1_SUPERVISED_REPORT.md`.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
