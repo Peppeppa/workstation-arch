@@ -44,8 +44,8 @@ PanelWindow {
             hiddenForAuth = true;
             visible = false;
         } else if (!busy && hiddenForAuth) {
+            visible = true;                    // first: the Loader stays active (content kept)
             hiddenForAuth = false;
-            visible = true;
         }
     }
 

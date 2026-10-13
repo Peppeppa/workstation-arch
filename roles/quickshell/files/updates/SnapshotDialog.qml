@@ -269,8 +269,8 @@ PanelWindow {
             }
             dlg.stage = "slots";
             if (dlg.hiddenForAuth) {
-                dlg.hiddenForAuth = false;
                 dlg.visible = true;
+                dlg.hiddenForAuth = false;
             }
             keys.forceActiveFocus();
             dlg.reload();
