@@ -78,6 +78,12 @@
   changed_when: "'created' in recovery_subvolumes.stdout"
   tags: recovery
 
+# /.snapshots is nosuid,nodev (Security Audit v1, S1): old snapshots keep
+# the SUID-root binaries of their day (sudo, pkexec, ...), and the directory
+# stays world-readable for `snapshot-boot slot-list` (info.xml as the user) -
+# a binary fixed by an update must not stay usable from a snapshot. Nothing
+# executes from /.snapshots; a snapshot BOOT mounts its snapshot as / via
+# rootflags, not through this mount. tests/recovery-mounts.py
 - name: Recovery - mount @snapshots at /.snapshots (+ @swap at /swap) (recovery_enabled)
   when: recovery_enabled and (item.when | default(true) | bool)
   become: true
@@ -87,10 +93,11 @@
     fstype: btrfs
     opts: >-
       {{ (recovery_root_fstab.stdout.split()[1].split(',')
-          | reject('match', '^subvol(id)?=') | list + ['subvol=/' ~ item.subvol]) | join(',') }}
+          | reject('match', '^subvol(id)?=') | list + ['subvol=/' ~ item.subvol]
+          + (item.extra | default([]))) | join(',') }}
     state: mounted
   loop:
-    - { path: /.snapshots, subvol: "@snapshots" }
+    - { path: /.snapshots, subvol: "@snapshots", extra: [nosuid, nodev] }
     - { path: /swap, subvol: "@swap", when: "{{ hibernate_enabled }}" }
   tags: recovery
 
