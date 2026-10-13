@@ -19,15 +19,27 @@
   loop: "{{ development_docker_units }}"
   tags: development
 
-# Membership in `docker` = access to the daemon socket without sudo (and
-# with it root-equivalent rights on this machine - the documented Docker
-# trade-off for a single-user workstation). Takes effect at the next login.
-- name: Add the invoking user to the docker group
+# No `docker` group membership (Security Hardening v1.1, S4): the group is
+# access to the daemon socket without a password, i.e. root on this machine
+# whenever Docker runs. Docker is administered with `sudo docker` (README
+# "Docker"). Earlier versions added the user, so it is taken out again -
+# only when a member (idempotent; ansible.builtin.user cannot drop a single
+# group). A running session keeps the group until the next login.
+- name: Read the docker group's members
+  ansible.builtin.getent:
+    database: group
+    key: docker
+    fail_key: false
+  tags: development
+
+- name: Take the invoking user out of the docker group (sudo docker instead)
+  when: >-
+    ansible_facts.user_id in
+    ((ansible_facts.getent_group | default({})).get('docker') or ['', '', ''])[2].split(',')
   become: true
-  ansible.builtin.user:
-    name: "{{ ansible_facts.user_id }}"
-    groups: docker
-    append: true
+  ansible.builtin.command:
+    argv: [gpasswd, --delete, "{{ ansible_facts.user_id }}", docker]
+  changed_when: true
   tags: development
 
 # ---- Python / Data Science environment (user level, no become) ----------

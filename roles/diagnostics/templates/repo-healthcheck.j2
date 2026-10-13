@@ -30,8 +30,10 @@
 # is never a failure.
 
 import glob
+import grp
 import json
 import os
+import pwd
 import re
 import subprocess
 import sys
@@ -269,10 +271,27 @@ def security_checks():
     boot = [u for u in ("docker.service", "docker.socket", "containerd.service")
             if run(["systemctl", "is-enabled", "-q", u])[0] == 0]
     check("docker on demand", not boot, "enabled at boot: " + ", ".join(boot) if boot else "not started at boot")
+    try:
+        g = grp.getgrnam("docker")
+        ok, warn, detail = docker_group_status(pwd.getpwuid(os.getuid()).pw_name, g.gr_mem, g.gr_gid, os.getgroups())
+    except KeyError:
+        ok, warn, detail = True, False, "no docker group"
+    check("docker access", ok, detail, warn=warn)
     accept = [p for p in glob.glob("/proc/sys/net/ipv[46]/conf/*/accept_redirects")
               if open(p).read().strip() != "0"]
     check("ICMP redirects", not accept, "accepted on: " + ", ".join(p.split("/")[-3] + "/" + p.split("/")[4] for p in accept)
           if accept else "not accepted (IPv4 + IPv6, every interface)")
+
+
+def docker_group_status(user, members, gid, session_gids):
+    """Security Hardening v1.1, S4: the desktop user is not in `docker` (that
+    group is root without a password while Docker runs); `sudo docker`
+    instead. -> (ok, warn, detail)"""
+    if user in members:
+        return False, False, "%s is in the docker group (= root while Docker runs) - roles/development removes it" % user
+    if gid in session_gids:
+        return False, True, "removed from the docker group; this login session still has it until the next login"
+    return True, False, "not in the docker group - Docker via sudo"
 
 
 def _auth_lines(text):

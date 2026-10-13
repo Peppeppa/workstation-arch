@@ -29,5 +29,15 @@ for name, args, want in [
     if got != want:
         fails += 1
         print("FAIL", name, got)
+# docker access (Security Hardening v1.1, S4)
+for name, args, want in [
+        ("not a member, session clean -> PASS", ("me", ["alice"], 960, [1000, 998]), (True, False)),
+        ("member in the account database -> FAIL", ("me", ["me"], 960, [1000]), (False, False)),
+        ("removed, session still has the gid -> WARN", ("me", [], 960, [1000, 960]), (False, True)),
+]:
+    got = m.docker_group_status(*args)[:2]
+    if got != want:
+        fails += 1
+        print("FAIL docker:", name, got)
 print("healthcheck-polkit-pam: all checks passed" if not fails else "healthcheck-polkit-pam: %d FAILED" % fails)
 sys.exit(1 if fails else 0)
