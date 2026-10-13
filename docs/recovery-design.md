@@ -248,7 +248,7 @@ system-update
                    PRE snapshot + clone + entry) BEFORE pacman touches anything
   4 snapshot       (step 3's: class auto=pre-transaction, userdata update=<id>;
                    the pacman hook skips its own for this pacman -Syu)
-  5 pacman -Syu    (interactive, as today; mkinitcpio hooks rebuild the UKI)
+  5 pacman -Syu --noconfirm (no Y/n question since 2026-10-13; mkinitcpio hooks rebuild the UKI)
   6 (no post snapshot since 2026-10-08 - the pre-transaction snapshot is the recovery point)
   7 checks         pacman exit code; UKI exists and is newer than the kernel;
                    bootctl/ESP sanity

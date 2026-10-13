@@ -11,7 +11,9 @@
 #                       its own for this update), the booted UKI stored for
 #                       it - the boot menu offers it as "Snapshot (before
 #                       update) <date> - system-update ..." (snapshot-boot)
-#   4 pacman -Syu       interactive, as always
+#   4 pacman -Syu       --noconfirm: no Y/n question (the user asked for it
+#                       2026-10-13); pacman still aborts on its own on a
+#                       conflict, since its default answer there is No
 #   5 UKI sanity, repo-healthcheck --since <start> (no post snapshot)
 #
 # Never rolls back by itself: a failure leaves diagnostics and the choices
@@ -107,7 +109,7 @@ fi
 
 say "pacman -Syu"
 set +e
-sudo pacman -Syu
+sudo pacman -Syu --noconfirm
 pacman_rc=$?
 set -e
 

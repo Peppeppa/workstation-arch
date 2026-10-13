@@ -9,7 +9,7 @@
 //   2 "Update the system?"  No (preselected) / Yes
 //   3 Yes: system-update --ui in the terminal, as a transient user unit
 //     (`systemd-run --user --unit=workstation-system-update`) - sudo, the
-//     pre-update snapshot (recovery slot), the interactive `pacman -Syu`, the
+//     pre-update snapshot (recovery slot), `pacman -Syu --noconfirm`, the
 //     checks and the result all happen there. The dialog closes (the terminal
 //     needs the keyboard); closing it never stops the update - the unit is not
 //     Quickshell's child. A second start is refused (unit already active +
@@ -309,7 +309,7 @@ PanelWindow {
         DialogText {
             visible: dlg.stage === "confirm"
             kind: "hint"
-            text: "Yes opens the terminal: sudo password, snapshot before the update, then pacman -Syu (interactive). No automatic reboot."
+            text: "Yes opens the terminal: sudo password, snapshot before the update, then pacman -Syu (no Y/n question). No automatic reboot."
         }
 
         DialogText {

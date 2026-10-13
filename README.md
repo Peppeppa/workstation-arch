@@ -428,7 +428,7 @@ On a host with `recovery_enabled: true` (Btrfs + systemd-boot + UKI, see
 `docs/recovery-design.md`) update with `system-update` instead of a bare
 `sudo pacman -Syu`: it checks free space/ESP/battery and health first,
 takes the pre-update snapshot (bootable from the menu, see below), runs
-`pacman -Syu`, then checks the boot image and health again. It never rolls
+`pacman -Syu --noconfirm` (no Y/n question), then checks the boot image and health again. It never rolls
 back by itself.
 
 ```sh

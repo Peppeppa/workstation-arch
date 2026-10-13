@@ -62,7 +62,7 @@ run() { # args... -> $rc, $out; log fresh
 run --ui
 ok "update: exit 0" '[ "$rc" -eq 0 ]'
 ok "update: snapshot before pacman" '[ "$(grep -nE "^root pre |^pacman" "$log" | cut -d: -f2 | cut -c1-8 | tr "\n" " ")" = "root pre pacman - " ]'
-ok "update: full -Syu, nothing else" 'grep -qx "pacman -Syu" "$log"'
+ok "update: full -Syu without the Y/n question, nothing else" 'grep -qx "pacman -Syu --noconfirm" "$log"'
 ok "update: ui finished 0 42" 'grep -qx "qs ipc --any-display call updates finished 0 42" "$log"'
 ok "update: result names the snapshot" 'grep -q "Pre-update snapshot: 42" <<<"$out"'
 
