@@ -838,8 +838,9 @@ history for that milestone's own record):
   for both Ghostty and Quickshell (`host_vars/arch-dev.yml`,
   `hyprland_terminal` / `hyprland_quickshell_cmd`) - the same
   `wl_surface.attach` failure class already documented for zathura/imv/
-  mpv above, root-caused via the `scripts/diagnose-quickshell-autostart.sh`
-  diagnostic added for this investigation. `laptop`/`workstation` are
+  mpv above, root-caused via a one-off diagnostic script added for this
+  investigation (removed in Code Consolidation v1, see git history).
+  `laptop`/`workstation` are
   unaffected (real GPUs) and keep the plain defaults.
 - **Feature Architecture v1**: see the new "Feature Architecture"
   section above and `docs/feature-architecture.md`. `screenshots_enabled`
