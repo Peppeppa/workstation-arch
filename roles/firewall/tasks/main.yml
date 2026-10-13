@@ -42,24 +42,30 @@
   tags: firewall
 
 # The helper first: the unit's ExecStart runs `firewall-rules restore`.
-- name: Deploy the firewall-rules helper
+- name: Deploy the firewall-rules helper and its read-only firewall-status
   become: true
   ansible.builtin.template:
-    src: firewall-rules.j2
-    dest: "{{ firewall_helper }}"
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
     owner: root
     group: root
     mode: "0755"
+  loop:
+    - { src: firewall-rules.j2, dest: "{{ firewall_helper }}" }
+    - { src: firewall-status.j2, dest: "{{ firewall_status_helper }}" }
   tags: firewall
 
-- name: Deploy the polkit action for the firewall-rules helper
+- name: Deploy the polkit actions (change = password, read = active session)
   become: true
   ansible.builtin.template:
-    src: firewall.policy.j2
-    dest: /usr/share/polkit-1/actions/{{ firewall_polkit_action }}.policy
+    src: "{{ item.src }}"
+    dest: /usr/share/polkit-1/actions/{{ item.action }}.policy
     owner: root
     group: root
     mode: "0644"
+  loop:
+    - { src: firewall.policy.j2, action: "{{ firewall_polkit_action }}" }
+    - { src: firewall-status.policy.j2, action: "{{ firewall_status_polkit_action }}" }
   tags: firewall
 
 # Can nftables run in THIS kernel? Not when this very run's pacman -Syu

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Managed by Ansible (roles/firewall) - do not edit by hand.
+#
+# firewall-status: `firewall-rules list` and nothing else - the read-only
+# half of Settings -> Firewall. Its own polkit action
+# ({{ firewall_status_polkit_action }}) lets the active session read the
+# rules without a password; every change goes through
+# {{ firewall_helper }} and its password-protected action. Takes no
+# arguments, so nothing a caller passes can reach the helper.
+[ $# -eq 0 ] || { echo "usage: firewall-status (no arguments)" >&2; exit 2; }
+exec {{ firewall_helper }} list

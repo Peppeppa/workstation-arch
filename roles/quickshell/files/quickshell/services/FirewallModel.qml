@@ -3,10 +3,13 @@
 //
 // The QML side of the ONE implementation, the root helper
 // /usr/local/libexec/workstation/firewall-rules (roles/firewall), run as
-// `pkexec <helper> <verb> <args...>` - argv, never a shell string; polkit
-// lets the active local session run exactly that helper without a
-// password. The helper validates everything itself; the checks here only
-// give feedback before a click.
+// `pkexec <helper> <verb> <args...>` - argv, never a shell string. Every
+// change needs the administrator password (polkit auth_admin_keep: asked
+// once, kept ~5 minutes for this Quickshell process); a cancelled or failed
+// prompt runs nothing. The list is read through firewall-status (a fixed
+// `firewall-rules list`, its own passwordless polkit action). The helper
+// validates everything itself; the checks here only give feedback before a
+// click.
 //
 // The rules are ALL ports this firewall opens: the factory rules (DHCP,
 // DHCPv6, LocalSend x2, SSH - `fixed`: port/protocol bound to their
@@ -26,6 +29,7 @@ Scope {
     id: model
 
     readonly property string helper: "/usr/local/libexec/workstation/firewall-rules"
+    readonly property string statusHelper: "/usr/local/libexec/workstation/firewall-status"
 
     // [{label, port, protocol, enabled, active, match, fixed}]
     property var rules: []
@@ -94,7 +98,7 @@ Scope {
     // authentication; anything else is the helper's "firewall-rules: ...".
     function message(code, stderr) {
         if (code === 126 || code === 127)
-            return "Not authorized to change the firewall (polkit).";
+            return "Not authorized - the firewall was not changed.";
         return stderr.trim().split("\n")[0].replace(/^firewall-rules: /, "")
             || "failed (exit " + code + ")";
     }
@@ -105,7 +109,7 @@ Scope {
 
     Process {
         id: listProc
-        command: ["pkexec", model.helper, "list"]
+        command: ["pkexec", model.statusHelper]
         stdout: StdioCollector { id: listOut }
         stderr: StdioCollector { id: listErr }
         onExited: exitCode => {

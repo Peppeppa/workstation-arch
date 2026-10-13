@@ -50,12 +50,14 @@ def render(src, dst, fix=lambda s: s):
     text = env.from_string(open(role + "/templates/" + src).read()).render(**v)
     open(dst, "w").write(fix(text))
 render("firewall.nft.j2", tmp + "/firewall.nft")
+v["firewall_helper"] = tmp + "/firewall-rules"
+render("firewall-status.j2", tmp + "/firewall-status")
 render("firewall-rules.j2", tmp + "/firewall-rules",
        lambda s: s.replace('"/run/lock/workstation-firewall.lock"', repr(tmp + "/lock"))
                   .replace('NFT = "/usr/bin/nft"', "NFT = " + repr(tmp + "/nft"))
                   .replace("#!/usr/bin/python3 -I", "#!/usr/bin/env -S python3 -I"))
 EOF
-chmod +x "$tmp/firewall-rules"
+chmod +x "$tmp/firewall-rules" "$tmp/firewall-status"
 H="$tmp/firewall-rules"
 S="$tmp/state/rules.json"
 
@@ -69,6 +71,16 @@ nft add table ip filter && nft add chain ip filter DOCKER
 nft list chain ip filter DOCKER >/dev/null 2>&1; check "restore leaves other tables (Docker's) alone" $?
 "$H" restore; check "restore again (reload, idempotent)" $?
 chain() { nft list chain inet workstation repo_rules; }
+
+# ---- firewall-status: the passwordless read path is `list` and nothing else --
+[ "$("$tmp/firewall-status")" = "$("$H" list)" ]; check "firewall-status = firewall-rules list" $?
+k0=$(chain); s0=$(cat "$S" 2>/dev/null)
+for args in "add x 4444 tcp" "enable 22 tcp" "disable 22 tcp" "reset" "list" "remove 22 tcp"; do
+    # shellcheck disable=SC2086
+    "$tmp/firewall-status" $args >/dev/null 2>&1; rc=$?
+    [ $rc -eq 2 ] && [ "$k0" = "$(chain)" ] && [ "$s0" = "$(cat "$S" 2>/dev/null)" ]
+    check "firewall-status refuses arguments ('$args'), kernel + state unchanged" $?
+done
 lst() { "$H" list | python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 [ "$(lst '[(x["label"], x["protocol"], x["port"], x["enabled"], x["active"]) for x in d["rules"]]')" = \
   "[('DHCP', 'UDP', 68, True, True), ('DHCPv6', 'UDP', 546, True, True), ('LocalSend – Geräteerkennung', 'UDP', 53317, True, True), ('LocalSend – Dateiübertragung', 'TCP', 53317, True, True), ('SSH', 'TCP', 22, True, True)]" ]

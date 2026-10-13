@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Managed by Ansible (roles/firewall) - do not edit by hand.
+     The Firewall window reads its rule list (desired state + what is live in
+     the kernel - nft needs root) through `pkexec {{ firewall_status_helper }}`:
+     a fixed `firewall-rules list` that takes no arguments, so this action can
+     never change anything. The ACTIVE local session runs it without a
+     password; remote (SSH) or inactive sessions need administrator
+     authentication. Changes: {{ firewall_polkit_action }} (password). -->
+<policyconfig>
+  <action id="{{ firewall_status_polkit_action }}">
+    <description>Read the workstation firewall's port rules</description>
+    <message>Authentication is required to read the firewall rules</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">{{ firewall_status_helper }}</annotate>
+  </action>
+</policyconfig>

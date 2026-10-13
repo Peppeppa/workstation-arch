@@ -22,6 +22,7 @@ PanelWindow {
     property bool addOpen: false            // "Add" dialog (AddRule.qml)
 
     function open() {
+        if (hiddenForAuth) return;             // the polkit prompt is up - do not cover it
         addOpen = false;
         visible = true;
     }
@@ -30,6 +31,23 @@ PanelWindow {
     // closing destroys the content and with it the helper's Process. Every
     // close path (Escape, click outside, Super+Q, another popup) comes here.
     readonly property bool busy: content.item !== null && content.item.model.busy
+
+    // A change needs the administrator password (polkit auth_admin_keep,
+    // Security Hardening v1.1, S3-A): while it runs the window is hidden -
+    // this overlay would sit over the polkit agent's window and keep the
+    // keyboard - but its content (and the helper's Process) stays loaded;
+    // it comes back with the result. Within polkit's ~5 min no prompt
+    // appears and the window is gone only for the helper's run.
+    property bool hiddenForAuth: false
+    onBusyChanged: {
+        if (busy && visible) {
+            hiddenForAuth = true;
+            visible = false;
+        } else if (!busy && hiddenForAuth) {
+            hiddenForAuth = false;
+            visible = true;
+        }
+    }
 
     function close() {
         if (busy) return;
@@ -74,7 +92,7 @@ PanelWindow {
     Loader {
         id: content
         anchors.fill: parent
-        active: win.visible
+        active: win.visible || win.hiddenForAuth
         sourceComponent: FirewallContent {
             window: win
             fontSize: win.fontSize
@@ -96,10 +114,10 @@ PanelWindow {
             win.close();
         }
 
-        // {visible, add, busy, error, dialogError, rules: [...]}
+        // {visible, hiddenForAuth, add, busy, error, dialogError, rules: [...]}
         function state(): string {
             const c = content.item;
-            return JSON.stringify({ visible: win.visible, add: win.addOpen,
+            return JSON.stringify({ visible: win.visible, hiddenForAuth: win.hiddenForAuth, add: win.addOpen,
                                     busy: c ? c.model.busy : false,
                                     error: c ? c.model.errorText : "",
                                     dialogError: c ? c.dialogMessage() : "",

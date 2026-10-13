@@ -23,7 +23,13 @@ firewall_table: workstation
 firewall_ruleset: /etc/workstation/firewall.nft
 
 # Settings -> Firewall: the root helper behind it (pkexec, polkit action
-# below) and its state - the user's LAN sharing rules.
+# below) and its state - the user's LAN sharing rules. Changes need the
+# administrator password (auth_admin_keep: polkit keeps it ~5 min for the
+# calling process); reading the list goes through firewall-status, a
+# fixed `firewall-rules list` with its own passwordless action (Security
+# Hardening v1.1, S3-A).
 firewall_helper: /usr/local/libexec/workstation/firewall-rules
 firewall_state_dir: /var/lib/workstation/firewall
 firewall_polkit_action: org.workstation.firewall.manage
+firewall_status_helper: /usr/local/libexec/workstation/firewall-status
+firewall_status_polkit_action: org.workstation.firewall.status
