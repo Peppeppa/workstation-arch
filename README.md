@@ -540,8 +540,11 @@ boot (system-update makes no new ones); it still boots its saved system
   new snapshot is made and checked first, the old one is deleted only after
   that; a failure leaves the slot as it was. **✕**: "Delete the snapshot?" with
   name and date, Cancel preselected. Keys: Up/Down, Enter, Delete,
-  Escape. The active desktop session may do exactly this without a password
-  (polkit `org.workstation.snapshot.create`), nothing else.
+  Escape. Creating into an empty slot needs no password in the active desktop
+  session (polkit `org.workstation.snapshot.create`); **Overwrite** and **✕**
+  remove a snapshot and ask for your password (polkit
+  `org.workstation.snapshot.delete`, kept ~5 minutes) - the dialog steps aside
+  while the password prompt is up; Cancel there leaves the slot unchanged.
 
 What a snapshot contains: the system subvolume `@` (`/`, incl. `/etc`,
 `/usr`, `/var/lib` - pacman's database) only. **Not** in it: `@home`
@@ -608,13 +611,17 @@ left in place.)
 ## Docker (on demand)
 
 Docker is installed (`roles/development`) but never runs by itself - no
-daemon, no socket, no containerd at boot. Your user is in the `docker`
-group (after the next login), so `docker` works without sudo while the
-daemon runs.
+daemon, no socket, no containerd at boot. Docker is used with **sudo**: your
+user is deliberately not in the `docker` group (that group can reach the
+daemon without a password, i.e. it is root on this machine whenever Docker
+runs). The bootstrap takes the user out of the group if an earlier version
+added it; a running session keeps the group until you log out and in again
+(`repo-healthcheck` "docker access" says so). Shell aliases or tools that
+call `docker` / `lazydocker` directly need `sudo` in front.
 
 ```sh
 sudo systemctl start docker                                        # start (socket, daemon, containerd)
-docker compose up -d                                               # ... work ...
+sudo docker compose up -d                                          # ... work ...
 sudo systemctl stop docker.socket docker.service containerd.service   # stop everything again
 systemctl is-active docker docker.socket containerd                 # check: inactive x3
 ```
@@ -786,10 +793,17 @@ desktop is unusable: log in on a text console (Ctrl+Alt+F3) and run
 standard rules), or `sudo systemctl stop workstation-firewall` (removes the
 table: no inbound filtering until the next boot / `systemctl start`).
 
+Every change (add, edit, enable, disable, remove, reset) asks for your
+password (polkit `org.workstation.firewall.manage`, kept ~5 minutes, so a
+series of edits asks once); the window steps aside while the prompt is up
+and comes back with the result - Cancel changes nothing. Reading the list
+needs no password.
+
 CLI (what the window runs):
-`pkexec /usr/local/libexec/workstation/firewall-rules list` (also `add
-<label> <port> <tcp|udp>`, `edit <port> <tcp|udp> <label> <port> <tcp|udp>`,
-`enable|disable|remove <port> <tcp|udp>`, `reset`);
+`pkexec /usr/local/libexec/workstation/firewall-status` (the list, no
+password), `pkexec /usr/local/libexec/workstation/firewall-rules add
+<label> <port> <tcp|udp>` (also `edit <port> <tcp|udp> <label> <port>
+<tcp|udp>`, `enable|disable|remove <port> <tcp|udp>`, `reset`; password);
 the full ruleset: `sudo nft list table inet workstation`.
 
 SSH: inbound logins are public-key only on every host (no passwords, no

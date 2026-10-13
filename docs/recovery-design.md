@@ -576,8 +576,11 @@ IPC, keeps the terminal open) and `--no-snapshot` (the only way past a
 failed pre-update snapshot: exit 3 = only the snapshot failed, nothing
 changed; with the option the hook's skip marker is set and the decision is
 logged with `logger -t system-update`), plus a flock (one run at a time).
-`snapshot-create` (pkexec, polkit `org.workstation.snapshot.create`) is the
-desktop's Create Snapshot - a validated label into `system-snapshot`.
+`snapshot-create` (pkexec, polkit `org.workstation.snapshot.create`, no
+password in the active session) is the desktop's Create Snapshot into an
+empty slot; the same file installed as `snapshot-delete`
+(`org.workstation.snapshot.delete`, administrator password, kept ~5 min)
+overwrites or deletes a manual snapshot (Security Hardening v1.1, S3-B).
 `workstation-checkupdates` feeds the bar's update icon. Details:
 `docs/feature-architecture.md` "System updates".
 
@@ -692,7 +695,8 @@ carry the same slot (an interrupted overwrite); the next change of that
 slot removes the other, the healthcheck warns meanwhile.
 
 **Overwrite / create** (`snapshot-boot slot-set S LABEL [--replace N]`, root;
-the dialog through `pkexec snapshot-create set ...`):
+the dialog through `pkexec snapshot-create set S LABEL` (create, no password) or
+`pkexec snapshot-delete replace S N LABEL` (overwrite, password)):
 1. refuse unless booted normally; an occupied slot only with `--replace` =
    the number the user saw and confirmed (else "holds snapshot X");
 2. remove leftovers of an interrupted run (`mslot-new=S`), store the UKI;
