@@ -29,3 +29,18 @@ repository adds no group (only shell aliases `d`, `dc`, `lzd` that will need
 sudo - the user's dotfiles, not changed).
 
 ## Log
+
+### 00:45 - implemented, tested, deployed (branch hardening-v1.1)
+
+- commits `b08e895` S3-A firewall, `2b8f2b3` S3-B snapshots, `0342689` S4
+  docker, `48b1942` privilege-matrix test + docs.
+- tests: tests/run.sh all passed (new: tests/privileges.py; extended:
+  tests/firewall.sh, tests/system-update.sh, tests/qml-logic.qml,
+  tests/healthcheck-polkit-pam.py); each new check failed before its change.
+- dry run: pacman DB sync, the two helpers, four policies, Quickshell
+  (SnapshotDialog, FirewallModel/Window, shell.qml), repo-healthcheck; no
+  ruleset/unit/sshd/PAM/boot change, no firewall reload handler.
+- deploy: run 1 changed=10, run 2 changed=0; Quickshell reloaded in place
+  (pid 1502). Live state vs. before: nft ruleset hash, rules.json, snapper
+  list, boot entries, Docker data + units identical; `docker` group now
+  empty; new firewall-status / snapshot-delete + their actions present.
