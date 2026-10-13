@@ -101,7 +101,8 @@ answer with the same host key.
 
 ## 10. Authentication findings
 
-- **P1 (medium, upstream behaviour, not changed)**: Escape in the
+- **P1 - fixed afterwards** (`c6960fa`, docs/testing/POLKIT_PAM_P1_REPORT.md;
+  root cause: polkit 127's socket-activated helper). Original finding: Escape in the
   hyprpolkitagent dialog ends the PAM conversation empty ->
   `pam_authenticate failed` and **one `pam_faillock` entry per cancel**.
   With the Arch defaults (deny=3 in 15 min, unlock 10 min), three cancels -

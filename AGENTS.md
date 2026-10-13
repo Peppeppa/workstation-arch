@@ -115,6 +115,7 @@ direct upstream dependency.
 | Network administration (VPN profiles, static IP, DNS, 802.1X) | `nm-connection-editor` (roles/network), on demand from the OS menu - the bar's network popup is quick control only; no nm-applet |
 | Notifications (`org.freedesktop.Notifications`) | Quickshell `NotificationServer` (`Notifications.qml`, feature `notifications`) - mako retired and uninstalled (its D-Bus activation file would otherwise start a second daemon) |
 | Polkit authentication agent | hyprpolkitagent (session lifecycle, started once by Hyprland) |
+| polkit's PAM stack (`/etc/pam.d/polkit-1`) | `roles/desktop` (`files/polkit-1.pam`): system-auth's auth section + `authtok_err=die` on pam_unix, so a cancelled polkit dialog is not a faillock failure (P1, docs/testing/POLKIT_PAM_P1_REPORT.md); repo-healthcheck "polkit PAM stack" watches drift from system-auth |
 | Screen sharing / screenshot portal | xdg-desktop-portal-hyprland |
 | File chooser / settings portal | xdg-desktop-portal-gtk |
 | Idle handling, lock-on-sleep (logind Lock/PrepareForSleep) | hypridle (session lifecycle, started once by Hyprland; feature `lock_idle`) |
@@ -1180,8 +1181,10 @@ history for that milestone's own record):
   (overlay, old packages, pacman blocked, snapshot-mode UI, back to @),
   polkit auth/cancel, hyprlock unlock. Fixed: BT1 (Bluetooth popup stuck open
   after the adapter vanished); `system-update` now `pacman -Syu --noconfirm`
-  (user request). Finding P1: a polkit cancel adds a faillock entry
-  (upstream; for the security batch). Restore deferred. Controller:
+  (user request). Finding P1: a polkit cancel added a faillock entry
+  (polkit 127 socket helper) - fixed the same day (`/etc/pam.d/polkit-1`,
+  real-hardware-tested, docs/testing/POLKIT_PAM_P1_REPORT.md). Restore
+  deferred. Controller:
   `tests/supervised/`. `docs/testing/BUGHUNT_V1_SUPERVISED_REPORT.md`.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
