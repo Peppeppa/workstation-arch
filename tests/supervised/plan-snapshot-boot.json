@@ -1,0 +1,29 @@
+{
+ "comment": "Bug Hunt v1 supervised: boot a snapshot from systemd-boot (one-shot), verify snapshot mode, return to the normal boot. vars: snap = snapper number, old_pkg / new_pkg = a package version that differs between the snapshot and @. Every reboot needs the local LUKS unlock.",
+ "vars": {"snap": "48", "old_pkg": "chromium 153.0.8010.52-1", "new_pkg": "chromium 154.0.8037.97-1"},
+ "ssh_policy": {"grace": 120, "window": 900, "interval": 10},
+ "tests": {
+  "D1-pre": {"title": "preconditions on the normal boot", "steps": [
+   {"name": "normal boot on @, new package", "cmd": "grep -c workstation.snapshot= /proc/cmdline; findmnt -no FSTYPE,OPTIONS / ; pacman -Q chromium", "expect_rc": 0, "expect_re": "^0\\n[\\s\\S]*subvol=/@(,|$)[\\s\\S]*{new_pkg}"},
+   {"name": "boot id", "cmd": "cat /proc/sys/kernel/random/boot_id", "capture": "boot_id"},
+   {"name": "entry, UKI copy, read-only snapshot, default entry", "sudo": true, "timeout": 60, "cmd": "set -e; e=/boot/loader/entries/workstation-snapshot-{snap}.conf; grep -q 'workstation.snapshot={snap}' $e; u=$(awk '$1==\"uki\"{print $2}' $e); test -f /boot$u; btrfs property get -ts /.snapshots/{snap}/snapshot ro | grep -q true; grep -E '^default' /boot/loader/loader.conf; bootctl list --no-pager | grep -A2 'default' | head -3; echo PRECHECK-OK", "expect_re": "PRECHECK-OK"}
+  ]},
+  "D1-boot": {"title": "one-shot snapshot boot", "requires": ["D1-pre"], "steps": [
+   {"name": "set one-shot + reboot", "sudo": true, "destructive": true, "expect_disconnect": true, "timeout": 60, "cmd": "bootctl set-oneshot workstation-snapshot-{snap}.conf && sleep 1 && systemctl reboot"},
+   {"kind": "note", "text": "ACTION REQUIRED: unlock LUKS on the test laptop (boot goes straight to the snapshot entry)"},
+   {"kind": "wait_ssh", "initial_delay": 40, "timeout": 1800, "interval": 10, "require_new_boot": true},
+   {"name": "snapshot mode: cmdline, overlay root, old package", "cmd": "grep -o 'workstation.snapshot=[0-9]*' /proc/cmdline; findmnt -no FSTYPE /; pacman -Q chromium", "expect_re": "workstation.snapshot={snap}\\noverlay\\n{old_pkg}"},
+   {"name": "pacman transaction blocked", "sudo": true, "timeout": 120, "cmd": "pacman -S --noconfirm fzf; echo pacman-rc=$?", "expect_re": "pacman-rc=[1-9]"},
+   {"name": "Ly login (password typed via uinput)", "sudo": true, "secret_to_cmd": true, "timeout": 120, "cmd": "faillock --user medvidec | tail -n +3 | grep -c . | grep -qx 0 || { echo faillock-not-empty; exit 5; }; sleep 5; python3 /home/medvidec/.cache/testctl-uinput.py type-stdin; for i in $(seq 45); do pgrep -x quickshell >/dev/null && break; sleep 2; done; pgrep -xc quickshell"},
+   {"name": "snapshot-mode strip + IPC", "timeout": 120, "cmd": ". ~/.cache/testctl-henv.sh; sleep 8; qs ipc --any-display call snapshotmode state; hyprctl -j layers | grep -o 'quickshell-snapshotmode-strip' | head -1", "expect_re": "\"active\":true,\"number\":\"?{snap}\"?[\\s\\S]*quickshell-snapshotmode-strip"}
+  ]},
+  "D1-return": {"title": "back to the normal boot", "requires": ["D1-boot"], "steps": [
+   {"name": "end session + reboot (default entry)", "sudo": true, "destructive": true, "expect_disconnect": true, "timeout": 60, "cmd": "sudo -u medvidec bash -c '. ~/.cache/testctl-henv.sh; hyprctl dispatch \"hl.dsp.exit()\"' ; sleep 6; systemctl reboot"},
+   {"kind": "note", "text": "ACTION REQUIRED: unlock LUKS on the test laptop (normal boot)"},
+   {"kind": "wait_ssh", "initial_delay": 40, "timeout": 1800, "interval": 10, "require_new_boot": true},
+   {"name": "normal boot on @, new package", "cmd": "grep -c workstation.snapshot= /proc/cmdline; findmnt -no FSTYPE,OPTIONS / ; pacman -Q chromium", "expect_rc": 0, "expect_re": "^0\\n[\\s\\S]*subvol=/@(,|$)[\\s\\S]*{new_pkg}"},
+   {"name": "Ly login (password typed via uinput)", "sudo": true, "secret_to_cmd": true, "timeout": 120, "cmd": "faillock --user medvidec | tail -n +3 | grep -c . | grep -qx 0 || { echo faillock-not-empty; exit 5; }; sleep 5; python3 /home/medvidec/.cache/testctl-uinput.py type-stdin; for i in $(seq 45); do pgrep -x quickshell >/dev/null && break; sleep 2; done; pgrep -xc quickshell"},
+   {"name": "healthcheck", "timeout": 120, "cmd": ". ~/.cache/testctl-henv.sh; sleep 10; repo-healthcheck | tail -3", "expect_re": "HEALTHY"}
+  ]}
+ }
+}
