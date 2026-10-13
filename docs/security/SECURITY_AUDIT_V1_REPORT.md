@@ -44,8 +44,8 @@ commits).
 |----|----------|-----------|---------|--------|
 | S1 | MEDIUM | recovery (/.snapshots mount) | old SUID-root binaries in snapshots executable with root rights (no `nosuid`, directory 0755) | **FIXED** (deployed) |
 | S2 | LOW | theme helper | validators used `re.match` with `$`: a trailing newline passed and broke generated Lua (DoS of theme/Neovim/Hyprland config) | **FIXED** (deployed) |
-| S3 | MEDIUM | polkit actions firewall.manage, snapshot.create | active session runs them without a password: a malicious user process can open inbound ports or replace/delete the manual recovery snapshots silently | **OPEN - user decision** (documented design choice) |
-| S4 | MEDIUM | docker group membership | while Docker runs, any user process gets root without a password (`docker run -v /:/host`) | **OPEN - user decision** (Docker is on demand, disabled at boot) |
+| S3 | MEDIUM | polkit actions firewall.manage, snapshot.create | active session runs them without a password: a malicious user process can open inbound ports or replace/delete the manual recovery snapshots silently | **FIXED** in Hardening v1.1 (firewall changes + snapshot overwrite/delete need the password) |
+| S4 | MEDIUM | docker group membership | while Docker runs, any user process gets root without a password (`docker run -v /:/host`) | **FIXED** in Hardening v1.1 (user removed; `sudo docker`; takes full effect after the next login) |
 | S5 | LOW | sshd | TCP / agent / stream-local forwarding allowed (only for the key holder) | DEFERRED (SSH change needs approval; low value) |
 | S6 | LOW | firewall | one rule set for every network: SSH 22 and LocalSend 53317 open on public Wi-Fi too | ACCEPTED (key-only SSH; LocalSend only while the app runs, asks per transfer) - zone-specific rules would be a feature |
 | S7 | INFORMATIONAL | boot chain | Secure Boot off, no TPM2, unencrypted ESP, loader editor enabled: evil-maid tampering possible with physical access | ACCEPTED (needs own SB keys - separate supervised hardware batch) |

@@ -44,3 +44,17 @@ sudo - the user's dotfiles, not changed).
   (pid 1502). Live state vs. before: nft ruleset hash, rules.json, snapper
   list, boot entries, Docker data + units identical; `docker` group now
   empty; new firewall-status / snapshot-delete + their actions present.
+
+### 00:32-01:05 - live tests, fix, final deployment
+
+- real GUI tests through hyprpolkitagent: firewall (cancel x3, one wrong
+  password, correct password, cached re-enable, expiry after ~5 min, reopen
+  during the prompt), snapshot dialog (list, delete -> cancel, overwrite ->
+  cancel), passwordless create path (`set 4 x` reached the helper), close
+  policy 8/8, lock/unlock. No snapshot deleted; faillock 0 at the end.
+- defect found and fixed `697dae7` (hide/restore order recreated the
+  firewall content).
+- incidents (recovered): old main deployed ~10 min after a failed
+  `git switch`; Docker started by `sudo docker version` (ip_forward /
+  accept_redirects restored); see the report section 7.
+- final: main `b75a76b` deployed, changed=9 then 0; HEALTHY; no reboot.
