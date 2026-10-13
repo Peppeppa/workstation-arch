@@ -249,8 +249,10 @@
   notify: Reload running Quickshell config
   tags: quickshell
 
-- name: Ensure ~/.local/libexec/workstation exists (bluetooth_enabled)
-  when: bluetooth_enabled
+# Feature helpers (bluetooth-agent, portal-login, wifi-qr) live here;
+# roles/hyprland creates it too, but --tags quickshell must work alone.
+- name: Ensure ~/.local/libexec/workstation exists (bluetooth / connectivity)
+  when: bluetooth_enabled or connectivity_enabled
   ansible.builtin.file:
     path: "{{ ansible_facts.user_dir }}/.local/libexec/workstation"
     state: directory
@@ -302,16 +304,6 @@
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   notify: Reload running Quickshell config
-  tags: quickshell
-
-- name: Ensure ~/.local/libexec/workstation exists (connectivity_enabled)
-  when: connectivity_enabled
-  ansible.builtin.file:
-    path: "{{ ansible_facts.user_dir }}/.local/libexec/workstation"
-    state: directory
-    owner: "{{ ansible_facts.user_id }}"
-    group: "{{ ansible_facts.user_gid }}"
-    mode: "0755"
   tags: quickshell
 
 - name: Deploy the captive portal watcher (connectivity_enabled)
