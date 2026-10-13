@@ -2,11 +2,11 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <!-- Managed by Ansible (roles/recovery) - do not edit by hand.
-     OS menu -> System -> Create Snapshot runs `pkexec {{ recovery_snapshot_helper }} set|delete ...`:
+     OS menu -> System -> Create Snapshot runs `pkexec {{ recovery_snapshot_helper }} set <slot> <label>`:
      the user in the ACTIVE local session (seat) may run exactly this helper as
-     root without a password - it only manages the three MANUAL snapshot slots
-     (create into a slot, overwrite / delete the one snapshot the dialog showed
-     and the user confirmed); never an update snapshot, never a rollback.
+     root without a password - under this name it only CREATES a snapshot in
+     an EMPTY manual slot. Overwrite and delete are {{ recovery_snapshot_delete_helper }}
+     ({{ recovery_snapshot_delete_polkit_action }}, administrator password).
      Remote (SSH) or inactive sessions need administrator authentication. -->
 <policyconfig>
   <action id="{{ recovery_snapshot_polkit_action }}">

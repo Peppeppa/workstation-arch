@@ -25,6 +25,8 @@ sed -e "s#/usr/local/lib/workstation/system-update-root#$tmp/lib/system-update-r
     "$repo/roles/recovery/files/system-update" > "$tmp/system-update"
 sed -e "s#/usr/local/lib/workstation/snapshot-boot#$tmp/stub/snapshot-boot#g" \
     "$repo/roles/recovery/files/snapshot-create" > "$tmp/snapshot-create"
+# the same file, installed under its second name (polkit: password)
+cp "$tmp/snapshot-create" "$tmp/snapshot-delete"; chmod +x "$tmp/snapshot-delete"
 cp "$repo/roles/recovery/files/workstation-checkupdates" "$tmp/workstation-checkupdates"
 chmod +x "$tmp/system-update" "$tmp/snapshot-create" "$tmp/workstation-checkupdates"
 
@@ -135,22 +137,47 @@ out=$("$tmp/snapshot-create" set 1 "$label" 2>&1); rc=$?
 ok "slots: special characters accepted" '[ "$rc" -eq 0 ]'
 ok "slots: empty slot -> slot-set, label ONE literal argv element" '[ "$(cat "$tmp/argv")" = "$(printf "slot-set\n1\n%s" "$label")" ]'
 ok "slots: JSON passed through" '[ "$(python3 -c "import json,sys; print(json.loads(sys.argv[1])[\"number\"])" "$out")" = 57 ]'
-"$tmp/snapshot-create" set 2 "Neu" 35 >/dev/null 2>&1
-ok "slots: overwrite passes the confirmed number as --replace" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-set 2 Neu --replace 35 " ]'
-"$tmp/snapshot-create" delete 3 35 >/dev/null 2>&1
-ok "slots: delete passes slot + confirmed number" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-delete 3 35 " ]'
+# Security Hardening v1.1 (S3-B): snapshot-create (no password) only
+# creates; overwrite and delete remove a snapshot -> only as snapshot-delete
+# (own polkit action, administrator password). Enforced here, not in QML.
+for args in "set 2 Neu 35" "delete 3 35" "replace 2 35 Neu"; do
+    rm -f "$tmp/argv"
+    # shellcheck disable=SC2086
+    "$tmp/snapshot-create" $args >/dev/null 2>&1; rc=$?
+    ok "slots: snapshot-create refuses '$args' (deletes a snapshot)" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
+done
+"$tmp/snapshot-delete" replace 2 35 "Neu" >/dev/null 2>&1
+ok "slots: snapshot-delete replace = slot-set --replace the confirmed number" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-set 2 Neu --replace 35 " ]'
+"$tmp/snapshot-delete" delete 3 35 >/dev/null 2>&1
+ok "slots: snapshot-delete delete passes slot + confirmed number" '[ "$(tr "\n" " " < "$tmp/argv")" = "slot-delete 3 35 " ]'
+"$tmp/snapshot-delete" replace 1 35 "$label" >/dev/null 2>&1
+ok "slots: replace label stays ONE literal argv element" '[ "$(cat "$tmp/argv")" = "$(printf "slot-set\n1\n%s\n--replace\n35" "$label")" ]'
+for args in "set 1 x" "delete 1" "delete 1 x" "delete 4 3" "delete 1 3 4" "replace 1 x y" "replace 1 3" "replace 0 3 y" "replace 1 -3 y" ""; do
+    rm -f "$tmp/argv"
+    # shellcheck disable=SC2086
+    "$tmp/snapshot-delete" $args >/dev/null 2>&1; rc=$?
+    ok "slots: snapshot-delete rejects '$args'" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
+done
+for bad in "" "-x" "$(printf 'a\nb')" "$(printf '%0101d' 0)"; do
+    rm -f "$tmp/argv"
+    "$tmp/snapshot-delete" replace 1 35 "$bad" >/dev/null 2>&1; rc=$?
+    ok "slots: replace rejects label $(printf '%q' "$bad" | cut -c1-20)" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
+done
+cp "$tmp/snapshot-create" "$tmp/snapshot-other"; rm -f "$tmp/argv"
+"$tmp/snapshot-other" set 1 x >/dev/null 2>&1; rc=$?
+ok "slots: any other installed name does nothing" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
 for bad in "" "-x" "--known-good" "$(printf 'a\nb')" "$(printf 'a\tb')" "$(printf '%0101d' 0)"; do
     rm -f "$tmp/argv"
     "$tmp/snapshot-create" set 1 "$bad" >/dev/null 2>&1; rc=$?
     ok "slots: rejects label $(printf '%q' "$bad" | cut -c1-20)" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
 done
-for args in "set 4 x" "set 0 x" "set 1 x abc" "delete 1 x" "delete 1" "create 1 x" ""; do
+for args in "set 4 x" "set 0 x" "set 1 x abc" "set 1" "create 1 x" ""; do
     rm -f "$tmp/argv"
     # shellcheck disable=SC2086
     "$tmp/snapshot-create" $args >/dev/null 2>&1; rc=$?
     ok "slots: rejects '$args'" '[ "$rc" -eq 2 ] && [ ! -e "$tmp/argv" ]'
 done
-out=$(SB_FAIL="slot 1 holds snapshot 36 - overwrite it only after confirming that one" "$tmp/snapshot-create" set 1 x 35 2>&1); rc=$?
+out=$(SB_FAIL="slot 1 holds snapshot 36 - overwrite it only after confirming that one" "$tmp/snapshot-delete" replace 1 35 x 2>&1); rc=$?
 ok "slots: failure is an error, with the reason" '[ "$rc" -eq 1 ] && grep -q "holds snapshot 36" <<<"$out"'
 rm -f "$tmp/stub/id"
 

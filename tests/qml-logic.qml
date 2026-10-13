@@ -602,12 +602,17 @@ QtObject {
         eq("snapshot: 51 umlauts = 102 bytes rejected", label("ä".repeat(51), now).label, "");
 
         // Slots: the helper's argv (the confirmed number on overwrite/delete), status lines.
-        const H = "/usr/local/libexec/workstation/snapshot-create";
-        const argv = make(sd, "argvFor", { helper: H });
+        // Removing a snapshot (overwrite, delete) only through the password
+        // helper (Security Hardening v1.1, S3-B); creating stays passwordless.
+        const H = "/usr/local/libexec/workstation/snapshot-create", D = "/usr/local/libexec/workstation/snapshot-delete";
+        const argv = make(sd, "argvFor", { helper: H, deleteHelper: D });
         const empty = { slot: 2, empty: true }, full = { slot: 1, empty: false, number: 35, description: "Vor X", date: "2026-10-10 19:42", status: "bootable" };
-        eq("slots: create into an empty slot", argv("set", empty, "Neu"), ["pkexec", H, "set", "2", "Neu"]);
-        eq("slots: overwrite passes the shown number", argv("set", full, "Neu"), ["pkexec", H, "set", "1", "Neu", "35"]);
-        eq("slots: delete passes the shown number", argv("delete", full, ""), ["pkexec", H, "delete", "1", "35"]);
+        eq("slots: create into an empty slot (no password)", argv("set", empty, "Neu"), ["pkexec", H, "set", "2", "Neu"]);
+        eq("slots: overwrite = password helper, shown number", argv("set", full, "Neu"), ["pkexec", D, "replace", "1", "35", "Neu"]);
+        eq("slots: delete = password helper, shown number", argv("delete", full, ""), ["pkexec", D, "delete", "1", "35"]);
+        const needs = make(sd, "needsPassword", {});
+        eq("slots: password (dialog hidden) only when a snapshot is removed",
+           [needs("set", empty), needs("set", full), needs("delete", full)], [false, true, true]);
         const stx = make(sd, "statusText", {});
         eq("slots: status lines", [stx(full), stx({ empty: false, status: "not-bootable", reason: "no stored UKI" }), stx({ empty: false, status: "unknown" }), stx(empty)],
            ["bootable", "not bootable: no stored UKI", "boot status not known yet", ""]);

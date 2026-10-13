@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Managed by Ansible (roles/recovery) - do not edit by hand.
+     Create Snapshot -> Overwrite / Delete runs `pkexec {{ recovery_snapshot_delete_helper }}
+     delete <slot> <number>` or `replace <slot> <number> <label>`: both REMOVE a
+     manual snapshot, so the administrator password is needed, also in the
+     active local session (auth_admin_keep: kept ~5 minutes for the calling
+     process). Only the three manual slots, only the number the user
+     confirmed; never an update snapshot, never a rollback. Creating into an
+     empty slot is {{ recovery_snapshot_helper }} (no password). Security Hardening v1.1, S3-B. -->
+<policyconfig>
+  <action id="{{ recovery_snapshot_delete_polkit_action }}">
+    <description>Overwrite or delete a manual system snapshot</description>
+    <message>Authentication is required to overwrite or delete a manual system snapshot</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">{{ recovery_snapshot_delete_helper }}</annotate>
+  </action>
+</policyconfig>

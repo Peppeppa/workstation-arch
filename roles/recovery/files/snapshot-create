@@ -1,53 +1,70 @@
 #!/bin/bash
 # Managed by Ansible (roles/recovery/files/snapshot-create) - do not edit by hand.
-# Deployed to /usr/local/libexec/workstation/snapshot-create: the root helper
-# behind OS menu -> System -> Create Snapshot (Quickshell SnapshotDialog,
-# `pkexec <this> ...`, polkit action org.workstation.snapshot.create). Not a
-# user interface. Exactly the three manual slots (snapshot-boot):
+# The root helper behind OS menu -> System -> Create Snapshot (Quickshell
+# SnapshotDialog), run through pkexec. Not a user interface. Exactly the
+# three manual slots (snapshot-boot). ONE file, installed under two names,
+# each with its own polkit action - the installed name decides what it may
+# do (pkexec runs exactly that root-owned path):
 #
-#   snapshot-create set <slot> <label>             into an EMPTY slot
-#   snapshot-create set <slot> <label> <number>    overwrite: <number> is the
-#                                                  snapshot the user confirmed;
-#                                                  refused if the slot holds another
-#   snapshot-create delete <slot> <number>         confirmed delete of that snapshot
+#   /usr/local/libexec/workstation/snapshot-create   (org.workstation.snapshot.create:
+#                                                     the active session, no password)
+#     set <slot> <label>                into an EMPTY slot - creates, never deletes
+#                                       (snapshot-boot refuses an occupied slot)
 #
-# The label arrives as one argv element (no shell) and is validated again
-# here - the dialog's own check is not trusted. Overwrite order (snapshot-boot):
-# new snapshot -> it can boot -> slot moved -> old one deleted -> boot menu;
-# any failure before the move leaves the slot as it was.
+#   /usr/local/libexec/workstation/snapshot-delete   (org.workstation.snapshot.delete:
+#                                                     administrator password)
+#     delete <slot> <number>            delete the confirmed snapshot of the slot
+#     replace <slot> <number> <label>   overwrite: new snapshot, then the confirmed
+#                                       old <number> is deleted
+#
+# Security Hardening v1.1 (S3-B): removing a snapshot needs the password,
+# creating one does not - enforced here, not in the dialog. <number> is the
+# snapshot the user confirmed; snapshot-boot refuses when the slot holds
+# another. The label arrives as one argv element (no shell) and is
+# validated again here - the dialog's own check is not trusted. Overwrite
+# order (snapshot-boot): new snapshot -> it can boot -> slot moved -> old one
+# deleted -> boot menu; any failure before the move leaves the slot as it was.
 # Output (stdout, one JSON line) from snapshot-boot; errors on stderr, exit 1
-# (2 = bad arguments).
+# (2 = bad arguments or an operation this name may not do).
 set -euo pipefail
 
-die() { echo "snapshot-create: $*" >&2; exit "${2:-1}"; }
+name=${0##*/}
+die() { echo "$name: $*" >&2; exit "${2:-1}"; }
 SB=/usr/local/lib/workstation/snapshot-boot
-
 [ "$(id -u)" -eq 0 ] || die "run through pkexec (root)"
+
 slot_ok() { [[ $1 =~ ^[123]$ ]] || die "slot must be 1, 2 or 3" 2; }
 num_ok() { [[ $1 =~ ^[0-9]+$ ]] || die "not a snapshot number: $1" 2; }
+# 1-100 bytes (UTF-8), printable only (shown in snapper lists and the
+# boot menu), never an option.
+label_ok() {
+    local LC_ALL=C
+    [ -n "$1" ] || die "empty label" 2
+    [ "${#1}" -le 100 ] || die "label longer than 100 bytes" 2
+    case $1 in -*) die "label must not start with '-'" 2 ;; esac
+    if [[ $1 =~ [[:cntrl:]] ]]; then die "label contains control characters (newline, tab, ...)" 2; fi
+}
 
-case ${1:-} in
-set)
-    [ $# -eq 3 ] || [ $# -eq 4 ] || die "usage: snapshot-create set <slot> <label> [<number>]" 2
-    slot_ok "$2"; label=$3
-    [ $# -eq 4 ] && num_ok "$4"
-    # 1-100 bytes (UTF-8), printable only (shown in snapper lists and the
-    # boot menu), never an option.
-    LC_ALL=C
-    [ -n "$label" ] || die "empty label" 2
-    [ "${#label}" -le 100 ] || die "label longer than 100 bytes" 2
-    case $label in -*) die "label must not start with '-'" 2 ;; esac
-    if [[ $label =~ [[:cntrl:]] ]]; then die "label contains control characters (newline, tab, ...)" 2; fi
-    unset LC_ALL
-    if [ $# -eq 4 ]; then exec "$SB" slot-set "$2" "$label" --replace "$4"; fi
-    exec "$SB" slot-set "$2" "$label"
+case "$name ${1:-}" in
+"snapshot-create set")
+    [ $# -eq 3 ] || die "usage: snapshot-create set <slot> <label> (overwrite/delete: snapshot-delete)" 2
+    slot_ok "$2"; label_ok "$3"
+    exec "$SB" slot-set "$2" "$3"
     ;;
-delete)
-    [ $# -eq 3 ] || die "usage: snapshot-create delete <slot> <number>" 2
+"snapshot-delete delete")
+    [ $# -eq 3 ] || die "usage: snapshot-delete delete <slot> <number>" 2
     slot_ok "$2"; num_ok "$3"
     exec "$SB" slot-delete "$2" "$3"
     ;;
+"snapshot-delete replace")
+    [ $# -eq 4 ] || die "usage: snapshot-delete replace <slot> <number> <label>" 2
+    slot_ok "$2"; num_ok "$3"; label_ok "$4"
+    exec "$SB" slot-set "$2" "$4" --replace "$3"
+    ;;
+"snapshot-create "* | "snapshot-delete "*)
+    die "usage: snapshot-create set <slot> <label> | snapshot-delete delete <slot> <number> | snapshot-delete replace <slot> <number> <label>" 2
+    ;;
 *)
-    die "usage: snapshot-create set <slot> <label> [<number>] | delete <slot> <number>" 2
+    die "unknown name - installed only as snapshot-create or snapshot-delete" 2
     ;;
 esac

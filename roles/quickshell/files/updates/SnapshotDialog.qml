@@ -17,12 +17,20 @@
 //                   another one by then)
 //   ✕            -> a question naming the snapshot (Cancel preselected)
 //                   -> delete exactly that number
-// Actions: `pkexec <helper> set <slot> <label> [<old number>]` /
-// `pkexec <helper> delete <slot> <number>` (roles/recovery snapshot-create,
-// polkit org.workstation.snapshot.create) - fixed argv, the label is ONE
-// element. The helper creates the new snapshot first, checks it can boot,
-// moves the slot and only then deletes the old one: a failure leaves the
-// slot as it was. Results and errors stay visible in the dialog.
+// Actions (roles/recovery snapshot-create, one helper under two names) -
+// fixed argv, the label is ONE element:
+//   create into an empty slot  `pkexec <helper> set <slot> <label>`
+//                              (org.workstation.snapshot.create, no password)
+//   overwrite                  `pkexec <deleteHelper> replace <slot> <old number> <label>`
+//   delete                     `pkexec <deleteHelper> delete <slot> <number>`
+//                              (org.workstation.snapshot.delete, administrator
+//                              password - Security Hardening v1.1, S3-B)
+// While a password may be asked the dialog is HIDDEN (an overlay would sit
+// over the polkit agent's window and keep the keyboard) and comes back with
+// the result; open() is ignored meanwhile. The helper creates the new
+// snapshot first, checks it can boot, moves the slot and only then deletes
+// the old one: a failure (also a cancelled password) leaves the slot as it
+// was. Results and errors stay visible in the dialog.
 //
 // Keys: Up/Down pick a slot, Enter = Create/Overwrite, Delete = ✕,
 // Escape = back/close (in a question: Cancel); Left/Right/Tab move between
@@ -41,7 +49,9 @@ PanelWindow {
     id: dlg
 
     required property int fontSize
-    required property string helper            // recovery_snapshot_helper (pkexec)
+    required property string helper            // recovery_snapshot_helper (pkexec, no password)
+    required property string deleteHelper      // recovery_snapshot_delete_helper (pkexec, password)
+    property bool hiddenForAuth: false         // hidden while pkexec may ask for the password
     required property string lister            // snapshot-boot (slot-list, no root)
 
     property string stage: "slots"             // slots | name | confirmReplace | confirmDelete | working
@@ -56,6 +66,7 @@ PanelWindow {
     readonly property var target: slots.length > current ? slots[current] : null
 
     function open() {
+        if (hiddenForAuth) return;             // the polkit prompt is up - do not cover it
         stage = "slots";
         error = "";
         message = "";
@@ -111,11 +122,17 @@ PanelWindow {
         return "boot status not known yet";
     }
 
-    // The helper's argv for an action. Pure (tests).
+    // The helper's argv for an action. Pure (tests). Removing a snapshot
+    // (delete, overwrite) goes through deleteHelper - the password one.
     function argvFor(action, s, label) {
-        if (action === "delete") return ["pkexec", helper, "delete", String(s.slot), String(s.number)];
-        const a = ["pkexec", helper, "set", String(s.slot), label];
-        return s.empty ? a : a.concat([String(s.number)]);
+        if (action === "delete") return ["pkexec", deleteHelper, "delete", String(s.slot), String(s.number)];
+        if (s.empty) return ["pkexec", helper, "set", String(s.slot), label];
+        return ["pkexec", deleteHelper, "replace", String(s.slot), String(s.number), label];
+    }
+
+    // Does this action remove a snapshot (= polkit asks for the password)? Pure.
+    function needsPassword(action, s) {
+        return action === "delete" || !s.empty;
     }
 
     // pkexec: 126 = not authorized/dismissed, 127 = authentication failed.
@@ -123,7 +140,7 @@ PanelWindow {
         if (code === 126 || code === 127) return "Not authorized (polkit) - nothing was changed.";
         const lines = (stderr || "").split("\n").filter(l => l.trim() !== "");
         const last = lines.length ? lines[lines.length - 1] : "";
-        return last.replace(/^(snapshot-boot|snapshot-create): /, "") || "failed (exit " + code + ")";
+        return last.replace(/^(snapshot-boot|snapshot-create|snapshot-delete): /, "") || "failed (exit " + code + ")";
     }
 
     // ---- actions ------------------------------------------------------------
@@ -165,6 +182,10 @@ PanelWindow {
         pendingAction = action;
         stage = "working";
         proc.command = argvFor(action, target, pendingLabel);
+        if (needsPassword(action, target)) {
+            hiddenForAuth = true;
+            visible = false;                   // the polkit agent's window needs the keyboard
+        }
         proc.running = true;
     }
 
@@ -244,9 +265,13 @@ PanelWindow {
                 dlg.message = (dlg.pendingAction === "delete" ? "Delete failed: " : "Snapshot failed: ")
                     + (code === 0 ? "no answer from the helper." : dlg.failure(code, err.text))
                     + " The slot is unchanged.";
-                Log.warn("snapshot", "snapshot-create " + dlg.pendingAction + " failed (exit " + code + "): " + Log.firstLine(err.text));
+                Log.warn("snapshot", "slot " + dlg.pendingAction + " failed (exit " + code + "): " + Log.firstLine(err.text));
             }
             dlg.stage = "slots";
+            if (dlg.hiddenForAuth) {
+                dlg.hiddenForAuth = false;
+                dlg.visible = true;
+            }
             keys.forceActiveFocus();
             dlg.reload();
         }
@@ -263,10 +288,10 @@ PanelWindow {
             dlg.close();
         }
 
-        // {visible, stage, current, slots, message, error}
+        // {visible, stage, current, slots, message, error, hiddenForAuth}
         function state(): string {
             return JSON.stringify({ visible: dlg.visible, stage: dlg.stage, current: dlg.current, slots: dlg.slots,
-                                    message: dlg.message, error: dlg.error });
+                                    message: dlg.message, error: dlg.error, hiddenForAuth: dlg.hiddenForAuth });
         }
     }
 
