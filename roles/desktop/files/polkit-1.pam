@@ -1,0 +1,32 @@
+#%PAM-1.0
+# Managed by workstation-arch (roles/desktop) - do not edit by hand.
+#
+# PAM service of polkit's authentication helper. Takes precedence over the
+# package's /usr/lib/pam.d/polkit-1 (which is "include system-auth").
+#
+# The auth section is Arch's system-auth (pambase), line for line, except
+# for ONE control value on pam_unix: authtok_err=die. Reason (P1,
+# docs/testing/POLKIT_PAM_P1_REPORT.md): since polkit 127 the helper runs as
+# a socket-activated root unit, so cancelling the password dialog can only
+# close the socket; the helper's PAM conversation then fails, pam_unix
+# returns PAM_AUTHTOK_ERR ("no password obtained") and system-auth's
+# pam_faillock authfail counted it as a failed login - three cancels locked
+# the account, hyprlock included. In pam_unix's auth path PAM_AUTHTOK_ERR
+# comes ONLY from an aborted conversation; every submitted password (empty
+# or wrong) is PAM_AUTH_ERR and still reaches authfail. preauth (lockout
+# enforcement) and authsucc are unchanged.
+#
+# Keep in sync with /etc/pam.d/system-auth: repo-healthcheck ("polkit PAM
+# stack") and tests/pam-polkit.sh compare the two.
+
+auth       required                    pam_faillock.so      preauth
+-auth      [success=2 default=ignore]  pam_systemd_home.so
+auth       [success=1 authtok_err=die default=bad]  pam_unix.so          try_first_pass nullok
+auth       [default=die]               pam_faillock.so      authfail
+auth       optional                    pam_permit.so
+auth       required                    pam_env.so
+auth       required                    pam_faillock.so      authsucc
+
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth

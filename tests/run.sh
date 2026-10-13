@@ -108,6 +108,8 @@ step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh
 step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
+step "tests/healthcheck-polkit-pam.py" python3 tests/healthcheck-polkit-pam.py
+step "tests/pam-polkit.sh" bash tests/pam-polkit.sh
 step "tests/diaglib.py" python3 tests/diaglib.py
 step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py
 step "tests/system-rollback.sh" bash tests/system-rollback.sh

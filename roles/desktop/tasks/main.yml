@@ -13,6 +13,24 @@
     state: present
   tags: desktop
 
+# P1 (docs/testing/POLKIT_PAM_P1_REPORT.md): polkit 127's helper runs as a
+# socket-activated root unit, so cancelling the password dialog fails its
+# PAM conversation, and system-auth's pam_faillock counted that as a failed
+# login (3 cancels = account locked, hyprlock included). This polkit-only
+# stack is system-auth with authtok_err=die on pam_unix: an aborted
+# conversation ends without the authfail count; every submitted password
+# is counted exactly as before. Takes precedence over polkit's
+# /usr/lib/pam.d/polkit-1; no package owns /etc/pam.d/polkit-1.
+- name: Deploy polkit's PAM stack (a cancelled dialog is not a failed login)
+  become: true
+  ansible.builtin.copy:
+    src: polkit-1.pam
+    dest: /etc/pam.d/polkit-1
+    owner: root
+    group: root
+    mode: "0644"
+  tags: desktop
+
 # mako retired (Notifications v1): Quickshell owns
 # org.freedesktop.Notifications now. Removing the package - not just not
 # starting it - matters: mako ships a D-Bus activation file for that

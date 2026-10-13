@@ -286,6 +286,37 @@ def security_checks():
           if accept else "not accepted (IPv4 + IPv6, every interface)")
 
 
+def _auth_lines(text):
+    return [" ".join(l.split()) for l in text.splitlines() if l.split() and l.split()[0] in ("auth", "-auth")]
+
+
+def polkit_pam_status(system_auth, polkit):
+    """P1 (docs/testing/POLKIT_PAM_P1_REPORT.md): /etc/pam.d/polkit-1 = the
+    auth section of system-auth with authtok_err=die on pam_unix, so a
+    cancelled polkit dialog is not a failed login. -> (ok, warn, detail)"""
+    if polkit is None:
+        return False, False, "/etc/pam.d/polkit-1 missing: a cancelled polkit dialog counts as a failed login"
+    want = [l.replace("[success=1 default=bad] pam_unix.so", "[success=1 authtok_err=die default=bad] pam_unix.so")
+            for l in _auth_lines(system_auth)]
+    got = _auth_lines(polkit)
+    if got == want:
+        return True, False, "system-auth + authtok_err=die (polkit cancel not counted by faillock)"
+    if not any("authtok_err=die" in l and "pam_unix.so" in l for l in got):
+        return False, False, "/etc/pam.d/polkit-1 lacks authtok_err=die on pam_unix: polkit cancel counts as a failed login"
+    return False, True, "auth section no longer matches /etc/pam.d/system-auth (pambase changed?) - update roles/desktop/files/polkit-1.pam"
+
+
+def pam_checks():
+    def read(path):
+        try:
+            with open(path) as f:
+                return f.read()
+        except OSError:
+            return None
+    ok, warn, detail = polkit_pam_status(read("/etc/pam.d/system-auth") or "", read("/etc/pam.d/polkit-1"))
+    check("polkit PAM stack", ok, detail, warn=warn)
+
+
 # --- persistent user/runtime state ----------------------------------------
 
 def bar_checks():
@@ -534,6 +565,7 @@ def main():
     ownership_checks(ps, qs_pid)
     network_checks()
     security_checks()
+    pam_checks()
     bar_checks()
     theme_checks()
     recovery_checks()
