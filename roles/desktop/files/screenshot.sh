@@ -11,8 +11,8 @@
 #                        no PNG is ever written to disk
 #   screenshot monitor - grim of the currently focused Hyprland monitor
 #                        (no default keybind - kept for manual/later use)
-# Every mode confirms via a mako notification and exits; nothing is
-# left running and nothing touches the network.
+# Every mode confirms via a desktop notification (notify-send) and exits;
+# nothing is left running and nothing touches the network.
 set -euo pipefail
 
 mode="${1:-}"

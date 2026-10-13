@@ -35,22 +35,12 @@
 # org.freedesktop.Notifications now. Removing the package - not just not
 # starting it - matters: mako ships a D-Bus activation file for that
 # name, so while installed it would silently auto-start as a second
-# daemon whenever no other owner holds the name. A still-running mako
-# from the current session is stopped so Quickshell can claim the name
-# (roles/quickshell reloads at the end of the run).
+# daemon whenever no other owner holds the name.
 - name: Remove mako (retired - Quickshell's NotificationServer replaces it)
   become: true
   community.general.pacman:
     name: mako
     state: absent
-  tags: desktop
-
-- name: Stop a still-running mako from the current session
-  ansible.builtin.command:
-    cmd: "pkill -u {{ ansible_facts.user_uid }} -x mako"
-  register: desktop_mako_stop
-  changed_when: desktop_mako_stop.rc == 0
-  failed_when: desktop_mako_stop.rc not in [0, 1]
   tags: desktop
 
 # Typography: user-level fontconfig drop-in (conf.d, so a user's own

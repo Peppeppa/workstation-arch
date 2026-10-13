@@ -1,8 +1,7 @@
 ---
-# Quickshell foundation milestone: the smallest shell that proves
-# install/config/lifecycle, not yet the full presentation layer (see
-# docs/ARCHITECTURE.md). fuzzel/mako stay in roles/hyprland and
-# roles/desktop for now - this role does not replace them yet.
+# Quickshell: the desktop shell (bar, OS menu/launcher, popups, windows,
+# notifications, wallpaper) - see docs/ARCHITECTURE.md and
+# docs/feature-architecture.md.
 quickshell_packages:
   # Official Arch `extra` repository (verified via `pacman -Si
   # quickshell` against a real upstream-Arch package database), not
