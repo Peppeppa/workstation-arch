@@ -124,6 +124,9 @@ PLUGIN_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+# Validators use fullmatch: with re.match a trailing newline passes `$`
+# (Python's $ also matches before a final \n) and broke the generated Lua
+# strings (Security Audit v1, S2).
 # Wallpaper formats Quickshell can show (WebP via qt6-imageformats); GIF
 # is shown animated.
 WALLPAPER_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
@@ -150,7 +153,7 @@ def load_theme(theme_id):
     dirs = theme_dirs(theme_id)
     path = dirs[0] if dirs else os.path.join(THEMES_DIR, theme_id)
     errors = []
-    if not ID_RE.match(theme_id):
+    if not ID_RE.fullmatch(theme_id):
         errors.append("directory name must match [a-z0-9][a-z0-9-]* (it is the theme id)")
     markers = [m for m in MODES if os.path.isfile(os.path.join(path, m))]
     if len(markers) != 1:
@@ -189,7 +192,7 @@ def load_theme(theme_id):
                 missing = [k for k in keys if k not in values]
                 extra = [k for k in values if k not in keys]
                 bad = [k for k in keys if k in values
-                       and not (isinstance(values[k], str) and HEX_RE.match(values[k]))]
+                       and not (isinstance(values[k], str) and HEX_RE.fullmatch(values[k]))]
                 if missing:
                     errors.append("missing %s: %s" % (block, ", ".join(missing)))
                 if extra:
@@ -232,12 +235,12 @@ def neovim_errors(nvim):
             continue
         if k == "colors":
             if not (isinstance(v, dict) and len(v) <= 64 and all(
-                    isinstance(c, str) and COLOR_KEY_RE.match(c) and isinstance(h, str) and HEX_RE.match(h)
+                    isinstance(c, str) and COLOR_KEY_RE.fullmatch(c) and isinstance(h, str) and HEX_RE.fullmatch(h)
                     for c, h in v.items())):
                 errors.append("neovim colors must map name -> #rrggbb")
             continue
         rx = PLUGIN_RE if k == "plugin" else BRANCH_RE if k == "branch" else NAME_RE
-        if not (isinstance(v, str) and rx.match(v)):
+        if not (isinstance(v, str) and rx.fullmatch(v)):
             errors.append("neovim %s must match %s" % (k, rx.pattern))
     return errors
 
@@ -664,7 +667,7 @@ KNOWN = ("colors.toml", "alacritty.toml", "ghostty.conf", "hyprland.conf",
 
 
 def check_url(url):
-    if not (isinstance(url, str) and len(url) < 300 and URL_RE.match(url) and ".." not in url):
+    if not (isinstance(url, str) and len(url) < 300 and URL_RE.fullmatch(url) and ".." not in url):
         raise ThemeError("not a plain https repository URL (https://host/owner/repo): %r" % url)
     return url.rstrip("/")
 
@@ -676,7 +679,7 @@ def derive_id_name(url):
     repo = re.sub(r"^omarchy-", "", repo)
     repo = re.sub(r"-theme$", "", repo)
     tid = re.sub(r"[^a-z0-9]+", "-", repo).strip("-")
-    if not tid or not ID_RE.match(tid):
+    if not tid or not ID_RE.fullmatch(tid):
         raise ThemeError("cannot derive a theme id from %r" % url)
     return tid, " ".join(w if w.isdigit() else w.capitalize() for w in tid.split("-"))
 
@@ -692,8 +695,8 @@ def read_manifest():
     entries = data.get("sources") or [] if isinstance(data, dict) else []
     out = []
     for e in entries:
-        if not (isinstance(e, dict) and isinstance(e.get("id"), str) and ID_RE.match(e["id"])
-                and isinstance(e.get("commit"), str) and SHA_RE.match(e["commit"])
+        if not (isinstance(e, dict) and isinstance(e.get("id"), str) and ID_RE.fullmatch(e["id"])
+                and isinstance(e.get("commit"), str) and SHA_RE.fullmatch(e["commit"])
                 and e.get("mode") in MODES and isinstance(e.get("name"), str) and e["name"]):
             raise ThemeError("invalid entry in %s: %r" % (MANIFEST, e))
         check_url(e.get("url"))

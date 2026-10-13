@@ -136,6 +136,17 @@ cp "$tmp/themes/$dark/theme.yml" "$tmp/nv.bak"
 sed -i 's|^  plugin: .*|  plugin: "x\\" os.execute()"|' "$tmp/themes/$dark/theme.yml"
 "$T" validate >/dev/null 2>&1; [ $? -eq 1 ]; check "malformed neovim plugin makes the theme invalid" $?
 cp "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml"
+# A value ending in a newline passed the ^...$ checks (Python's $ matches
+# before a final \n) and broke the generated Lua strings (Security Audit
+# v1, S2): every validator now matches the whole string.
+sed -i 's|^  plugin: \(.*\)"$|  plugin: \1\\n"|' "$tmp/themes/$dark/theme.yml"
+! cmp -s "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml" && { "$T" validate >/dev/null 2>&1; [ $? -eq 1 ]; }
+check "neovim plugin with a trailing newline makes the theme invalid" $?
+cp "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml"
+sed -i '0,/"\(#[0-9a-fA-F]\{6\}\)"/s//"\1\\n"/' "$tmp/themes/$dark/theme.yml"
+! cmp -s "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml" && { "$T" validate >/dev/null 2>&1; [ $? -eq 1 ]; }
+check "color with a trailing newline makes the theme invalid" $?
+cp "$tmp/nv.bak" "$tmp/themes/$dark/theme.yml"
 
 # Theme sources: the compiler on fixture repositories (offline) - data
 # only: commented-out Lua ignored, color tables taken, non-color btop lines
