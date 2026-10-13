@@ -642,8 +642,7 @@ QtObject {
     }
 
     function scratchpad() {
-        // One Markdown file for the four notes (format shared with
-        // scratchpad-migrate.py - same fixture as tests/scratchpad-migrate.sh).
+        // One Markdown file for the four notes.
         const sp = read("quickshell/scratchpad/ScratchpadWindow.qml");
         const sc = { markerRe: /^<!-- scratchpad note ([1-9]) -->$/ };
         const parse = make(sp, "parseNotes", sc), compose = make(sp, "composeNotes", sc);

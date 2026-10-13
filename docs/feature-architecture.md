@@ -1057,9 +1057,9 @@ Core. Four fixed plain-text notes in a Quickshell top-level window, stored in on
 | Saving | single-shot 400 ms timer after a change, plus flush on note switch and on every close path (Escape, toggle, focus lost, Super+Q / compositor close, another popup, shell exit) |
 | Keys (window only) | Alt+1..4 note, Ctrl+-/Ctrl++ font size, Escape close; no global binds besides mainMod+S |
 | External changes | FileView `watchChanges` (inotify - event, not polling) + a re-read on every open. Content equal to what this shell last read/wrote (`baseline`) = our own write, ignored; other content is taken over, unless the open note has unsaved typing: that version is written to `scratchpad (conflict <date time>).md` next to the file first, the window shows a notice. Conflict copies are never touched again. Remaining window: an external change landing in the instant between our save and its inotify event is overwritten locally (Nextcloud's version history still has it) |
-| Migration | `files/scratchpad-migrate.py` (bootstrap, before the QML is deployed): old `{1..4}.txt` -> `scratchpad.md` only when that does not exist; same notes already there = adopted; different = exit 3, ACTION REQUIRED, nothing written, the run stops. Old files never changed; `MIGRATED` marker; `--check` honoured |
+| Migration | the one-time move of the former `{1..4}.txt` (2026-10-10) was removed in Code Consolidation v1 - git history |
 | Idle cost | closed, there is no window at all (LazyLoader - it exists only while open; a window Hyprland closed cannot be shown again anyway) and no click catcher; the four notes stay in memory; one inotify watch on the file; no timer runs while nothing changes, no process |
-| Tests | `tests/scratchpad-migrate.sh` (all migration states, `--check`, shared format), `tests/qml-logic.qml` (parse/compose round trips, adopt vs. conflict copy) |
+| Tests | `tests/qml-logic.qml` (parse/compose round trips, adopt vs. conflict copy) |
 
 ## Cheatsheet
 

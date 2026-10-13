@@ -8,8 +8,7 @@
 // client alone syncs it, this works the same without it). Each note starts
 // with an invisible marker line `<!-- scratchpad note N -->` (parseNotes /
 // composeNotes; text above the first marker or a file without markers counts
-// as note 1). Migrated once from the former 1.txt ... 4.txt by the bootstrap
-// (roles/quickshell scratchpad-migrate.py - the old files stay). The window is
+// as note 1). The window is
 // a normal top-level window (title "workstation-scratchpad"): Hyprland's
 // window rule (roles/hyprland appearance.lua) floats it top right and pins
 // it; Super+Q closes it like any window (the shell keeps running). It EXISTS

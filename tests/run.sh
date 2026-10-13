@@ -103,7 +103,6 @@ step "network share: saved password never rendered" sh -c '! grep -nE "text:[^/]
 step "tests/theme-helper.sh" bash tests/theme-helper.sh
 step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
 step "tests/system-update.sh" bash tests/system-update.sh
-step "tests/scratchpad-migrate.sh" bash tests/scratchpad-migrate.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh

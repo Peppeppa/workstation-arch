@@ -54,10 +54,7 @@
 # Scratchpad (scratchpad/ScratchpadWindow.qml): ONE Markdown file
 # ~/Documents/.system/scratchpad.md - ~/Documents is the Nextcloud folder
 # (/2_Dokumente), synced by the Nextcloud client only; nothing here touches
-# Nextcloud. The notes are user data: never written or reset here, except
-# the one-time move from the former ~/.local/share/workstation/scratchpad/
-# {1..4}.txt (old files stay; a conflict stops the run BEFORE the new
-# scratchpad is deployed - ACTION REQUIRED in the output).
+# Nextcloud. The notes are user data: never written or reset here.
 - name: Ensure the scratchpad folder exists (~/Documents/.system)
   ansible.builtin.file:
     # (a missing ~/Documents is created with default rights; an existing one
@@ -67,18 +64,6 @@
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0700"
-  tags: quickshell
-
-- name: Move the scratchpad notes into scratchpad.md (once, never overwrites)
-  ansible.builtin.command:
-    argv: "{{ ['python3', role_path ~ '/files/scratchpad-migrate.py',
-               ansible_facts.user_dir ~ '/.local/share/workstation/scratchpad',
-               ansible_facts.user_dir ~ '/Documents/.system/scratchpad.md']
-              + (['--check'] if ansible_check_mode else []) }}"
-  check_mode: false
-  register: quickshell_scratchpad_migrate
-  changed_when: quickshell_scratchpad_migrate.stdout_lines[0] | default('') in ['migrated', 'adopted']
-  failed_when: quickshell_scratchpad_migrate.rc != 0
   tags: quickshell
 
 # Plain copy, not a template (avoids any ambiguity between QML's braces

@@ -601,11 +601,9 @@ Changes from outside (Nextcloud, another editor) are picked up at once
 have unsaved typing in the open note, your version is saved first as
 `~/Documents/.system/scratchpad (conflict <date time>).md` and the window
 says so - merge by hand; conflict copies (also Nextcloud's own "conflicted
-copy" files) are never deleted. The former `~/.local/share/workstation/
-scratchpad/1.txt` ... `4.txt` were moved into the file once by the bootstrap
-(they stay as they were; `MIGRATED` there marks it). If `scratchpad.md`
-already existed with other notes, the bootstrap stops with ACTION REQUIRED
-instead of overwriting anything.
+copy" files) are never deleted. (The 2026-10 one-time move from the former
+`~/.local/share/workstation/scratchpad/{1..4}.txt` is done; those files were
+left in place.)
 
 ## Docker (on demand)
 
