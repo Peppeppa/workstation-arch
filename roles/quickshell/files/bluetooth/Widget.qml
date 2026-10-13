@@ -28,6 +28,14 @@ BarWidget {
     active: on && connectedDevices.length > 0
     onClicked: button => { if (button === Qt.LeftButton) root.togglePopup(); }
 
+    // The adapter going away (rfkill, USB) unloads the popup below; close it
+    // too, so the coordinator does not keep a popup nobody sees and it does
+    // not reappear by itself when the adapter comes back.
+    function closeWithoutAdapter() {
+        if (adapter === null && popupOpen) closePopup();
+    }
+    onAdapterChanged: root.closeWithoutAdapter()
+
     // Loaded by path (feature widget): its own files by relative path too.
     Loader {
         id: popupLoader

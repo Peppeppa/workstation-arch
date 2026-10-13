@@ -49,6 +49,17 @@ QtObject {
     }
 
     function bluetooth() {
+        // BT1: the adapter vanishing (rfkill / USB) with the popup open must
+        // close it, not leave popupOpen set (popup came back by itself later
+        // and the next click closed instead of opened).
+        const w = read("bluetooth/Widget.qml");
+        for (const c of [{ adapter: null, open: true, want: 1 }, { adapter: {}, open: true, want: 0 },
+                         { adapter: null, open: false, want: 0 }]) {
+            let closed = 0;
+            make(w, "closeWithoutAdapter", { adapter: c.adapter, popupOpen: c.open, closePopup: () => closed++ })();
+            eq("bluetooth widget: adapter " + (c.adapter ? "present" : "gone") + ", popup " + c.open, closed, c.want);
+        }
+        eq("bluetooth widget: onAdapterChanged wired", /onAdapterChanged: root\.closeWithoutAdapter\(\)/.test(w), true);
         const bt = read("bluetooth/Popup.qml");
         // BlueZ Icon property -> glyph; anything unknown = the Bluetooth glyph.
         const glyph = make(bt, "deviceGlyph", {});
