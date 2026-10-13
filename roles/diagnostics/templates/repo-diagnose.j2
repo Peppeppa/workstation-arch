@@ -331,18 +331,6 @@ def section_desktop(henv):
         sub("%slogin: ly@tty2 %s/%s" % ("" if e == "enabled" else "!! ", a, e))
 
 
-def started_at(pid):
-    """Process start as epoch seconds (from /proc), or None."""
-    try:
-        with open("/proc/%d/stat" % pid) as f:
-            ticks = int(f.read().rsplit(")", 1)[1].split()[19])
-        with open("/proc/stat") as f:
-            btime = int(next(l for l in f if l.startswith("btime")).split()[1])
-        return btime + ticks / os.sysconf("SC_CLK_TCK")
-    except (OSError, ValueError, StopIteration, IndexError):
-        return None
-
-
 def section_systemd(hp):
     sysf = [l.split()[0] for l in run(["systemctl", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
     usrf = [l.split()[0] for l in run(["systemctl", "--user", "--failed", "--no-legend", "--plain"])[1].splitlines() if l.strip()]
@@ -351,7 +339,7 @@ def section_systemd(hp):
     # power-menu reboot no longer leaves one (session-stop ends the portals
     # while the display exists); a session killed from outside (SIGTERM to
     # Hyprland, `loginctl terminate-session`) still can.
-    since = started_at(hp[0]) if hp else None
+    since = diaglib.started_at(hp[0]) if hp else None
     old, cur = [], []
     for u in usrf:
         ts = run(["systemctl", "--user", "show", "-p", "StateChangeTimestampMonotonic", "--value", u])[1]
@@ -396,7 +384,7 @@ def section_logs(henv, hp):
     with open("/proc/stat") as f:
         btime = int(next(l for l in f if l.startswith("btime")).split()[1])
     rc, o, _ = run(["coredumpctl", "list", "--no-pager", "--no-legend", "--since", "@%d" % btime], env=dict(os.environ, TZ="UTC"))
-    since = started_at(hp[0]) if hp else None
+    since = diaglib.started_at(hp[0]) if hp else None
     cur, old = [], []
     for l in o.splitlines():
         f = l.split()             # Day YYYY-MM-DD HH:MM:SS TZ PID UID GID SIG COREFILE EXE SIZE

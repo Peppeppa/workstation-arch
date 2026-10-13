@@ -93,17 +93,6 @@ def procs():
     return out
 
 
-def started_at(pid):
-    try:
-        with open("/proc/%d/stat" % pid) as f:
-            ticks = int(f.read().rsplit(")", 1)[1].split()[19])
-        with open("/proc/stat") as f:
-            btime = int(next(l for l in f if l.startswith("btime")).split()[1])
-        return btime + ticks / os.sysconf("SC_CLK_TCK")
-    except (OSError, ValueError, StopIteration, IndexError):
-        return None
-
-
 def environ_of(pid):
     try:
         with open("/proc/%d/environ" % pid, "rb") as f:
@@ -232,7 +221,7 @@ def ownership_checks(ps, qs_pid):
             check(label, qs_pid is not None and owner == qs_pid,
                   "%s owned by Quickshell" % bus if owner == qs_pid and qs_pid else "%s owner pid %s" % (bus, owner))
     agents = [p for p in ps if p[2] == UID and p[3] == "bluetooth-agent"]
-    old = [p for p in agents if (time.time() - (started_at(p[0]) or time.time())) > 75]
+    old = [p for p in agents if (time.time() - (diaglib.started_at(p[0]) or time.time())) > 75]
     check("on-demand helpers", not old, "bluetooth-agent outlived its 60 s limit (pid %s)" % old[0][0] if old
           else "no lingering pairing agent")
 
@@ -514,7 +503,7 @@ def snapshot_boot_checks(snap):
 # --- crashes / errors in the current session ------------------------------
 
 def crash_checks(hp, qs_pid):
-    since = SINCE if SINCE is not None else (started_at(hp) if hp else None)
+    since = SINCE if SINCE is not None else (diaglib.started_at(hp) if hp else None)
     with open("/proc/stat") as f:
         btime = int(next(l for l in f if l.startswith("btime")).split()[1])
     rc, o = run(["coredumpctl", "--no-pager", "--no-legend", "-q", "--json=short", "list", "--since", "@%d" % btime], timeout=10)

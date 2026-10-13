@@ -218,5 +218,13 @@ try:
 finally:
     shutil.rmtree(tmp)
 
+# started_at (shared by repo-healthcheck / repo-diagnose since Code
+# Consolidation v1): this process started just now; junk pids give None
+import time
+st = diaglib.started_at(os.getpid())
+eq("started_at: own process within the last minute", st is not None and time.time() - 60 < st <= time.time() + 1, True)
+eq("started_at: pid as string", diaglib.started_at(str(os.getpid())) == st, True)
+eq("started_at: gone / junk pid", [diaglib.started_at(p) for p in (2 ** 22 + 7, "x", None)], [None, None, None])
+
 print("diaglib: %s" % ("all checks passed" if not fails else "%d FAILED" % fails))
 sys.exit(1 if fails else 0)
