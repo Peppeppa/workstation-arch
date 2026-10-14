@@ -698,6 +698,16 @@ QtObject {
         eq("confirm: selected confirm + Enter", answers, [false, false, true]);
         eq("confirm: letters do nothing", key(Qt.Key_J), false);
 
+        // Add/Edit dialog: fresh fields only when it is OPENED. The window hides
+        // for the polkit prompt (hiddenForAuth); a reset on every re-show wiped
+        // the input and the helper's message after a cancelled/wrong password.
+        const ar = read("quickshell/firewall/AddRule.qml");
+        const onVis = ar.match(/onVisibleChanged: \{[\s\S]*?\n    \}/);
+        eq("add rule: re-show does not reset", onVis !== null && onVis[0].indexOf("reset(") < 0, true);
+        eq("add rule: reset on open", /onOpenedChanged: if \(opened\) reset\(\)/.test(ar), true);
+        eq("add rule: opened = the window's addOpen",
+           /AddRule \{[\s\S]*?opened: root\.window\.addOpen/.test(read("quickshell/firewall/FirewallContent.qml")), true);
+
         // OS menu -> System: Update / Create Snapshot / Power, each only when its owner exists.
         const om = read("quickshell/osmenu/OsMenu.qml");
         const expr = om.match(/readonly property var systemEntries: (\[[\s\S]*?\]\.filter\([\s\S]*?\)\))\n/)[1];

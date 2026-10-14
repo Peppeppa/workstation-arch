@@ -329,6 +329,7 @@ FocusScope {
         id: dialog
         anchors.fill: parent
         visible: root.window.addOpen
+        opened: root.window.addOpen
         model: fw
         fontSize: root.fontSize
         onDone: root.window.addOpen = false

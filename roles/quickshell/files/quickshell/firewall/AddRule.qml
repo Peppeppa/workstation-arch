@@ -67,10 +67,19 @@ Item {
         }
     }
 
+    // Opened (Add / a click on a row) = fresh fields. Only then: while the
+    // polkit prompt is up the whole window is hidden (hiddenForAuth), and
+    // when it comes back after a cancelled/failed auth or a refused rule the
+    // input and the helper's message must still be there (Hardware
+    // Acceptance v2: they were wiped by a reset on every re-show).
+    property bool opened: false
+    onOpenedChanged: if (opened) reset()
+
     // Hidden, the fields must not keep the keyboard: the window's FocusScope
-    // would hand focus back to them and swallow the next Escape.
+    // would hand focus back to them and swallow the next Escape. Shown again
+    // (back from the polkit prompt): the keyboard to the first field.
     onVisibleChanged: {
-        if (visible) reset();
+        if (visible) labelField.input.forceActiveFocus();
         else {
             labelField.input.focus = false;
             portField.input.focus = false;
