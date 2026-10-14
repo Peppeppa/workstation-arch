@@ -85,6 +85,24 @@ ok("checklist: fallback UKI removed (only arch-linux.efi is rebuilt by a restore
    "PRESETS=('default')" in plan and "rm -f /boot/EFI/Linux/arch-linux-fallback.efi" in plan)
 ok("checklist: no NOPASSWD", "NOPASSWD" not in plan)
 
+# 3. the CLI tools docs/system_architecture.md promises ("Die grafische Shell ist
+# Convenience") come from a package archinstall's base or a role installs - the
+# clean install had no bluetoothctl (Clean Install Acceptance v1).
+arch = load("docs/system_architecture.md")
+block = re.search(r"Beispiele:\n\n```text\n([^`]*)```\n\nsollen weiterhin funktionieren", arch)
+tools = block.group(1).split() if block else []
+provider = {"systemctl": "base", "journalctl": "base", "ip": "base", "nmcli": "networkmanager",
+            "wpctl": "wireplumber", "bluetoothctl": "bluez-utils"}
+pkgs = {"base"}
+for f in __import__("glob").glob(os.path.join(repo, "roles/*/defaults/main.yml")):
+    for k, v in (yaml.safe_load(open(f)) or {}).items():
+        if k.endswith("_packages") and isinstance(v, list):
+            pkgs |= {p for p in v if isinstance(p, str)}
+ok("system_architecture CLI list found", len(tools) >= 5)
+for t in tools:
+    ok("CLI %s: provided by an installed package (%s)" % (t, provider.get(t, "unknown - add it to this map")),
+       provider.get(t) in pkgs)
+
 # no disk serials in tracked files (public repository)
 tracked = subprocess.run(["git", "-C", repo, "grep", "-lE", r"ata-[A-Za-z0-9]+_[A-Za-z0-9_-]+_[A-Z0-9]{8,}|lsblk[^\n]*SERIAL"],
                          capture_output=True, text=True).stdout.split()

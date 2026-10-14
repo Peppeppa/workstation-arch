@@ -6,10 +6,16 @@
 #                    files/bluetooth/bluetooth-agent.py) talks D-Bus via Gio;
 #                    already on the system as a dependency, listed so the
 #                    feature's dependency is explicit
-# Not needed: bluez-utils (bluetoothctl & co. - the desktop never shells
-# out to it), a separate audio package (PipeWire's bluez5 plugin ships in
+#   bluez-utils   - bluetoothctl: the desktop never shells out to it, but the
+#                   system stays administrable from the CLI
+#                   (docs/system_architecture.md, "Die grafische Shell ist
+#                   Convenience"); the old install had it from before the
+#                   repository, the clean install did not (Clean Install
+#                   Acceptance v1). A client only, no daemon.
+# Not needed: a separate audio package (PipeWire's bluez5 plugin ships in
 # pipewire-audio, WirePlumber drives it), blueman/bluez-tools (no
 # persistent tray/agent; see the agent's header for why).
 bluetooth_packages:
   - bluez
+  - bluez-utils
   - python-gobject
