@@ -51,6 +51,10 @@ path are known here.
 
 ## Status
 
+**Release v1.0.0** (2026-10-14): accepted on the laptop after a clean
+install, hardware acceptance H1-H14 PASS - release notes and known
+limitations: `docs/release/RELEASE_NOTES_v1.0.0.md`.
+
 Ansible is now the primary provisioner (initial deployment only - runtime
 changes such as theme switching go through user-level helpers, never
 `bootstrap.sh`). `theme` (theme engine, `~/.local/bin/theme`), `base`,

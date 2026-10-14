@@ -1225,6 +1225,11 @@ history for that milestone's own record):
   `docs/recovery/`, `scripts/luks-recovery-setup.sh`). H1-H14 PASS. Not
   executed: the recovery key at the real boot prompt, a header restore.
 
+- **Release v1.0.0** (2026-10-14): annotated tag `v1.0.0` + GitHub
+  Release "REPO v1.0.0"; notes and known limitations (LUKS header restore
+  and live-media recovery not executed, recovery setup per machine,
+  workstation not hardware-accepted) in `docs/release/RELEASE_NOTES_v1.0.0.md`.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the

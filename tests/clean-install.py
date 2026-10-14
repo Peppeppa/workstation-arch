@@ -104,8 +104,12 @@ for t in tools:
        provider.get(t) in pkgs)
 
 # no disk serials in tracked files (public repository)
-tracked = subprocess.run(["git", "-C", repo, "grep", "-lE", r"ata-[A-Za-z0-9]+_[A-Za-z0-9_-]+_[A-Z0-9]{8,}|lsblk[^\n]*SERIAL"],
-                         capture_output=True, text=True).stdout.split()
+# (a column list for `lsblk -o` in an instruction names no serial)
+hits = subprocess.run(["git", "-C", repo, "grep", "-nE", r"ata-[A-Za-z0-9]+_[A-Za-z0-9_-]+_[A-Z0-9]{8,}|lsblk[^\n]*SERIAL",
+                       "--", ":!tests/clean-install.py"],
+                      capture_output=True, text=True).stdout.splitlines()
+tracked = sorted({h.split(":", 1)[0] for h in hits
+                  if not re.search(r"lsblk -o [A-Z,]*SERIAL[A-Z,]*", h) or re.search(r"ata-[A-Za-z0-9]+_", h)})
 ok("no disk serial / by-id disk name in tracked files: %s" % tracked, not tracked)
 
 print("clean-install: all checks passed" if not fails else "clean-install: %d FAILED" % fails)
