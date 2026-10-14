@@ -813,11 +813,18 @@ the full ruleset: `sudo nft list table inet workstation`.
 
 SSH: inbound logins are public-key only on every host (no passwords, no
 keyboard-interactive). The server itself runs only where a host sets
-`ssh_server_enabled: true` (`host_vars/<host>.yml`). No public key is
-provisioned (none belongs in this repository): after a fresh install,
-inbound SSH needs the client's public key added once by hand, if wanted -
-`install -d -m 700 ~/.ssh && cat client.pub >> ~/.ssh/authorized_keys &&
-chmod 600 ~/.ssh/authorized_keys`.
+`ssh_server_enabled: true` (`host_vars/<host>.yml`). Provisioning adds no
+key: after a fresh install, inbound SSH needs the client's public key added
+once by hand, as the normal user -
+
+```sh
+scripts/add-ssh-key.sh      # the owner's key (ed25519, SHA256:SGUsz61...)
+```
+
+It appends the key to `~/.ssh/authorized_keys` unless the same key is
+already there (any comment), keeps every other line, and sets `~/.ssh` 700 /
+the file 600; no sudo, sshd untouched. Another client's key: `cat
+client.pub >> ~/.ssh/authorized_keys` (same modes).
 
 ## VPN types
 

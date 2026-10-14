@@ -105,6 +105,7 @@ step "tests/recovery-snapshots.sh" bash tests/recovery-snapshots.sh
 step "tests/system-update.sh" bash tests/system-update.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
+step "tests/add-ssh-key.sh" bash tests/add-ssh-key.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh
 step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
 step "tests/healthcheck-polkit-pam.py" python3 tests/healthcheck-polkit-pam.py
@@ -117,6 +118,7 @@ step "tests/diaglib.py" python3 tests/diaglib.py
 step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py
 step "tests/system-rollback.sh" bash tests/system-rollback.sh
 step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
+step "bash -n scripts/add-ssh-key.sh" bash -n scripts/add-ssh-key.sh
 step "bash -n scripts/git-sync.sh" bash -n scripts/git-sync.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
