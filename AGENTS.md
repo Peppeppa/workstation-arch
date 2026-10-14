@@ -1215,6 +1215,10 @@ history for that milestone's own record):
   H8 snapshot polkit PASS; H10 mostly PASS (mic speech + Bluetooth device
   not tested). Fixed: firewall Add/Edit lost input + reason after a
   cancelled/failed polkit prompt (AddRule reset on re-show). Report 15.
+  Round 2: the user ran suspend, snapshot boot and a permanent restore of
+  update snapshot #14 (all PASS); a real system-update PASS. Fixed: a
+  restored pacman-hook snapshot kept pacman's db.lck (updates refused) -
+  system-rollback removes it, repo-healthcheck "pacman lock". Only H14 open.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

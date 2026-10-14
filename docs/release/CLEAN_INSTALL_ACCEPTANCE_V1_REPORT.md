@@ -281,3 +281,43 @@ Harmless, upstream behaviour; replaces the "minor finding" of section 7.
 
 Still open from section 12: H9 (suspend), H10 microphone speech + Bluetooth
 device, H11-H14.
+
+## 16. Hardware Acceptance v2, round 2 (2026-10-14, 13:55-14:25)
+
+The user ran the remaining physical tests on their own ("alles getestet und
+geht"); the agent verified each from the journal afterwards, then ran H11.
+
+| # | Result | Evidence |
+|---|---|---|
+| H9 lid suspend / resume | **PASS** (U + journal) | 13:59:15 lid closed -> hypridle started hyprlock -> `PM: suspend entry (deep)`; 14:08:27 lid opened, resumed |
+| H10 microphone speech, Bluetooth device | **PASS** (U only) | confirmed by the user; no artefact left (no `~/voice.wav`; pairing data lives in `/var/lib/bluetooth` on `@` and went with the restore below) |
+| H12 snapshot boot | **PASS** (U + journal) | boot -1 with `rootflags=subvol=@snapshots/14/snapshot ... workstation.snapshot=14`, overlayfs root |
+| H13 permanent restore | **PASS** (U + journal) + 1 defect | from the snapshot boot: `pkexec snapshot-restore 14` (password) -> `system-rollback`: @ = #14, old @ kept as `@broken-20261014-140947`; next boot: resync unit ran, boot menu #16 + #14, HEALTHY |
+| H11 real system-update | **PASS** (A) | after the restore `uv` was pending again: `system-update` (real pty, sudo once) -> pre-update snapshot #17 (boot menu), `pacman -Syu` (uv, electron43), UKI check, healthcheck HEALTHY. Reboot after it not repeated (two real boots today) |
+
+**Defect fixed - a restored pacman-hook snapshot blocked every update**
+(`2c6beef`). Repro: boot an update snapshot from the boot menu (one the
+pacman hook took, e.g. "pacman: uv"), restore it, reboot, run
+`system-update`: "pacman is running (or /var/lib/pacman/db.lck is stale)";
+`./bootstrap.sh` would fail at `pacman -Syu` the same way, and
+`repo-healthcheck` still said HEALTHY. Cause: the PreTransaction hook
+snapshots while pacman holds `db.lck` - #12, #14, #15 contain it, #13
+(baseline) and #16 (manual) do not. Fix: `system-rollback` removes the lock
+from the new @ before the switch (nothing runs there yet);
+`repo-healthcheck` FAILs "pacman lock" on a lock without a running pacman.
+Tests: `tests/system-rollback.sh` (fails without the fix),
+`tests/healthcheck-pacman-lock.py`. On the laptop: the stale lock removed
+by hand once (no pacman running, lock dated 12:44:14 = the snapshot), new
+helpers deployed, live check with a fake lock: FAIL, removed: PASS.
+
+After the restore the system was at 12:44 (R7): the bootstrap brought back
+`bluez-utils` and the new helpers (changed=4 incl. handlers), the second run
+**changed=0**. The old system `@broken-20261014-140947` stays until the
+user removes it (`system-rollback` prints the two commands).
+
+Agent mistakes in this round, both corrected at once: two `sudo` calls with
+empty input (a loop and a stray command) added one faillock entry each -
+reset to 0.
+
+**Status after round 2**: H1-H13 PASS. Open: **H14** (LUKS recovery key +
+header backup, `LUKS_RECOVERY_PLAN.md`) - the user types the secrets.

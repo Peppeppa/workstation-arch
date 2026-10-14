@@ -130,3 +130,5 @@ OPEN; H7, H8, H10-H14 OPEN.
 Update 2026-10-14 afternoon (report section 15): H5, H7, H8 PASS; H10 PASS
 except microphone speech + Bluetooth device (NOT TESTED); open: H9 suspend,
 H10 rest, H11-H14.
+Update 2026-10-14 14:25 (report section 16): H9, H10, H11, H12, H13 PASS -
+only **H14** (LUKS) open.
