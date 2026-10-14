@@ -476,6 +476,10 @@ taken before this feature existed).
    `repo-healthcheck` shows "last snapshot restore". The old system stays
    at the Btrfs top level until you remove it (the command is printed by
    `system-rollback`; `sudo journalctl -t system-rollback`).
+   Everything else on `/` is the snapshot's too: packages, `/etc` and
+   `/var/lib` - Wi-Fi/VPN profiles saved "for all users", Bluetooth
+   pairings and firewall rules made after the snapshot are gone (set them
+   up again), and `./bootstrap.sh` brings the repository's own state back.
 
 A failed restore says why in the dialog and changes nothing (a failure
 halfway puts the old system back). Limits: Secure Boot must be off (it is

@@ -315,6 +315,11 @@ After the restore the system was at 12:44 (R7): the bootstrap brought back
 **changed=0**. The old system `@broken-20261014-140947` stays until the
 user removes it (`system-rollback` prints the two commands).
 
+Also reset by the restore (expected - `/etc` and `/var/lib` are on `@`): the
+home Wi-Fi profile (Wi-Fi SSH unreachable afterwards until it is saved again)
+and the Bluetooth pairing. README "Booting a snapshot and restoring it" now
+says so.
+
 Agent mistakes in this round, both corrected at once: two `sudo` calls with
 empty input (a loop and a stray command) added one faillock entry each -
 reset to 0.
