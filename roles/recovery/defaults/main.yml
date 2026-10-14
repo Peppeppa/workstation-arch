@@ -20,6 +20,10 @@ recovery_packages:
 recovery_number_limit: 10
 recovery_number_limit_important: 4
 
+# systemd-boot menu timeout in seconds (loader.conf): long enough to pick a
+# snapshot entry, short for a normal boot.
+recovery_boot_menu_timeout: 3
+
 # Btrfs mount options for the extra subvolumes = the root's (read from fstab).
 recovery_top_mount: /run/workstation-recovery/top
 

@@ -6,6 +6,17 @@
 power_profiles_packages:
   - power-profiles-daemon
 
+# Swap (core): compressed swap in RAM through zram-generator (official extra),
+# one device zram0 with zstd - the generator's default size (half the RAM, at
+# most 4 GiB). Owned here since Release Acceptance v1: before, it existed only
+# when archinstall's Swap option had been picked. hibernate_enabled adds a disk
+# swapfile below it (priority 0); systemd never hibernates to zram.
+power_zram_packages:
+  - zram-generator
+power_zram_config: |
+  [zram0]
+  compression-algorithm = zstd
+
 # Hibernate foundation (group_vars hibernate_enabled - host capability,
 # default false). Only used when that flag is true for the host.
 #

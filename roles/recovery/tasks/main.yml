@@ -155,6 +155,18 @@
     line: default arch-linux.efi
   tags: recovery
 
+# The menu must show (snapshot entries, recovery by hand - section 22).
+# archinstall happens to set `timeout`; owned here since Release Acceptance
+# v1 so the snapshot entries do not depend on how the base was installed.
+- name: Recovery - systemd-boot menu timeout (recovery_enabled)
+  when: recovery_enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /boot/loader/loader.conf
+    regexp: '^timeout\s'
+    line: "timeout {{ recovery_boot_menu_timeout }}"
+  tags: recovery
+
 - name: Recovery - /usr/local/lib/workstation (recovery_enabled)
   when: recovery_enabled
   become: true

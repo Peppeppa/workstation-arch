@@ -110,6 +110,7 @@ step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
 step "tests/healthcheck-polkit-pam.py" python3 tests/healthcheck-polkit-pam.py
 step "tests/recovery-mounts.py" python3 tests/recovery-mounts.py
 step "tests/privileges.py" python3 tests/privileges.py
+step "tests/clean-install.py" python3 tests/clean-install.py
 step "tests/pam-polkit.sh" bash tests/pam-polkit.sh
 step "tests/diaglib.py" python3 tests/diaglib.py
 step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py

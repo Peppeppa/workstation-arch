@@ -22,6 +22,26 @@
   notify: Reload systemd-logind configuration
   tags: power
 
+# Swap (core): zram-generator creates /dev/zram0 at boot from this file -
+# no service of ours; takes effect at the next boot (no restart of a live
+# swap device).
+- name: Install zram-generator
+  become: true
+  community.general.pacman:
+    name: "{{ power_zram_packages }}"
+    state: present
+  tags: power
+
+- name: Deploy the zram-generator configuration
+  become: true
+  ansible.builtin.copy:
+    content: "{{ power_zram_config }}"
+    dest: /etc/systemd/zram-generator.conf
+    owner: root
+    group: root
+    mode: "0644"
+  tags: power
+
 # FEATURE: power_profiles. power-profiles-daemon is a machine-wide daemon
 # -> systemd system service, its only owner. Runtime switching is its
 # D-Bus API (Quickshell PowerProfiles), never this role.

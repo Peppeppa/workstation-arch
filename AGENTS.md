@@ -124,6 +124,7 @@ direct upstream dependency.
 | Shell presentation / integration | Quickshell (top bar, OS menu, Appearance - session lifecycle, started once by Hyprland, see `roles/quickshell`) |
 | Power profiles | power-profiles-daemon (systemd system service, `roles/power`, feature `power_profiles`); switched over its D-Bus API from Quickshell |
 | Lid switch -> suspend | systemd-logind (`roles/power` drop-in); lock before sleep: hypridle |
+| Swap | zram-generator (`/etc/systemd/zram-generator.conf`, `roles/power`: zram0, zstd, the generator's default size); a hibernate swapfile only with `hibernate_enabled` |
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
 | Bar layout (widget order/zones) + bar settings (background solid/transparent) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout` / `qs ipc call bar setBackground`); Ansible creates it once if missing |
 | File manager (`org.freedesktop.FileManager1`, `inode/directory`) | Nautilus (`roles/apps`; D-Bus-activated, it activates localsearch on demand) - Thunar retired and uninstalled (its own FileManager1 activation file would compete) |
@@ -1187,6 +1188,18 @@ history for that milestone's own record):
   real-hardware-tested, docs/testing/POLKIT_PAM_P1_REPORT.md). Restore
   deferred. Controller:
   `tests/supervised/`. `docs/testing/BUGHUNT_V1_SUPERVISED_REPORT.md`.
+
+- **Release Acceptance v1 - preparation** (laptop, 2026-10-14): post-reboot
+  state verified (HEALTHY, `@`, SSH on both paths, no docker group in the new
+  session, Docker never started, firewall = the five rules, faillock 0). The
+  ThinkPad itself becomes the clean-install target, installed by the user
+  with archinstall + `./bootstrap.sh`: `docs/release/CLEAN_INSTALL_PLAN.md`
+  (screen-by-screen archinstall settings, checked against archinstall 4.5 and
+  `roles/recovery`; not executed), `LUKS_RECOVERY_PLAN.md`, checklist and
+  report in `docs/release/`. Base state that came only from archinstall
+  choices now owned by the roles: zram swap (`roles/power`), systemd-boot
+  `timeout` (`roles/recovery`); `tests/clean-install.py`. Structurally tested
+  only; not deployed.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
