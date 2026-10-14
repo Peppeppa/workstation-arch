@@ -1210,6 +1210,11 @@ history for that milestone's own record):
   HEALTHY, close policy 36/36, lock/unlock, slot snapshot -> boot entry.
   Open gates (reboot/suspend/LUKS/user checks):
   `docs/release/CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md` section 12.
+  Hardware Acceptance v2 round 1 (same day, the user at the laptop): H5
+  Wi-Fi + SSH, H7 firewall polkit (cancel/wrong/right, rule really applied),
+  H8 snapshot polkit PASS; H10 mostly PASS (mic speech + Bluetooth device
+  not tested). Fixed: firewall Add/Edit lost input + reason after a
+  cancelled/failed polkit prompt (AddRule reset on re-show). Report 15.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

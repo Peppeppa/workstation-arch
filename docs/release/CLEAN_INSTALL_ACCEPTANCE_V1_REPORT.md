@@ -244,3 +244,40 @@ fresh-install defects are fixed. **Do not declare the stable release yet**:
 H9, H11-H14 and the user checks in section 12 are mandatory gates
 (`RELEASE_ACCEPTANCE_V1_CHECKLIST.md` section 7). Merge the branch to `main`
 after review; SSH stays open until those gates pass.
+
+## 15. Hardware Acceptance v2, round 1 (2026-10-14 afternoon, the user at the laptop)
+
+Kinds: **A** = automated / CLI by the agent, **U** = confirmed by the user at
+the laptop (GUI, eyes, ears, password). No reboot, suspend, snapshot boot,
+restore or LUKS change; SSH reachable throughout; faillock 0 at the end.
+
+| # | Result | Evidence |
+|---|---|---|
+| H5 Wi-Fi + SSH | **PASS** | A: Intel 7260 (`iwlwifi`, fw 17), not rfkilled, NetworkManager + wpa_supplicant active. U: connected through the bar's network popup, password typed by the user; profile stores it system-wide (`psk-flags 0`). A: the home LAN's Wi-Fi, connectivity full, DNS, HTTPS 200 over `wlp3s0`, 0 % ping loss; SSH with the key to the Wi-Fi address OK, password + root refused; firewall `tcp dport 22` has no interface restriction. First network tried was a separate subnet the LAN does not route to (controller could not reach its gateway) - topology, not the laptop. Note: replies leave by Ethernet (same subnet, lower metric) - pure-Wi-Fi only with Ethernet unplugged, not done |
+| H7 Firewall polkit | **PASS** (+ 1 defect fixed) | U+A: dialog appears for a protected change (cache expired, `pkcheck` 2); Cancel -> `rules.json` + nft byte-identical, faillock 0; wrong password -> "authentication failure", retry offered, counted **once** in faillock (the cancel after it not), "Not authorized - the firewall was not changed"; right password -> add/remove applied, then ~5 min without prompt (`auth_admin_keep`). Rule really applied: `cia-test` TCP 49999 enabled -> `tcp dport 49999 accept` in the kernel, a test listener answered from the LAN on both addresses; disabled -> nft byte-identical to the baseline, connection dropped while the listener still ran; deleted -> `rules.json` + nft = baseline. SSH rule never touched |
+| H8 Snapshot polkit | **PASS** | A (read only first): slot 1 = the user's #16 "init" - never touched. U: Create Snapshot into free slot 3 (`cia-delete-test`, #17) without a password, boot entry at once; Delete -> password dialog -> Cancel: slot unchanged, "Delete failed: Not authorized (polkit) - nothing was changed", faillock 0; Delete with the password -> exactly `snapshot-delete delete 3 17`, entry removed, #16/#14 kept |
+| H10 Visual + hardware | **PASS** for: session, display, launcher/windows, theme/icons, audio output, brightness, touchpad/keyboard, notifications; **NOT TESTED**: microphone with speech, Bluetooth with a real device | A: eDP-1 1920x1080@60 scale 1; bar + OS menu screenshots checked (Retro 82, icons, sharp); speaker -> internal mic loopback: 1 kHz +40 dB (x110) during a tone; Bluetooth discovery found 17 devices; brightness + volume/mute from the session; touchpad + TrackPoint detected. U ("ok" to the list): notification seen, beep heard, Fn brightness, touchpad/TrackPoint/keyboard, look of apps. No evidence for the speech recording (`~/voice.wav` missing) or a pairing (no paired device) -> not counted |
+
+**Defect fixed - firewall Add/Edit lost its input** (`df6348e`). Repro: Firewall
+-> Add -> fill in -> Add -> password window -> Cancel (or a wrong password):
+the dialog came back empty and without the reason. Cause: `AddRule.qml`
+reset fields and message in `onVisibleChanged`; since Hardening v1.1 the
+window hides itself while polkit asks, so the re-show reset it. Now it
+resets only when opened (`opened` = the window's `addOpen`).
+`tests/qml-logic.qml` checks it (fails without the fix). Deployed
+(`./bootstrap.sh --tags quickshell`, live reload, Quickshell pid unchanged);
+the user confirmed input + "Not authorized" stay after a wrong password.
+
+**Observation - internal microphone level**: at the default source volume
+100 % the internal mic clips heavily on background noise (19-76 % of samples
+at full scale in two "quiet" recordings; 80 %: no clipping). The repository
+sets no input level (WirePlumber's default). Not changed: whether speech is
+distorted needs the speech recording (H10 open item) - no speculative fix.
+
+**Observation - snapper leaves an empty `/.snapshots/<n>`** after every
+`snapper delete` (5 of 5 probes, snapper 0.13.2); the next `create` removes
+it and takes the next free number (collision probe: leftover 17 -> new #18).
+Harmless, upstream behaviour; replaces the "minor finding" of section 7.
+
+Still open from section 12: H9 (suspend), H10 microphone speech + Bluetooth
+device, H11-H14.

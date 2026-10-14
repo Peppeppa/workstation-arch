@@ -127,3 +127,6 @@ user). SSH is closed only after all of these.
 Status 2026-10-14 (clean install, `CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md`): PASS H1, H2, H3, H4, H6;
 H5 Ethernet only (no Wi-Fi profile yet); H9 lock/unlock PASS, lid suspend
 OPEN; H7, H8, H10-H14 OPEN.
+Update 2026-10-14 afternoon (report section 15): H5, H7, H8 PASS; H10 PASS
+except microphone speech + Bluetooth device (NOT TESTED); open: H9 suspend,
+H10 rest, H11-H14.
