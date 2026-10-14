@@ -19,9 +19,9 @@ repeated after the clean install) - OPEN - DEFERRED - N/A.
 | I1 | prerequisites: UEFI, Arch ISO (signature checked), network, sudo user, git + ansible | A | PASS - README "Requirements", checklist section 0-2 |
 | I2 | target = the 238.5 GiB `LITEONIT LCS-256M6S`; the 512 GB Fedora disk never selected | A + U | PASS (checklist, `tests/clean-install.py`) |
 | I3 | archinstall settings give: GPT, 1 GiB FAT32 ESP at `/boot`, LUKS2 (`encrypt` hook, `cryptdevice=PARTUUID`), Btrfs `@ @home @log @pkg`, fstab without `subvolid=`, systemd-boot + UKI `arch-linux.efi`, `rootflags=subvol=@`, zram, hostname `laptop`, wheel user | A | PASS - checked against the archinstall 4.5 source and the roles 2026-10-14 |
-| I4 | the same on the installed system (checklist step 3 "Check") | HW + U | OPEN |
-| I5 | `@snapshots @recovery` created by `roles/recovery` | HW | OPEN |
-| I6 | an actual clean install on the T440p | D + U | **OPEN - the user's own step** |
+| I4 | the same on the installed system (checklist step 3 "Check") | HW + U | PASS 2026-10-14 (CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md 1) |
+| I5 | `@snapshots @recovery` created by `roles/recovery` | HW | PASS 2026-10-14 |
+| I6 | an actual clean install on the T440p | D + U | PASS 2026-10-14 (by the user) |
 
 ## 2. Bootstrap and deployment
 
@@ -33,8 +33,8 @@ repeated after the clean install) - OPEN - DEFERRED - N/A.
 | B4 | exactly one `pacman -Syu` per run; roles `state: present` only | A | PASS (`local.yml`, AGENTS.md) |
 | B5 | pacman `SigLevel = Required DatabaseOptional`, never changed by a role | A + HW | PASS 2026-10-14 (laptop `pacman.conf`; no role writes SigLevel) |
 | B6 | `--noconfirm` (system-update) does not bypass signatures/trust or conflict refusal | A | PASS (pacman: --noconfirm takes the default answer; conflicts default to No, signature trust is not a prompt) |
-| B7 | check mode (`--check --diff`) reflects expected changes | HW + U | DEFERRED - needs the sudo password; run during the clean install |
-| B8 | second run changed=0 | HW + U | PRE (2026-10-14 hardening deploy); OPEN on the clean install (H3) |
+| B7 | check mode (`--check --diff`) reflects expected changes | HW + U | PASS 2026-10-14 (clean install: sync + the one pending package) |
+| B8 | second run changed=0 | HW + U | PASS 2026-10-14 on the clean install |
 | B9 | runtime does not depend on Ansible (helpers, polkit, units) | A | PASS (AGENTS.md ownership table; helpers in /usr/local) |
 | B10 | no secret required by phase 1; phase 2 separate (Bitwarden) | A | PASS (`tests/private-handover.sh`, README) |
 | B11 | privileged files root-owned, not group/world-writable | HW | PASS 2026-10-14 (`/usr/local/{bin,lib,libexec}`, policies, units, PAM) |
@@ -54,7 +54,7 @@ repeated after the clean install) - OPEN - DEFERRED - N/A.
 | E8 | lockscreen, idle lock, Coffee | PRE 2026-10-14 (idle lock active, Coffee IPC) |
 | E9 | audio, Wi-Fi, Bluetooth | PRE (Stage 1; sink present 2026-10-14) |
 | E10 | Firewall UI (auth), Snapshot UI (auth), update dialog, power/logout dialogs | PRE (Hardening v1.1, Bug Hunt v1) |
-| E11 | all of the above on the clean install | **OPEN (H10)** |
+| E11 | all of the above on the clean install | PARTIAL - automated part PASS (close policy 36/36, clipboard, notification, screenshot, theme, lock/unlock); visual/device checks OPEN (H10) |
 
 ## 4. Update, snapshots, recovery
 
@@ -70,7 +70,7 @@ repeated after the clean install) - OPEN - DEFERRED - N/A.
 | F8 | permanent restore: validation, guarded switch, failure injection | A | PASS (`tests/system-rollback.sh`: success, failure between renames, UKI build failure, missing UKI) |
 | F9 | post-restore resync unit | A | PASS (static review, flag/condition) |
 | F10 | real permanent restore + resync on hardware | D + U | **DEFERRED** - procedure in the report section 7; separate approval |
-| F11 | snapshot boot round trip on the clean install | HW + U | OPEN (H12) |
+| F11 | snapshot boot round trip on the clean install | HW + U | OPEN (H12) - entry generation PASS 2026-10-14 |
 
 ## 5. Security
 
@@ -123,3 +123,7 @@ user). SSH is closed only after all of these.
 | H12 | snapshot boot round trip from the menu | old state, pacman blocked, back to @ |
 | H13 | permanent restore + resync (report section 7) | separate approval |
 | H14 | LUKS second keyslot + header backup (`LUKS_RECOVERY_PLAN.md`) | separate approval |
+
+Status 2026-10-14 (clean install, `CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md`): PASS H1, H2, H3, H4, H6;
+H5 Ethernet only (no Wi-Fi profile yet); H9 lock/unlock PASS, lid suspend
+OPEN; H7, H8, H10-H14 OPEN.

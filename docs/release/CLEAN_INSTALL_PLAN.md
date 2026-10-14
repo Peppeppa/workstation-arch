@@ -1,8 +1,9 @@
 # Clean install of the ThinkPad T440p - checklist
 
 From booting the Arch ISO to `./bootstrap.sh`. The base system comes from
-**archinstall**, everything else from this repository. Not executed yet -
-the install erases the internal SSD.
+**archinstall**, everything else from this repository. The install erases
+the internal SSD. Executed on the T440p 2026-10-14 (result:
+`CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md`).
 
 Settings checked against archinstall 4.5 (source of the current Arch
 package) and the repository's own requirements (`roles/recovery` layout
@@ -119,9 +120,9 @@ reboot                         # remove the stick at the Lenovo logo
 3. Bootstrap:
 
    ```sh
-   mkdir -p ~/repos/Peppeppa
-   git clone https://github.com/Peppeppa/workstation-arch.git ~/repos/Peppeppa/workstation-arch
-   cd ~/repos/Peppeppa/workstation-arch
+   mkdir -p ~/repos/peppeppa       # lower case: phase 2 clones into ~/repos/peppeppa too
+   git clone https://github.com/Peppeppa/workstation-arch.git ~/repos/peppeppa/workstation-arch
+   cd ~/repos/peppeppa/workstation-arch
    ./bootstrap.sh
    ```
 

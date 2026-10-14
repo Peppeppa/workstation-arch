@@ -1201,6 +1201,16 @@ history for that milestone's own record):
   `timeout` (`roles/recovery`); `tests/clean-install.py`. Structurally tested
   only; not deployed.
 
+- **Clean Install Acceptance v1** (laptop, 2026-10-14, real-hardware-tested):
+  the T440p clean-installed by the user (archinstall + both bootstraps).
+  Fixed: Neovim errors at every start (`roles/apps` created `lazyvim.json`
+  without `version` -> LazyVim doubled every extra name;
+  `files/lazyvim-extras.py`, `tests/lazyvim-extras.py`), `bluetoothctl`
+  missing (`bluez-utils`). Check mode + two bootstraps (second changed=0),
+  HEALTHY, close policy 36/36, lock/unlock, slot snapshot -> boot entry.
+  Open gates (reboot/suspend/LUKS/user checks):
+  `docs/release/CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md` section 12.
+
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
 `docs/feature-architecture.md` ("Hardware-only validation") and the
