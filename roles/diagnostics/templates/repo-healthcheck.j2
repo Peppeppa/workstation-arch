@@ -200,6 +200,22 @@ def systemd_checks():
     check("core services", not down, "inactive: " + ", ".join(down) if down else "%d active" % len(need))
 
 
+def pacman_lock_status(lock_exists, comms):
+    """-> (ok, detail). pacman's db.lck with no pacman running is stale: every
+    update/bootstrap stops at it (left e.g. by restoring a pacman-hook snapshot
+    before system-rollback removed it - Hardware Acceptance v2)."""
+    if not lock_exists:
+        return True, "no lock"
+    if "pacman" in comms:
+        return True, "held by a running pacman"
+    return False, "stale /var/lib/pacman/db.lck (no pacman running) - updates refuse: sudo rm /var/lib/pacman/db.lck"
+
+
+def pacman_checks(ps):
+    ok, detail = pacman_lock_status(os.path.exists("/var/lib/pacman/db.lck"), {p[3] for p in ps})
+    check("pacman lock", ok, detail)
+
+
 # --- ownership -------------------------------------------------------------
 
 def ownership_checks(ps, qs_pid):
@@ -570,6 +586,7 @@ def main():
     sess = None if SYSTEM else session_checks(ps)
     hp, qs_pid = sess if sess else (None, None)
     systemd_checks()
+    pacman_checks(ps)
     ownership_checks(ps, qs_pid)
     network_checks()
     security_checks()

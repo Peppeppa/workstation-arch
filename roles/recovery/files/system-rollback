@@ -93,6 +93,11 @@ cleanup() {
 }
 trap cleanup EXIT
 btrfs subvolume snapshot "$RECOVERY_TOP/@snapshots/$n/snapshot" "$RECOVERY_TOP/@rollback-new" >/dev/null
+# A snapshot from the pacman hook (pre-transaction, also the boot menu's
+# update snapshots) was taken while pacman held its lock: the restored
+# system would refuse every update/bootstrap ("db.lck is stale"). Nothing
+# runs in the new @ yet - any lock in it is stale (Hardware Acceptance v2).
+rm -f "$RECOVERY_TOP/@rollback-new/var/lib/pacman/db.lck"
 # the kernel side first: build the new main UKI before anything is renamed
 build_uki "$uki" "$(tr -d '\n' < "$RECOVERY_TOP/@rollback-new$KERNEL_CMDLINE")" "$MAIN_UKI.rollback"
 mkdir -p "$RECOVERY_BROKEN_DIR"

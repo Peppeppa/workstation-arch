@@ -109,6 +109,7 @@ step "tests/add-ssh-key.sh" bash tests/add-ssh-key.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh
 step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
 step "tests/healthcheck-polkit-pam.py" python3 tests/healthcheck-polkit-pam.py
+step "tests/healthcheck-pacman-lock.py" python3 tests/healthcheck-pacman-lock.py
 step "tests/recovery-mounts.py" python3 tests/recovery-mounts.py
 step "tests/privileges.py" python3 tests/privileges.py
 step "tests/clean-install.py" python3 tests/clean-install.py

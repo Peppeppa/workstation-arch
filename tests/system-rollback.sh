@@ -7,7 +7,7 @@
 # every fixed path of the script and its library points into $tmp. Checks:
 #   - success: @ = the snapshot, the old @ kept as @broken-*, main UKI rebuilt
 #     from the stored snapshot-boot UKI, vmlinuz copied, the restore record
-#     written into the NEW system
+#     written into the NEW system, no stale pacman lock in it
 #   - failure between the two renames: the old @ is put back, nothing left over
 #   - failure while building the UKI: nothing changed
 #   - a kernel without a stored or matching UKI: refused, nothing changed
@@ -54,6 +54,8 @@ setup() { # fresh top level: @ (current), snapshot 30 (kernel $1), stored UKI fo
     mkdir -p "$tmp/top/@/etc/kernel" "$tmp/top/@snapshots/30/snapshot/etc/kernel" "$tmp/top/@snapshots/30/snapshot/usr/lib/modules/$1"
     echo current > "$tmp/top/@/etc/state"
     echo snapshot > "$tmp/top/@snapshots/30/snapshot/etc/state"
+    # taken by the pacman hook: pacman's lock is in it
+    mkdir -p "$tmp/top/@snapshots/30/snapshot/var/lib/pacman"; : > "$tmp/top/@snapshots/30/snapshot/var/lib/pacman/db.lck"
     mkdir -p "$tmp/top/@snapshots/30/snapshot/var/lib/workstation"
     echo '{"entries": "old view"}' > "$tmp/top/@snapshots/30/snapshot/var/lib/workstation/snapshot-boot.json"
     echo "rootflags=subvol=@ rw" > "$tmp/top/@snapshots/30/snapshot/etc/kernel/cmdline"
@@ -78,6 +80,8 @@ python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['snapshot'
 [ -e "$tmp/top/@/var/lib/workstation/snapshot-boot.resync" ] && [ ! -e "$tmp/top/@/var/lib/workstation/snapshot-boot.json" ]
 check "success: stale snapshot-boot state dropped, re-sync flag set" $?
 [ ! -e "$tmp/top/@rollback-new" ] && [ ! -e "$tmp/boot/EFI/Linux/arch-linux.efi.rollback" ]; check "success: nothing left over" $?
+[ ! -e "$tmp/top/@/var/lib/pacman/db.lck" ] && [ -e "$tmp/top/@snapshots/30/snapshot/var/lib/pacman/db.lck" ]
+check "success: stale pacman lock (pacman-hook snapshot) not in the new @, snapshot itself untouched" $?
 
 # ---- failure between the two renames: @ is put back
 setup 7.2.9
