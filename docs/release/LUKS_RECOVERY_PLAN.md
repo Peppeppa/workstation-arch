@@ -1,6 +1,11 @@
 # LUKS recovery plan - ThinkPad T440p
 
-Status: **plan only (Release Acceptance v1, 2026-10-14)**. Nothing on the
+Status: **implemented on the laptop 2026-10-14 (H14,
+`CLEAN_INSTALL_ACCEPTANCE_V1_REPORT.md` section 17)**: recovery key in
+keyslot 1, header backup + offline docs on the stick `REPO-RECOVERY`
+(`docs/recovery/`). The text below is the original plan.
+
+Original status: **plan only (Release Acceptance v1, 2026-10-14)**. Nothing on the
 laptop was changed: no keyslot added or removed, no passphrase changed, no
 header exported, crypttab and initramfs untouched. The drills in section 4
 ran on throw-away image files on the controller with throw-away keys.
@@ -132,5 +137,6 @@ backup, verify, **destroy the old backups**.
 |---|---|
 | risk assessment, option choice, procedures | **planned** (this document) |
 | backup / restore / stale-backup / recovery-key mechanics | **tested on image files** (section 4) |
-| second keyslot, header backup, offline storage, boot test on the laptop | **not implemented** - after the clean install, separately approved (H14) |
+| second keyslot, header backup, offline storage on the laptop | **implemented + verified** 2026-10-14 (H14) |
+| boot test of the recovery key at the real prompt | **not executed** (needs a reboot) |
 | TPM2 / FIDO2 / Secure Boot | not applicable / out of scope (section 3) |

@@ -1218,7 +1218,12 @@ history for that milestone's own record):
   Round 2: the user ran suspend, snapshot boot and a permanent restore of
   update snapshot #14 (all PASS); a real system-update PASS. Fixed: a
   restored pacman-hook snapshot kept pacman's db.lck (updates refused) -
-  system-rollback removes it, repo-healthcheck "pacman lock". Only H14 open.
+  system-rollback removes it, repo-healthcheck "pacman lock". H14 PASS (same
+  day): LUKS recovery key in keyslot 1 (typed back from paper), header
+  backup byte-identical with the disk, offline stick `REPO-RECOVERY` with
+  guide/agent instructions/system info/SHA256SUMS (report 17; public copies
+  `docs/recovery/`, `scripts/luks-recovery-setup.sh`). H1-H14 PASS. Not
+  executed: the recovery key at the real boot prompt, a header restore.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

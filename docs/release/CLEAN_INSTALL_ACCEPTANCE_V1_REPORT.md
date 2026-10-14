@@ -326,3 +326,33 @@ reset to 0.
 
 **Status after round 2**: H1-H13 PASS. Open: **H14** (LUKS recovery key +
 header backup, `LUKS_RECOVERY_PLAN.md`) - the user types the secrets.
+
+## 17. H14 - LUKS recovery key, header backup, offline recovery stick (2026-10-14, 16:05-16:35)
+
+Approved by the user (stick identity confirmed, "du hast alle erlaubnisse").
+Secrets were typed and shown only in a local terminal on the laptop
+(`sudo` + `systemd-cryptenroll` / `cryptsetup` reading the TTY); none went
+through SSH, chat, files, argv or logs. The agent read only a status file
+(PASS/FAIL lines, no secrets).
+
+| Step | Result | Evidence |
+|---|---|---|
+| Identification (read-only) | PASS (A) | REPO SSD = SATA LITEON 238.5 GiB, LUKS2 partition 2 = the `cryptdevice=PARTUUID` of `/etc/kernel/cmdline`; Fedora SSD (SATA, btrfs `fedora_*`, no LUKS) and the only USB device (14.6 GiB stick) told apart by model, serial, transport |
+| Stick prepared | PASS (A) | identity re-checked by by-id path + serial + exact size + `removable`; `wipefs`, GPT, one ext4 `REPO-RECOVERY`, write test; SSD and Fedora SSD unchanged (lsblk before/after) |
+| Recovery key | PASS (A + U) | `systemd-cryptenroll --recovery-key`: keyslots 1 -> 2 (slot 0 = passphrase unchanged, slot 1 = recovery key, token `systemd-recovery`); screen + scrollback cleared after the user wrote it down; **typed back from paper**: `--test-passphrase --key-slot 1` = 0; passphrase `--key-slot 0` = 0 |
+| Header backup | PASS (A + U) | `luksHeaderBackup` to `REPO-RECOVERY:/luks-header.img` (no overwrite, umask 077, root 0400), 16777216 bytes = data offset, byte-identical with the first 16 MiB of the partition (`cmp`), `isLuks` LUKS2, UUID = the partition's, 2 keyslots + recovery token, passphrase opens through `--test-passphrase --header <backup>`; sha256 `0082f6f4a2e871ec499535b4271c245d68211bf8af06ac53f1d1225cba4f6219` |
+| Offline docs on the stick | PASS (A) | `README.md`, `RECOVERY-GUIDE.md` (German, every command READ-ONLY / REVERSIBLE / DESTRUCTIVE, untested ones NICHT AUSGEFÜHRT), `AGENT-RECOVERY.md` (hard rules for an agent), `SYSTEM-INFO.md` (real UUIDs/models/boot paths), `SHA256SUMS`; all UTF-8, every referenced tool/path present on the laptop, `bootctl kernel-inspect` = 7.2.9; after unmount + drop_caches a fresh read-only mount: `sha256sum -c` all OK |
+| Stick unmounted | PASS (A) | synced, unmounted, mountpoint removed |
+
+Public copy without device identifiers: `docs/recovery/` (guide + agent
+instructions with `<placeholders>`, `scripts/luks-recovery-setup.sh` = the
+local script generalized, for the workstation).
+
+NOT EXECUTED (no reboot / no destructive test in this order): the recovery
+key at the real initramfs prompt (drilled on an image file:
+`LUKS_RECOVERY_PLAN.md` 4.3), a header restore (image files only, 4.1),
+anything from an Arch live ISO on this laptop.
+
+**H14: PASS.** With it H1-H14 are PASS on the clean install. Validity: the
+stick belongs to this LUKS container only - after a reinstall or any keyslot
+change: new backup, destroy the old one.

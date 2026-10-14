@@ -120,6 +120,7 @@ step "tests/snapshot-boot.py" python3 tests/snapshot-boot.py
 step "tests/system-rollback.sh" bash tests/system-rollback.sh
 step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
 step "bash -n scripts/add-ssh-key.sh" bash -n scripts/add-ssh-key.sh
+step "bash -n scripts/luks-recovery-setup.sh" bash -n scripts/luks-recovery-setup.sh
 step "bash -n scripts/git-sync.sh" bash -n scripts/git-sync.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh

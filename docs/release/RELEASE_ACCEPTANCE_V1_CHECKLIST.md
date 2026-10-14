@@ -132,3 +132,6 @@ except microphone speech + Bluetooth device (NOT TESTED); open: H9 suspend,
 H10 rest, H11-H14.
 Update 2026-10-14 14:25 (report section 16): H9, H10, H11, H12, H13 PASS -
 only **H14** (LUKS) open.
+Update 2026-10-14 16:35 (report section 17): **H14 PASS** - recovery key
+(slot 1) + header backup + offline recovery stick. H1-H14 PASS. Not
+executed: recovery key at the real boot prompt (needs a reboot).
