@@ -1182,7 +1182,7 @@ decision 2026-10-15).
 |---|---|
 | Scope | `roles/printing` (package, `cups.socket`, avahi units kept disabled) |
 | Packages | `cups` (pulls `cups-filters` = driverless IPP Everywhere, and the avahi *library*); USB backend via `libusb` (already present). Not: `cups-browsed`, `system-config-printer`, vendor driver packs |
-| Lifecycle | `cups.socket` (system) - `cupsd` starts on the first request (printing, `lpstat`, a print dialog) and exits after 60 s idle (package `cupsd.conf`: `IdleExitTimeout 60`); no process at idle |
+| Lifecycle | `cups.socket` (system) - `cupsd` starts on the first request (printing, `lpstat`, a print dialog) and then runs until shutdown: CUPS skips `IdleExitTimeout` under systemd while `WebInterface` is on (`scheduler/main.c`), and the web page is how printers are added - measured on the laptop: idle cupsd ~9 MB RSS, event-driven. Nothing runs before the first use |
 | Network | listens on `localhost:631` + `/run/cups/cups.sock` only (package `cupsd.conf`, not modified); firewall opens nothing; `avahi-daemon` disabled (its D-Bus activation needs the enable-time alias, so cupsd's `Browsing`/dnssd cannot start it) - no mDNS, no shared printers |
 | Privileges | adding/removing printers: `lpadmin` / the CUPS web page, authenticated by CUPS for `@SYSTEM` (wheel) - no polkit rule of ours |
 | Persistent user data | `/etc/cups/printers.conf` + PPDs - CUPS', never touched by the role |

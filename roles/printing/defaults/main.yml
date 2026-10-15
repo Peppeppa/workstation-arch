@@ -14,8 +14,12 @@
 printing_packages:
   - cups
 
-# cupsd is started on demand by its socket (/run/cups/cups.sock) and exits
-# after 60 s idle (Arch's cupsd.conf: IdleExitTimeout 60). It listens on
+# cupsd is started on demand by its socket (/run/cups/cups.sock): nothing
+# runs until the first print, print dialog or `lpstat`. It then stays until
+# shutdown - CUPS skips its idle exit under systemd while the web interface is
+# on (scheduler/main.c: `!WebInterface`; Arch: WebInterface Yes), measured on
+# the laptop. The web interface stays on (it is how a printer is added); an
+# idle cupsd is ~9 MB RSS, 0 wakeups in 120 s (measured). It listens on
 # localhost:631 + that socket only (the package's cupsd.conf, unchanged), and
 # the firewall opens no 631 - no remote printing, no sharing.
 printing_socket: cups.socket

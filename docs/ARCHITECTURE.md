@@ -82,7 +82,8 @@ Responsibility split within the provisioning layer:
 - PipeWire/WirePlumber own audio state.
 - BlueZ owns Bluetooth state.
 - CUPS owns printing (feature `printing_enabled`): `cupsd` is started by
-  its socket on demand and exits when idle, local only (localhost:631 +
+  its socket on the first print/print dialog and then stays until
+  shutdown (event-driven, ~9 MB), local only (localhost:631 +
   its socket; no discovery daemon, no sharing).
 - hyprpolkitagent owns polkit authentication; xdg-desktop-portal-hyprland
   owns screen sharing/screenshot portals; xdg-desktop-portal-gtk owns

@@ -820,7 +820,8 @@ archive; the old directory stays until you delete it, the workspace
 ## Printing
 
 CUPS (`roles/printing`): `cups.socket` is enabled, so the CUPS daemon
-starts only when something prints or asks for printers, and listens on
+starts only when something prints or asks for printers (a print dialog
+counts) and then stays until shutdown (~9 MB, idle), and listens on
 this machine only (`localhost:631` + its socket; port 631 is not opened in
 the firewall). No network printer discovery (`cups-browsed` and the
 avahi daemon are not enabled), no printer sharing, no vendor driver packs.
