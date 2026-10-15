@@ -1022,32 +1022,33 @@ close it after logging in.
 
 Enrollment uses the university's official CAT installer (THWS: download
 `eduroam-linux-THW.py` from cat.eduroam.org), never stored in this
-repository:
+repository. Run it through `eduroam-setup`, in a terminal of the graphical
+session (no sudo):
 
 ```sh
-python3 ~/Downloads/eduroam-linux-THW.py   # in a terminal: username + password are asked there
+eduroam-setup ~/Downloads/eduroam-linux-THW.py   # username + password are asked by the installer
 ```
 
-It creates the NetworkManager profiles `eduroam` and `THWS` (CA bundle in
-`~/.config/cat_installer/ca.pem`, the RADIUS server names checked via
-`domain-match`, anonymous outer identity). It marks the password
-"agent-owned" - kept by a secret agent such as nm-applet, which this
-desktop deliberately does not run - so NetworkManager drops it. Store it
-once, system-owned (root-only keyfile, like every Wi-Fi password here):
-
-```sh
-sudo nmcli connection modify eduroam 802-1x.password-flags 0
-sudo nmcli connection modify THWS 802-1x.password-flags 0
-```
-
-then Network popup -> Connections... -> `eduroam` -> Wi-Fi Security ->
-type the password -> Save; the same for `THWS`. Never put the password on
-a command line.
+The installer creates the NetworkManager profiles `eduroam` and `THWS`
+(CA bundle in `~/.config/cat_installer/ca.pem`, the RADIUS server names
+checked via `domain-match`, anonymous outer identity). It marks the
+password "agent-owned" - kept by a secret agent such as nm-applet, which
+this desktop deliberately does not run - so NetworkManager drops it, and
+typing it into Connections... does not help either (it is dropped on every
+Save). NetworkManager has no global default for this; it is set per
+profile. `eduroam-setup` therefore switches every Wi-Fi 802.1X profile
+with an agent-owned password to `802-1x.password-flags 0` (system-owned,
+root-only keyfile, like every Wi-Fi password here) and then opens
+nm-connection-editor once per profile: Wi-Fi Security -> type the password
+-> Save (once for `eduroam`, once for `THWS`). Nothing else of the
+profiles is changed, and the password never passes through the script.
 
 Re-running the installer replaces both profiles and makes the password
-agent-owned again: repeat both steps. Until then neither connects, and the
-Network popup says `"eduroam": no password saved - Connections… → eduroam
-→ Wi-Fi Security`.
+agent-owned again - run it through `eduroam-setup` again. Profiles that
+already exist (installer run directly): `eduroam-setup` without an
+argument fixes them the same way. Until then neither connects, and the
+Network popup says `"eduroam": no password saved - run eduroam-setup in a
+terminal`.
 
 Both then appear under Known networks in the Network popup while in
 range (out of range only while NetworkManager is connecting to them); a

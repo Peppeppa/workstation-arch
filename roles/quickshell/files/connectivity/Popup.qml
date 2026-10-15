@@ -269,10 +269,13 @@ BarPopup {
     // NM had no password for a saved profile ("no-secrets"): the eduroam CAT
     // installer stores it agent-owned, and this desktop runs no secret agent
     // (README "eduroam") - re-running the installer brings that back (real
-    // use at THWS 2026-10-09: both profiles failed silently). Say where the
-    // password goes instead of NM's "Secrets were required".
+    // use at THWS 2026-10-09: both profiles failed silently). Typing it into
+    // Connections... alone does not help while the profile is agent-owned
+    // (THWS 2026-10-15: dropped on every Save) - `eduroam-setup` switches the
+    // flags and opens the editor. Say that instead of NM's "Secrets were
+    // required".
     function noPasswordMessage(name) {
-        return "\"" + name + "\": no password saved - Connections\u2026 \u2192 " + name + " \u2192 Wi-Fi Security";
+        return "\"" + name + "\": no password saved - run eduroam-setup in a terminal";
     }
 
     function cancelPassword() {

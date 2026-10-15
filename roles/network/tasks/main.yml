@@ -73,6 +73,19 @@
   notify: Create the VPN state file now
   tags: network
 
+# eduroam enrollment (README "eduroam"): runs the institution's CAT
+# installer (never in this repository) and makes its agent-owned 802.1X
+# passwords system-owned - there is no secret agent here. On demand only,
+# as the user; it changes profiles only when the user runs it.
+- name: Deploy eduroam-setup (~/.local/bin/eduroam-setup)
+  ansible.builtin.copy:
+    src: eduroam-setup
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/eduroam-setup"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: network
+
 # FEATURE: fortinet_vpn (see defaults for the source decision). The profile
 # itself (K-number, stored password) is the user's - created once with
 # nm-connection-editor or nmcli (README "Uni VPN (THWS)"), never here.

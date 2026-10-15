@@ -1,0 +1,62 @@
+#!/bin/bash
+# Managed by Ansible (roles/network/files/eduroam-setup) - do not edit by
+# hand. eduroam enrollment in one go (README "eduroam"):
+#
+#   eduroam-setup ~/Downloads/eduroam-linux-THW.py   run the CAT installer, then fix
+#   eduroam-setup                                     fix existing profiles only
+#
+# The institution's GÉANT CAT installer creates its 802.1X profiles with an
+# agent-owned password (802-1x.password-flags 1): kept only by a secret
+# agent such as nm-applet, which this desktop deliberately does not run -
+# NetworkManager drops the password and every connect fails with
+# "no-secrets". NetworkManager has no global default for these flags (they
+# are per profile, and the installer sets them explicitly), so they are
+# switched afterwards: every Wi-Fi 802.1X profile whose password is
+# agent-owned or "ask every time" becomes system-owned (flags 0, root-only
+# keyfile - like every Wi-Fi password here). Nothing else of a profile is
+# touched, and the password itself never passes through this script: it is
+# typed into nm-connection-editor, opened once per switched profile.
+# Runs as the user from the graphical session (the installer's profiles
+# are `permissions user:<you>`; polkit lets the active session modify its
+# own profiles) - no sudo.
+set -euo pipefail
+
+if [ $# -gt 0 ]; then
+    installer=$1
+    shift
+    [ -f "$installer" ] || { echo "eduroam-setup: $installer: no such file" >&2; exit 2; }
+    # The installer asks username + password itself (getpass, never argv).
+    # It hands the password to NetworkManager, which drops it (agent-owned):
+    # it is asked once more below, in the editor.
+    python3 "$installer" "$@"
+    echo
+fi
+
+fixed=()
+while IFS=: read -r uuid type; do
+    [ "$type" = 802-11-wireless ] || continue
+    [ -n "$(nmcli -g 802-1x.eap connection show uuid "$uuid")" ] || continue
+    flags=$(nmcli -g 802-1x.password-flags connection show uuid "$uuid")
+    flags=${flags%% *}                       # "1" or "1 (agent-owned)"
+    (( (flags & 3) != 0 )) || continue       # 1 agent-owned, 2 not saved
+    name=$(nmcli -g connection.id connection show uuid "$uuid")
+    nmcli connection modify uuid "$uuid" 802-1x.password-flags 0
+    echo "\"$name\": password is now stored by NetworkManager (password-flags 0)"
+    fixed+=("$uuid:$name")
+done < <(nmcli -t -f UUID,TYPE connection show)
+
+if [ ${#fixed[@]} -eq 0 ]; then
+    echo "No 802.1X Wi-Fi profile with an agent-owned password - nothing to change."
+    echo "A missing password: Network popup -> Connections... -> <profile> -> Wi-Fi Security."
+    exit 0
+fi
+
+for entry in "${fixed[@]}"; do
+    uuid=${entry%%:*} name=${entry#*:}
+    if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        echo "\"$name\": type the password in Wi-Fi Security, then Save."
+        nm-connection-editor --edit="$uuid" || true
+    else
+        echo "\"$name\": no graphical session - store the password in Network popup -> Connections... -> $name -> Wi-Fi Security."
+    fi
+done
