@@ -109,7 +109,7 @@ direct upstream dependency.
 | NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) are switched to system-owned by `eduroam-setup` - README "eduroam" |
 | eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user through `eduroam-setup` - `roles/network`, `~/.local/bin`: installer, then its 802.1X passwords `password-flags 0` + nm-connection-editor for the password; needs `python-dbus`), result = NetworkManager profiles; the installer is never in this repo |
 | Printing (CUPS) | `cupsd` via `cups.socket` (systemd system unit, `roles/printing`, feature `printing_enabled`): started on demand, exits after 60 s idle, listens on localhost:631 + `/run/cups/cups.sock` only; printer queues = the user's (`lpadmin`, CUPS web page); avahi-daemon and cups-browsed never enabled (no discovery, no sharing) |
-| Claude Code CLI | Anthropic's npm package, user-level in `~/.local` (`roles/apps` `apps_npm_global_packages`; `~/.npmrc` created only when missing); updates = its own updater / `npm install -g`; login = the user's, interactive |
+| Claude Code CLI, Bitwarden CLI (`bw`) | the vendors' npm packages, user-level in `~/.local` (`roles/apps` `apps_npm_global_packages`; `~/.npmrc` created only when missing); updates = Claude Code's own updater / `npm install -g`; logins = the user's, interactive |
 | KNIME | the user's download of the official archive + `knime-install` (`roles/apps`, `~/.local/bin`; never run by Ansible) -> `~/.local/opt/knime_<version>`, wrapper `~/.local/bin/knime` (XWayland) |
 | Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand; used with `sudo docker` - the desktop user is NOT in the `docker` group (root-equivalent; the role removes it, repo-healthcheck "docker access") |
 | Browser extensions + THWS library proxy | Chromium managed policy `/etc/chromium/policies/managed/workstation.json` (`roles/apps`): ExtensionSettings (6 store extensions, Chromium installs/updates them) + ProxySettings `pac_script` = the library's own PAC (THWS owns the domain list); proxy login only in Chromium's dialog, never here |
@@ -1235,8 +1235,9 @@ history for that milestone's own record):
 
 - **Personal software migration** (2026-10-15, explicitly requested after
   the Omarchy audit `docs/migration/OMARCHY_PERSONAL_SOFTWARE_AUDIT.md`):
-  `bind`, `wget`, `bitwarden-cli`, `pandoc-cli`, `texlab` (LaTeX LSP),
-  `mysql-workbench`, `openai-codex`, Claude Code (npm, `~/.local`), feature
+  `bind`, `wget`, `pandoc-cli`, `texlab` (LaTeX LSP), `mysql-workbench`,
+  `openai-codex`, Claude Code + Bitwarden CLI (npm, `~/.local` - Arch's
+  `bitwarden-cli` conflicts with the system nodejs), feature
   `printing` (CUPS, socket, local only), GeForce NOW web app,
   `knime-install`, gaming on for laptop + workstation. Structurally tested
   (tests, a biblatex/biber build and the npm task's idempotence on the

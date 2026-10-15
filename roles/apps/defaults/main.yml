@@ -67,10 +67,6 @@ apps_packages:
   # D-Bus activation - no permanent process, no extra app.
   - gnome-keyring
   - bitwarden
-  # Bitwarden CLI (`bw`, official extra): vault access from a terminal or a
-  # script. Login/unlock stay interactive (`bw login`, `bw unlock`) - no
-  # session or API key is stored by this repository.
-  - bitwarden-cli
 
   # PDF: Zathura as a lean reader (mupdf backend - lighter than the
   # poppler backend) + qpdf for CLI manipulation (extract/merge/split).
@@ -122,7 +118,20 @@ apps_packages:
 # only when it does not exist (prefix + allow-scripts), so the user's
 # `npm install -g @anthropic-ai/claude-code@latest` and Claude Code's own
 # updater work the same way afterwards. Login at first start (`claude`).
+#
+# Bitwarden CLI (`bw`): Bitwarden's own npm package @bitwarden/cli, the same
+# way. NOT Arch's bitwarden-cli: it hard-depends on nodejs-lts-jod (Node 22),
+# which conflicts with the nodejs above (Mason, Claude Code) - the first
+# deploy on the laptop failed on exactly that (2026-10-15). @bitwarden/cli
+# runs on this Node (bw 2026.10.0 tested on the laptop). Login/unlock stay
+# interactive (`bw login`, `bw unlock`) - no session or API key is stored.
 apps_npm_global_packages:
+  - "@anthropic-ai/claude-code"
+  - "@bitwarden/cli"
+# Install scripts npm 12 may run - only the ones a tool needs to work
+# (claude-code links its native binary; @bitwarden/cli's core-js postinstall
+# is only a message and stays blocked).
+apps_npm_allow_scripts:
   - "@anthropic-ai/claude-code"
 
 # Applications available only via Flatpak (Flathub) per the Package

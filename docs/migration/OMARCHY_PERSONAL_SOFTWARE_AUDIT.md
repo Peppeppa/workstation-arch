@@ -225,7 +225,7 @@ section (structurally tested; not provisioned on a host yet):
 
 | Item | Decision | Implemented as |
 |---|---|---|
-| `bitwarden-cli`, `bind`, `wget` | add | `roles/apps` / `roles/base` |
+| `bitwarden-cli`, `bind`, `wget` | add | `bind`, `wget`: `roles/base`; `bw`: Bitwarden's npm package `@bitwarden/cli` in `~/.local` (`roles/apps`) - Arch's `bitwarden-cli` needs `nodejs-lts-jod`, which conflicts with the system `nodejs` (first laptop deploy failed on it) |
 | LaTeX in Neovim | complete it | already there: VimTeX + latexmk + biber/biblatex + Zathura SyncTeX (forward `\lv`, inverse Ctrl+click) - a biblatex/biber test document built on the laptop. Added: `texlab` (pacman, completion/diagnostics/navigation; VimTeX's omni completion dropped as a second source) |
 | Pandoc | add (was missing) | `pandoc-cli` (`roles/development`) |
 | Texmaker, Tectonic | not needed | dropped - the TeX Live/latexmk toolchain builds everything, Neovim + TeXstudio are the editors |

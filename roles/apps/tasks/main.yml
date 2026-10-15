@@ -11,7 +11,8 @@
     state: present
   tags: apps
 
-# Claude Code (defaults: apps_npm_global_packages) - user level, no become.
+# Claude Code + Bitwarden CLI (defaults: apps_npm_global_packages) - user
+# level, no become.
 # ~/.npmrc only when missing (initialised, never managed afterwards): the
 # user's own `npm install -g` and Claude Code's updater then use the same
 # prefix and script permission. The install itself passes both through the
@@ -24,21 +25,21 @@
       # `npm install -g` goes to ~/.local (no sudo); install scripts only
       # for packages listed here (npm 12 blocks them otherwise).
       prefix=${HOME}/.local
-      allow-scripts={{ apps_npm_global_packages | join(',') }}
+      allow-scripts={{ apps_npm_allow_scripts | join(',') }}
     force: false
     owner: "{{ ansible_facts.user_id }}"
     group: "{{ ansible_facts.user_gid }}"
     mode: "0644"
   tags: apps
 
-- name: Install user-level npm tools (Claude Code) into ~/.local
+- name: Install user-level npm tools (Claude Code, Bitwarden CLI) into ~/.local
   community.general.npm:
     name: "{{ item }}"
     global: true
     state: present
   environment:
     npm_config_prefix: "{{ ansible_facts.user_dir }}/.local"
-    npm_config_allow_scripts: "{{ apps_npm_global_packages | join(',') }}"
+    npm_config_allow_scripts: "{{ apps_npm_allow_scripts | join(',') }}"
     npm_config_fund: "false"
     npm_config_audit: "false"
   loop: "{{ apps_npm_global_packages }}"

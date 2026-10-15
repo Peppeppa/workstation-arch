@@ -786,6 +786,11 @@ The bootstrap creates `~/.npmrc` only if there is none: `prefix=${HOME}/.local`
 With your own `~/.npmrc`, add those two lines yourself if `claude update`
 complains.
 
+`bw` (Bitwarden CLI) comes the same way - Bitwarden's npm package
+`@bitwarden/cli` in `~/.local` (Arch's `bitwarden-cli` needs Node 22, which
+conflicts with the system's Node). Sign in with `bw login`, unlock per
+session with `bw unlock`; update with `npm install -g @bitwarden/cli@latest`.
+
 ## MySQL Workbench
 
 In the launcher (`mysql-workbench`, `roles/development`). A client only -
