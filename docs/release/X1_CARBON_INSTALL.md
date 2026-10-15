@@ -18,7 +18,10 @@ no SSH.
 ## 0. Before - backup (on the running Omarchy)
 
 Everything on the internal NVMe is erased: the system, `/home`, every
-snapshot, every Wi-Fi profile. Check each line yourself:
+snapshot, every Wi-Fi profile. First an inventory of what Nextcloud may not
+cover - read-only, metadata only: `docs/migration/BACKUP_INVENTORY.md`
+(`scripts/backup-inventory.sh > ~/backup-inventory.md`). Then check each
+line yourself:
 
 - [ ] Nextcloud client: all synced folders (Documents, Goodnotes, Studium, ...)
       show "up to date".

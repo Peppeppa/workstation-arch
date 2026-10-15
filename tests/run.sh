@@ -109,6 +109,7 @@ step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "tests/eduroam-setup.sh" bash tests/eduroam-setup.sh
 step "tests/knime-install.sh" bash tests/knime-install.sh
+step "tests/backup-inventory.sh" bash tests/backup-inventory.sh
 step "tests/add-ssh-key.sh" bash tests/add-ssh-key.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh
 step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py
@@ -126,6 +127,7 @@ step "bash -n scripts/private-handover.sh" bash -n scripts/private-handover.sh
 step "bash -n scripts/add-ssh-key.sh" bash -n scripts/add-ssh-key.sh
 step "bash -n scripts/luks-recovery-setup.sh" bash -n scripts/luks-recovery-setup.sh
 step "bash -n scripts/git-sync.sh" bash -n scripts/git-sync.sh
+step "bash -n scripts/backup-inventory.sh" bash -n scripts/backup-inventory.sh
 if unshare -rn true 2>/dev/null && command -v nft >/dev/null; then
     step "tests/firewall.sh" timeout 120 bash tests/firewall.sh
 else
