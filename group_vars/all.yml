@@ -85,6 +85,12 @@ tray_enabled: true
 # and packages stay.
 bluetooth_enabled: true
 
+# Printing (roles/printing): CUPS, socket-activated, localhost only - no
+# network discovery, no sharing, no vendor drivers (README "Printing").
+# true: the user's default (2026-10-15). false: socket disabled + stopped;
+# CUPS, its printer queues and the package stay.
+printing_enabled: true
+
 # Power profiles (roles/power: power-profiles-daemon; roles/quickshell
 # files/power/: power popup with battery details + Performance/Balanced/
 # Power Saver - only the profiles the hardware offers). Switching is

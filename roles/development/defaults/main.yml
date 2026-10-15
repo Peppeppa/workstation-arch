@@ -70,6 +70,23 @@ development_packages:
   - biber                   # BibLaTeX backend
   - texlive-binextra        # latexmk (no separate Arch package) and other TeX helpers
   - texlive-luatex          # luaotfload - lualatex aborts without it
+  - texlab                  # LaTeX language server for Neovim (official extra, like rust-analyzer: pacman, not Mason - workstation-languages.lua)
+  # Document conversion (Markdown/LaTeX/DOCX/HTML/EPUB ...; PDF output
+  # through the TeX Live above). Not Tectonic / Texmaker (asked for
+  # 2026-10-15 and dropped again): latexmk + biber + TeX Live already build
+  # everything (tested with biblatex), Neovim + VimTeX is the editor and
+  # TeXstudio the GUI one. Pandoc is Haskell: ~0.5 GiB of libraries with it.
+  - pandoc-cli
+
+  # MySQL Workbench (official extra): the graphical client/modeling tool for
+  # databases that run elsewhere (container, course server) - no server
+  # package, like mariadb-clients above.
+  - mysql-workbench
+
+  # OpenAI Codex CLI (`codex`, official extra - updated by pacman with the
+  # system). Login is interactive at first start (`codex`); nothing of it
+  # is stored here.
+  - openai-codex
 
 # Docker runs only on demand: neither the daemon nor its socket starts at
 # boot (that is also Arch's package default - stated here so it stays

@@ -3,9 +3,13 @@
 -- Deployed as lua/plugins/vimtex.lua: lazy.nvim (LazyVim's plugin manager)
 -- picks it up through the starter's `{ import = "plugins" }`.
 --
--- VimTeX for .tex files: latexmk (TeX Live, roles/development) compiles,
--- Zathura (roles/apps) shows the PDF. Deliberately no LaTeX LSP (texlab) -
--- LazyVim's lang.tex extra would add one through Mason.
+-- VimTeX for .tex files: latexmk (TeX Live, roles/development) compiles
+-- (biber for biblatex is run by latexmk itself), Zathura (roles/apps) shows
+-- the PDF with SyncTeX both ways: \lv jumps to the cursor's place in the PDF,
+-- Ctrl+click in Zathura jumps back into Neovim (VimTeX starts Zathura with
+-- its inverse-search command). The language server (completion,
+-- diagnostics, navigation) is texlab - workstation-languages.lua - not
+-- LazyVim's lang.tex extra.
 -- Commands on the local leader (LazyVim: "\"), only in .tex buffers:
 --   \ll compile on/off (latexmk -pvc: rebuilds on every save)
 --   \lk stop   \lc clean auxiliary files   \lv forward search to Zathura

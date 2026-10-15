@@ -1,0 +1,28 @@
+---
+# FEATURE: printing (group_vars printing_enabled, default true - the user's
+# decision 2026-10-15: printing available by default). CUPS only, local:
+#  - cups (official extra) pulls cups-filters (driverless IPP Everywhere /
+#    PDF filters) and libcups; the avahi LIBRARY comes with it, the avahi
+#    daemon stays disabled (printing_disabled_units).
+#  - USB printers: CUPS' usb backend needs libusb (already on every host as a
+#    dependency - measured on the laptop - so not listed again).
+# Left out on purpose: cups-browsed (network queue discovery), avahi-daemon
+# (mDNS on the LAN), system-config-printer (CUPS' own web page at
+# localhost:631 and `lpadmin` cover adding a printer), vendor driver packs
+# (gutenprint, hplip, foomatic) - installed later only for a concrete
+# printer (README "Printing").
+printing_packages:
+  - cups
+
+# cupsd is started on demand by its socket (/run/cups/cups.sock) and exits
+# after 60 s idle (Arch's cupsd.conf: IdleExitTimeout 60). It listens on
+# localhost:631 + that socket only (the package's cupsd.conf, unchanged), and
+# the firewall opens no 631 - no remote printing, no sharing.
+printing_socket: cups.socket
+
+# Never enabled by this repository: mDNS announcing/browsing on the LAN.
+# avahi-daemon's D-Bus activation needs its enable-time alias, so a disabled
+# unit cannot be started by cupsd either (checked on the laptop).
+printing_disabled_units:
+  - avahi-daemon.service
+  - avahi-daemon.socket

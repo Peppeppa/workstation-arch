@@ -30,6 +30,7 @@ for f in roles/*/files/*.sh; do step "sh -n $f" sh -n "$f"; done
 for f in roles/recovery/files/system-* roles/recovery/files/pre-transaction-snapshot roles/recovery/files/recovery-baseline roles/recovery/files/snapshot-create roles/recovery/files/snapshot-restore roles/recovery/files/workstation-checkupdates; do step "bash -n $f" bash -n "$f"; done
 step "bash -n roles/shell/files/bashrc" bash -n roles/shell/files/bashrc
 step "bash -n roles/network/files/eduroam-setup" bash -n roles/network/files/eduroam-setup
+step "bash -n roles/apps/files/knime-install" bash -n roles/apps/files/knime-install
 step "sh -n roles/network/files/50-workstation-vpn-state" sh -n roles/network/files/50-workstation-vpn-state
 step "sh -n roles/recovery/files/50-workstation-snapshot-boot.plugin" sh -n roles/recovery/files/50-workstation-snapshot-boot.plugin
 step "sh -n initcpio hook" sh -n roles/recovery/files/initcpio/workstation-snapshot-overlay.hook
@@ -107,6 +108,7 @@ step "tests/system-update.sh" bash tests/system-update.sh
 step "tests/packages-helper.sh" bash tests/packages-helper.sh
 step "tests/private-handover.sh" bash tests/private-handover.sh
 step "tests/eduroam-setup.sh" bash tests/eduroam-setup.sh
+step "tests/knime-install.sh" bash tests/knime-install.sh
 step "tests/add-ssh-key.sh" bash tests/add-ssh-key.sh
 step "tests/session-helpers.sh" bash tests/session-helpers.sh
 step "tests/healthcheck-theme.py" python3 tests/healthcheck-theme.py

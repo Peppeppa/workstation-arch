@@ -115,6 +115,10 @@
     - role: bluetooth
       tags: [bluetooth]
 
+    # Feature printing: CUPS (socket-activated, local only).
+    - role: printing
+      tags: [printing]
+
     # Host capability: Btrfs recovery layout, snapper, system-update/-snapshot/
     # -rollback (docs/recovery-design.md). Before power: it owns @swap.
     - role: recovery

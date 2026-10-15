@@ -1173,6 +1173,22 @@ of this and is what the user uses.
 | Disable | no wallpaper surface/picker; Hyprland's default wallpaper returns; state lines stay |
 | Persistent user data | own images in `themes/<id>/backgrounds/` (untracked files are never touched); the per-theme choice |
 
+## Printing (`printing_enabled`)
+
+`printing_enabled` (`group_vars/all.yml`, default `true` - the user's
+decision 2026-10-15).
+
+| Contract | |
+|---|---|
+| Scope | `roles/printing` (package, `cups.socket`, avahi units kept disabled) |
+| Packages | `cups` (pulls `cups-filters` = driverless IPP Everywhere, and the avahi *library*); USB backend via `libusb` (already present). Not: `cups-browsed`, `system-config-printer`, vendor driver packs |
+| Lifecycle | `cups.socket` (system) - `cupsd` starts on the first request (printing, `lpstat`, a print dialog) and exits after 60 s idle (package `cupsd.conf`: `IdleExitTimeout 60`); no process at idle |
+| Network | listens on `localhost:631` + `/run/cups/cups.sock` only (package `cupsd.conf`, not modified); firewall opens nothing; `avahi-daemon` disabled (its D-Bus activation needs the enable-time alias, so cupsd's `Browsing`/dnssd cannot start it) - no mDNS, no shared printers |
+| Privileges | adding/removing printers: `lpadmin` / the CUPS web page, authenticated by CUPS for `@SYSTEM` (wheel) - no polkit rule of ours |
+| Persistent user data | `/etc/cups/printers.conf` + PPDs - CUPS', never touched by the role |
+| Disable | `cups.socket` + `cups.service` disabled and stopped; queues and package stay |
+| Hardware-only validation | a real network (IPP Everywhere) and USB printer, a print from a GTK and a Qt dialog |
+
 ## Known upstream / VM-only behaviour (evidence from the stability audit)
 
 Not fixed here on purpose - each was reproduced and root-caused on arch-dev:

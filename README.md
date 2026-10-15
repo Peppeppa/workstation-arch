@@ -746,6 +746,108 @@ Zathura shows the new PDF. `\ll` again or `\lk` stops the automatic
 compilation (closing Neovim stops it as well). German documents need
 nothing extra in Neovim - `\usepackage[ngerman]{babel}` in the document.
 
+Back from the PDF: **Ctrl+click** in Zathura (opened with `\lv`) jumps to
+that line in Neovim (SyncTeX inverse search). Bibliographies: `biblatex`
+with `backend=biber` and `\addbibresource{refs.bib}` - latexmk runs biber
+itself. texlab (Neovim's LaTeX language server) completes commands,
+environments, `\cite` keys from the `.bib` and `\ref` labels, shows
+diagnostics (and chktex hints on open/save), and jumps to definitions
+(`gd` on a `\ref`/`\cite`).
+
+Converting with Pandoc (`pandoc-cli`; PDF output goes through the TeX Live
+above):
+
+```sh
+pandoc notes.md -o notes.pdf            # Markdown -> PDF (pdflatex)
+pandoc dokument.tex -o dokument.docx    # LaTeX -> Word
+pandoc notes.md -s -o notes.html        # standalone HTML
+pandoc dokument.tex --citeproc --bibliography refs.bib -o dokument.docx
+pandoc --list-output-formats            # what this pandoc can write
+```
+
+Pandoc converts the document's structure, not every LaTeX package -
+complex layouts stay LaTeX's job.
+
+## AI coding CLIs (Claude Code, Codex)
+
+Both are installed by the bootstrap; signing in is done once, by you, at
+the first start - nothing about the accounts is in this repository.
+
+| | Claude Code | Codex |
+|---|---|---|
+| Command | `claude` | `codex` |
+| Source | Anthropic's npm package `@anthropic-ai/claude-code` (the same native binary as their installer), user-level in `~/.local` - no Arch package exists | Arch package `openai-codex` (extra) |
+| Sign in | `claude` -> browser login | `codex` -> sign in with ChatGPT or an API key |
+| Update | by itself in the background, or `claude update` / `npm install -g @anthropic-ai/claude-code@latest` | with the system (`sudo pacman -Syu`, Update in the OS menu) |
+
+The bootstrap creates `~/.npmrc` only if there is none: `prefix=${HOME}/.local`
+(global npm packages without sudo) and `allow-scripts` for Claude Code
+(npm 12 runs no install scripts otherwise - Claude Code's links its binary).
+With your own `~/.npmrc`, add those two lines yourself if `claude update`
+complains.
+
+## MySQL Workbench
+
+In the launcher (`mysql-workbench`, `roles/development`). A client only -
+no database server is installed: connect to a server elsewhere (course
+server, a Docker container, an SSH tunnel to `127.0.0.1:3306`). Saved
+connection passwords go to the keyring (gnome-keyring).
+
+## KNIME
+
+KNIME Analytics Platform has no Arch package and no Flathub app, so it is
+installed from KNIME's own archive - downloaded by you, then:
+
+1. https://www.knime.com/downloads -> Linux (the form fields are optional;
+   KNIME's terms apply) -> `knime_<version>.linux.gtk.x86_64.tar.gz` into
+   `~/Downloads`.
+2. `knime-install ~/Downloads/knime_<version>.linux.gtk.x86_64.tar.gz`
+
+It extracts to `~/.local/opt/knime_<version>` (`~/.local/opt/knime` points
+to the current one; KNIME brings its own Java) and creates the command
+`knime` and a launcher entry. Both start KNIME through XWayland
+(`GDK_BACKEND=x11`, as on the previous Hyprland setup); `KNIME_GDK_BACKEND=wayland knime`
+tries native Wayland. A newer version: the same command with the new
+archive; the old directory stays until you delete it, the workspace
+(`~/knime-workspace`) is never touched. The bootstrap only installs the
+`knime-install` command - it never downloads or installs KNIME.
+
+## Printing
+
+CUPS (`roles/printing`): `cups.socket` is enabled, so the CUPS daemon
+starts only when something prints or asks for printers, and listens on
+this machine only (`localhost:631` + its socket; port 631 is not opened in
+the firewall). No network printer discovery (`cups-browsed` and the
+avahi daemon are not enabled), no printer sharing, no vendor driver packs.
+
+Add a printer:
+- **Network printer** (almost every current one speaks IPP Everywhere,
+  driverless): `lpadmin -p Buero -E -v ipp://<printer-ip>/ipp/print -m everywhere`
+  (as a member of `wheel`, CUPS asks for your password), or the web page
+  http://localhost:631 -> Administration -> Add Printer (CUPS starts on
+  demand: if the page does not load, `lpstat -r` wakes it).
+- **USB printer**: plug it in, then the same web page lists it.
+- A printer that needs a vendor driver (old/GDI printers): install that
+  driver package then (OS menu -> Packages), e.g. `gutenprint`,
+  `hplip`, `brlaser`.
+
+`lpstat -p` lists printers, `lp -d Buero file.pdf` prints; GTK/Qt apps show
+the printers in their print dialog.
+
+## Gaming
+
+`gaming_enabled` is on for `laptop` and `workstation` (both Intel GPUs):
+the bootstrap enables the `multilib` repository and installs Steam,
+Lutris, GameMode (`gamemode` + `lib32-gamemode`) and the hosts' Vulkan
+driver (`vulkan-intel` + `lib32-vulkan-intel`). No service runs because of
+it: GameMode's daemon is started on demand over D-Bus by a game that asks
+for it (`gamemoderun %command%` in Steam's launch options). Footprint:
+~0.6 GiB of packages (about 150 incl. the 32-bit libraries, computed
+against the laptop's installed set), plus the Steam client and runtime that
+Steam downloads into `~/.local/share/Steam` at its first start. GeForce NOW is a web app
+(launcher "GeForce NOW") in Chromium. A host without `gaming_enabled` (a
+test VM) installs none of it.
+
 ## Firewall and SSH
 
 Inbound traffic is dropped unless it answers something this machine
@@ -970,14 +1072,14 @@ nothing updated; later updates: `:Lazy update`, `:MasonUpdate`):
 | Dockerfile | Tree-sitter | dockerls (+ compose LS) | - | hadolint | - |
 | Lua | Tree-sitter | lua_ls | stylua | lua_ls | - |
 | Assembly | Tree-sitter `asm` / `nasm` | asm-lsp: instruction/register docs + completion (GAS, NASM, ...) - **no** semantic checking, errors come from the assembler (`as`, `nasm`) | - | - | gdb |
-| LaTeX | VimTeX (see "LaTeX") | VimTeX completion (omnifunc in blink.cmp) - still no texlab | - | VimTeX (`\le`) | - |
+| LaTeX | VimTeX (see "LaTeX") | texlab (pacman): completion incl. `\cite`/`\ref` keys, diagnostics + chktex on open/save, go to definition | - | VimTeX (`\le`) | - |
 
 How: LazyVim's own extras (`dap.core`, `formatting.prettier`,
 `lang.{ansible,clangd,docker,java,json,markdown,python,rust,toml,typescript,yaml}`)
 are added to `~/.config/nvim/lazyvim.json` (your own `:LazyExtras` choices
 stay); `lua/plugins/workstation-languages.lua` (the third managed file) adds
 only what no extra has: HTML/CSS/Bash/Assembly servers, parsers, the
-project-`.venv` rule for pyright, VimTeX completion. One server per
+project-`.venv` rule for pyright, texlab for LaTeX. One server per
 language - Ansible files (roles/*/tasks, handlers, playbooks) are
 `yaml.ansible` -> ansiblels, every other YAML file -> yamlls. Toolchains
 are pacman's: gcc/make/gdb, JDK 25, rust + rust-analyzer, nasm, nodejs/npm

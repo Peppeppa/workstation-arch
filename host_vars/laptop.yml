@@ -4,12 +4,16 @@
 # i7-4712MQ, Intel HD 4600 / Haswell, 14" 1920x1080 eDP panel - see the
 # Stage 0 hardware audit), not invented ahead of time.
 #
-# Gaming is opt-in (gaming_enabled: false by default - see
-# group_vars/all.yml and AGENTS.md). This host's real GPU is not yet
-# documented here, so gaming stays disabled rather than guessed. Once
-# the real GPU is known, enable both together, e.g.:
-#   gaming_enabled: true
-#   gaming_gpu_vulkan_packages: [vulkan-intel, lib32-vulkan-intel]
+# Gaming (opt-in host capability, group_vars gaming_enabled: false): on, the
+# user's decision 2026-10-15. GPU = Intel HD 4600 (Haswell, Gen7.5 - measured,
+# see above): Mesa's Vulkan driver for it (hasvk) is in vulkan-intel; the
+# 32-bit one for Steam in lib32-vulkan-intel (multilib - enabled by local.yml
+# for gaming hosts). Haswell's Vulkan is not conformant: older/lighter games
+# and GeForce NOW (browser) are the realistic use - not validated here yet.
+gaming_enabled: true
+gaming_gpu_vulkan_packages:
+  - vulkan-intel
+  - lib32-vulkan-intel
 
 # Haswell: VA-API through the i965 driver - intel-media-driver starts at
 # Broadwell (see roles/graphics/defaults/main.yml).

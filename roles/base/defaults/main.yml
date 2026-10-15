@@ -10,6 +10,8 @@ base_packages:
   - less     # the pager (git, man)
   - btop     # interactive resource monitor - run on demand, no service/autostart
   - fastfetch # system summary - run on demand only, never from a shell rc file
+  - wget     # downloads - scripts and course material that expect wget instead of curl
+  - bind     # DNS tools: dig, host, nslookup (only the client tools are used - named stays disabled, Arch's default)
   - stow     # GNU Stow - the private provisioning repo (bootstrap-personal.sh -> scripts/private-handover.sh) links its dotfiles with it
 
 # github.com's SSH host keys, pinned in ~/.ssh/known_hosts so the private

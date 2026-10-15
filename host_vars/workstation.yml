@@ -4,12 +4,15 @@
 # policy, ...) land here once they are actually needed, not invented
 # ahead of time.
 #
-# Gaming is opt-in (gaming_enabled: false by default - see
-# group_vars/all.yml and AGENTS.md). This host's real GPU is not yet
-# documented here, so gaming stays disabled rather than guessed. Once
-# the real GPU is known, enable both together, e.g.:
-#   gaming_enabled: true
-#   gaming_gpu_vulkan_packages: [vulkan-radeon, lib32-vulkan-radeon]
+# Gaming (opt-in host capability, group_vars gaming_enabled: false): on, the
+# user's decision 2026-10-15. GPU: Intel (iGPU/Arc - stated by the user, not
+# yet measured on the machine) -> Mesa's Intel Vulkan driver, 64- and 32-bit
+# (lib32-: multilib, enabled by local.yml for gaming hosts). Check with
+# `lspci -k | grep -A3 VGA` at the bring-up; a different GPU changes this list.
+gaming_enabled: true
+gaming_gpu_vulkan_packages:
+  - vulkan-intel
+  - lib32-vulkan-intel
 
 # Real deviation: no battery, mains-powered desktop - the battery widget
 # (and with it the bar's profile switch) never shows here, so the

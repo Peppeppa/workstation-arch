@@ -1,0 +1,92 @@
+#!/bin/bash
+# Managed by Ansible (roles/apps/files/knime-install) - do not edit by hand.
+# Installs KNIME Analytics Platform from the official Linux archive the user
+# downloaded (README "KNIME"):
+#
+#   knime-install ~/Downloads/knime_5.12.0.linux.gtk.x86_64.tar.gz
+#
+# Nothing is downloaded here and no account is involved: KNIME has no Arch
+# package and no Flathub app (checked 2026-10-15), only its own archive from
+# knime.com/downloads (it bundles its Java runtime). The archive is checked
+# (one top directory knime_<version>/ with the `knime` launcher, no absolute
+# or ../ paths), extracted to ~/.local/opt/knime_<version>, and
+# ~/.local/opt/knime points to it. Then:
+#   ~/.local/bin/knime                                   start command
+#   ~/.local/share/applications/workstation-knime.desktop  launcher entry
+# Both start KNIME through XWayland (GDK_BACKEND=x11) - the setup that worked
+# on the user's Hyprland before (Omarchy); KNIME's Eclipse/SWT UI is not
+# validated on native Wayland here. `KNIME_GDK_BACKEND=wayland knime` tries
+# native Wayland. Updating = the same command with a newer archive (older
+# versions stay in ~/.local/opt until removed by hand; the workspace
+# ~/knime-workspace is never touched). Running it again with the same
+# archive changes nothing.
+set -euo pipefail
+
+die() { echo "knime-install: $*" >&2; exit 1; }
+
+[ $# -eq 1 ] || die "usage: knime-install <knime_X.Y.Z.linux.gtk.x86_64.tar.gz>"
+archive=$1
+[ -f "$archive" ] || die "$archive: no such file"
+case $(basename -- "$archive") in
+    knime_*.linux.gtk.x86_64.tar.gz) ;;
+    *) die "$archive: not an official KNIME Linux archive (knime_<version>.linux.gtk.x86_64.tar.gz)" ;;
+esac
+
+listing=$(tar -tzf "$archive") || die "$archive: not a readable tar.gz"
+top=$(printf '%s\n' "$listing" | cut -d/ -f1 | sort -u)
+[ "$(printf '%s\n' "$top" | wc -l)" -eq 1 ] && [[ $top =~ ^knime_[0-9][0-9A-Za-z.]*$ ]] \
+    || die "$archive: expected exactly one top directory knime_<version>/"
+if printf '%s\n' "$listing" | grep -q -E '^/|(^|/)\.\.(/|$)'; then
+    die "$archive: contains absolute or ../ paths - refusing"
+fi
+printf '%s\n' "$listing" | grep -qx "$top/knime" || die "$archive: no $top/knime launcher"
+
+opt=$HOME/.local/opt
+bin=$HOME/.local/bin
+apps=$HOME/.local/share/applications
+mkdir -p "$opt" "$bin" "$apps"
+
+if [ -x "$opt/$top/knime" ]; then
+    echo "$top is already installed in $opt"
+else
+    tmp=$(mktemp -d "$opt/.knime-install.XXXXXX")
+    trap 'rm -rf "$tmp"' EXIT
+    echo "Extracting $top to $opt ..."
+    tar -xzf "$archive" -C "$tmp" --no-same-owner
+    mv "$tmp/$top" "$opt/$top"
+fi
+[ "$(readlink "$opt/knime" 2>/dev/null)" = "$top" ] || ln -sfn "$top" "$opt/knime"
+
+marker="# workstation-arch knime-install"
+write_managed() { # path - content on stdin; never overwrites a foreign file
+    local path=$1 content
+    content=$(cat)
+    if [ -e "$path" ] && ! grep -qF "$marker" "$path"; then
+        echo "knime-install: $path exists and is not ours - left as it is" >&2
+        return 0
+    fi
+    [ -e "$path" ] && [ "$(cat "$path")" = "$content" ] && return 0
+    printf '%s\n' "$content" >"$path.tmp" && mv "$path.tmp" "$path"
+}
+
+write_managed "$bin/knime" <<EOF
+#!/bin/bash
+$marker - KNIME through XWayland (see knime-install)
+exec env GDK_BACKEND="\${KNIME_GDK_BACKEND:-x11}" "\$HOME/.local/opt/knime/knime" "\$@"
+EOF
+[ -x "$bin/knime" ] || ! grep -qF "$marker" "$bin/knime" || chmod 0755 "$bin/knime"
+
+icon=knime
+[ -f "$opt/knime/icon.xpm" ] && icon=$opt/knime/icon.xpm
+write_managed "$apps/workstation-knime.desktop" <<EOF
+[Desktop Entry]
+$marker
+Type=Application
+Name=KNIME Analytics Platform
+Comment=Visual data analytics workflows
+Exec=$bin/knime
+Icon=$icon
+Categories=Science;DataVisualization;
+EOF
+
+echo "KNIME ${top#knime_}: start with \`knime\` or from Applications."

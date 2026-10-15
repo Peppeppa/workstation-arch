@@ -1,0 +1,51 @@
+---
+# FEATURE: printing (see defaults). CUPS is a machine-wide daemon -> systemd
+# system unit, socket-activated: nothing runs until something prints or
+# asks for printers. Adding/removing printers is the user's (lpadmin, the
+# CUPS web page) - printers.conf is never touched here.
+- name: Install CUPS (printing_enabled)
+  when: printing_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ printing_packages }}"
+    state: present
+  tags: printing
+
+- name: Enable the CUPS socket (printing_enabled)
+  when: printing_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ printing_socket }}"
+    enabled: true
+    state: started
+  tags: printing
+
+- name: No mDNS daemon for printer discovery/sharing (printing_enabled)
+  when: printing_enabled
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+  loop: "{{ printing_disabled_units }}"
+  tags: printing
+
+# Disable vs. Purge: the socket off and stopped; CUPS, its queues
+# (/etc/cups) and the package stay.
+- name: Check for the CUPS socket (printing disabled)
+  when: not printing_enabled
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/{{ printing_socket }}
+  register: printing_socket_unit
+  tags: printing
+
+- name: Disable the CUPS socket and daemon (printing disabled)
+  when: not printing_enabled and printing_socket_unit.stat.exists
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - "{{ printing_socket }}"
+    - cups.service
+  tags: printing

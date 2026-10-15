@@ -67,6 +67,10 @@ apps_packages:
   # D-Bus activation - no permanent process, no extra app.
   - gnome-keyring
   - bitwarden
+  # Bitwarden CLI (`bw`, official extra): vault access from a terminal or a
+  # script. Login/unlock stay interactive (`bw login`, `bw unlock`) - no
+  # session or API key is stored by this repository.
+  - bitwarden-cli
 
   # PDF: Zathura as a lean reader (mupdf backend - lighter than the
   # poppler backend) + qpdf for CLI manipulation (extract/merge/split).
@@ -105,6 +109,21 @@ apps_packages:
 
   # GitHub CLI: development tooling lives in roles/development; listed
   # there (github-cli) - not repeated here.
+
+# Claude Code CLI (`claude`): no package in the official repositories.
+# Anthropic's own channels: the curl | bash installer (excluded by the
+# Package Source Policy) and the npm package @anthropic-ai/claude-code, which
+# installs the same native binary (Anthropic docs, "Install with npm"). npm
+# and nodejs are already provisioned (apps_packages above), so: a user-level global
+# install into ~/.local (no sudo, `claude` in ~/.local/bin). npm 12 blocks
+# install scripts unless allowed - the package's postinstall links its native
+# binary, so exactly this package is allowed (measured on the laptop: without
+# it `claude` reports "native binary not installed"). ~/.npmrc is written
+# only when it does not exist (prefix + allow-scripts), so the user's
+# `npm install -g @anthropic-ai/claude-code@latest` and Claude Code's own
+# updater work the same way afterwards. Login at first start (`claude`).
+apps_npm_global_packages:
+  - "@anthropic-ai/claude-code"
 
 # Applications available only via Flatpak (Flathub) per the Package
 # Source Policy (official Arch has no clean match; see AGENTS.md for
@@ -160,10 +179,20 @@ apps_webapps:
     comment: Discord web client in its own window
     url: https://discord.com/channels/@me
     icon: discord
+  # GeForce NOW = NVIDIA's own browser client (the user's choice 2026-10-15,
+  # not the Flathub app). Chromium is a supported GeForce NOW browser; the
+  # stream decodes in Chromium (VA-API where the host has it). Login stays
+  # in the window - no credentials anywhere here. Streaming quality and
+  # input latency are not validated on either host yet.
+  - id: geforce-now-web
+    name: GeForce NOW
+    comment: GeForce NOW cloud gaming in its own window
+    url: https://play.geforcenow.com/
+    icon: com.nvidia.geforcenow
 
 # Deliberately NOT automated this run - see AGENTS.md Current Status:
 #
-# - GeForce NOW, Overleaf, draw.io/diagrams.net: plain web pages in
+# - Overleaf, draw.io/diagrams.net: plain web pages in
 #   Chromium; an entry in apps_webapps above when one is wanted in the
 #   launcher.
 

@@ -108,6 +108,9 @@ direct upstream dependency.
 | Neovim colorscheme | the active workstation theme (`theme` helper: `neovim.lua` + `neovim-current.lua`, `doautocmd User WorkstationTheme` to running Neovims); Neovim config itself = the user's (LazyVim starter created once) |
 | NetworkManager secret agent | none on purpose (no nm-applet): secrets are system-owned (Quickshell popup, nm-connection-editor "for all users"); agent-owned profiles (eduroam CAT) are switched to system-owned by `eduroam-setup` - README "eduroam" |
 | eduroam enrollment | the institution's GÉANT CAT installer (one-time, run by the user through `eduroam-setup` - `roles/network`, `~/.local/bin`: installer, then its 802.1X passwords `password-flags 0` + nm-connection-editor for the password; needs `python-dbus`), result = NetworkManager profiles; the installer is never in this repo |
+| Printing (CUPS) | `cupsd` via `cups.socket` (systemd system unit, `roles/printing`, feature `printing_enabled`): started on demand, exits after 60 s idle, listens on localhost:631 + `/run/cups/cups.sock` only; printer queues = the user's (`lpadmin`, CUPS web page); avahi-daemon and cups-browsed never enabled (no discovery, no sharing) |
+| Claude Code CLI | Anthropic's npm package, user-level in `~/.local` (`roles/apps` `apps_npm_global_packages`; `~/.npmrc` created only when missing); updates = its own updater / `npm install -g`; login = the user's, interactive |
+| KNIME | the user's download of the official archive + `knime-install` (`roles/apps`, `~/.local/bin`; never run by Ansible) -> `~/.local/opt/knime_<version>`, wrapper `~/.local/bin/knime` (XWayland) |
 | Docker daemon | `docker.service`/`docker.socket`/`containerd.service` (systemd system units, `roles/development`) - never enabled; started/stopped by the user on demand; used with `sudo docker` - the desktop user is NOT in the `docker` group (root-equivalent; the role removes it, repo-healthcheck "docker access") |
 | Browser extensions + THWS library proxy | Chromium managed policy `/etc/chromium/policies/managed/workstation.json` (`roles/apps`): ExtensionSettings (6 store extensions, Chromium installs/updates them) + ProxySettings `pac_script` = the library's own PAC (THWS owns the domain list); proxy login only in Chromium's dialog, never here |
 | Other VPN protocols (WireGuard, OpenVPN, OpenConnect, IPsec/IKEv2) | NetworkManager natively / its official plugins (`roles/network`); each helper (openvpn, openconnect, charon-nm) is NM's child only while a connection is up; strongswan's own daemons stay disabled; no provider apps (Mullvad = a WireGuard config) |
@@ -684,8 +687,10 @@ passed in this session):
   (`ansible.builtin.assert`) until `gaming_gpu_vulkan_packages` is also
   set — see Package Source Policy note in `roles/gaming` and the
   gaming-gated multilib pre_task in `local.yml` (tagged `gaming`, runs
-  before the one central `pacman -Syu`). **Not yet enabled for either
-  real host** — see Next Milestone / open points. This was a real,
+  before the one central `pacman -Syu`). **Enabled for `laptop` and
+  `workstation` since 2026-10-15** (both Intel: `vulkan-intel` +
+  `lib32-vulkan-intel`; workstation GPU as stated by the user) -
+  structurally tested only, not yet provisioned on either host. This was a real,
   arch-dev-discovered bug: the role originally ran unconditionally on
   every host and crashed on arch-dev's empty GPU driver list instead of
   skipping a VM that never asked for gaming.
@@ -802,14 +807,12 @@ is still genuinely not started.
   choice); WebCord (Flathub) retired. The Arch `discord` package is only
   Discord's self-updating bootstrap (client lives in ~/.config/discord) -
   not used.
-- **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: neither is set
-  for `laptop` or `workstation` — real GPU hardware was not provided
-  and must not be guessed. Gaming stays disabled on both real hosts
-  until their real GPU is documented and both variables are set
-  together in the relevant `host_vars/<hostname>.yml` (see
-  `group_vars/all.yml` and the comments in both `host_vars/*.yml`).
+- **`gaming_enabled` / `gaming_gpu_vulkan_packages`**: resolved
+  2026-10-15 - set for `laptop` (Haswell, measured) and `workstation`
+  (Intel, stated by the user - confirm at its bring-up); the group default
+  stays `false` (VMs).
 - **Webapp management**: `apps_webapps` (roles/apps) renders launcher
-  entries for Chromium web apps (WhatsApp so far); GeForce NOW,
+  entries for Chromium web apps (WhatsApp, Zoom, Discord, GeForce NOW);
   Overleaf, draw.io are plain pages until added there.
 
 **Documentation gaps found during the prior audit, still open:**
@@ -1229,6 +1232,15 @@ history for that milestone's own record):
   Release "REPO v1.0.0"; notes and known limitations (LUKS header restore
   and live-media recovery not executed, recovery setup per machine,
   workstation not hardware-accepted) in `docs/release/RELEASE_NOTES_v1.0.0.md`.
+
+- **Personal software migration** (2026-10-15, explicitly requested after
+  the Omarchy audit `docs/migration/OMARCHY_PERSONAL_SOFTWARE_AUDIT.md`):
+  `bind`, `wget`, `bitwarden-cli`, `pandoc-cli`, `texlab` (LaTeX LSP),
+  `mysql-workbench`, `openai-codex`, Claude Code (npm, `~/.local`), feature
+  `printing` (CUPS, socket, local only), GeForce NOW web app,
+  `knime-install`, gaming on for laptop + workstation. Structurally tested
+  (tests, a biblatex/biber build and the npm task's idempotence on the
+  laptop in temporary directories); not provisioned on a host yet.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

@@ -13,8 +13,12 @@
 --   Assembly asm_lsp (instruction/register docs + completion for GAS/NASM
 --   and others - NOT a semantic checker: errors come from the assembler)
 --   Python: pyright uses the project's .venv when there is one
---   LaTeX: VimTeX's own completion (omnifunc) in blink.cmp - VimTeX stays
---   as configured in vimtex.lua, still no texlab
+--   LaTeX: texlab (completion incl. \cite/\ref keys from the .bib/labels,
+--   diagnostics + chktex on open/save, go to definition/references,
+--   symbols, hover, rename). Build, PDF view and SyncTeX stay VimTeX's
+--   (vimtex.lua) - texlab's own build/forward search are left off, so
+--   there is one compile path. VimTeX's omnifunc is no completion source
+--   any more (texlab covers it; both would list every entry twice).
 -- Ansible vs. YAML: nvim-ansible (lang.ansible) marks Ansible files
 -- (roles/*/tasks, handlers, playbooks/...) as yaml.ansible -> ansiblels
 -- (+ ansible-lint); every other YAML file -> yamlls with SchemaStore.
@@ -22,8 +26,8 @@
 --
 -- Servers and tools come from Mason (installed by the bootstrap, list in
 -- roles/apps/defaults apps_nvim_mason_packages); compilers and toolchains
--- (gcc, JDK, rust + rust-analyzer, nodejs for Mason's npm packages) from
--- pacman.
+-- (gcc, JDK, rust + rust-analyzer, nodejs for Mason's npm packages) and
+-- texlab (official package) from pacman.
 
 return {
   {
@@ -45,6 +49,16 @@ return {
         cssls = {},
         bashls = {},
         asm_lsp = {},
+        texlab = {
+          mason = false, -- pacman's texlab (roles/development), like rust-analyzer
+          settings = {
+            texlab = {
+              -- chktex (TeX Live binextra) lints on open and save, not on
+              -- every keystroke.
+              chktex = { onOpenAndSave = true, onEdit = false },
+            },
+          },
+        },
         pyright = {
           -- A project's own .venv (uv, python -m venv) wins over whatever
           -- Python is on PATH - imports resolve against the project. Found
@@ -66,18 +80,6 @@ return {
               })
             end
           end,
-        },
-      },
-    },
-  },
-
-  {
-    "saghen/blink.cmp",
-    optional = true,
-    opts = {
-      sources = {
-        per_filetype = {
-          tex = { inherit_defaults = true, "omni" },
         },
       },
     },
