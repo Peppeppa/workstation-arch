@@ -2,9 +2,9 @@
 # Entry point: provisions whichever machine this is run on.
 #
 # Runs entirely locally (no SSH, no remote hosts). This project only
-# targets two real machines (laptop, workstation) long-term, but the
+# targets the real machines (x1carbon, laptop, workstation) long-term, but the
 # common roles below apply to any upstream Arch host unconditionally -
-# an unregistered test VM is provisioned exactly like the two real
+# an unregistered test VM is provisioned exactly like the real
 # machines. host_vars/<real hostname>.yml (loaded explicitly below) is
 # entirely optional: an unknown hostname just skips it and gets the
 # common roles with no overrides. See inventory/localhost.yml for why

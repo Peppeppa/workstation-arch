@@ -99,11 +99,12 @@ see "Firewall and SSH". The SSH client works everywhere.
 - working network access (NetworkManager)
 - `git` and `ansible` already installed (`sudo pacman -Syu --needed git
   ansible`) - `bootstrap.sh` checks for both but does not install them
-- for a recovery host (`recovery_enabled`, the laptop): the base layer the
+- for a recovery host (`recovery_enabled`: `laptop`, `x1carbon`): the base layer the
   repository does not create - ESP at `/boot`, LUKS2, Btrfs `@ @home @log
   @pkg`, systemd-boot + UKI `/boot/EFI/Linux/arch-linux.efi` with
   `rootflags=subvol=@`. archinstall's defaults give exactly that; the
-  settings screen by screen: `docs/release/CLEAN_INSTALL_PLAN.md`
+  settings screen by screen: `docs/release/CLEAN_INSTALL_PLAN.md` (T440p),
+  `docs/release/X1_CARBON_INSTALL.md` (X1 Carbon, incl. backup and checks)
 
 ## Quickstart (fresh Arch)
 
@@ -1197,8 +1198,8 @@ responsibility.
 
 ## Host model
 
-Two real target machines, `laptop` and `workstation`, share almost
-everything. `group_vars/all.yml` holds shared defaults; `host_vars/`
+The real target machines - `x1carbon` (the productive laptop), `laptop`
+(the T440p test machine) and `workstation` - share almost everything. `group_vars/all.yml` holds shared defaults; `host_vars/`
 holds only genuine per-host deviations, added when they actually arise
 - not invented ahead of time.
 

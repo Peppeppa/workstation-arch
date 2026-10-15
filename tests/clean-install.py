@@ -5,8 +5,8 @@ read or changed.
 1. Base state the laptop had only from its archinstall choices is owned by
    the roles: zram swap (roles/power), the systemd-boot menu timeout
    (roles/recovery).
-2. docs/release/CLEAN_INSTALL_PLAN.md - the archinstall checklist - asks for
-   exactly what the roles assume: Btrfs @ / @home @log @pkg, LUKS with the
+2. docs/release/CLEAN_INSTALL_PLAN.md (T440p) and X1_CARBON_INSTALL.md - the
+   archinstall checklists - ask for exactly what the roles assume: Btrfs @ / @home @log @pkg, LUKS with the
    busybox encrypt hook, systemd-boot + the UKI path of recovery-lib, a
    hostname with host_vars, a wheel user; and it names no disk serial."""
 import os, re, subprocess, sys
@@ -44,46 +44,64 @@ ok("recovery: loader.conf default arch-linux.efi", loader.get(r"^default\s") == 
 ok("recovery: loader.conf timeout from recovery_boot_menu_timeout > 0",
    loader.get(r"^timeout\s") == "timeout {{ recovery_boot_menu_timeout }}" and int(rec_d.get("recovery_boot_menu_timeout", 0)) > 0)
 
-# 2. the checklist
-plan = load("docs/release/CLEAN_INSTALL_PLAN.md")
-rows = {m.group(1).strip(): m.group(2) for m in re.finditer(r"^\| ([^|]+) \| ([^|]+) \|", plan, re.M)}
-
-
-def row(name, *needles):
-    text = rows.get(name, "")
-    ok("checklist %s: %s" % (name, ", ".join(needles)), text and all(n in text for n in needles))
-
-
-row("Disk configuration -> Partitioning", "best-effort default partition layout", "only", "LITEONIT LCS-256M6S", "btrfs",
-    "default structure?\" **Yes**", "Use compression")
-row("Disk configuration -> Btrfs snapshots", "none")
-row("Disk configuration -> Disk encryption", "**LUKS**", "**btrfs** partition only", "no FIDO2/HSM")
-row("Swap", "**Yes**", "zstd")
-row("Bootloader", "**Systemd-boot**", "Unified kernel images **Enabled**", "Plymouth off")
-row("Kernels", "`linux` only")
-row("Authentication", "`medvidec`", "**superuser: yes**", "Passwordless sudo: **no**")
-row("Profile", "**Minimal**")
-row("Network configuration", "Network Manager (default backend)")
-row("Additional packages", "git", "ansible")
-host = re.search(r"\| Hostname \| `([^`]+)` \|", plan)
-ok("checklist hostname has host_vars", host is not None and os.path.exists(os.path.join(repo, "host_vars", host.group(1) + ".yml")))
-ok("checklist: the Fedora disk only as never select",
-   re.search(r"MicroFrom[^\n]*never select", plan) is not None and "MicroFrom" not in rows.get("Disk configuration -> Partitioning", ""))
-# what archinstall 4.5 produces = what roles/recovery checks (its layout guard)
+# 2. the checklists (T440p; X1 Carbon = the same procedure, its own disk/host)
+main_uki = re.search(r"^MAIN_UKI=(\S+)", load("roles/recovery/templates/recovery-lib.sh.j2"), re.M).group(1)
 guard = next(t for t in rec_t if "ansible.builtin.assert" in t)["ansible.builtin.assert"]["that"]
 ok("recovery guard still wants subvol=/@ + rootflags=subvol=@ + vfat /boot",
    any("'subvol=/@'" in c for c in guard) and any("rootflags=subvol=@" in c for c in guard) and any("'vfat'" in c for c in guard))
-ok("checklist check: cmdline with rootflags=subvol=@ and cryptdevice=PARTUUID",
-   re.search(r"cmdline\s+# cryptdevice=PARTUUID=\S+ root=/dev/mapper/root .*rootflags=subvol=@ ", plan) is not None)
-ok("checklist check: busybox encrypt hook after keymap",
-   re.search(r"keymap consolefont block encrypt filesystems", plan) is not None)
-ok("checklist check: fstab subvolumes @ @home @log @pkg, /boot vfat",
-   all(s in plan for s in ("subvol=/@,", "/@home", "/@log", "/@pkg", "/boot vfat")))
-main_uki = re.search(r"^MAIN_UKI=(\S+)", load("roles/recovery/templates/recovery-lib.sh.j2"), re.M).group(1)
-ok("checklist: UKI = recovery-lib MAIN_UKI (%s)" % main_uki, main_uki in plan and os.path.basename(main_uki) + " only" in plan)
-ok("checklist: fallback UKI removed (only arch-linux.efi is rebuilt by a restore)",
-   "PRESETS=('default')" in plan and "rm -f /boot/EFI/Linux/arch-linux-fallback.efi" in plan)
-ok("checklist: no NOPASSWD", "NOPASSWD" not in plan)
+
+
+def check_plan(path, disk, hostname, never=None):
+    plan = load(path)
+    rows = {m.group(1).strip(): m.group(2) for m in re.finditer(r"^\| ([^|]+) \| ([^|]+) \|", plan, re.M)}
+
+    def row(name, *needles):
+        text = rows.get(name, "")
+        ok("%s %s: %s" % (path, name, ", ".join(needles)), text and all(n in text for n in needles))
+
+    row("Disk configuration -> Partitioning", "best-effort default partition layout", "only", disk, "btrfs",
+        "default structure?\" **Yes**", "Use compression")
+    row("Disk configuration -> Btrfs snapshots", "none")
+    row("Disk configuration -> Disk encryption", "**LUKS**", "**btrfs** partition only", "no FIDO2/HSM")
+    row("Swap", "**Yes**", "zstd")
+    row("Bootloader", "**Systemd-boot**", "Unified kernel images **Enabled**", "Plymouth off")
+    row("Kernels", "`linux` only")
+    row("Authentication", "`medvidec`", "**superuser: yes**", "Passwordless sudo: **no**")
+    row("Profile", "**Minimal**")
+    row("Network configuration", "Network Manager (default backend)")
+    row("Additional packages", "git", "ansible")
+    host = re.search(r"\| Hostname \| `([^`]+)` \|", plan)
+    ok("%s hostname %s with host_vars" % (path, hostname), host is not None and host.group(1) == hostname
+       and os.path.exists(os.path.join(repo, "host_vars", hostname + ".yml")))
+    ok("%s: chroot check names the same hostname" % path, re.search(r"cat /etc/hostname\s+# %s\n" % re.escape(hostname), plan) is not None)
+    if never:
+        ok("%s: %s only as never select" % (path, never),
+           re.search(never + r"[^\n]*never select", plan) is not None and never not in rows.get("Disk configuration -> Partitioning", ""))
+    # what archinstall 4.5 produces = what roles/recovery checks (its layout guard)
+    ok("%s check: cmdline with rootflags=subvol=@ and cryptdevice=PARTUUID" % path,
+       re.search(r"cmdline\s+# cryptdevice=PARTUUID=\S+ root=/dev/mapper/root .*rootflags=subvol=@ ", plan) is not None)
+    ok("%s check: busybox encrypt hook after keymap" % path,
+       re.search(r"keymap consolefont block encrypt filesystems", plan) is not None)
+    ok("%s check: fstab subvolumes @ @home @log @pkg, /boot vfat" % path,
+       all(s in plan for s in ("subvol=/@,", "/@home", "/@log", "/@pkg", "/boot vfat")))
+    ok("%s: UKI = recovery-lib MAIN_UKI (%s)" % (path, main_uki), main_uki in plan and os.path.basename(main_uki) + " only" in plan)
+    ok("%s: fallback UKI removed (only arch-linux.efi is rebuilt by a restore)" % path,
+       "PRESETS=('default')" in plan and "rm -f /boot/EFI/Linux/arch-linux-fallback.efi" in plan)
+    ok("%s: no NOPASSWD" % path, "NOPASSWD" not in plan)
+    ok("%s: clones and runs ./bootstrap.sh" % path,
+       "git clone https://github.com/Peppeppa/workstation-arch.git ~/repos/peppeppa/workstation-arch" in plan and "./bootstrap.sh" in plan)
+    return plan
+
+
+check_plan("docs/release/CLEAN_INSTALL_PLAN.md", "LITEONIT LCS-256M6S", "laptop", never="MicroFrom")
+x1 = check_plan("docs/release/X1_CARBON_INSTALL.md", "nvme0n1", "x1carbon")
+x1_vars = yaml.safe_load(load("host_vars/x1carbon.yml"))
+ok("x1carbon: no SSH server (productive laptop) and the guide skips the SSH key step",
+   x1_vars.get("ssh_server_enabled") is False and "authorized_keys" not in x1)
+warn = x1.find("erases the whole internal NVMe")
+ok("x1carbon: the guide warns that the NVMe is erased - after identifying the disk, right before the archinstall table",
+   x1.find("lsblk -o NAME,SIZE,TRAN,MODEL") < warn < x1.find("| Menu | Setting |") < x1.find("| Disk configuration -> Partitioning"))
+ok("x1carbon: microcode check in the chroot", "pacman -Q intel-ucode" in x1)
 
 # 3. the CLI tools docs/system_architecture.md promises ("Die grafische Shell ist
 # Convenience") come from a package archinstall's base or a role installs - the

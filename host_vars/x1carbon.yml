@@ -1,0 +1,36 @@
+---
+# Host-specific overrides for the ThinkPad X1 Carbon 6th Gen (20KG, i7-8550U,
+# Intel UHD Graphics 620 / Kaby Lake R, Wireless-AC 8265, NVMe) - the user's
+# productive laptop, replacing Omarchy (installed by the user with
+# docs/release/X1_CARBON_INSTALL.md). Hardware as stated by the user from the
+# old system (2026-10-15); not yet measured under this repository. Everything
+# else (printing, Bluetooth, power profiles, lock/idle, ...) comes from
+# group_vars/all.yml unchanged.
+
+# Recovery: the archinstall layout of the install guide (Btrfs-on-LUKS2 @,
+# systemd-boot + UKI) - roles/recovery checks it before it changes anything.
+recovery_enabled: true
+
+# Productive laptop: no SSH server (the T440p `laptop` keeps it as the test
+# machine).
+ssh_server_enabled: false
+
+# Kaby Lake R is Broadwell or newer: VA-API through intel-media-driver (iHD) -
+# roles/graphics/defaults/main.yml.
+graphics_vaapi_packages:
+  - intel-media-driver
+
+# Gaming (opt-in host capability): Mesa's Intel Vulkan driver (anv), 64- and
+# 32-bit; multilib is enabled by local.yml for gaming hosts.
+gaming_enabled: true
+gaming_gpu_vulkan_packages:
+  - vulkan-intel
+  - lib32-vulkan-intel
+
+# THWS student VPN (group_vars fortinet_vpn_enabled).
+fortinet_vpn_enabled: true
+
+# hyprland_monitors: deliberately not set - the default rule (preferred mode,
+# position and scale auto, roles/hyprland) until the panel has been seen on
+# this machine. A runtime scale goes through Appearance -> Display; a lasting
+# per-output default would be added here as for the T440p (host_vars/laptop.yml).

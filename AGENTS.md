@@ -40,10 +40,13 @@ them; do not reinvent problems Linux has already solved. See
 
 ## Target Hosts
 
-Exactly two real, personal machines, used as daily drivers for
-university, work, and personal use:
+Real, personal machines, used as daily drivers for university, work,
+and personal use:
 
-- `laptop`
+- `x1carbon` - ThinkPad X1 Carbon 6th Gen, the productive laptop (since
+  2026-10-15, replacing Omarchy; install guide
+  `docs/release/X1_CARBON_INSTALL.md`)
+- `laptop` - ThinkPad T440p, the physical test machine (SSH server on)
 - `workstation`
 
 Plus any throwaway upstream-Arch test VM (e.g. `arch-dev`) used purely
@@ -1242,6 +1245,13 @@ history for that milestone's own record):
   `knime-install`, gaming on for laptop + workstation. Structurally tested
   (tests, a biblatex/biber build and the npm task's idempotence on the
   laptop in temporary directories); not provisioned on a host yet.
+
+- **X1 Carbon host profile** (2026-10-15): `host_vars/x1carbon.yml`
+  (recovery, no SSH server, `intel-media-driver`, gaming with
+  `vulkan-intel`, THWS VPN, display auto) + `docs/release/X1_CARBON_INSTALL.md`
+  (the T440p's validated archinstall procedure with the X1's disk/host;
+  checked against the roles by `tests/clean-install.py`). Structurally tested
+  only - the owner installs it.
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in
