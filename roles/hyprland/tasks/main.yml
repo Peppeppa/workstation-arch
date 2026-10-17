@@ -96,6 +96,18 @@
     mode: "0755"
   tags: hyprland
 
+# xwayland-scale (one-shot, ~/.local/bin): starts an XWayland app scaled
+# by itself to the focused monitor's scale (conf/appearance.lua.j2:
+# xwayland.force_zero_scaling).
+- name: Deploy xwayland-scale (~/.local/bin/xwayland-scale)
+  ansible.builtin.copy:
+    src: xwayland-scale.sh
+    dest: "{{ ansible_facts.user_dir }}/.local/bin/xwayland-scale"
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: hyprland
+
 # The former terminal cheatsheet (hypr-cheatsheet + ~/.config/hypr/
 # cheatsheet.md, mainMod + F1) - replaced by Quickshell's cheatsheet window.
 - name: Remove the former terminal cheatsheet

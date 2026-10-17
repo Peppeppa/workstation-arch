@@ -253,3 +253,10 @@ ssh_server_enabled: false
 # per host: it builds an AUR package (base-devel). false stops installing/
 # building; installed packages and the profile stay.
 fortinet_vpn_enabled: false
+
+# Bambu Studio (Bambu Lab's 3D-printer slicer, roles/apps): the AUR package
+# bambustudio-bin - Bambu's own AppImage repackaged, no source build - built
+# from a pinned AUR commit with makepkg + pacman -U, like the Fortinet plugin
+# above (documented exception, see roles/apps/defaults). Opt-in per host;
+# false stops installing/building, an installed package stays.
+bambu_studio_enabled: false

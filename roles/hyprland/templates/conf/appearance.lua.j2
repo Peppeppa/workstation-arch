@@ -35,6 +35,16 @@ return function(v)
             shadow = { enabled = false },
             blur   = { enabled = false },
         },
+
+        -- XWayland clients are NOT scaled by Hyprland (2026-10-17, the
+        -- user's choice): at a fractional scale (X1: 1.25) Hyprland could
+        -- only stretch their 1x buffer - blurry text and borders (KNIME,
+        -- measured). Unscaled they are sharp; an app that should still
+        -- appear at the monitor scale starts through xwayland-scale
+        -- (~/.local/bin, files/xwayland-scale.sh: KNIME, MySQL Workbench).
+        -- Hyprland has no per-window variant of this option. Native
+        -- Wayland clients are unaffected; at scale 1 it changes nothing.
+        xwayland = { force_zero_scaling = true },
 {% if lock_idle_enabled or wallpaper_enabled %}
 
         misc = {

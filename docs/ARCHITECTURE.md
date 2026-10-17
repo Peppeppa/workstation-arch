@@ -40,6 +40,9 @@ Quickshell
 
 XWayland sits alongside Wayland as a compatibility layer for X11-only
 applications - it is not the primary display stack, native Wayland is.
+Hyprland leaves XWayland clients unscaled (sharp instead of a stretched 1x
+picture at fractional scales); apps that should follow the display scale
+scale themselves through `xwayland-scale` (README "XWayland apps").
 
 Phase 3 (current) implements Hyprland itself: the compositor, window
 manager, and Wayland session owner. It is started by the Ly TUI login

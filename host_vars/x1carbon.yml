@@ -30,6 +30,10 @@ gaming_gpu_vulkan_packages:
 # THWS student VPN (group_vars fortinet_vpn_enabled).
 fortinet_vpn_enabled: true
 
+# Bambu Studio for the user's Bambu Lab printer (group_vars
+# bambu_studio_enabled, 2026-10-17).
+bambu_studio_enabled: true
+
 # hyprland_monitors: deliberately not set - the default rule (preferred mode,
 # position and scale auto, roles/hyprland) until the panel has been seen on
 # this machine. A runtime scale goes through Appearance -> Display; a lasting

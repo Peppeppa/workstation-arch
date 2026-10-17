@@ -13,10 +13,16 @@
 # ~/.local/opt/knime points to it. Then:
 #   ~/.local/bin/knime                                   start command
 #   ~/.local/share/applications/workstation-knime.desktop  launcher entry
-# Both start KNIME through XWayland (GDK_BACKEND=x11) - the setup that worked
-# on the user's Hyprland before (Omarchy); KNIME's Eclipse/SWT UI is not
-# validated on native Wayland here. `KNIME_GDK_BACKEND=wayland knime` tries
-# native Wayland. Updating = the same command with a newer archive (older
+# Both start KNIME through XWayland (GDK_BACKEND=x11) - KNIME itself warns on
+# native Wayland ("known issues ... GDK_BACKEND=x11"), and there its embedded
+# Chromium UI drew into only part of the window at scale 1.25 (measured on
+# the X1, 2026-10-17). Hyprland leaves XWayland unscaled
+# (xwayland.force_zero_scaling, roles/hyprland), so KNIME scales itself to
+# the focused monitor's scale (`xwayland-scale`): GDK_DPI_SCALE for the
+# SWT/GTK parts, Chromium's device scale factor for the KNIME 5 UI (Equo
+# Chromium's chromium.args, appended to knime.ini's -vmargs) - sharp instead
+# of a stretched 1x picture. `KNIME_GDK_BACKEND=wayland knime` tries native
+# Wayland (unscaled by us). Updating = the same command with a newer archive (older
 # versions stay in ~/.local/opt until removed by hand; the workspace
 # ~/knime-workspace is never touched). Running it again with the same
 # archive changes nothing.
@@ -72,7 +78,13 @@ write_managed() { # path - content on stdin; never overwrites a foreign file
 write_managed "$bin/knime" <<EOF
 #!/bin/bash
 $marker - KNIME through XWayland (see knime-install)
-exec env GDK_BACKEND="\${KNIME_GDK_BACKEND:-x11}" "\$HOME/.local/opt/knime/knime" "\$@"
+backend=\${KNIME_GDK_BACKEND:-x11} scale=1
+if [ "\$backend" = x11 ]; then
+    scale=\$("\$HOME/.local/bin/xwayland-scale" 2>/dev/null) || scale=1
+    [[ \$scale =~ ^[0-9.]+\$ ]] || scale=1
+fi
+exec env GDK_BACKEND="\$backend" GDK_DPI_SCALE="\$scale" "\$HOME/.local/opt/knime/knime" "\$@" \\
+    --launcher.appendVmargs -vmargs "-Dchromium.args=--force-device-scale-factor=\$scale"
 EOF
 [ -x "$bin/knime" ] || ! grep -qF "$marker" "$bin/knime" || chmod 0755 "$bin/knime"
 

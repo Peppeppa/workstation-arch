@@ -126,8 +126,10 @@
   tags: development
 
 # `jupyter lab`, `jupyter notebook`, `streamlit run app.py` from any shell:
-# two tiny wrappers that exec the environment's own commands - no PATH
-# change, no activation, `python` stays the system's (or a project's).
+# tiny wrappers that exec the environment's own commands - no PATH change,
+# no activation, `python` stays the system's (or a project's). `jupyter-lab`
+# too: the user's own launcher-entry script (create_jupyter-lab_desktop.sh,
+# private scripts repository) looks it up with `command -v jupyter-lab`.
 - name: Data science - ~/.local/bin
   ansible.builtin.file:
     path: "{{ ansible_facts.user_dir }}/.local/bin"
@@ -146,5 +148,40 @@
     mode: "0755"
   loop:
     - jupyter
+    - jupyter-lab
     - streamlit
+  tags: development
+
+# MySQL Workbench (GTK 3 on XWayland): Hyprland leaves XWayland unscaled
+# (roles/hyprland xwayland.force_zero_scaling), so the launcher entry starts
+# it through xwayland-scale - drawn by itself at the monitor's scale, sharp.
+# A user entry with the package's id overrides /usr/share/applications'
+# (XDG precedence); same fields, only Exec differs.
+- name: MySQL Workbench - ~/.local/share/applications
+  ansible.builtin.file:
+    path: "{{ ansible_facts.user_dir }}/.local/share/applications"
+    state: directory
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0755"
+  tags: development
+
+- name: MySQL Workbench launcher entry through xwayland-scale
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts.user_dir }}/.local/share/applications/mysql-workbench.desktop"
+    content: |
+      [Desktop Entry]
+      # Managed by Ansible (roles/development) - do not edit.
+      Name=MySQL Workbench
+      Comment=MySQL Database Design, Administration and Development Tool
+      Exec={{ ansible_facts.user_dir }}/.local/bin/xwayland-scale exec mysql-workbench %f
+      Terminal=false
+      Type=Application
+      Icon=mysql-workbench
+      MimeType=application/vnd.mysql-workbench-model;application/sql;
+      Categories=GTK;Database;Development;
+      StartupWMClass=mysql-workbench-bin
+    owner: "{{ ansible_facts.user_id }}"
+    group: "{{ ansible_facts.user_gid }}"
+    mode: "0644"
   tags: development

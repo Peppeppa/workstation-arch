@@ -1003,6 +1003,17 @@ resources outside it go through the library proxy (README). Split tunnel by prof
 route into the tunnel would cut the internet (measured). Disable: no
 packages built/installed any more; plugin + profile stay.
 
+### Bambu Studio (`bambu_studio_enabled`)
+
+Provisioning-only feature (`roles/apps`): the AUR package `bambustudio-bin`
+(Bambu's AppImage repackaged to `/opt/bambustudio-bin`, no source build),
+built from a pinned AUR commit with makepkg as the user and installed with
+`pacman -U`, the same pattern as the Fortinet plugin above - the source
+decision (Flathub would be next, the AUR -bin package is the user's explicit
+choice) is in the role's defaults. Built only when the package is not
+installed at all, so a newer version from yay is never downgraded. On for
+`x1carbon`. Disable: nothing built/installed any more; the package stays.
+
 ### eduroam (CAT)
 
 The institution's official GÉANT CAT Linux installer (THWS:

@@ -30,8 +30,15 @@ mkarchive() {
 mkarchive 5.12.0 knime_5.12.0.linux.gtk.x86_64.tar.gz
 "$script" "$tmp/knime_5.12.0.linux.gtk.x86_64.tar.gz" >/dev/null || bad "install failed"
 [ "$(readlink "$HOME/.local/opt/knime")" = knime_5.12.0 ] || bad "symlink"
-[ "$("$HOME/.local/bin/knime" x)" = "knime 5.12.0 x" ] || bad "wrapper runs the launcher"
-grep -q 'GDK_BACKEND="${KNIME_GDK_BACKEND:-x11}"' "$HOME/.local/bin/knime" || bad "wrapper XWayland default"
+# No xwayland-scale in the temporary HOME -> scale 1, appended to the vmargs.
+[ "$("$HOME/.local/bin/knime" x)" = "knime 5.12.0 x --launcher.appendVmargs -vmargs -Dchromium.args=--force-device-scale-factor=1" ] \
+    || bad "wrapper runs the launcher"
+grep -q 'backend=${KNIME_GDK_BACKEND:-x11}' "$HOME/.local/bin/knime" || bad "wrapper XWayland default"
+mkdir -p "$HOME/.local/bin"
+printf '#!/bin/sh\necho 1.25\n' >"$HOME/.local/bin/xwayland-scale"; chmod +x "$HOME/.local/bin/xwayland-scale"
+[ "$("$HOME/.local/bin/knime")" = "knime 5.12.0 --launcher.appendVmargs -vmargs -Dchromium.args=--force-device-scale-factor=1.25" ] \
+    || bad "wrapper passes the monitor scale"
+rm "$HOME/.local/bin/xwayland-scale"
 desktop=$HOME/.local/share/applications/workstation-knime.desktop
 grep -qx "Exec=$HOME/.local/bin/knime" "$desktop" || bad "desktop Exec"
 grep -qx "Icon=$HOME/.local/opt/knime/icon.xpm" "$desktop" || bad "desktop Icon"

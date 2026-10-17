@@ -318,3 +318,36 @@ apps_nvim_mason_packages:
   - lua-language-server
   - stylua
   - asm-lsp
+
+# FEATURE: bambu_studio (group_vars bambu_studio_enabled) - Bambu Studio,
+# the slicer for Bambu Lab 3D printers. Source decision (2026-10-17):
+#  1. official repositories: no package.
+#  2. upstream: an AppImage per release on GitHub - no repository to update
+#     from, so not managed here directly.
+#  3. Flathub: com.bambulab.BambuStudio exists (GNOME runtime, ~1 GiB) - the
+#     policy's next step, NOT used by the user's explicit choice of the AUR
+#     -bin package (2026-10-17).
+#  4. AUR (documented exception, the user's choice): bambustudio-bin - its
+#     PKGBUILD (reviewed at the pinned commit) downloads Bambu's own
+#     AppImage from github.com/bambulab/BambuStudio/releases, checks its
+#     sha256, extracts it to /opt/bambustudio-bin and patches four library
+#     names (patchelf) to Arch's webkit2gtk-4.1/libsoup3 - no source build.
+#     Built from that PINNED commit with makepkg as the user + pacman -U (no
+#     AUR helper), like networkmanager-fortisslvpn (roles/network). Not
+#     updated by pacman -Syu: bump commit + version here deliberately (or
+#     the user updates it at runtime with yay - the pin then only keeps a
+#     newer one, it never downgrades: the check is "installed at all").
+bambu_studio_build_packages:
+  - base-devel        # makepkg's toolchain
+  - git
+  - fuse2             # makedepends (AppImage runtime)
+  - patchelf          # makedepends
+  # depends that are not otherwise installed: makepkg checks them before it
+  # builds (measured on the X1 - it stopped with "Missing dependencies").
+  - openvdb
+  - gst-libav
+bambu_studio_aur:
+  name: bambustudio-bin
+  repo: https://aur.archlinux.org/bambustudio-bin.git
+  commit: b41bd5f1b50a2de008fb4def564419dabd1389e9   # Update to v02.08.02.61 (2026-09-22)
+  version: 02.08.02.61-1

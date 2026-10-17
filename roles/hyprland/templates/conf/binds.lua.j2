@@ -26,11 +26,11 @@ return function(v)
     -- running window, else start it (one-shot helper, roles/hyprland
     -- files/focus-or-launch.sh).
     hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(focusOrLaunch .. " '^Bitwarden$' bitwarden-desktop"))
-    -- Chromium, the browser (re-added 2026-10-10): focus its open browser
-    -- window (class exactly "chromium" - web apps have their own
-    -- chrome-<site> classes and are not matched), else start it - the same
-    -- package, profile and managed policy as from the launcher.
-    hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(focusOrLaunch .. " '^chromium$' chromium"))
+    -- Chromium, the browser: a NEW browser window every time (2026-10-17,
+    -- the user's wish - focus-or-launch only raised the open one). With
+    -- Chromium running, --new-window hands over to that process (same
+    -- profile, session and managed policy); otherwise it starts it.
+    hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("chromium --new-window"))
     hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(focusOrLaunch .. " '^chrome-web\\.whatsapp\\.com__' chromium --app=https://web.whatsapp.com/"))
     hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(focusOrLaunch .. " '^org\\.localsend\\.localsend_app$' flatpak run org.localsend.localsend_app"))
 

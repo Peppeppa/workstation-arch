@@ -123,6 +123,65 @@
     state: present
   tags: apps
 
+# FEATURE: bambu_studio (see defaults for the source decision). Built only
+# when the package is not installed at all - a newer version the user
+# installed with yay is kept, never downgraded to the pin.
+- name: Install Bambu Studio's build dependencies (bambu_studio_enabled)
+  when: bambu_studio_enabled
+  become: true
+  community.general.pacman:
+    name: "{{ bambu_studio_build_packages }}"
+    state: present
+  tags: apps
+
+- name: Installed Bambu Studio (bambu_studio_enabled)
+  when: bambu_studio_enabled
+  ansible.builtin.command:
+    cmd: pacman -Q {{ bambu_studio_aur.name }}
+  register: apps_bambu_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: apps
+
+- name: Build and install the pinned AUR package (bambu_studio_enabled)
+  when: bambu_studio_enabled and apps_bambu_installed.rc != 0
+  block:
+    - name: Fetch the AUR repository at the pinned commit
+      ansible.builtin.git:
+        repo: "{{ bambu_studio_aur.repo }}"
+        version: "{{ bambu_studio_aur.commit }}"
+        dest: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ bambu_studio_aur.name }}"
+        force: true
+      tags: apps
+
+    - name: Build the package with makepkg (as the user)
+      ansible.builtin.command:
+        cmd: makepkg --cleanbuild --force --noconfirm --noprogressbar
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ bambu_studio_aur.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ bambu_studio_aur.name }}"
+      tags: apps
+
+    - name: The built package file
+      ansible.builtin.command:
+        cmd: makepkg --packagelist
+        chdir: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ bambu_studio_aur.name }}"
+      environment:
+        PKGDEST: "{{ ansible_facts.user_dir }}/.cache/workstation/aur/{{ bambu_studio_aur.name }}"
+      register: apps_bambu_pkg
+      changed_when: false
+      tags: apps
+
+    # pacman -U pulls the runtime dependencies (openvdb, gst-libav, ...)
+    # from the official repositories.
+    - name: Install the built package
+      become: true
+      community.general.pacman:
+        name: "{{ apps_bambu_pkg.stdout_lines | select('search', '/' ~ bambu_studio_aur.name ~ '-' ~ bambu_studio_aur.version ~ '-') | first }}"
+        state: present
+      tags: apps
+
 # Web apps (defaults/main.yml apps_webapps): one launcher entry each,
 # user level. Ensure-present like the package lists - an entry removed
 # from the list is not deleted.

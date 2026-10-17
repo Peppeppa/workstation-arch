@@ -39,7 +39,13 @@ FocusScope {
         if (results.length === 0) return;
         const entry = results[Math.min(selectedIndex, results.length - 1)];
         page.menu.close();
-        entry.execute();
+        // DesktopEntry.execute() ignores Terminal=true (Quickshell 0.3):
+        // such an entry (e.g. the user's JupyterLab one) gets the terminal
+        // like the menu's own terminal leaves; field codes (%f, %U) dropped.
+        if (entry.runInTerminal)
+            page.menu.runInTerminal(Array.from(entry.command).filter(a => !/^%[a-zA-Z]$/.test(a)));
+        else
+            entry.execute();
     }
 
     implicitHeight: header.implicitHeight + 2 * Style.spacingMd + Style.comfortableRowHeight + apps.maxResults * rowHeight

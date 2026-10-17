@@ -134,6 +134,7 @@ direct upstream dependency.
 | Clipboard history watcher | `wl-paste --type text --watch cliphist store` (session lifecycle, started once by Hyprland; feature `clipboard_history`) |
 | Bar layout (widget order/zones) + bar settings (background solid/transparent) | user runtime state `~/.config/workstation/bar-layout.json`, written only by the bar (drag & drop / `qs ipc call bar resetLayout` / `qs ipc call bar setBackground`); Ansible creates it once if missing |
 | File manager (`org.freedesktop.FileManager1`, `inode/directory`) | Nautilus (`roles/apps`; D-Bus-activated, it activates localsearch on demand) - Thunar retired and uninstalled (its own FileManager1 activation file would compete) |
+| XWayland app scaling | Hyprland leaves XWayland clients unscaled (`xwayland.force_zero_scaling`, `roles/hyprland` `appearance.lua`, the user's choice 2026-10-17 - no per-window variant exists); an app that should follow the display scale starts through `~/.local/bin/xwayland-scale exec` (GDK_DPI_SCALE = focused monitor's scale, read once at start): KNIME (`knime-install` wrapper, + the embedded Chromium's scale factor) and MySQL Workbench (user launcher entry, `roles/development`) |
 | Wallpaper | Quickshell background-layer surface (`Wallpaper.qml`, feature `wallpaper`); Hyprland's own default wallpaper off - no separate wallpaper daemon |
 | Wi-Fi QR helper | `wifi-qr`, one-shot child of Quickshell, only when the user asks for a QR code (feature `connectivity`) |
 | Captive portal login page | detection = NetworkManager's connectivity check; `PortalWatcher.qml` (Quickshell, on NM's `portal` once per portal) and the popup's Log in start `portal-login` (`~/.local/libexec/workstation/`): a Chromium window of its own profile, gone when closed (feature `connectivity`) |
@@ -416,7 +417,9 @@ real endpoint and keys, which are secrets and belong only in the
 separate private-config repository. **Uni-VPN resolved (2026-10-07)**:
 THWS = FortiGate SSL-VPN (`vpn.thws.de`, K-number + password). Feature
 `fortinet_vpn_enabled` (laptop, workstation): openfortivpn (official) +
-`networkmanager-fortisslvpn` - the ONE AUR package, built from a pinned,
+`networkmanager-fortisslvpn` - an AUR package (with `bambustudio-bin`,
+feature `bambu_studio`, the user's explicit choice 2026-10-17, the only
+ones in the baseline), built from a pinned,
 reviewed AUR commit with makepkg + pacman -U (not through yay). Chosen over
 the official openconnect NM plugin because that one needs a secret agent
 for its per-connect auth dialog (none here), so the network popup's
@@ -1252,6 +1255,21 @@ history for that milestone's own record):
   (the T440p's validated archinstall procedure with the X1's disk/host;
   checked against the roles by `tests/clean-install.py`). Structurally tested
   only - the owner installs it.
+
+- **X1 desktop + data science fixes** (x1carbon, 2026-10-17, explicitly
+  requested; applied on the X1 by hand with the files Ansible renders - no
+  bootstrap run): Super+B = `chromium --new-window` (was focus-or-launch);
+  `jupyter-lab` wrapper (the user's `create_jupyter-lab_desktop.sh` needs it)
+  + OS menu runs `Terminal=true` entries in Ghostty (Quickshell's execute()
+  ignores it); Hyprland `xwayland.force_zero_scaling` + `xwayland-scale`
+  for KNIME (GDK_DPI_SCALE + Equo Chromium scale factor via
+  `--launcher.appendVmargs`) and MySQL Workbench - KNIME was blurry at scale
+  1.25, native Wayland is broken for it (measured); feature `bambu_studio`
+  (pinned AUR `bambustudio-bin`, on for x1carbon). Real-hardware-tested on
+  the X1: new Chromium window per call, JupyterLab server + kernel + all
+  course imports, KNIME sharp at 1.25 (screenshots), Workbench start,
+  Bambu Studio build (sha256 passed) + install + start. Not run: an Ansible
+  pass of these roles (structurally tested only).
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

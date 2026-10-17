@@ -1070,7 +1070,7 @@ GPU
 
 Native Wayland-Anwendungen werden bevorzugt.
 
-XWayland bleibt als Compatibility Layer für Anwendungen verfügbar, die Wayland nicht nativ unterstützen.
+XWayland bleibt als Compatibility Layer für Anwendungen verfügbar, die Wayland nicht nativ unterstützen. Hyprland skaliert XWayland-Fenster nicht selbst (`xwayland.force_zero_scaling`, sonst bei gebrochener Skalierung unscharf); Anwendungen, die der Display-Skalierung folgen sollen, skalieren sich über `xwayland-scale` selbst (README "XWayland apps").
 
 ---
 

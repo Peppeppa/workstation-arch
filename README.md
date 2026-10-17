@@ -303,7 +303,7 @@ system locale set by `base` - see `AGENTS.md`), and binds:
 | `Super + Space` | OS menu - just type to search apps and menu entries (Appearance, Network, Firewall, System, ...), Enter runs the best match; Up/Down or Ctrl+J/Ctrl+K move; Escape clears the search, then closes |
 | `Super + Return` | terminal (Ghostty) |
 | `Super + A` | night light on/off (the bar's Day/Night icon - same toggle) |
-| `Super + B` | Chromium (focus the open browser window, else start it) |
+| `Super + B` | Chromium - a new browser window each time (starts Chromium if needed) |
 | `Super + D` / `Super + F` | Bitwarden (focus if already open) / Nautilus |
 | `Super + E` | timer popup on/off (a running timer keeps running) |
 | `Super + G` / `Super + R` | WhatsApp / LocalSend (focus if already open) |
@@ -667,10 +667,28 @@ streamlit run app.py           # Streamlit app (pydeck maps work inside it)
 ~/.local/share/venvs/data-science/bin/python   # the environment's Python, e.g. for scripts
 ```
 
-`jupyter` and `streamlit` are two small wrappers in `~/.local/bin` - the
+`jupyter`, `jupyter-lab` and `streamlit` are small wrappers in `~/.local/bin` - the
 environment is never activated globally: `python`/`pip` stay the system's,
 and an activated project venv with its own Jupyter wins. The system Python
 belongs to pacman: no `pip install` into it, no `--break-system-packages`.
+A launcher entry for JupyterLab is yours (e.g. the course script
+`create_jupyter-lab_desktop.sh`, which writes
+`~/.local/share/applications/jupyter-lab.desktop` with `Terminal=true`): the
+OS menu opens such an entry in Ghostty, so the server stops with Ctrl+C or
+by closing that terminal.
+
+MySQL from Python (e.g. the course container on `127.0.0.1:3306`) - the
+password is asked for, never written into a notebook or this repository:
+
+```python
+import getpass, pandas as pd
+from sqlalchemy import create_engine, URL
+url = URL.create("mysql+mysqlconnector", username="sqladmin",
+                 password=getpass.getpass("MySQL password: "),
+                 host="127.0.0.1", port=3306, database="Adventureworks2019")
+engine = create_engine(url)
+pd.read_sql("SELECT COUNT(*) FROM Sales_SalesOrderHeader", engine)
+```
 
 Own projects get their **own** environment (uv, `roles/development`):
 
@@ -797,7 +815,9 @@ session with `bw unlock`; update with `npm install -g @bitwarden/cli@latest`.
 In the launcher (`mysql-workbench`, `roles/development`). A client only -
 no database server is installed: connect to a server elsewhere (course
 server, a Docker container, an SSH tunnel to `127.0.0.1:3306`). Saved
-connection passwords go to the keyring (gnome-keyring).
+connection passwords go to the keyring (gnome-keyring). Workbench runs on
+XWayland; its launcher entry starts it through `xwayland-scale` (see
+"XWayland apps" below) so it is drawn sharp at the display scale.
 
 ## KNIME
 
@@ -812,11 +832,45 @@ installed from KNIME's own archive - downloaded by you, then:
 It extracts to `~/.local/opt/knime_<version>` (`~/.local/opt/knime` points
 to the current one; KNIME brings its own Java) and creates the command
 `knime` and a launcher entry. Both start KNIME through XWayland
-(`GDK_BACKEND=x11`, as on the previous Hyprland setup); `KNIME_GDK_BACKEND=wayland knime`
-tries native Wayland. A newer version: the same command with the new
+(`GDK_BACKEND=x11` - KNIME warns on native Wayland, and there its main view
+fills only part of the window at a fractional scale) and let KNIME draw
+itself at the display scale (`xwayland-scale`: `GDK_DPI_SCALE` + the
+embedded Chromium's scale factor, appended to `knime.ini`'s VM arguments -
+`knime.ini` itself is not changed), so text and icons are sharp.
+`KNIME_GDK_BACKEND=wayland knime` tries native Wayland. KNIME brings
+MySQL's JDBC driver (Connector/J) with its MySQL Connector node - nothing
+to add for the course database. A newer version: the same command with the new
 archive; the old directory stays until you delete it, the workspace
 (`~/knime-workspace`) is never touched. The bootstrap only installs the
 `knime-install` command - it never downloads or installs KNIME.
+
+## XWayland apps
+
+Hyprland draws X11 apps (XWayland) **unscaled** (`xwayland.force_zero_scaling`,
+`roles/hyprland`): at a fractional display scale (1.25 on the X1 Carbon) it
+could only stretch their picture, which made them blurry. Unscaled they are
+sharp but at 100 % size. Apps that should follow the display scale start
+through
+
+```sh
+xwayland-scale                          # prints the focused monitor's scale
+xwayland-scale exec <command> [args]    # GTK app on XWayland, scaled by itself
+```
+
+KNIME and MySQL Workbench already do. The scale is read when the app starts
+(after changing it in Appearance, restart the app). Native Wayland apps are
+not affected; at scale 1 nothing changes.
+
+## Bambu Studio
+
+Feature `bambu_studio_enabled` (on for `x1carbon`): Bambu Lab's slicer from
+the AUR package `bambustudio-bin` - Bambu's own AppImage, extracted to
+`/opt/bambustudio-bin`, no source build - built once from a pinned AUR
+commit (`roles/apps`) with makepkg and installed with `pacman -U`. Start:
+`bambu-studio` or Applications -> BambuStudio. Updates do not come with
+`pacman -Syu`; update it like any AUR package from OS menu -> Packages
+(yay), or bump the pin in `roles/apps/defaults/main.yml`. (Flathub's
+`com.bambulab.BambuStudio` would be the alternative.)
 
 ## Printing
 
@@ -1009,8 +1063,9 @@ While a VPN is up the bar's network icon is in the accent color and the
 popup shows "via VPN" top right.
 
 Your credentials stay in NetworkManager's root-only system profile -
-never in this repository. The plugin (`networkmanager-fortisslvpn`) is the
-one AUR package here, built from a pinned commit (`roles/network`).
+never in this repository. The plugin (`networkmanager-fortisslvpn`) is
+built from a pinned AUR commit (`roles/network`) - like Bambu Studio, the
+only AUR packages of the baseline.
 
 ## Themes from repositories
 
