@@ -1269,7 +1269,10 @@ history for that milestone's own record):
   the X1: new Chromium window per call, JupyterLab server + kernel + all
   course imports, KNIME sharp at 1.25 (screenshots), Workbench start,
   Bambu Studio build (sha256 passed) + install + start. Not run: an Ansible
-  pass of these roles (structurally tested only).
+  pass of these roles (structurally tested only). Same day: DBeaver
+  Community (`dbeaver`, official extra, roles/development next to
+  Workbench) - installed on the X1 with pacman -S --needed, starts (native
+  Wayland).
 
 **FEATURE FREEZE**: no new functional features. Next is RICE v1 (visual
 polish only); real-hardware validation of the items listed in

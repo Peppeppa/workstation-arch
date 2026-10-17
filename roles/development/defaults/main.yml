@@ -82,6 +82,11 @@ development_packages:
   # databases that run elsewhere (container, course server) - no server
   # package, like mariadb-clients above.
   - mysql-workbench
+  # DBeaver Community (official extra, 2026-10-17): universal SQL client
+  # (MySQL/MariaDB, PostgreSQL, SQLite, ... - JDBC drivers fetched by
+  # DBeaver itself on first use of a connection type). Next to Workbench,
+  # not instead of it. Runs on the system JDK 25 (java-runtime>=21).
+  - dbeaver
 
   # OpenAI Codex CLI (`codex`, official extra - updated by pacman with the
   # system). Login is interactive at first start (`codex`); nothing of it

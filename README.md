@@ -819,6 +819,12 @@ connection passwords go to the keyring (gnome-keyring). Workbench runs on
 XWayland; its launcher entry starts it through `xwayland-scale` (see
 "XWayland apps" below) so it is drawn sharp at the display scale.
 
+DBeaver Community (`dbeaver`, official package, `roles/development`) is the
+second SQL client in the launcher: one tool for MySQL/MariaDB, PostgreSQL,
+SQLite and more. It downloads the JDBC driver for a database type itself
+the first time you connect (asks first); passwords can be saved in its own
+secure storage or left to be asked each time.
+
 ## KNIME
 
 KNIME Analytics Platform has no Arch package and no Flathub app, so it is
